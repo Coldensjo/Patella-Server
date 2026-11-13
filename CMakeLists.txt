@@ -14,3 +14,4 @@ add_compile_options(-Wall -Wextra)
 enable_testing()
 
 add_subdirectory(querymanager)
+add_subdirectory(src)
