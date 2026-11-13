@@ -20,10 +20,12 @@ extern int NumberOfQueryManagers;
 extern TQueryManagerSettings QUERY_MANAGER[10];
 
 struct TQueryManagerConnection {
-	TQueryManagerConnection(int QueryBufferSize);
+	// The default is what TQueryManagerConnectionPool::init passes to every
+	// element of its new[] (0x4000); default arguments are not in the DWARF.
+	TQueryManagerConnection(int QueryBufferSize = 16384);
 	~TQueryManagerConnection();
 	// inline  query.h:32
-	bool isConnected() { abort(); /* STUB */ }
+	bool isConnected() { return Socket >= 0; }
 	int checkAccountPassword(uint32_t AccountID, char *Password, char *IPAddress);
 	int loginAdmin(uint32_t AccountID, bool PrivateWorld, int &NumberOfCharacters, char (*Characters)[30], char (*Worlds)[30], unsigned char (*IPAddresses)[4], unsigned short *Ports, unsigned short &PremiumDaysLeft);
 	int loadWorldConfig(int &WorldType, int &RebootTime, int *IPAddress, int &Port, int &MaxPlayers, int &PremiumPlayerBuffer, int &MaxNewbies, int &PremiumNewbieBuffer);
@@ -121,7 +123,7 @@ struct TQueryManagerPoolConnection {
 	TQueryManagerPoolConnection(TQueryManagerConnectionPool *Pool);
 	~TQueryManagerPoolConnection();
 	// inline  query.h:138
-	TQueryManagerConnection *operator->() { abort(); /* STUB */ }
+	TQueryManagerConnection *operator->() { return QueryManagerConnection; }
 private:
 	TQueryManagerConnectionPool *QueryManagerConnectionPool;
 	TQueryManagerConnection *QueryManagerConnection;
