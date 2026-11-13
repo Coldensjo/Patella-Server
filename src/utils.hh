@@ -39,9 +39,9 @@ struct TReadBuffer : public TReadStream {
 	virtual bool eof();
 	virtual void skip(int Count);
 	// inline  utils.h:76
-	void rewind() { abort(); /* STUB */ }
+	void rewind() { Position = 0; }
 	// inline  utils.h:77
-	void resize(int /*size*/) { abort(); /* STUB */ }
+	void resize(int size) { Size = size; }
 	int getPosition();
 private:
 	unsigned char *Data;
@@ -56,9 +56,9 @@ struct TWriteBuffer : public TWriteStream {
 	virtual void writeQuad(uint32_t q);
 	virtual void writeBytes(unsigned char *Buffer, int Count);
 	// inline  utils.h:92
-	int getDataSize() { abort(); /* STUB */ }
+	int getDataSize() { return Position; }
 	// inline  utils.h:93
-	void rewind() { abort(); /* STUB */ }
+	void rewind() { Position = 0; }
 protected:
 	unsigned char *Data;
 	int Size;
@@ -78,11 +78,7 @@ private:
 };
 
 // inline  utils.h:118
-inline bool in(int /*x*/, int /*min*/, int /*max*/) { abort(); /* STUB */ }
-
-// 0x080721b0  utils.h:132  (RandomShuffle<int>)
-template<class T>
-void RandomShuffle(T * /*Buffer*/, int /*Size*/) { abort(); /* STUB */ }
+inline bool in(int x, int min, int max) { return x >= min && x <= max; }
 
 void SetPrintFunction(TPrintFunction *Function);
 void SetErrorFunction(TErrorFunction *Function);
@@ -106,5 +102,24 @@ void UnpackRelativeCoordinate(uint32_t Code, int &dx, int &dy, int &dz);
 extern TPrintFunction *PrintFunction;
 extern TErrorFunction *ErrorFunction;
 extern char StandardLogfile[4096];
+
+// 0x080721b0  utils.h:132  (RandomShuffle<int>)
+// Defined below the prototypes it uses; the original header declares them first.
+template<class T>
+void RandomShuffle(T *Buffer, int Size) {
+	if (Buffer == nullptr) {
+		error("RandomShuffle: Buffer ist NULL.\n");
+		return;
+	}
+
+	for (int Position = 0; Position < Size - 1; Position++) {
+		int Exchange = random(Position, Size - 1);
+		if (Exchange != Position) {
+			T Help = Buffer[Position];
+			Buffer[Position] = Buffer[Exchange];
+			Buffer[Exchange] = Help;
+		}
+	}
+}
 
 #endif
