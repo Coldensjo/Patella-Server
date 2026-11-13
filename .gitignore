@@ -6,3 +6,17 @@ save/*
 
 # REA / analysis scratch output
 rea-out/
+
+# Documentation stays local; commit messages carry the explanation
+*.md
+*.markdown
+*.rst
+*.adoc
+*.txt
+!CMakeLists.txt
+*.pdf
+*.doc
+*.docx
+doc/
+docs/
+notes/
