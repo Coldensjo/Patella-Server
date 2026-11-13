@@ -1,10 +1,15 @@
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
 
 #include "config.hh"
 #include "script.hh"
 #include "objects.hh"
 #include "containr.hh"
+#include "mudinc.hh"
+#include "strings.hh"
 #include "utils.hh"
 
 struct TObjectType {
@@ -179,55 +184,337 @@ unsigned char OldNumber[8192];	// objects.c:183
 int NewType[65536];	// objects.c:184
 
 // 0x08054d10  objects.c:91
-int GetFlagByName(char * /*Name*/) { abort(); /* STUB */ }
+int GetFlagByName(char *Name) {
+	for (int i = 0; i < FLAGS; i++) {
+		if (stricmp(FlagNames[i], Name, -1) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
 
 // 0x08054d70  objects.c:101
-int GetTypeAttributeByName(char * /*Name*/) { abort(); /* STUB */ }
+int GetTypeAttributeByName(char *Name) {
+	for (int i = 0; i < TYPEATTRIBUTES; i++) {
+		if (stricmp(TypeAttributeNames[i], Name, -1) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
 
 // 0x08054dd0  objects.c:112
-void LoadObjects() { abort(); /* STUB */ }
+void LoadObjects() {
+	char FileName[4096];
+	sprintf(FileName, "%s/objects.srv", DATAPATH);
+
+	TReadScriptFile Script;
+	Script.open(FileName);
+
+	int TypeID = -1;
+	while (true) {
+		Script.nextToken();
+		if (Script.Token == ENDOFFILE) {
+			break;
+		}
+
+		if (Script.Token != IDENTIFIER) {
+			Script.error("Identifier expected");
+		}
+
+		char Ident[30];
+		strcpy(Ident, Script.getIdentifier());
+		Script.readSymbol('=');
+
+		if (strcmp(Ident, "typeid") == 0) {
+			TypeID = Script.readNumber();
+			ObjectTypes(TypeID).Name = nullptr;
+			ObjectTypes(TypeID).Description = nullptr;
+			memset(ObjectTypes(TypeID).Flags, 0, sizeof(ObjectTypes(TypeID).Flags));
+			for (int i = 0; i < TYPEATTRIBUTES; i++) {
+				ObjectTypes(TypeID).Attributes[i] = 0;
+			}
+			for (int i = 0; i < INSTANCEATTRIBUTES; i++) {
+				ObjectTypes(TypeID).AttributeOffsets[i] = -1;
+			}
+		}
+
+		if (TypeID < 0) {
+			Script.error("Invalid type id");
+		}
+
+		if (strcmp(Ident, "name") == 0) {
+			ObjectTypes(TypeID).Name = AddStaticString(Script.readString());
+		}
+
+		if (strcmp(Ident, "description") == 0) {
+			ObjectTypes(TypeID).Description = AddStaticString(Script.readString());
+		}
+
+		if (strcmp(Ident, "flags") == 0) {
+			Script.readSymbol('{');
+			while (true) {
+				Script.nextToken();
+				if (Script.Token == SPECIAL && Script.getSpecial() == '}') {
+					break;
+				}
+				if (Script.Token == SPECIAL && Script.getSpecial() == ',') {
+					continue;
+				}
+
+				int Flag = GetFlagByName(Script.getIdentifier());
+				if (Flag == -1) {
+					Script.error("Unknown flag");
+				}
+				ObjectTypes(TypeID).Flags[Flag / 8] |= 1 << (Flag % 8);
+			}
+
+			for (int Offset = 0, i = 0; i < INSTANCEATTRIBUTES; i++) {
+				if (ObjectType(TypeID).getFlag(InstanceAttributeFlags[i])
+						|| (i == CONTENT && ObjectType(TypeID).getFlag(CHEST))) {
+					ObjectTypes(TypeID).AttributeOffsets[i] = Offset;
+					Offset++;
+				}
+			}
+		}
+
+		if (strcmp(Ident, "attributes") == 0) {
+			Script.readSymbol('{');
+			while (true) {
+				Script.nextToken();
+				if (Script.Token == SPECIAL && Script.getSpecial() == '}') {
+					break;
+				}
+				if (Script.Token == SPECIAL && Script.getSpecial() == ',') {
+					continue;
+				}
+
+				int Attribute = GetTypeAttributeByName(Script.getIdentifier());
+				if (Attribute == -1) {
+					Script.error("Unknown attribute");
+				}
+				Script.readSymbol('=');
+				ObjectTypes(TypeID).Attributes[Attribute] = Script.readNumber();
+
+				if (Attribute == MEANING) {
+					int Meaning = ObjectTypes(TypeID).Attributes[MEANING];
+					// The original accepts 49 here and in GetSpecialObject,
+					// one past the last element of SpecialObjects.
+					if (!in(Meaning, 1, SPECIALMEANINGS)) {
+						Script.error("Unknown meaning");
+					}
+					if (SpecialObjects[Meaning] != ObjectType(0)) {
+						Script.error("Special object already defined");
+					}
+					SpecialObjects[Meaning] = ObjectType(TypeID);
+				}
+			}
+		}
+	}
+
+	Script.close();
+}
 
 // 0x08055650  objects.c:190
-void LoadConversionList() { abort(); /* STUB */ }
+void LoadConversionList() {
+	std::ifstream IN;
+	char FileName[4096];
+	int Group, Number, Type;
+
+	for (int i = 0; i < 8192; i++) {
+		OldGroup[i] = 0;
+		OldNumber[i] = 0;
+	}
+	for (int i = 0; i < 65536; i++) {
+		NewType[i] = -1;
+	}
+
+	sprintf(FileName, "%s/conversion.lst", DATAPATH);
+	IN.open(FileName, std::ios::in);
+	if (IN.fail()) {
+		// The original passes no argument for %s.
+		error("LoadConversionList: Kann Datei %s nicht \xf6" "ffnen.\n");
+		throw "Cannot open conversion.lst";
+	}
+
+	while (true) {
+		IN >> Group;
+		if (IN.eof()) {
+			break;
+		}
+		IN >> Number >> Type;
+
+		if (Type < 1 || Type > 8191) {
+			error("LoadConversionList: Ung\xfcltiger Typ %d.\n", Type);
+			throw "Error while loading conversion.lst";
+		}
+
+		OldGroup[Type] = static_cast<unsigned char>(Group);
+		OldNumber[Type] = static_cast<unsigned char>(Number);
+		NewType[Group * 256 + Number] = Type;
+	}
+
+	IN.close();
+
+	for (int i = 0; i <= 10; i++) {
+		OldGroup[i] = 0;
+		OldNumber[i] = static_cast<unsigned char>(i);
+		NewType[i] = i;
+	}
+
+	OldGroup[99] = 250;
+	OldNumber[99] = 0;
+	NewType[250 * 256 + 0] = 99;
+}
 
 // 0x08055a40  objects.c:231
-ObjectType GetNewObjectType(unsigned char /*Group*/, unsigned char /*Number*/) { abort(); /* STUB */ }
+ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
+	int Type = NewType[Group * 256 + Number];
+	if (Type == -1) {
+		error("GetNewObjectType: Objekttyp %d/%d existiert nicht.\n", Group, Number);
+		return ObjectType(0);
+	}
+	return ObjectType(Type);
+}
 
 // 0x08055b00  objects.c:244
-void GetOldObjectType(ObjectType /*Type*/, unsigned char & /*Group*/, unsigned char & /*Number*/) { abort(); /* STUB */ }
+void GetOldObjectType(ObjectType Type, unsigned char &Group, unsigned char &Number) {
+	if (!in(Type.getTypeID(), ObjectTypes.low(), ObjectTypes.high())) {
+		error("GetOldObjectType: Ung\xfcltiger Typ %d.\n", Type.getTypeID());
+		return;
+	}
+
+	Group = OldGroup[Type.getTypeID()];
+	Number = OldNumber[Type.getTypeID()];
+}
 
 // 0x08055b80  objects.c:257
-bool ObjectTypeExists(unsigned char /*Group*/, unsigned char /*Number*/) { abort(); /* STUB */ }
+bool ObjectTypeExists(unsigned char Group, unsigned char Number) {
+	return NewType[Group * 256 + Number] >= 0;
+}
 
 // 0x08055ba0  objects.c:270
-void ObjectType::setTypeID(int /*_TypeID*/) { abort(); /* STUB */ }
+void ObjectType::setTypeID(int _TypeID) {
+	if (!in(_TypeID, ObjectTypes.low(), ObjectTypes.high())) {
+		error("ObjectType::setTypeID: Ung\xfcltiger Typ %d.\n", _TypeID);
+		_TypeID = 0;
+	}
+	TypeID = _TypeID;
+}
 
 // 0x08055bf0  objects.c:282
-const char *ObjectType::getName(int /*Count*/) { abort(); /* STUB */ }
+const char *ObjectType::getName(int Count) {
+	char ObjectName[50];
+	ObjectName[0] = 0;
+
+	if (isCreature()) {
+		error("ObjectType::getName: Der Kreaturtyp hat keinen Namen.\n");
+		return nullptr;
+	}
+
+	const char *Help = ObjectTypes(TypeID).Name;
+	if (Help != nullptr) {
+		strcpy(ObjectName, Help);
+	}
+	return Plural(ObjectName, Count);
+}
 
 // 0x08055c60  objects.c:298
-const char *ObjectType::getDescription() { abort(); /* STUB */ }
+const char *ObjectType::getDescription() {
+	return ObjectTypes(getTypeID()).Description;
+}
 
 // 0x08055c90  objects.c:306
-bool ObjectType::getFlag(FLAG /*Flag*/) { abort(); /* STUB */ }
+bool ObjectType::getFlag(FLAG Flag) {
+	unsigned char b = static_cast<unsigned char>(1 << (Flag % 8));
+	return (ObjectTypes(getTypeID()).Flags[Flag / 8] & b) == b;
+}
 
 // 0x08055cf0  objects.c:315
-uint32_t ObjectType::getAttribute(TYPEATTRIBUTE /*Attribute*/) { abort(); /* STUB */ }
+uint32_t ObjectType::getAttribute(TYPEATTRIBUTE Attribute) {
+	if (!getFlag(TypeAttributeFlags[Attribute])) {
+		error("ObjectType::getAttribute: Typ %d hat kein Flag %d f\xfc" "r Attribut %d.\n",
+				getTypeID(), TypeAttributeFlags[Attribute], Attribute);
+		return 0;
+	}
+	return ObjectTypes(getTypeID()).Attributes[Attribute];
+}
 
 // 0x08055da0  objects.c:328
-int ObjectType::getAttributeOffset(INSTANCEATTRIBUTE /*Attribute*/) { abort(); /* STUB */ }
+int ObjectType::getAttributeOffset(INSTANCEATTRIBUTE Attribute) {
+	if (!getFlag(InstanceAttributeFlags[Attribute])
+			&& (Attribute != CONTENT || !getFlag(CHEST))) {
+		return -1;
+	}
+	return ObjectTypes(getTypeID()).AttributeOffsets[Attribute];
+}
 
 // 0x08055e50  objects.c:337
-bool ObjectTypeExists(int /*TypeID*/) { abort(); /* STUB */ }
+bool ObjectTypeExists(int TypeID) {
+	return in(TypeID, ObjectTypes.low(), ObjectTypes.high());
+}
 
 // 0x08055e80  objects.c:345
-ObjectType GetSpecialObject(SPECIALMEANING /*Meaning*/) { abort(); /* STUB */ }
+ObjectType GetSpecialObject(SPECIALMEANING Meaning) {
+	if (!in(Meaning, 1, SPECIALMEANINGS)) {
+		error("GetSpecialObject: Ung\xfcltige Bedeutung %d.\n", Meaning);
+		return ObjectType(0);
+	}
+
+	if (SpecialObjects[Meaning] == ObjectType(0)) {
+		error("GetSpecialObject: Kein Objekttyp mit Bedeutung %d definiert.\n", Meaning);
+		return ObjectType(0);
+	}
+
+	return SpecialObjects[Meaning];
+}
 
 // 0x08055f20  objects.c:362
-ObjectType GetObjectTypeByName(char * /*SearchName*/, bool /*Movable*/) { abort(); /* STUB */ }
+ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
+	if (SearchName == nullptr) {
+		error("GetObjectTypeByName: SearchName ist NULL.\n");
+		return ObjectType(0);
+	}
+
+	char Pattern[50];
+	snprintf(Pattern, sizeof(Pattern), " %s ", SearchName);
+
+	ObjectType BestType(0);
+	for (int TypeID = ObjectType(99).getTypeID() + 1; TypeID <= ObjectTypes.high(); TypeID++) {
+		ObjectType Type(TypeID);
+		if (Movable && Type.getFlag(UNMOVE)) {
+			continue;
+		}
+
+		const char *ObjectName = Type.getName(-1);
+		if (ObjectName == nullptr || ObjectName[0] == 0) {
+			continue;
+		}
+
+		if (stricmp(const_cast<char *>(ObjectName), SearchName, -1) == 0) {
+			return Type;
+		}
+
+		if (BestType != ObjectType(0)) {
+			continue;
+		}
+
+		char Help[50];
+		snprintf(Help, sizeof(Help), " %s ", ObjectName);
+		if (strstr(Help, Pattern) != nullptr) {
+			BestType = Type;
+		}
+	}
+
+	return BestType;
+}
 
 // 0x08056120  objects.c:394
-void InitObjects() { abort(); /* STUB */ }
+void InitObjects() {
+	LoadObjects();
+	LoadConversionList();
+}
 
 // 0x08056150  objects.c:403
-void ExitObjects() { abort(); /* STUB */ }
+void ExitObjects() {
+}
