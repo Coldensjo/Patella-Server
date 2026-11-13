@@ -1,0 +1,8 @@
+# Runtime output written by the game server
+log/*
+!log/.gitkeep
+save/*
+!save/.gitkeep
+
+# REA / analysis scratch output
+rea-out/
