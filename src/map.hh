@@ -21,39 +21,39 @@ struct TWriteStream;
 
 struct Object {
 	// inline  map.h:22
-	Object() { abort(); /* STUB */ }
+	Object() { ObjectID = 0; }
 	// inline  map.h:23
-	Object(const Object & /*Other*/) { abort(); /* STUB */ }
+	Object(const Object &Other) { ObjectID = Other.ObjectID; }
 	// inline  map.h:24
-	Object(uint32_t /*_ObjectID*/) { abort(); /* STUB */ }
+	Object(uint32_t _ObjectID) { ObjectID = _ObjectID; }
 	// inline  map.h:25
-	Object operator=(Object /*Other*/) { abort(); /* STUB */ }
+	Object operator=(Object Other) { ObjectID = Other.ObjectID; return *this; }
 	// inline  map.h:26
-	bool operator==(Object /*Other*/) { abort(); /* STUB */ }
+	bool operator==(Object Other) { return ObjectID == Other.ObjectID; }
 	// inline  map.h:27
-	bool operator!=(Object /*Other*/) { abort(); /* STUB */ }
+	bool operator!=(Object Other) { return !(*this == Other); }
 	bool exists();
 	// inline  map.h:30
-	uint32_t getObjectID() { abort(); /* STUB */ }
+	uint32_t getObjectID() { return ObjectID; }
 	ObjectType getObjectType();
 	// inline  map.h:32
-	bool getFlag(FLAG /*Flag*/) { abort(); /* STUB */ }
+	bool getFlag(FLAG Flag) { return getObjectType().getFlag(Flag); }
 	// inline  map.h:33
-	uint32_t getAttribute(TYPEATTRIBUTE /*Attribute*/) { abort(); /* STUB */ }
+	uint32_t getAttribute(TYPEATTRIBUTE Attribute) { return getObjectType().getAttribute(Attribute); }
 	uint32_t getAttribute(INSTANCEATTRIBUTE Attribute);
 	void setAttribute(INSTANCEATTRIBUTE Attribute, uint32_t Value);
 	// inline  map.h:37
-	void changeAttribute(INSTANCEATTRIBUTE /*Attribute*/, int /*Delta*/) { abort(); /* STUB */ }
+	void changeAttribute(INSTANCEATTRIBUTE Attribute, int Delta) { setAttribute(Attribute, getAttribute(Attribute) + Delta); }
 	// inline  map.h:39
-	Object operator++(int) { abort(); /* STUB */ }
+	Object operator++(int) { ObjectID = getNextObject().getObjectID(); return *this; }
 	Object getNextObject();
 	Object getContainer();
 	// inline  map.h:42
-	bool isMapContainer() { abort(); /* STUB */ }
+	bool isMapContainer() { return getObjectType().isMapContainer(); }
 	// inline  map.h:43
-	bool isBodyContainer() { abort(); /* STUB */ }
+	bool isBodyContainer() { return getObjectType().isBodyContainer(); }
 	// inline  map.h:44
-	bool isCreature() { abort(); /* STUB */ }
+	bool isCreature() { return getObjectType().isCreature(); }
 	uint32_t getCreatureID();
 private:
 	uint32_t ObjectID;
@@ -141,7 +141,7 @@ extern char InstanceAttributeNames[18][30];
 extern matrix3d<TSector *> *Sector;
 extern TObjectBlock **ObjectBlock;
 extern TObject *FirstFreeObject;
-extern uint32_t *HashTableData;
+extern uintptr_t *HashTableData;
 extern unsigned char *HashTableType;
 extern int HashTableSize;
 extern uint32_t HashTableMask;
