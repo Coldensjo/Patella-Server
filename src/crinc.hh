@@ -50,7 +50,7 @@ struct TItemData {
 	int Maximum;
 	int Probability;
 	// inline  crinc.h:51
-	TItemData() { abort(); /* STUB */ }
+	TItemData() {}
 };
 
 struct TSpellData {
