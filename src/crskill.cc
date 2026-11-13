@@ -1,4 +1,6 @@
+#include <cmath>
 #include <cstdlib>
+#include <cstring>
 
 #include "script.hh"
 #include "config.hh"
@@ -10,14 +12,16 @@
 #include "cr.hh"
 #include "containr.hh"
 #include "crinc.hh"
+#include "crmain.hh"
 #include "operate.hh"
+#include "sending.hh"
 #include "utils.hh"
 #include "time.hh"
 #include "crskill.hh"
 
 struct TSkillLevel : public TSkill {
 	// inline  crskill.c:34
-	TSkillLevel(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillLevel(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual void Increase(int Amount);
 	virtual void Decrease(int Amount);
 	virtual int GetExpForLevel(int Level);
@@ -27,7 +31,7 @@ private:
 
 struct TSkillProbe : public TSkill {
 	// inline  crskill.c:44
-	TSkillProbe(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillProbe(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual void Increase(int Amount);
 	virtual void Decrease(int Amount);
 	virtual int GetExpForLevel(int Level);
@@ -42,13 +46,13 @@ private:
 
 struct TSkillAdd : public TSkill {
 	// inline  crskill.c:59
-	TSkillAdd(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillAdd(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual void Advance(int Range);
 };
 
 struct TSkillPoison : public TSkill {
 	// inline  crskill.c:66
-	TSkillPoison(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillPoison(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int additionalvalue);
 	virtual bool Process();
 	virtual void Reset();
@@ -58,28 +62,28 @@ private:
 
 struct TSkillBurning : public TSkill {
 	// inline  crskill.c:76
-	TSkillBurning(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillBurning(int nr, TCreature *cr) : TSkill(nr, cr) {}
 private:
 	virtual void Event(int);
 };
 
 struct TSkillEnergy : public TSkill {
 	// inline  crskill.c:83
-	TSkillEnergy(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillEnergy(int nr, TCreature *cr) : TSkill(nr, cr) {}
 private:
 	virtual void Event(int);
 };
 
 struct TSkillFed : public TSkill {
 	// inline  crskill.c:90
-	TSkillFed(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillFed(int nr, TCreature *cr) : TSkill(nr, cr) {}
 private:
 	virtual void Event(int);
 };
 
 struct TSkillIllusion : public TSkill {
 	// inline  crskill.c:97
-	TSkillIllusion(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillIllusion(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 private:
 	virtual void Event(int);
@@ -87,7 +91,7 @@ private:
 
 struct TSkillLight : public TSkill {
 	// inline  crskill.c:105
-	TSkillLight(int nr, TCreature *cr) : TSkill(nr, cr) { abort(); /* STUB */ }
+	TSkillLight(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 private:
 	virtual void Event(int);
@@ -95,28 +99,28 @@ private:
 
 struct TSkillHitpoints : public TSkillAdd {
 	// inline  crskill.c:113
-	TSkillHitpoints(int nr, TCreature *cr) : TSkillAdd(nr, cr) { abort(); /* STUB */ }
+	TSkillHitpoints(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 };
 
 struct TSkillMana : public TSkillAdd {
 	// inline  crskill.c:119
-	TSkillMana(int nr, TCreature *cr) : TSkillAdd(nr, cr) { abort(); /* STUB */ }
+	TSkillMana(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 };
 
 struct TSkillSoulpoints : public TSkillAdd {
 	// inline  crskill.c:125
-	TSkillSoulpoints(int nr, TCreature *cr) : TSkillAdd(nr, cr) { abort(); /* STUB */ }
+	TSkillSoulpoints(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 	// 0x080cab50  crskill.c:127
-	virtual int TimerValue() { abort(); /* STUB */ }
+	virtual int TimerValue() { return (Cycle - 1) * MaxCount + Count; }
 	virtual void Event(int);
 };
 
 struct TSkillGoStrength : public TSkillAdd {
 	// inline  crskill.c:133
-	TSkillGoStrength(int nr, TCreature *cr) : TSkillAdd(nr, cr) { abort(); /* STUB */ }
+	TSkillGoStrength(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 private:
 	virtual void Event(int);
@@ -124,180 +128,1175 @@ private:
 
 struct TSkillCarryStrength : public TSkillAdd {
 	// inline  crskill.c:141
-	TSkillCarryStrength(int nr, TCreature *cr) : TSkillAdd(nr, cr) { abort(); /* STUB */ }
+	TSkillCarryStrength(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 };
 
+// 0x080cab70  cmath.tcc:40
+// std::__cmath_power<double> of the original's libstdc++ 3.2, which its
+// pow(double, int) goes through. Today's pow(double, int) is libm's
+// pow(double, double) and rounds differently, which moves skill thresholds.
+// The x87 code keeps __x and __y on the register stack and returns the result
+// unrounded, hence long double (the 80-bit x87 type on x86-64 Linux).
+static long double __cmath_power(double __x_, unsigned int __n) {
+	long double __x = __x_;
+	long double __y = __n % 2 ? __x : 1;
+	while (__n >>= 1) {
+		__x = __x * __x;
+		if (__n % 2) {
+			__y = __y * __x;
+		}
+	}
+	return __y;
+}
+
+// inline  cmath  (std::__pow_helper<double>, the body of pow(double, int))
+static long double __pow_helper(double __x, int __n) {
+	return __n < 0
+		? 1.0L / __cmath_power(__x, -__n)
+		: __cmath_power(__x, __n);
+}
+
 // 0x080c71e0  crskill.c:154
-int GetSkillByName(char * /*Name*/) { abort(); /* STUB */ }
+int GetSkillByName(char *Name) {
+	if (strcmp(Name, "level") == 0) {
+		return 0;
+	}
+	if (strcmp(Name, "magiclevel") == 0) {
+		return 1;
+	}
+	if (strcmp(Name, "hitpoints") == 0) {
+		return 2;
+	}
+	if (strcmp(Name, "mana") == 0) {
+		return 3;
+	}
+	if (strcmp(Name, "gostrength") == 0) {
+		return 4;
+	}
+	if (strcmp(Name, "carrystrength") == 0) {
+		return 5;
+	}
+	if (strcmp(Name, "shielding") == 0) {
+		return 6;
+	}
+	if (strcmp(Name, "distancefighting") == 0) {
+		return 7;
+	}
+	if (strcmp(Name, "swordfighting") == 0) {
+		return 8;
+	}
+	if (strcmp(Name, "clubfighting") == 0) {
+		return 9;
+	}
+	if (strcmp(Name, "axefighting") == 0) {
+		return 10;
+	}
+	if (strcmp(Name, "fistfighting") == 0) {
+		return 11;
+	}
+	if (strcmp(Name, "magicdefense") == 0) {
+		return 12;
+	}
+	if (strcmp(Name, "fishing") == 0) {
+		return 13;
+	}
+	if (strcmp(Name, "eating") == 0) {
+		return 14;
+	}
+	if (strcmp(Name, "shining") == 0) {
+		return 15;
+	}
+	if (strcmp(Name, "illusion") == 0) {
+		return 16;
+	}
+	if (strcmp(Name, "poison") == 0) {
+		return 17;
+	}
+	if (strcmp(Name, "burning") == 0) {
+		return 18;
+	}
+	if (strcmp(Name, "energy") == 0) {
+		return 19;
+	}
+	if (strcmp(Name, "drunken") == 0) {
+		return 20;
+	}
+	if (strcmp(Name, "manashield") == 0) {
+		return 21;
+	}
+	if (strcmp(Name, "soulpoints") == 0) {
+		return 22;
+	}
+	return -1;
+}
 
 // 0x080c7550  crskill.c:189
-TSkillBase::TSkillBase() { abort(); /* STUB */ }
+TSkillBase::TSkillBase() {
+	// The original loop runs to i <= 25, one past both arrays. The extra round
+	// only clears TimerList[0] and FirstFreeTimer, which are cleared anyway.
+	for (int i = 0; i < 25; i++) {
+		Skills[i] = nullptr;
+		TimerList[i] = nullptr;
+	}
+	FirstFreeTimer = 0;
+}
 
 // 0x080c75b0  crskill.c:200
-TSkillBase::~TSkillBase() { abort(); /* STUB */ }
+TSkillBase::~TSkillBase() {
+	for (int i = 0; i < 25; i++) {
+		delete Skills[i];
+	}
+}
 
 // 0x080c75e0  crskill.c:211
-void TSkillBase::DelTimer(unsigned short /*SkNr*/) { abort(); /* STUB */ }
+void TSkillBase::DelTimer(unsigned short SkNr) {
+	if (SkNr >= 25) {
+		error("TSkillBase::DelTimer: Ungueltige SkNr: %d\n", SkNr);
+		return;
+	}
+
+	TSkill *sk = Skills[SkNr];
+	if (sk == nullptr) {
+		return;
+	}
+
+	sk->DelTimer();
+	for (int i = 0; i < FirstFreeTimer; i++) {
+		if (TimerList[i] == sk) {
+			TimerList[i] = TimerList[FirstFreeTimer - 1];
+			FirstFreeTimer--;
+			break;
+		}
+	}
+}
 
 // 0x080c7670  crskill.c:230
-bool TSkillBase::SetTimer(unsigned short /*SkNr*/, int /*cyc*/, int /*cou*/, int /*maxcou*/, int /*additionalvalue*/) { abort(); /* STUB */ }
+bool TSkillBase::SetTimer(unsigned short SkNr, int cyc, int cou, int maxcou, int additionalvalue) {
+	if (SkNr >= 25) {
+		error("TSkillBase::SetTimer: Ungueltige SkNr: %d\n", SkNr);
+		return false;
+	}
+
+	TSkill *sk = Skills[SkNr];
+	DelTimer(SkNr);
+	bool result = sk->SetTimer(cyc, cou, maxcou, additionalvalue);
+	if (result) {
+		TimerList[FirstFreeTimer] = sk;
+		FirstFreeTimer++;
+	}
+	return result;
+}
 
 // 0x080c7700  crskill.c:253
-void TSkillBase::ProcessSkills() { abort(); /* STUB */ }
+void TSkillBase::ProcessSkills() {
+	int i = 0;
+	while (i < FirstFreeTimer) {
+		TSkill *sk = TimerList[i];
+		if (sk == nullptr) {
+			i++;
+		} else if (sk->Process()) {
+			FirstFreeTimer--;
+			TimerList[i] = TimerList[FirstFreeTimer];
+			TimerList[FirstFreeTimer] = nullptr;
+		} else {
+			i++;
+		}
+	}
+}
 
 // 0x080c7780  crskill.c:271
-bool TSkillBase::NewSkill(unsigned short /*SkillNo*/, TCreature * /*cr*/) { abort(); /* STUB */ }
+bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
+	if (SkillNo >= 25) {
+		error("TSkillBase::NewSkill: unbekannte SkillNummer %d\n", SkillNo);
+		return false;
+	}
+
+	if (Skills[SkillNo] != nullptr) {
+		delete Skills[SkillNo];
+		Skills[SkillNo] = nullptr;
+	}
+
+	switch (SkillNo) {
+		case 0:
+			Skills[SkillNo] = new TSkillLevel(SkillNo, cr);
+			break;
+		case 1:
+		case 6:
+		case 7:
+		case 8:
+		case 9:
+		case 10:
+		case 11:
+		case 13:
+			Skills[SkillNo] = new TSkillProbe(SkillNo, cr);
+			break;
+		case 2:
+			Skills[SkillNo] = new TSkillHitpoints(SkillNo, cr);
+			break;
+		case 3:
+			Skills[SkillNo] = new TSkillMana(SkillNo, cr);
+			break;
+		case 4:
+			Skills[SkillNo] = new TSkillGoStrength(SkillNo, cr);
+			break;
+		case 5:
+			Skills[SkillNo] = new TSkillCarryStrength(SkillNo, cr);
+			break;
+		case 14:
+			Skills[SkillNo] = new TSkillFed(SkillNo, cr);
+			break;
+		case 15:
+			Skills[SkillNo] = new TSkillLight(SkillNo, cr);
+			break;
+		case 16:
+			Skills[SkillNo] = new TSkillIllusion(SkillNo, cr);
+			break;
+		case 17:
+			Skills[SkillNo] = new TSkillPoison(SkillNo, cr);
+			break;
+		case 18:
+			Skills[SkillNo] = new TSkillBurning(SkillNo, cr);
+			break;
+		case 19:
+			Skills[SkillNo] = new TSkillEnergy(SkillNo, cr);
+			break;
+		case 22:
+			Skills[SkillNo] = new TSkillSoulpoints(SkillNo, cr);
+			break;
+		default:
+			Skills[SkillNo] = new TSkill(SkillNo, cr);
+			break;
+	}
+	return true;
+}
 
 // 0x080c7f60  crskill.c:317
-bool TSkillBase::SetSkills(int /*Race*/) { abort(); /* STUB */ }
+bool TSkillBase::SetSkills(int Race) {
+	if (Race < 1 || Race > 511) {
+		error("TSkillBase::SetSkills: Ung\xfcltige Rassennummer %d.\n", Race);
+		return false;
+	}
+
+	for (int i = 1; i <= RaceData[Race].Skills; i++) {
+		TSkillData &S = RaceData[Race].Skill(i);
+		TSkill *sk = Skills[S.Nr];
+		sk->SetAct(S.Actual);
+		sk->SetMin(S.Minimum);
+		sk->SetMax(S.Maximum);
+		sk->SetLastLevel(0);
+		sk->SetNextLevel(S.NextLevel);
+		sk->SetDelta(S.NextLevel);
+		sk->SetFactorPercent(S.FactorPercent);
+		sk->SetAddLevel(S.AddLevel);
+		sk->SetMaxCount(0);
+	}
+	return true;
+}
 
 // 0x080c80b0  crskill.c:346
-TSkill::TSkill(int /*nr*/, TCreature * /*cr*/) { abort(); /* STUB */ }
+TSkill::TSkill(int nr, TCreature *cr) {
+	SkNr = nr;
+	Reset();
+	Master = cr;
+}
 
 // 0x080c8180  crskill.c:355
-TSkill::~TSkill() { abort(); /* STUB */ }
+TSkill::~TSkill() {
+	if (Master != nullptr) {
+		Master->DelTimer(SkNr);
+	}
+}
 
 // 0x080c8200  crskill.c:364
-void TSkill::Reset() { abort(); /* STUB */ }
+void TSkill::Reset() {
+	Act = 0;
+	Max = 0x7fffffff;
+	Min = 0;
+	DAct = 0;
+	MDAct = 0;
+	FactorPercent = 1000;
+	LastLevel = 0;
+	NextLevel = 0x7fffffff;
+	Exp = 0;
+	Delta = 0x7fffffff;
+	Cycle = 0;
+	MaxCycle = 0;
+	Count = 0;
+	MaxCount = 0;
+	AddLevel = 0;
+}
 
 // 0x080c8280  crskill.c:382
-void TSkill::Load(int /*act*/, int /*max*/, int /*min*/, int /*dact*/, int /*mdact*/, int /*cyc*/, int /*maxcyc*/, int /*cnt*/, int /*maxcnt*/, int /*addlvl*/, int /*exp*/, int /*fp*/, int /*nextlvl*/, int /*delta*/) { abort(); /* STUB */ }
+void TSkill::Load(int act, int max, int min, int dact, int mdact, int cyc, int maxcyc, int cnt, int maxcnt, int addlvl, int exp, int fp, int nextlvl, int delta) {
+	Act = act;
+	Max = max;
+	Min = min;
+	DAct = dact;
+	MDAct = mdact;
+	Cycle = cyc;
+	MaxCycle = maxcyc;
+	Count = cnt;
+	MaxCount = maxcnt;
+	AddLevel = addlvl;
+	Exp = exp;
+	FactorPercent = fp;
+	NextLevel = nextlvl;
+	Delta = delta;
+	LastLevel = GetExpForLevel(act);
+	if (Master != nullptr && Cycle != 0) {
+		Master->SetTimer(SkNr, Cycle, Count, MaxCount, FactorPercent);
+	}
+}
 
 // 0x080c8390  crskill.c:407
-void TSkill::Save(int & /*act*/, int & /*max*/, int & /*min*/, int & /*dact*/, int & /*mdact*/, int & /*cyc*/, int & /*maxcyc*/, int & /*cnt*/, int & /*maxcnt*/, int & /*addlvl*/, int & /*exp*/, int & /*fp*/, int & /*nextlvl*/, int & /*delta*/) { abort(); /* STUB */ }
+void TSkill::Save(int &act, int &max, int &min, int &dact, int &mdact, int &cyc, int &maxcyc, int &cnt, int &maxcnt, int &addlvl, int &exp, int &fp, int &nextlvl, int &delta) {
+	act = Act;
+	max = Max;
+	min = Min;
+	dact = DAct;
+	mdact = MDAct;
+	cyc = Cycle;
+	maxcyc = MaxCycle;
+	cnt = Count;
+	maxcnt = MaxCount;
+	addlvl = AddLevel;
+	exp = Exp;
+	fp = FactorPercent;
+	nextlvl = NextLevel;
+	delta = Delta;
+}
 
 // 0x080c8410  crskill.c:428
-void TSkill::Event(int) { abort(); /* STUB */ }
+void TSkill::Event(int) {
+}
 
 // 0x080c8420  crskill.c:435
-bool TSkill::Jump(int) { abort(); /* STUB */ }
+bool TSkill::Jump(int) {
+	return true;
+}
 
 // 0x080c8430  crskill.c:442
-int TSkill::Get() { abort(); /* STUB */ }
+int TSkill::Get() {
+	int a = Act;
+	if (a < Min) {
+		a = Min;
+	}
+	return a + MDAct + DAct;
+}
 
 // 0x080c8450  crskill.c:453
-int TSkill::GetProgress() { abort(); /* STUB */ }
+int TSkill::GetProgress() {
+	if (NextLevel <= LastLevel) {
+		return 0;
+	}
+
+	long long ExpGained = Exp - LastLevel;
+	long long ExpNecessary = NextLevel - LastLevel;
+	int Percent = (int)(ExpGained * 100 / ExpNecessary);
+	if (!in(Percent, 0, 99)) {
+		error("TSkill::GetProgress: Berechnungsfehler Exp %d, Last %d, Next %d, Prozent %d.\n",
+				Exp, LastLevel, NextLevel, Percent);
+		error("# Spieler %s - Skill %d\n", Master != nullptr ? Master->Name : "(Unknown", SkNr);
+		Percent = 0;
+	}
+	return Percent;
+}
 
 // 0x080c8540  crskill.c:468
-void TSkill::SetMDAct(int /*value*/) { abort(); /* STUB */ }
+void TSkill::SetMDAct(int value) {
+	MDAct = value;
+	if (SkNr == 4 && Master != nullptr && Master->Type == PLAYER) {
+		static_cast<TPlayer *>(Master)->CheckState();
+	}
+}
 
 // 0x080c8570  crskill.c:477
-void TSkill::Set(int /*a*/) { abort(); /* STUB */ }
+void TSkill::Set(int a) {
+	Act = a;
+	Check();
+}
 
 // 0x080c8590  crskill.c:485
-void TSkill::Change(int /*a*/) { abort(); /* STUB */ }
+void TSkill::Change(int a) {
+	Set(GetAct() + a);
+	Check();
+}
 
 // 0x080c85d0  crskill.c:494
-void TSkill::Check() { abort(); /* STUB */ }
+void TSkill::Check() {
+	if (Act > Max) {
+		Act = Max;
+	}
+}
 
 // 0x080c85f0  crskill.c:504
-bool TSkill::Process() { abort(); /* STUB */ }
+bool TSkill::Process() {
+	if (Cycle == 0) {
+		if (Master != nullptr && Master->Type == PLAYER) {
+			static_cast<TPlayer *>(Master)->CheckState();
+		}
+		return true;
+	}
+
+	if (Count > 0) {
+		Count--;
+		return false;
+	}
+
+	Count = MaxCount;
+	int Range = Cycle > 0 ? -1 : 1;
+	Cycle += Range;
+	Event(Range);
+	return false;
+}
 
 // 0x080c8660  crskill.c:523
-bool TSkill::SetTimer(int /*cyc*/, int /*cou*/, int /*maxcou*/, int) { abort(); /* STUB */ }
+bool TSkill::SetTimer(int cyc, int cou, int maxcou, int) {
+	Cycle = cyc;
+	Count = cou;
+	MaxCount = maxcou;
+	if (Master != nullptr && Master->Type == PLAYER) {
+		static_cast<TPlayer *>(Master)->CheckState();
+	}
+	return true;
+}
 
 // 0x080c86a0  crskill.c:537
-bool TSkill::DelTimer() { abort(); /* STUB */ }
+bool TSkill::DelTimer() {
+	Cycle = 0;
+	Count = 0;
+	MaxCount = 0;
+	if (Master != nullptr && Master->Type == PLAYER) {
+		static_cast<TPlayer *>(Master)->CheckState();
+	}
+	return true;
+}
 
 // 0x080c86f0  crskill.c:554
-int TSkillLevel::GetExpForLevel(int /*Level*/) { abort(); /* STUB */ }
+int TSkillLevel::GetExpForLevel(int Level) {
+	if (Level < 1) {
+		error("TSkillLevel::GetExpForLevel: Ung\xfcltiger Level %d.\n", Level);
+		return 0;
+	}
+
+	if (Delta < 1) {
+		error("TSkillLevel::GetExpForLevel: Ung\xfcltiger Delta-Wert %d.\n", Delta);
+		return 0;
+	}
+
+	if (Level > 500) {
+		error("TSkillLevel::GetExpForLevel: Level=%d; Formel gegen \xdc" "berlauf sichern.\n", Level);
+		return -1;
+	}
+
+	return (((Level - 6) * Level + 17) * Level - 12) / 6 * Delta;
+}
 
 // 0x080c8780  crskill.c:574
-void TSkillLevel::Increase(int /*Amount*/) { abort(); /* STUB */ }
+void TSkillLevel::Increase(int Amount) {
+	if (Amount < 0) {
+		error("TSkillLevel::Increase: Amount negativ (%d).\n", Amount);
+		return;
+	}
+
+	int Range = 0;
+	Exp += Amount;
+	while (Exp >= NextLevel) {
+		Act++;
+		NextLevel = GetExpForLevel(Act + 1);
+		LastLevel = GetExpForLevel(Act);
+		if (NextLevel < 0) {
+			error("TSkillLevel::Increase: Skill vor \xdc" "berlauf (%s, Skill %d).\n",
+					GetMaster()->Name, GetSkNr());
+			NextLevel = Exp;
+			Exp -= 1000000;
+			break;
+		}
+		Range++;
+	}
+
+	if (Range != 0) {
+		Jump(Range);
+	}
+
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillLevel::Increase: GetMaster liefert NULL zurueck.\n");
+		return;
+	}
+
+	if (cr->Type == PLAYER) {
+		SendPlayerData(cr->GetConnection());
+	}
+}
 
 // 0x080c8880  crskill.c:607
-void TSkillLevel::Decrease(int /*Amount*/) { abort(); /* STUB */ }
+void TSkillLevel::Decrease(int Amount) {
+	if (Amount < 0) {
+		error("TSkillLevel::Decrease: Amount negativ (%d).\n", Amount);
+		return;
+	}
+
+	if (Amount > Exp && Exp > 100000) {
+		error("TSkillLevel::Decrease: Amount zu gross(%d).\n", Amount);
+		return;
+	}
+
+	int Range = 0;
+	if (Exp > Amount) {
+		Exp -= Amount;
+	} else {
+		Exp = 0;
+	}
+
+	while (true) {
+		int PreviousLevel = GetExpForLevel(Act);
+		if (Exp >= PreviousLevel) {
+			break;
+		}
+		NextLevel = PreviousLevel;
+		Range--;
+		Act--;
+		LastLevel = GetExpForLevel(Act);
+	}
+
+	if (Range != 0) {
+		Jump(Range);
+	}
+
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillLevel::Decrease: GetMaster liefert NULL zurueck.\n");
+		return;
+	}
+
+	if (cr->Type == PLAYER) {
+		SendPlayerData(cr->GetConnection());
+	}
+}
 
 // 0x080c8970  crskill.c:641
-bool TSkillLevel::Jump(int /*Range*/) { abort(); /* STUB */ }
+bool TSkillLevel::Jump(int Range) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillLevel::Jump: GetMaster liefert NULL zurueck!\n");
+		return false;
+	}
+
+	TSkill *sk = cr->Skills[2];
+	sk->Advance(Range);
+	sk = cr->Skills[3];
+	sk->Advance(Range);
+	sk = cr->Skills[5];
+	sk->Advance(Range);
+	sk = cr->Skills[4];
+	sk->Advance(Range);
+
+	AnnounceChangedCreature(cr->ID, 4);
+	cr->Combat.CheckCombatValues();
+
+	int OldLevel = Get() - Range;
+	if (Range > 0) {
+		if (cr->Type == PLAYER) {
+			SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+					"You advanced from Level %d to Level %d.", OldLevel, Get());
+		}
+	} else {
+		if (cr->Type == PLAYER) {
+			SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+					"You were downgraded from Level %d to Level %d.", OldLevel, Get());
+		}
+	}
+	return true;
+}
 
 // 0x080c8aa0  crskill.c:685
-bool TSkillProbe::SetTimer(int /*cyc*/, int /*cou*/, int /*maxcou*/, int) { abort(); /* STUB */ }
+bool TSkillProbe::SetTimer(int cyc, int cou, int maxcou, int) {
+	TSkill::SetTimer(cyc, cou, maxcou, -1);
+
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillProbe::SetTimer: GetMaster liefert NULL zurueck!\n");
+		return false;
+	}
+
+	if (cr->Type == PLAYER) {
+		SendPlayerData(cr->GetConnection());
+	}
+	return true;
+}
 
 // 0x080c8b20  crskill.c:700
-void TSkillProbe::Event(int) { abort(); /* STUB */ }
+void TSkillProbe::Event(int) {
+	if (Cycle == 0) {
+		TCreature *cr = GetMaster();
+		if (cr == nullptr) {
+			error("TSkillProbe::Event: GetMaster liefert NULL zurueck!\n");
+			return;
+		}
+
+		SetMDAct(0);
+		if (cr->Type == PLAYER) {
+			SendPlayerSkills(cr->GetConnection());
+		}
+	}
+}
 
 // 0x080c8ba0  crskill.c:716
-bool TSkillProbe::Jump(int /*Range*/) { abort(); /* STUB */ }
+bool TSkillProbe::Jump(int Range) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillProbe::Jump: GetMaster liefert NULL zurueck!\n");
+		return false;
+	}
+
+	if (cr->Type == PLAYER) {
+		if (GetSkNr() == 1) {
+			SendPlayerData(cr->GetConnection());
+		} else {
+			SendPlayerSkills(cr->GetConnection());
+		}
+
+		if (Range >= 0) {
+			switch (GetSkNr()) {
+				case 1:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced to magic level %d.", Get());
+					break;
+				case 6:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced in shielding.");
+					break;
+				case 7:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced in distance fighting.");
+					break;
+				case 8:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced in sword fighting.");
+					break;
+				case 9:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced in club fighting.");
+					break;
+				case 10:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced in axe fighting.");
+					break;
+				case 11:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced in fist fighting.");
+					break;
+				case 13:
+					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
+							"You advanced in fishing.");
+					break;
+			}
+		}
+	}
+	return true;
+}
 
 // 0x080c8d00  crskill.c:743
-int TSkillProbe::GetExpForLevel(int /*Level*/) { abort(); /* STUB */ }
+int TSkillProbe::GetExpForLevel(int Level) {
+	if (Level < 0 || Level < Min) {
+		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger Level %d.\n", Level);
+		return 0;
+	}
+
+	if (Delta <= 0) {
+		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger Delta-Wert %d.\n", Delta);
+		return 0;
+	}
+
+	if (FactorPercent < 1000) {
+		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger FactorPercent-Wert %d bei %s.\n",
+				FactorPercent, GetMaster() != nullptr ? GetMaster()->Name : "---");
+	}
+
+	if (FactorPercent > 1000 && FactorPercent < 1050) {
+		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger FactorPercent-Wert %d. Rechne mit 1000 weiter.\n",
+				FactorPercent);
+	}
+
+	if (FactorPercent < 1050) {
+		return (Level - Min) * Delta;
+	}
+
+	// The x87 code computes in extended precision and rounds to double only
+	// where it stores: FP, and the result of floor(). A result outside of int
+	// (or NaN) converts to INT_MIN, as fistp does.
+	double FP = (double)((long double)FactorPercent / 1000.0L);
+	return (int)(double)floorl((__pow_helper(FP, Level - Min) - 1.0L) / (FP - 1.0L) * Delta);
+}
 
 // 0x080c8e70  crskill.c:766
-void TSkillProbe::Increase(int /*Amount*/) { abort(); /* STUB */ }
+void TSkillProbe::Increase(int Amount) {
+	if (Amount < 0) {
+		error("TSkillProbe::Increase: Amount negativ (%d).\n", Amount);
+		return;
+	}
+
+	int Range = 0;
+	int OldProgress = GetProgress();
+	Exp += Amount;
+	while (Exp >= NextLevel) {
+		Act++;
+		NextLevel = GetExpForLevel(Act + 1);
+		LastLevel = GetExpForLevel(Act);
+		if (NextLevel < 0) {
+			error("TSkillProbe::Increase: Skill vor \xdc" "berlauf (%s, Skill %d).\n",
+					GetMaster()->Name, GetSkNr());
+			NextLevel = Exp;
+			Exp -= 1000;
+			break;
+		}
+		Range++;
+	}
+
+	if (Range != 0) {
+		Jump(Range);
+	} else {
+		TCreature *cr = GetMaster();
+		if (cr != nullptr && cr->Type == PLAYER && GetProgress() != OldProgress) {
+			if (GetSkNr() == 1) {
+				SendPlayerData(cr->GetConnection());
+			} else {
+				SendPlayerSkills(cr->GetConnection());
+			}
+		}
+	}
+}
 
 // 0x080c9180  crskill.c:798
-void TSkillProbe::Decrease(int /*Amount*/) { abort(); /* STUB */ }
+void TSkillProbe::Decrease(int Amount) {
+	if (Amount < 0) {
+		error("TSkillProbe::Decrease: Amount negativ (%d).\n", Amount);
+		return;
+	}
+
+	int Range = 0;
+	int OldProgress = GetProgress();
+	if (Exp > Amount) {
+		Exp -= Amount;
+	} else {
+		Exp = 0;
+	}
+
+	while (Act > Min) {
+		int PreviousLevel = GetExpForLevel(Act);
+		if (Exp >= PreviousLevel) {
+			break;
+		}
+		Act--;
+		Range--;
+		NextLevel = PreviousLevel;
+		LastLevel = GetExpForLevel(Act);
+	}
+
+	if (Range != 0) {
+		Jump(Range);
+	} else {
+		TCreature *cr = GetMaster();
+		if (cr != nullptr && cr->Type == PLAYER && GetProgress() != OldProgress) {
+			if (GetSkNr() == 1) {
+				SendPlayerData(cr->GetConnection());
+			} else {
+				SendPlayerSkills(cr->GetConnection());
+			}
+		}
+	}
+}
 
 // 0x080c9460  crskill.c:829
-bool TSkillProbe::Probe(int /*Diff*/, int /*Prob*/, bool /*_Increase*/) { abort(); /* STUB */ }
+bool TSkillProbe::Probe(int Diff, int Prob, bool _Increase) {
+	if (_Increase) {
+		Increase(1);
+	}
+
+	if (Diff == 0) {
+		return true;
+	}
+
+	int Result = rand() % Diff;
+	if (Result > Act) {
+		return false;
+	}
+	return rand() % 100 <= Prob;
+}
 
 // 0x080c94f0  crskill.c:843
-int TSkillProbe::ProbeValue(int /*max*/, bool /*_Increase*/) { abort(); /* STUB */ }
+int TSkillProbe::ProbeValue(int max, bool _Increase) {
+	if (_Increase) {
+		Increase(1);
+	}
+
+	int NewMax = max * (Get() * 5 + 50);
+	int Result = (rand() % 100 + rand() % 100) / 2 * NewMax / 10000;
+	return Result;
+}
 
 // 0x080c95d0  crskill.c:858
-void TSkillProbe::ChangeSkill(int /*fp*/, int /*delta*/) { abort(); /* STUB */ }
+void TSkillProbe::ChangeSkill(int fp, int delta) {
+	// As in GetExpForLevel: extended precision, rounded to double only where
+	// the x87 code stores (Progress, FP and the results of floor()).
+	double Progress = 0.0;
+	if (NextLevel > LastLevel) {
+		double ExpGained = Exp - LastLevel;
+		double ExpNecessary = NextLevel - LastLevel;
+		Progress = (double)((long double)ExpGained / (long double)ExpNecessary);
+	}
+
+	FactorPercent = fp;
+	Delta = delta;
+
+	double FP = (double)((long double)fp / 1000.0L);
+	NextLevel = (int)(double)floorl((__pow_helper(FP, Act - Min + 1) - 1.0L) / (FP - 1.0L) * delta);
+	LastLevel = (int)(double)floorl((__pow_helper(FP, Act - Min) - 1.0L) / (FP - 1.0L) * delta);
+	Exp = (int)(double)floorl((NextLevel - LastLevel) * (long double)Progress) + LastLevel;
+
+	TCreature *cr = GetMaster();
+	if (cr != nullptr && cr->Type == PLAYER) {
+		if (GetSkNr() == 1) {
+			SendPlayerData(cr->GetConnection());
+		} else {
+			SendPlayerSkills(cr->GetConnection());
+		}
+	}
+}
 
 // 0x080c97e0  crskill.c:890
-void TSkillAdd::Advance(int /*Range*/) { abort(); /* STUB */ }
+void TSkillAdd::Advance(int Range) {
+	Max += AddLevel * Range;
+	Act += AddLevel * Range;
+	Check();
+}
 
 // 0x080c9810  crskill.c:905
-void TSkillPoison::Reset() { abort(); /* STUB */ }
+void TSkillPoison::Reset() {
+	TSkill::Reset();
+	FactorPercent = 50;
+}
 
 // 0x080c9890  crskill.c:916
-bool TSkillPoison::SetTimer(int /*cyc*/, int /*cou*/, int /*maxcou*/, int /*additionalvalue*/) { abort(); /* STUB */ }
+bool TSkillPoison::SetTimer(int cyc, int cou, int maxcou, int additionalvalue) {
+	bool retval = TSkill::SetTimer(cyc, cou, maxcou, additionalvalue);
+	if (additionalvalue == -1) {
+		additionalvalue = 50;
+	}
+	if (additionalvalue < 10) {
+		additionalvalue = 10;
+	}
+	if (additionalvalue > 1000) {
+		additionalvalue = 1000;
+	}
+	FactorPercent = additionalvalue;
+	return retval;
+}
 
 // 0x080c9910  crskill.c:930
-bool TSkillPoison::Process() { abort(); /* STUB */ }
+bool TSkillPoison::Process() {
+	if (Cycle == 0) {
+		if (Master != nullptr && Master->Type == PLAYER) {
+			static_cast<TPlayer *>(Master)->CheckState();
+		}
+		return true;
+	}
+
+	if (Count > 0) {
+		Count--;
+		return false;
+	}
+
+	Count = MaxCount;
+	int Range = Cycle * FactorPercent / 1000;
+	if (Range == 0) {
+		Range = Cycle > 0 ? 1 : -1;
+	}
+	Cycle -= Range;
+	Event(Range);
+	return false;
+}
 
 // 0x080c99b0  crskill.c:949
-void TSkillPoison::Event(int /*Range*/) { abort(); /* STUB */ }
+void TSkillPoison::Event(int Range) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillPoison::Event: GetMaster liefert NULL zurueck!\n");
+		return;
+	}
+
+	if (Range < 0) {
+		Range = -Range;
+	}
+
+	cr->Damage(GetCreature(cr->PoisonDamageOrigin), Range, 2);
+
+	Object Obj = GetFirstObject(cr->posx, cr->posy, cr->posz);
+	while (Obj != NONE) {
+		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == 2) {
+			Cycle++;
+			break;
+		}
+		Obj++;
+	}
+}
 
 // 0x080c9ad0  crskill.c:974
-void TSkillBurning::Event(int) { abort(); /* STUB */ }
+void TSkillBurning::Event(int) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillBurning::Event: GetMaster liefert NULL zurueck!\n");
+		return;
+	}
+
+	cr->Damage(GetCreature(cr->FireDamageOrigin), 10, 4);
+
+	Object Obj = GetFirstObject(cr->posx, cr->posy, cr->posz);
+	while (Obj != NONE) {
+		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == 4) {
+			Cycle++;
+			break;
+		}
+		Obj++;
+	}
+}
 
 // 0x080c9bf0  crskill.c:998
-void TSkillEnergy::Event(int) { abort(); /* STUB */ }
+void TSkillEnergy::Event(int) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillEnergy::Event: GetMaster liefert NULL zurueck!\n");
+		return;
+	}
+
+	cr->Damage(GetCreature(cr->EnergyDamageOrigin), 25, 8);
+
+	Object Obj = GetFirstObject(cr->posx, cr->posy, cr->posz);
+	while (Obj != NONE) {
+		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == 8) {
+			Cycle++;
+			break;
+		}
+		Obj++;
+	}
+}
 
 // 0x080c9d10  crskill.c:1022
-void TSkillFed::Event(int) { abort(); /* STUB */ }
+void TSkillFed::Event(int) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillFed::Event: GetMaster liefert NULL zurueck!\n");
+		return;
+	}
+
+	if (!cr->IsDead && !IsProtectionZone(cr->posx, cr->posy, cr->posz)) {
+		int SecsPerHP = 12;
+		int SecsPerMana = 6;
+		int Profession = 0;
+		if (cr->Type == PLAYER) {
+			Profession = static_cast<TPlayer *>(cr)->GetActiveProfession();
+		}
+
+		switch (Profession) {
+			case 0:
+			case 1:
+				SecsPerHP = 6;
+				SecsPerMana = 6;
+				break;
+			case 2:
+				SecsPerHP = 8;
+				SecsPerMana = 4;
+				break;
+			case 3:
+			case 4:
+				SecsPerHP = 12;
+				SecsPerMana = 3;
+				break;
+			case 11:
+				SecsPerHP = 4;
+				SecsPerMana = 6;
+				break;
+			case 12:
+				SecsPerHP = 6;
+				SecsPerMana = 3;
+				break;
+			case 13:
+			case 14:
+				SecsPerHP = 12;
+				SecsPerMana = 2;
+				break;
+			default:
+				error("TSkillFed::Event: Unbekannter Beruf %d.\n", Profession);
+				break;
+		}
+
+		if (TimerValue() % SecsPerHP == 0) {
+			cr->Skills[2]->Change(1);
+		}
+
+		if (TimerValue() % SecsPerMana == 0) {
+			cr->Skills[3]->Change(2);
+		}
+	}
+}
 
 // 0x080c9e90  crskill.c:1060
-void TSkillIllusion::Event(int) { abort(); /* STUB */ }
+void TSkillIllusion::Event(int) {
+	if (Cycle == 0) {
+		TCreature *cr = GetMaster();
+		if (cr == nullptr) {
+			error("TSkillIllusion::Event: GetMaster liefert NULL zurueck!\n");
+			return;
+		}
+
+		if (Get() <= 0) {
+			cr->Outfit = cr->OrgOutfit;
+			AnnounceChangedCreature(cr->ID, 3);
+			NotifyAllCreatures(cr->GetCreatureObject(), 2, NONE);
+		}
+	}
+}
 
 // 0x080c9f40  crskill.c:1078
-bool TSkillIllusion::SetTimer(int /*cyc*/, int /*cou*/, int /*maxcou*/, int) { abort(); /* STUB */ }
+bool TSkillIllusion::SetTimer(int cyc, int cou, int maxcou, int) {
+	TSkill::SetTimer(cyc, cou, maxcou, -1);
+
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillIllusion::SetTimer: GetMaster liefert NULL zurueck!\n");
+		return false;
+	}
+
+	if (GetCreature(cr->ID) != nullptr) {
+		AnnounceChangedCreature(cr->ID, 3);
+	}
+	return true;
+}
 
 // 0x080c9fe0  crskill.c:1099
-void TSkillLight::Event(int) { abort(); /* STUB */ }
+void TSkillLight::Event(int) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillLight::Event: GetMaster liefert NULL zurueck!\n");
+		return;
+	}
+
+	AnnounceChangedCreature(cr->ID, 2);
+}
 
 // 0x080ca010  crskill.c:1112
-bool TSkillLight::SetTimer(int /*cyc*/, int /*cou*/, int /*maxcou*/, int) { abort(); /* STUB */ }
+bool TSkillLight::SetTimer(int cyc, int cou, int maxcou, int) {
+	TSkill::SetTimer(cyc, cou, maxcou, -1);
+
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillLight::SetTimer: GetMaster liefert NULL zurueck!\n");
+		return false;
+	}
+
+	if (GetCreature(cr->ID) != nullptr) {
+		AnnounceChangedCreature(cr->ID, 2);
+	}
+	return true;
+}
 
 // 0x080ca0b0  crskill.c:1132
-void TSkillHitpoints::Set(int /*a*/) { abort(); /* STUB */ }
+void TSkillHitpoints::Set(int a) {
+	TCreature *cr = GetMaster();
+	if (cr != nullptr && cr->IsDead && a > 0) {
+		error("TSkillHitpoints::Set: HP von toter Kreatur sollen erh\xf6ht werden.\n");
+		return;
+	}
+
+	TSkill::Set(a);
+	if (cr != nullptr) {
+		if (cr->Type == PLAYER) {
+			SendPlayerData(cr->GetConnection());
+		}
+		AnnounceChangedCreature(cr->ID, 1);
+	}
+}
 
 // 0x080ca140  crskill.c:1153
-void TSkillMana::Set(int /*a*/) { abort(); /* STUB */ }
+void TSkillMana::Set(int a) {
+	TSkill::Set(a);
+
+	TCreature *cr = GetMaster();
+	if (cr != nullptr && cr->Type == PLAYER) {
+		SendPlayerData(cr->GetConnection());
+	}
+}
 
 // 0x080ca180  crskill.c:1167
-void TSkillSoulpoints::Set(int /*a*/) { abort(); /* STUB */ }
+void TSkillSoulpoints::Set(int a) {
+	TSkill::Set(a);
+
+	TCreature *cr = GetMaster();
+	if (cr != nullptr && cr->Type == PLAYER) {
+		SendPlayerData(cr->GetConnection());
+	}
+}
 
 // 0x080ca1c0  crskill.c:1177
-void TSkillSoulpoints::Event(int) { abort(); /* STUB */ }
+void TSkillSoulpoints::Event(int) {
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillSoulpoints::Event: GetMaster liefert NULL zurueck!\n");
+		return;
+	}
+
+	if (!cr->IsDead) {
+		cr->Skills[22]->Change(1);
+	}
+}
 
 // 0x080ca220  crskill.c:1195
-bool TSkillGoStrength::SetTimer(int /*cyc*/, int /*cou*/, int /*maxcou*/, int) { abort(); /* STUB */ }
+bool TSkillGoStrength::SetTimer(int cyc, int cou, int maxcou, int) {
+	TSkill::SetTimer(cyc, cou, maxcou, -1);
+	if (cyc == 0) {
+		SetMDAct(0);
+	}
+
+	TCreature *cr = GetMaster();
+	if (cr == nullptr) {
+		error("TSkillGoStrength::SetTimer: GetMaster liefert NULL zurueck!\n");
+		return false;
+	}
+
+	AnnounceChangedCreature(cr->ID, 4);
+	return true;
+}
 
 // 0x080ca2d0  crskill.c:1211
-void TSkillGoStrength::Event(int) { abort(); /* STUB */ }
+void TSkillGoStrength::Event(int) {
+	if (Cycle == 0) {
+		TCreature *cr = GetMaster();
+		if (cr == nullptr) {
+			error("TSkillGoStrength::Event: GetMaster liefert NULL zurueck!\n");
+			return;
+		}
+
+		SetMDAct(0);
+		AnnounceChangedCreature(cr->ID, 4);
+	}
+}
 
 // 0x080ca350  crskill.c:1231
-void TSkillCarryStrength::Set(int /*a*/) { abort(); /* STUB */ }
+void TSkillCarryStrength::Set(int a) {
+	TSkill::Set(a);
+
+	TCreature *cr = GetMaster();
+	if (cr != nullptr && cr->Type == PLAYER) {
+		SendPlayerData(cr->GetConnection());
+	}
+}
 
 // 0x080ca390  crskill.c:1246
-void InitCrskill() { abort(); /* STUB */ }
+void InitCrskill() {
+}
 
 // 0x080ca3a0  crskill.c:1253
-void ExitCrskill() { abort(); /* STUB */ }
+void ExitCrskill() {
+}
