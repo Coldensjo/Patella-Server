@@ -57,40 +57,52 @@ private:
 	void docopy();
 	vlong_value *value;
 	int negative;
+	friend vlong operator+(const vlong &x, const vlong &y);
+	friend vlong operator-(const vlong &x, const vlong &y);
+	friend vlong operator*(const vlong &x, const vlong &y);
+	friend vlong operator/(const vlong &x, const vlong &y);
+	friend vlong operator%(const vlong &x, const vlong &y);
+	friend int operator!=(const vlong &x, const int &y);
+	friend int operator==(const vlong &x, const int &y);
+	friend int operator>=(const vlong &x, const vlong &y);
+	friend int operator>(const vlong &x, const int &y);
+	friend int operator<(const vlong &x, const vlong &y);
+	friend int operator<(const vlong &x, const int &y);
+	friend struct vlong_montgomery;
 };
 
 // inline  vlong.h:123
-inline vlong operator+(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline vlong operator+(const vlong &x, const int &y) { return x + vlong(y); }
 
 // inline  vlong.h:125
-inline vlong operator-(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline vlong operator-(const vlong &x, const int &y) { return x - vlong(y); }
 
 // inline  vlong.h:127
-inline vlong operator*(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline vlong operator*(const vlong &x, const int &y) { return x * vlong(y); }
 
 // inline  vlong.h:129
-inline vlong operator/(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline vlong operator/(const vlong &x, const int &y) { return x / vlong(y); }
 
 // inline  vlong.h:131
-inline vlong operator%(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline vlong operator%(const vlong &x, const int &y) { return x % vlong(y); }
 
 // inline  vlong.h:136
-inline int operator!=(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline int operator!=(const vlong &x, const int &y) { return x.cf(vlong(y)) != 0; }
 
 // inline  vlong.h:138
-inline int operator==(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline int operator==(const vlong &x, const int &y) { return x.cf(vlong(y)) == 0; }
 
 // inline  vlong.h:139
-inline int operator>=(const vlong & /*x*/, const vlong & /*y*/) { abort(); /* STUB */ }
+inline int operator>=(const vlong &x, const vlong &y) { return x.cf(y) >= 0; }
 
 // inline  vlong.h:144
-inline int operator>(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline int operator>(const vlong &x, const int &y) { return x.cf(vlong(y)) > 0; }
 
 // inline  vlong.h:145
-inline int operator<(const vlong & /*x*/, const vlong & /*y*/) { abort(); /* STUB */ }
+inline int operator<(const vlong &x, const vlong &y) { return x.cf(y) < 0; }
 
 // inline  vlong.h:146
-inline int operator<(const vlong & /*x*/, const int & /*y*/) { abort(); /* STUB */ }
+inline int operator<(const vlong &x, const int &y) { return x.cf(vlong(y)) < 0; }
 
 struct vlong_montgomery {
 private:
