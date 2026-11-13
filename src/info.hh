@@ -8,16 +8,16 @@ struct Object;
 struct ObjectType;
 
 // inline  info.h:62
-inline bool CoordinateAvoid(int /*x*/, int /*y*/, int /*z*/) { abort(); /* STUB */ }
+inline bool CoordinateAvoid(int x, int y, int z) { return CoordinateFlag(x, y, z, AVOID); }
 
 // inline  info.h:63
-inline bool CoordinateHookable(int /*x*/, int /*y*/, int /*z*/) { abort(); /* STUB */ }
+inline bool CoordinateHookable(int x, int y, int z) { return CoordinateFlag(x, y, z, HOOKSOUTH) || CoordinateFlag(x, y, z, HOOKEAST); }
 
 // inline  info.h:64
-inline bool CoordinateLayable(int /*x*/, int /*y*/, int /*z*/) { abort(); /* STUB */ }
+inline bool CoordinateLayable(int x, int y, int z) { return CoordinateFlag(x, y, z, BANK) && !CoordinateFlag(x, y, z, UNLAY); }
 
 // inline  info.h:65
-inline bool MovePossible(int /*x*/, int /*y*/, int /*z*/) { abort(); /* STUB */ }
+inline bool MovePossible(int x, int y, int z) { return CoordinateFlag(x, y, z, BANK) && !CoordinateFlag(x, y, z, UNPASS); }
 
 enum RIGHT {
 	PREMIUM_ACCOUNT = 0,
