@@ -42,7 +42,8 @@ struct TReadBuffer : public TReadStream {
 	void rewind() { Position = 0; }
 	// inline  utils.h:77
 	void resize(int size) { Size = size; }
-	int getPosition();
+	// inline  utils.h:78
+	int getPosition() { return Position; }
 private:
 	unsigned char *Data;
 	int Size;
@@ -72,7 +73,8 @@ struct TDynamicWriteBuffer : public TWriteBuffer {
 	virtual void writeWord(unsigned short w);
 	virtual void writeQuad(uint32_t q);
 	virtual void writeBytes(unsigned char *Buffer, int Count);
-	unsigned char *getData();
+	// inline  utils.h:108
+	unsigned char *getData() { return Data; }
 private:
 	void resizeBuffer();
 };
