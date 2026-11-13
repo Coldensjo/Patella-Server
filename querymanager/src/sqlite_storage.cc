@@ -648,6 +648,16 @@ std::optional<CharacterRecord> SqliteStorage::findCharacterByName(const std::str
 	return readCharacter(stmt);
 }
 
+uint32_t SqliteStorage::nextCharacterId() {
+	Stmt stmt(Db, "SELECT COALESCE(MAX(character_id), 0) FROM characters");
+	stmt.step();
+	int64_t highest = stmt.columnInt(0);
+	if (highest >= 0xFFFFFFFFLL) {
+		throw StorageError("no character id left");
+	}
+	return static_cast<uint32_t>(highest + 1);
+}
+
 void SqliteStorage::addCharacterRight(uint32_t characterId, const std::string &right) {
 	Stmt stmt(Db, "INSERT OR IGNORE INTO character_rights (character_id, right_name) VALUES (?, ?)");
 	stmt.bind(1, characterId).bindText(2, right).run();

@@ -186,6 +186,9 @@ public:
 	virtual std::optional<CharacterRecord> findCharacter(uint32_t characterId) = 0;
 	// Case-insensitive.
 	virtual std::optional<CharacterRecord> findCharacterByName(const std::string &name) = 0;
+	// One above the highest character id of all worlds (1 if there is none);
+	// an id no character has, for creating a new one.
+	virtual uint32_t nextCharacterId() = 0;
 	virtual void addCharacterRight(uint32_t characterId, const std::string &right) = 0;
 	virtual std::vector<std::string> listCharacterRights(uint32_t characterId) = 0;
 	// Characters of the world that are not deleted, with id >= minimumId,

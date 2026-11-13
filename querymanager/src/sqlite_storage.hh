@@ -46,6 +46,7 @@ public:
 	void putCharacter(const CharacterRecord &character) override;
 	std::optional<CharacterRecord> findCharacter(uint32_t characterId) override;
 	std::optional<CharacterRecord> findCharacterByName(const std::string &name) override;
+	uint32_t nextCharacterId() override;
 	void addCharacterRight(uint32_t characterId, const std::string &right) override;
 	std::vector<std::string> listCharacterRights(uint32_t characterId) override;
 	std::vector<PlayerEntry> listPlayers(uint32_t worldId, uint32_t minimumId, uint32_t limit) override;

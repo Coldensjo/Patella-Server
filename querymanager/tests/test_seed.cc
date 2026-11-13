@@ -212,6 +212,24 @@ void testSeed(const fs::path &root) {
 	CHECK(storage.findCharacter(77)->sex == 1);                 // gamemaster outfit: stored as male
 	CHECK(storage.findCharacter(900)->name == "M\xE4" "de \xDCp Dru\xEF" "d");
 	CHECK(!storage.findCharacter(4321));                        // was in the wrong directory
+	CHECK(storage.nextCharacterId() == 5679);
+
+	// A new character, as querymanager-seed --new-character creates it: the
+	// next free id, no player file, and it logs in like any other.
+	AccountRecord newAccount;
+	newAccount.id = 222222;
+	newAccount.password = "pw2";
+	storage.putAccount(newAccount);
+	storage.addAccountRight(222222, "INVITED");                 // Testia is private
+	CharacterRecord fresh;
+	fresh.id = storage.nextCharacterId();
+	fresh.worldId = world.id;
+	fresh.accountId = 222222;
+	fresh.name = "Made Up Newcomer";
+	fresh.sex = 2;
+	storage.putCharacter(fresh);
+	CHECK(storage.nextCharacterId() == 5680);
+	CHECK(storage.findCharacterByName("made up newcomer")->id == 5679);
 
 	// The game logs in with the disguised password and its world name.
 	CHECK(storage.checkApplicationPassword(APPLICATION_GAME, "n,I3a"));
@@ -225,6 +243,17 @@ void testSeed(const fs::path &root) {
 	login.writeString("Testia");
 	std::vector<uint8_t> response = dispatcher.handle(session, login.data());
 	CHECK(response.size() == 1 && response[0] == STATUS_OK);
+	WriteBuffer loginGame;
+	loginGame.writeByte(QUERY_LOGIN_GAME);
+	loginGame.writeQuad(222222);
+	loginGame.writeString("Made Up Newcomer");
+	loginGame.writeString("pw2");
+	loginGame.writeString("127.0.0.1");
+	loginGame.writeFlag(true);
+	loginGame.writeFlag(false);
+	loginGame.writeFlag(false);
+	response = dispatcher.handle(session, loginGame.data());
+	CHECK(!response.empty() && response[0] == STATUS_OK);
 
 	// The owner entries show up once the game has sent its house list.
 	CHECK(storage.listHouseOwners(world.id).empty());
@@ -247,7 +276,7 @@ void testSeed(const fs::path &root) {
 	SeedReport again = seedFromInstallation(storage, options);
 	CHECK(again.playersImported == 4);
 	CHECK(again.houseOwners == 0);
-	CHECK(storage.countRows("characters") == 4);
+	CHECK(storage.countRows("characters") == 5);
 	CHECK(storage.findCharacter(1234)->accountId == 111111);
 	CHECK(storage.findCharacter(1234)->guild == "Test Guild");
 	CHECK(storage.countRows("worlds") == 1);
@@ -259,6 +288,7 @@ void testSeed(const fs::path &root) {
 	SeedReport bareReport = seedFromInstallation(bare, options);
 	CHECK(bareReport.playerFiles == 0);
 	CHECK(bare.countRows("characters") == 0);
+	CHECK(bare.nextCharacterId() == 1);
 	CHECK(bare.countRows("house_owners") == 0);
 	CHECK(bare.countRows("worlds") == 1);
 

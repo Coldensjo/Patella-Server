@@ -3,7 +3,10 @@
 // Mode 1 (--game-root): import a game server installation, see seed.hh.
 // Mode 2 (--add-account): create an account and assign characters to it.
 // The installation has no accounts, so a client login needs this step; the
-// account number and password are the operator's choice.
+// account number and password are the operator's choice. It can also create
+// new characters: they get the next free character id and have no player
+// file, so the game starts them as new characters (LoadPlayerData,
+// dbfuncs.c, 0x806c240).
 
 #include "protocol.hh"
 #include "seed.hh"
@@ -35,7 +38,11 @@ void usage(const char *program) {
 		"  --premium-days N           premium time from now (0: free account)\n"
 		"  --gamemaster               the account may use a gamemaster client\n"
 		"  --right NAME               give the account a right; may be repeated\n"
-		"  --character NAME           assign this character to the account; may be repeated\n",
+		"  --character NAME           assign this character to the account; may be repeated\n"
+		"  --new-character NAME       create a character of this account; may be repeated;\n"
+		"                             needs --world\n"
+		"  --world NAME               world of the new characters\n"
+		"  --sex N                    sex of the new characters: 1 male, 2 female (1)\n",
 		program, program);
 }
 
@@ -61,13 +68,21 @@ bool parseAddress(const char *text, uint8_t address[4]) {
 
 int addAccount(qm::SqliteStorage &storage, uint32_t accountId, const std::string &password,
 		long premiumDays, bool gamemaster, const std::vector<std::string> &rights,
-		const std::vector<std::string> &characters) {
+		const std::vector<std::string> &characters, const std::vector<std::string> &newCharacters,
+		const std::string &worldName, uint8_t sex) {
 	for (const std::string &right : rights) {
 		if (!qm::isKnownRight(right)) {
 			std::fprintf(stderr, "unknown right: %s\n", right.c_str());
 			return 2;
 		}
 	}
+	for (const std::string &name : newCharacters) {
+		if (name.empty() || name.size() > qm::MAX_NAME_LENGTH) {
+			std::fprintf(stderr, "invalid character name: %s\n", name.c_str());
+			return 2;
+		}
+	}
+	std::vector<uint32_t> newIds;
 	storage.begin();
 	try {
 		qm::AccountRecord account;
@@ -94,6 +109,29 @@ int addAccount(qm::SqliteStorage &storage, uint32_t accountId, const std::string
 			character->accountId = accountId;
 			storage.putCharacter(*character);
 		}
+		if (!newCharacters.empty()) {
+			std::optional<qm::WorldRecord> world = storage.findWorld(worldName);
+			if (!world) {
+				storage.rollback();
+				std::fprintf(stderr, "unknown world: %s\n", worldName.c_str());
+				return 1;
+			}
+			for (const std::string &name : newCharacters) {
+				if (storage.findCharacterByName(name)) {
+					storage.rollback();
+					std::fprintf(stderr, "character exists already: %s\n", name.c_str());
+					return 1;
+				}
+				qm::CharacterRecord character;
+				character.id = storage.nextCharacterId();
+				character.worldId = world->id;
+				character.accountId = accountId;
+				character.name = name;
+				character.sex = sex;
+				storage.putCharacter(character);
+				newIds.push_back(character.id);
+			}
+		}
 		storage.commit();
 	} catch (...) {
 		storage.rollback();
@@ -101,6 +139,9 @@ int addAccount(qm::SqliteStorage &storage, uint32_t accountId, const std::string
 	}
 	std::printf("account %u stored, %zu character(s) assigned, %zu right(s)\n", accountId,
 		characters.size(), rights.size());
+	for (size_t i = 0; i < newIds.size(); i++) {
+		std::printf("new character %u: %s\n", newIds[i], newCharacters[i].c_str());
+	}
 	return 0;
 }
 
@@ -118,6 +159,9 @@ int main(int argc, char **argv) {
 	bool gamemaster = false;
 	std::vector<std::string> rights;
 	std::vector<std::string> characters;
+	std::vector<std::string> newCharacters;
+	std::string worldName;
+	long sex = 1;
 
 	for (int i = 1; i < argc; i++) {
 		std::string option = argv[i];
@@ -187,6 +231,12 @@ int main(int argc, char **argv) {
 		} else if (option == "--character") {
 			// The terminal gives UTF-8; names are stored in ISO-8859-1.
 			characters.push_back(qm::utf8ToLatin1(value));
+		} else if (option == "--new-character") {
+			newCharacters.push_back(qm::utf8ToLatin1(value));
+		} else if (option == "--world") {
+			worldName = qm::utf8ToLatin1(value);
+		} else if (option == "--sex") {
+			ok = parseNumber(value, 1, 2, sex);
 		} else {
 			usage(argv[0]);
 			return 2;
@@ -205,12 +255,16 @@ int main(int argc, char **argv) {
 		std::fprintf(stderr, "--add-account needs --password\n");
 		return 2;
 	}
+	if (!newCharacters.empty() && (!haveAccount || worldName.empty())) {
+		std::fprintf(stderr, "--new-character needs --add-account and --world\n");
+		return 2;
+	}
 
 	try {
 		qm::SqliteStorage storage(database);
 		if (haveAccount) {
 			return addAccount(storage, static_cast<uint32_t>(accountId), password, premiumDays,
-				gamemaster, rights, characters);
+				gamemaster, rights, characters, newCharacters, worldName, static_cast<uint8_t>(sex));
 		}
 
 		qm::SeedReport report = qm::seedFromInstallation(storage, options);
