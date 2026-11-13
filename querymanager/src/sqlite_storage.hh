@@ -49,6 +49,7 @@ public:
 	void addCharacterRight(uint32_t characterId, const std::string &right) override;
 	std::vector<std::string> listCharacterRights(uint32_t characterId) override;
 	std::vector<PlayerEntry> listPlayers(uint32_t worldId, uint32_t minimumId, uint32_t limit) override;
+	std::vector<CharacterRecord> listAccountCharacters(uint32_t accountId) override;
 	bool incrementIsOnline(uint32_t characterId) override;
 	bool decrementIsOnline(uint32_t characterId) override;
 	uint32_t clearIsOnline(uint32_t worldId) override;

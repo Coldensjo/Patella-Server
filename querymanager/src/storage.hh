@@ -191,6 +191,9 @@ public:
 	// Characters of the world that are not deleted, with id >= minimumId,
 	// ordered by id, at most `limit` of them.
 	virtual std::vector<PlayerEntry> listPlayers(uint32_t worldId, uint32_t minimumId, uint32_t limit) = 0;
+	// Characters of the account that are not deleted, in all worlds, ordered
+	// by name without regard to case.
+	virtual std::vector<CharacterRecord> listAccountCharacters(uint32_t accountId) = 0;
 	virtual bool incrementIsOnline(uint32_t characterId) = 0;
 	// Does not go below zero. False if the character does not exist.
 	virtual bool decrementIsOnline(uint32_t characterId) = 0;

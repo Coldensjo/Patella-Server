@@ -56,9 +56,11 @@ enum Status : uint8_t {
 // Application types sent in the login request. bin/game always sends 1
 // together with its world name (InitAll 0x804c6d0 calls
 // SetQueryManagerLoginData(1, WorldName)). Other values belong to other
-// CipSoft programs and are not known from this binary.
+// CipSoft programs and are not known from this binary; 2 is this project's
+// choice for its own login server (loginserver/), which sends no login data.
 enum ApplicationType : uint8_t {
 	APPLICATION_GAME = 1,
+	APPLICATION_LOGIN = 2,
 };
 
 // Every query type bin/game can send. The number is the immediate passed to
@@ -67,6 +69,10 @@ enum ApplicationType : uint8_t {
 enum QueryType : uint8_t {
 	QUERY_LOGIN = 0,
 	QUERY_CHECK_ACCOUNT_PASSWORD = 10,
+	// Not sent by bin/game: the request of this project's login server. The
+	// number is free in the catalogue; CipSoft's own request for it is not
+	// known.
+	QUERY_LOGIN_ACCOUNT = 11,
 	QUERY_LOGIN_ADMIN = 12,
 	QUERY_LOGIN_GAME = 20,
 	QUERY_LOGOUT_GAME = 21,
@@ -137,6 +143,15 @@ enum LoginGameError : uint8_t {
 	LOGIN_WRONG_ACCOUNT = 15,           // "Falsche Accountnummer %lu fuer %s."
 };
 
+// Error codes that follow STATUS_ERROR in a loginAccount response. This
+// project's own, like the request.
+enum LoginAccountError : uint8_t {
+	ACCOUNT_UNKNOWN = 1,                // no such account, or it is deleted
+	ACCOUNT_WRONG_PASSWORD = 2,
+	ACCOUNT_BANISHED = 3,
+	ACCOUNT_IP_BANISHED = 4,
+};
+
 // Limits the game applies to responses.
 enum Limits : uint32_t {
 	// loadPlayers: InitPlayerIndex (0x80a8d80) has room for 10000 entries
@@ -154,7 +169,7 @@ enum Limits : uint32_t {
 struct QueryInfo {
 	uint8_t type;
 	const char *name;        // TQueryManagerConnection method name
-	uint32_t address;        // address of that method in bin/game
+	uint32_t address;        // address of that method in bin/game; 0 if bin/game has none
 	bool implemented;        // false: catalogued only, answered with STATUS_FAILED
 };
 
