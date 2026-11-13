@@ -1,4 +1,14 @@
+#include <csignal>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <exception>
+#include <fstream>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "script.hh"
 #include "config.hh"
@@ -17,6 +27,18 @@
 #include "reader.hh"
 #include "communication.hh"
 #include "TXTEASymmetricKey.hh"
+#include "mudinc.hh"
+#include "shm.hh"
+#include "strings.hh"
+#include "writer.hh"
+#include "houses.hh"
+#include "moveuse.hh"
+#include "magic.hh"
+#include "crmain.hh"
+#include "crnonpl.hh"
+#include "crplayer.hh"
+#include "sending.hh"
+#include "receiving.hh"
 #include "main.hh"
 
 bool BeADaemon;	// main.c:39
@@ -26,71 +48,579 @@ bool SaveMapOn;	// main.c:42
 bool Reboot;	// main.c:43
 
 // 0x0804b2d0  main.c:54
-void ProcessCommand() { abort(); /* STUB */ }
+void ProcessCommand() {
+	int Command = GetCommand();
+	if (Command != 0) {
+		char *CommandBuffer = GetCommandBuffer();
+		if (Command == 1) {
+			if (CommandBuffer != nullptr) {
+				BroadcastMessage(18, "%s", CommandBuffer);
+			} else {
+				error("ProcessCommand: Text f\xfcr Broadcast ist NULL.\n");
+			}
+		} else {
+			error("ProcessCommand: Unbekanntes Kommando %d.\n", Command);
+		}
+		SetCommand(0, nullptr);
+	}
+}
 
 // 0x0804b350  main.c:73
-// local static: int CreaturesTimeCounter = 0  (main.c:74, 0x081256ec .data)
-// local static: int SkillTimeCounter = 0  (main.c:75, 0x081256f0 .data)
-// local static: int CronTimeCounter = 0  (main.c:76, 0x081256f4 .data)
-// local static: int OtherTimeCounter = 0  (main.c:77, 0x081256f8 .data)
-// local static: uint32_t NextMinute = 60  (main.c:78, 0x081256fc .data)
-// local static: int OldAmbiente = -1  (main.c:79, 0x08125700 .data)
-// local static: bool Lag = false  (main.c:80, 0x08125704 .data)
-void AdvanceGame(int /*Delay*/) { abort(); /* STUB */ }
+void AdvanceGame(int Delay) {
+	static int CreaturesTimeCounter = 0;
+	static int SkillTimeCounter = 0;
+	static int CronTimeCounter = 0;
+	static int OtherTimeCounter = 0;
+	static uint32_t NextMinute = 60;
+	static int OldAmbiente = -1;
+	static bool Lag = false;
+
+	CreaturesTimeCounter += Delay;
+	SkillTimeCounter += Delay;
+	CronTimeCounter += Delay;
+	OtherTimeCounter += Delay;
+
+	if (CreaturesTimeCounter >= 1750) {
+		CreaturesTimeCounter -= 1000;
+		ProcessCreatures();
+	}
+
+	if (CronTimeCounter >= 1500) {
+		CronTimeCounter -= 1000;
+		ProcessCronSystem();
+	}
+
+	if (SkillTimeCounter >= 1250) {
+		SkillTimeCounter -= 1000;
+		ProcessSkills();
+	}
+
+	if (OtherTimeCounter >= 1000) {
+		OtherTimeCounter -= 1000;
+		RoundNr++;
+		SetRoundNr(RoundNr);
+		ProcessConnections();
+		ProcessMonsterhomes();
+		ProcessMonsterRaids();
+		ProcessCommunicationControl();
+		ProcessReaderThreadReplies(RefreshSector, SendMails);
+		ProcessWriterThreadReplies();
+		ProcessCommand();
+
+		int Brightness, Color;
+		GetAmbiente(Brightness, Color);
+		if (Brightness != OldAmbiente) {
+			OldAmbiente = Brightness;
+			TConnection *Connection = GetFirstConnection();
+			while (Connection != nullptr) {
+				if (Connection->IsOnline()) {
+					SendAmbiente(Connection);
+				}
+				Connection = GetNextConnection();
+			}
+		}
+
+		if (RoundNr % 10 == 0) {
+			NetLoadCheck();
+		}
+
+		if (RoundNr >= NextMinute) {
+			int Hour, Minute;
+			GetRealTime(Hour, Minute);
+			RefreshCylinders();
+
+			if (Minute % 5 == 0) {
+				CreatePlayerList(true);
+			}
+
+			if (Minute % 15 == 0) {
+				SavePlayerDataOrder();
+			}
+
+			if (Minute == 0) {
+				NetLoadSummary();
+			}
+
+			if (Minute == 55) {
+				WriteKillStatistics();
+			}
+
+			int Time = Hour * 60 + Minute;
+			if ((Time + 5) % 1440 == RebootTime) {
+				if (Reboot) {
+					BroadcastMessage(18, "Server is saving game in 5 minutes.\nPlease come back in 10 minutes.");
+				} else {
+					BroadcastMessage(18, "Server is going down in 5 minutes.\nPlease log out.");
+				}
+				CloseGame();
+			}
+
+			if ((Time + 3) % 1440 == RebootTime) {
+				if (Reboot) {
+					BroadcastMessage(18, "Server is saving game in 3 minutes.\nPlease come back in 10 minutes.");
+				} else {
+					BroadcastMessage(18, "Server is going down in 3 minutes.\nPlease log out.");
+				}
+			}
+
+			if ((Time + 1) % 1440 == RebootTime) {
+				if (Reboot) {
+					BroadcastMessage(18, "Server is saving game in one minute.\nPlease log out.");
+				} else {
+					BroadcastMessage(18, "Server is going down in one minute.\nPlease log out.");
+				}
+			}
+
+			if (Time == RebootTime) {
+				CloseGame();
+				LogoutAllPlayers();
+				SendAll();
+				if (Reboot) {
+					RefreshMap();
+				}
+				SaveMap();
+				SaveMapOn = false;
+				EndGame();
+			}
+
+			NextMinute = GetRoundForNextMinute();
+		}
+
+		CleanupDynamicStrings();
+	}
+
+	if (Delay > Beat) {
+		Log("lag", "Verz\xf6gerung %d msec.\n", Delay);
+	}
+
+	if (Delay >= 1000) {
+		if (!Lag && RoundNr > 10) {
+			error("AdvanceGame: Keine Kreaturbewegung wegen Lag (Verz\xf6gerung: %d msec).\n", Delay);
+		}
+		Lag = true;
+	} else {
+		MoveCreatures(Delay);
+		Lag = false;
+	}
+
+	SendAll();
+}
 
 // 0x0804b780  main.c:172
-void HandlerSigAlarm(int) { abort(); /* STUB */ }
+void HandlerSigAlarm(int) {
+	struct itimerval v, ov;
+
+	SigAlarmCounter++;
+	v.it_interval.tv_sec = 0;
+	v.it_interval.tv_usec = 0;
+	v.it_value.tv_sec = 0;
+	v.it_value.tv_usec = Beat * 1000;
+	setitimer(ITIMER_REAL, &v, &ov);
+}
 
 // 0x0804b7d0  main.c:186
-void TimeReset() { abort(); /* STUB */ }
+void TimeReset() {
+	SigAlarmCounter = 0;
+}
 
 // 0x0804b7e0  main.c:194
-void InitTime() { abort(); /* STUB */ }
+void InitTime() {
+	TimeReset();
+	handler(SIGALRM, HandlerSigAlarm);
+	HandlerSigAlarm(SIGALRM);
+}
 
 // 0x0804b850  main.c:204
-void ExitTime() { abort(); /* STUB */ }
+void ExitTime() {
+	struct itimerval v, ov;
+
+	v.it_interval.tv_sec = 0;
+	v.it_interval.tv_usec = 0;
+	v.it_value.tv_sec = 0;
+	v.it_value.tv_usec = 0;
+	setitimer(ITIMER_REAL, &v, &ov);
+	handler(SIGALRM, SIG_IGN);
+}
 
 // 0x0804b8b0  main.c:223
-void SigHupHandler(int) { abort(); /* STUB */ }
+void SigHupHandler(int) {
+}
 
 // 0x0804b8c0  main.c:232
-void SigAbortHandler(int) { abort(); /* STUB */ }
+void SigAbortHandler(int) {
+	print(1, "SigAbortHandler: schalte Writer-Thread ab.\n");
+	AbortWriter();
+}
 
 // 0x0804b8f0  main.c:241
-void HandlerSigUsr1(int) { abort(); /* STUB */ }
+void HandlerSigUsr1(int) {
+	SigUsr1Counter++;
+}
 
 // 0x0804b900  main.c:252
-void DefaultHandler(int /*signo*/) { abort(); /* STUB */ }
+void DefaultHandler(int signo) {
+	char s[128];
+
+	// The original reads sys_siglist[signo], which glibc no longer exports;
+	// sigdescr_np returns the same descriptions.
+	snprintf(s, sizeof(s), "SigNr. %d: %s", signo, sigdescr_np(signo));
+	print(1, "DefaultHandler: Beende Game-Server (%s).\n", s);
+
+	handler(SIGINT, SIG_IGN);
+	handler(SIGQUIT, SIG_IGN);
+	handler(SIGTERM, SIG_IGN);
+	handler(SIGXCPU, SIG_IGN);
+	handler(SIGXFSZ, SIG_IGN);
+	handler(SIGPWR, SIG_IGN);
+
+	SaveMapOn = (signo == SIGQUIT || signo == SIGTERM || signo == SIGPWR);
+	if (signo == SIGTERM) {
+		int Hour, Minute;
+		GetRealTime(Hour, Minute);
+		RebootTime = (Hour * 60 + Minute + 6) % 1440;
+		CloseGame();
+	} else {
+		EndGame();
+	}
+
+	Reboot = false;
+}
 
 // 0x0804ba60  main.c:289
-void ErrorHandler(int /*signo*/) { abort(); /* STUB */ }
+void ErrorHandler(int signo) {
+	char s[128];
+
+	snprintf(s, sizeof(s), "SigNr. %d: %s", signo, sigdescr_np(signo));
+	error("ErrorHandler: %s\n", s);
+	EndGame();
+	LogoutAllPlayers();
+	exit(1);
+}
 
 // 0x0804bad0  main.c:315
-void InitSignalHandler() { abort(); /* STUB */ }
+void InitSignalHandler() {
+	int count = 0;
+
+	if (handler(SIGHUP, SigHupHandler) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGINT, DefaultHandler) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGQUIT, DefaultHandler) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGABRT, SigAbortHandler) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGUSR1, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGUSR2, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGPIPE, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGALRM, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGTERM, DefaultHandler) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGSTKFLT, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGCHLD, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGTSTP, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGTTIN, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGTTOU, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGURG, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGXCPU, DefaultHandler) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGXFSZ, DefaultHandler) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGVTALRM, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGWINCH, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGPOLL, SIG_IGN) != SIG_ERR) {
+		count++;
+	}
+	if (handler(SIGPWR, DefaultHandler) != SIG_ERR) {
+		count++;
+	}
+
+	// 21 handlers are set up; the original prints 28 as the expected number.
+	print(1, "InitSignalHandler: %d Signalhandler eingerichtet (Soll=%d)\n", count, 28);
+}
 
 // 0x0804bd40  main.c:355
-void ExitSignalHandler() { abort(); /* STUB */ }
+void ExitSignalHandler() {
+}
 
 // 0x0804bd50  main.c:367
-void UnlockGame() { abort(); /* STUB */ }
+void UnlockGame() {
+	char FileName[4096];
+	// The original leaves Pid uninitialised. When the read stores nothing
+	// (an empty file), 0 keeps the file, as a leftover stack value does.
+	int Pid = 0;
+	std::ifstream IF;
+
+	strcpy(FileName, SAVEPATH);
+	strcat(FileName, "/game.pid");
+	IF.open(FileName, std::ios::in);
+	if (!IF.fail()) {
+		IF >> Pid;
+		IF.close();
+		if (Pid == getpid()) {
+			unlink(FileName);
+		}
+	}
+}
 
 // 0x0804bfd0  main.c:385
-void LockGame() { abort(); /* STUB */ }
+// The original declares throw(const char *), which C++17 no longer has.
+void LockGame() {
+	std::ifstream IF;
+	std::ofstream OF;
+	char FileName[4096];
+
+	strcpy(FileName, SAVEPATH);
+	strcat(FileName, "/game.pid");
+	IF.open(FileName, std::ios::in);
+	if (IF.fail()) {
+		IF.close();
+		OF.open(FileName, std::ios::out | std::ios::trunc);
+		OF << getpid();
+		atexit(UnlockGame);
+	} else {
+		// The original leaves Pid uninitialised and its libstdc++ does not
+		// store into it when the read fails. Its stack slot is still unused
+		// at this point and reads 0 (checked under gdb with an empty
+		// game.pid), so an empty or non-numeric game.pid does not stop the
+		// start. Today's libstdc++ leaves Pid unset on an empty file, hence
+		// the 0 here.
+		int Pid = 0;
+		IF >> Pid;
+		IF.close();
+		if (Pid != 0) {
+			throw "Game-Server is already running, PID file exists.";
+		}
+	}
+}
 
 // 0x0804c570  main.c:411
-void LoadWorldConfig() { abort(); /* STUB */ }
+// The original declares throw(const char *), which C++17 no longer has.
+void LoadWorldConfig() {
+	TQueryManagerConnection Connection;
+	if (!Connection.isConnected()) {
+		error("LoadWorldConfig: Kann nicht zum Query-Manager verbinden.\n");
+		throw "cannot connect to querymanager";
+	}
+
+	int HelpWorldType;
+	int HelpGameAddress[4];
+	if (Connection.loadWorldConfig(HelpWorldType, RebootTime, HelpGameAddress, GamePort,
+			MaxPlayers, PremiumPlayerBuffer, MaxNewbies, PremiumNewbieBuffer) != 0) {
+		error("LoadWorldConfig: Kann Konfigurationsdaten nicht holen.\n");
+		throw "cannot load world config";
+	}
+
+	WorldType = static_cast<TWorldType>(HelpWorldType);
+	snprintf(GameAddress, sizeof(GameAddress), "%d.%d.%d.%d",
+			HelpGameAddress[0], HelpGameAddress[1], HelpGameAddress[2], HelpGameAddress[3]);
+}
 
 // 0x0804c6d0  main.c:432
-void InitAll() { abort(); /* STUB */ }
+void InitAll() {
+	try {
+		ReadConfig();
+		SetQueryManagerLoginData(1, WorldName);
+		LoadWorldConfig();
+		InitSHM(!BeADaemon);
+		LockGame();
+		InitLog("game");
+		srand(static_cast<unsigned int>(time(nullptr)));
+		InitSignalHandler();
+		InitConnections();
+		InitCommunication();
+		InitStrings();
+		InitWriter();
+		InitReader();
+		InitObjects();
+		InitMap();
+		InitInfo();
+		InitMoveUse();
+		InitMagic();
+		InitCr();
+		InitHouses();
+		InitTime();
+		ApplyPatches();
+	} catch (const char *s) {
+		error("Initialisierungsfehler: %s\n", s);
+		exit(1);
+	}
+}
 
 // 0x0804c820  main.c:469
-void ExitAll() { abort(); /* STUB */ }
+void ExitAll() {
+	EndGame();
+	ExitTime();
+	ExitCr();
+	ExitMagic();
+	ExitMoveUse();
+	ExitInfo();
+	ExitHouses();
+	ExitMap(SaveMapOn);
+	ExitObjects();
+	ExitReader();
+	ExitWriter();
+	ExitStrings();
+	ExitCommunication();
+	ExitConnections();
+	ExitSHM();
+}
 
 // 0x0804c8d0  main.c:493
-void LaunchGame() { abort(); /* STUB */ }
+void LaunchGame() {
+	SigUsr1Counter = 0;
+	handler(SIGUSR1, HandlerSigUsr1);
+	StartGame();
+	print(1, "LaunchGame: Game-Server ist bereit (Pid=%d).\n", getpid());
+	SaveMapOn = true;
+	TimeReset();
+
+	// The original calls the BSD functions sigblock(sigmask(SIGUSR1)) and
+	// sigpause(0). glibc has deprecated them; sigprocmask and sigsuspend with
+	// the same masks do the same.
+	sigset_t BlockSet, PauseSet;
+	sigemptyset(&BlockSet);
+	sigaddset(&BlockSet, SIGUSR1);
+	sigemptyset(&PauseSet);
+
+	while (GameRunning()) {
+		sigprocmask(SIG_BLOCK, &BlockSet, nullptr);
+		while (SigUsr1Counter == 0 && SigAlarmCounter == 0) {
+			sigsuspend(&PauseSet);
+		}
+
+		if (SigUsr1Counter > 0) {
+			SigUsr1Counter = 0;
+			ReceiveData();
+		}
+
+		if (SigAlarmCounter > 0) {
+			int Time = SigAlarmCounter * Beat;
+			SigAlarmCounter = 0;
+			AdvanceGame(Time);
+		}
+	}
+
+	LogoutAllPlayers();
+}
 
 // 0x0804c9c0  main.c:528
-int DaemonInit(bool /*NoFork*/) { abort(); /* STUB */ }
+int DaemonInit(bool NoFork) {
+	if (!NoFork) {
+		pid_t Pid = fork();
+		if (Pid < 0) {
+			return 1;
+		}
+		if (Pid != 0) {
+			exit(0);
+		}
+		setsid();
+	}
+
+	umask(0);
+	umask(0177);
+	chdir(SAVEPATH);
+
+	int openmax = static_cast<int>(sysconf(_SC_OPEN_MAX));
+	if (openmax < 0) {
+		openmax = 1024;
+	}
+
+	for (int i = 0; i < openmax; i++) {
+		close(i);
+	}
+
+	return 0;
+}
 
 // 0x0804ca50  main.c:550
-int main(int /*argc*/, char ** /*argv*/) { abort(); /* STUB */ }
+int main(int argc, char **argv) {
+	bool NoFork = false;
+
+	BeADaemon = false;
+	Reboot = true;
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "daemon") == 0) {
+			BeADaemon = true;
+		}
+		if (strcmp(argv[i], "nofork") == 0) {
+			NoFork = true;
+		}
+	}
+
+	if (!BeADaemon) {
+		puts("Tibia Game-Server\n(c) by CIP Productions, 2003.\n");
+	}
+
+	if (BeADaemon) {
+		if (DaemonInit(NoFork) != 0) {
+			return 2;
+		}
+	}
+
+	InitAll();
+	atexit(ExitAll);
+
+	try {
+		LaunchGame();
+	} catch (RESULT r) {
+		error("main: Nicht abgefangene Exception %d.\n", r);
+		Reboot = false;
+	} catch (const char *s) {
+		error("main: Nicht abgefangene Exception \"%s\".\n", s);
+		Reboot = false;
+	} catch (std::exception &e) {
+		error("main: Nicht abgefangene Exception %s.\n", e.what());
+		Reboot = false;
+	} catch (...) {
+		error("main: Nicht abgefangene Exception unbekannten Typs.\n");
+		Reboot = false;
+	}
+
+	if (Reboot) {
+		char FileName[4096];
+
+		UnlockGame();
+		sprintf(FileName, "%s/reboot-daily", BINPATH);
+		if (FileExists(FileName)) {
+			ExitAll();
+			print(1, "Starte Game-Server neu...\n");
+			execv(FileName, argv);
+		}
+		print(1, "Reboot-Skript existiert nicht.\n");
+	} else {
+		print(1, "Beende Game-Server...\n");
+	}
+
+	return 0;
+}
