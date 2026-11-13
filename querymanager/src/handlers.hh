@@ -46,6 +46,7 @@ private:
 	uint32_t requireWorld(const Session &session) const;
 
 	void handleLogin(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleLoginAccount(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleLoadWorldConfig(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleLoadPlayers(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleLoginGame(Session &session, ReadBuffer &in, WriteBuffer &out);

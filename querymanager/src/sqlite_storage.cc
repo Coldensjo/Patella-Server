@@ -688,6 +688,17 @@ std::vector<PlayerEntry> SqliteStorage::listPlayers(uint32_t worldId, uint32_t m
 	return players;
 }
 
+std::vector<CharacterRecord> SqliteStorage::listAccountCharacters(uint32_t accountId) {
+	std::vector<CharacterRecord> characters;
+	Stmt stmt(Db, (std::string("SELECT ") + CharacterColumns
+		+ " FROM characters WHERE account_id = ? AND deleted = 0 ORDER BY name_key").c_str());
+	stmt.bind(1, accountId);
+	while (stmt.step()) {
+		characters.push_back(readCharacter(stmt));
+	}
+	return characters;
+}
+
 bool SqliteStorage::incrementIsOnline(uint32_t characterId) {
 	Stmt stmt(Db, "UPDATE characters SET is_online = is_online + 1 WHERE character_id = ?");
 	return stmt.bind(1, characterId).run() > 0;

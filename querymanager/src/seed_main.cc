@@ -7,6 +7,9 @@
 // new characters: they get the next free character id and have no player
 // file, so the game starts them as new characters (LoadPlayerData,
 // dbfuncs.c, 0x806c240).
+// --login-password, alone or with either mode, stores the password the
+// login server (loginserver/) presents. It sends it as it is, without the
+// game's DisguisePassword.
 
 #include "protocol.hh"
 #include "seed.hh"
@@ -25,6 +28,7 @@ void usage(const char *program) {
 	std::fprintf(stderr,
 		"usage: %s --db PATH --game-root DIR [world options] [--no-players] [--no-house-owners]\n"
 		"       %s --db PATH --add-account ID --password PASSWORD [account options]\n"
+		"       %s --db PATH --login-password PASSWORD [with either form above]\n"
 		"world options (defaults in parentheses):\n"
 		"  --world-type N             0 normal, 1 non-PvP, 2 PvP-enforced (0)\n"
 		"  --reboot-hour N            hour of the daily reboot (9)\n"
@@ -43,7 +47,7 @@ void usage(const char *program) {
 		"                             needs --world\n"
 		"  --world NAME               world of the new characters\n"
 		"  --sex N                    sex of the new characters: 1 male, 2 female (1)\n",
-		program, program);
+		program, program, program);
 }
 
 bool parseNumber(const char *text, long minimum, long maximum, long &value) {
@@ -64,6 +68,18 @@ bool parseAddress(const char *text, uint8_t address[4]) {
 	address[2] = static_cast<uint8_t>(c);
 	address[3] = static_cast<uint8_t>(d);
 	return true;
+}
+
+void setLoginPassword(qm::SqliteStorage &storage, const std::string &password) {
+	storage.begin();
+	try {
+		storage.setApplicationPassword(qm::APPLICATION_LOGIN, password);
+		storage.commit();
+	} catch (...) {
+		storage.rollback();
+		throw;
+	}
+	std::printf("login server password stored\n");
 }
 
 int addAccount(qm::SqliteStorage &storage, uint32_t accountId, const std::string &password,
@@ -162,6 +178,8 @@ int main(int argc, char **argv) {
 	std::vector<std::string> newCharacters;
 	std::string worldName;
 	long sex = 1;
+	std::string loginPassword;
+	bool haveLoginPassword = false;
 
 	for (int i = 1; i < argc; i++) {
 		std::string option = argv[i];
@@ -224,6 +242,10 @@ int main(int argc, char **argv) {
 			password = qm::utf8ToLatin1(value);
 			ok = password.size() <= qm::MAX_NAME_LENGTH;
 			havePassword = true;
+		} else if (option == "--login-password") {
+			loginPassword = value;
+			ok = !loginPassword.empty();
+			haveLoginPassword = true;
 		} else if (option == "--premium-days") {
 			ok = parseNumber(value, 0, 36500, premiumDays);
 		} else if (option == "--right") {
@@ -247,7 +269,8 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (database.empty() || (options.gameRoot.empty() == !haveAccount)) {
+	bool haveRoot = !options.gameRoot.empty();
+	if (database.empty() || (haveRoot && haveAccount) || (!haveRoot && !haveAccount && !haveLoginPassword)) {
 		usage(argv[0]);
 		return 2;
 	}
@@ -261,10 +284,20 @@ int main(int argc, char **argv) {
 	}
 
 	try {
+		// The login password is stored last, so that a run that fails
+		// changes nothing.
 		qm::SqliteStorage storage(database);
+		if (!haveRoot && !haveAccount) {
+			setLoginPassword(storage, loginPassword);
+			return 0;
+		}
 		if (haveAccount) {
-			return addAccount(storage, static_cast<uint32_t>(accountId), password, premiumDays,
+			int result = addAccount(storage, static_cast<uint32_t>(accountId), password, premiumDays,
 				gamemaster, rights, characters, newCharacters, worldName, static_cast<uint8_t>(sex));
+			if (result == 0 && haveLoginPassword) {
+				setLoginPassword(storage, loginPassword);
+			}
+			return result;
 		}
 
 		qm::SeedReport report = qm::seedFromInstallation(storage, options);
@@ -293,6 +326,9 @@ int main(int argc, char **argv) {
 			static_cast<unsigned long long>(storage.countRows("characters")));
 		std::printf("accounts in database:   %llu\n",
 			static_cast<unsigned long long>(storage.countRows("accounts")));
+		if (haveLoginPassword) {
+			setLoginPassword(storage, loginPassword);
+		}
 	} catch (const std::exception &e) {
 		std::fprintf(stderr, "error: %s\n", e.what());
 		return 1;

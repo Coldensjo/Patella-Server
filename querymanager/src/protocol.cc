@@ -14,6 +14,7 @@ namespace qm {
 //  10 checkAccountPassword (0x80e1440)
 //       request:  quad AccountID, string Password, string IPAddress
 //       response: OK: nothing. ERROR: byte code 1..4.
+//  11 loginAccount: not in bin/game, see handlers.cc.
 //  12 loginAdmin (0x80e1610)
 //       request:  quad AccountID, flag PrivateWorld
 //       response: OK: byte NumberOfCharacters, then per character
@@ -101,6 +102,7 @@ namespace qm {
 static const QueryInfo QueryTable[] = {
 	{QUERY_LOGIN, "login", 0x80e04b0, true},
 	{QUERY_CHECK_ACCOUNT_PASSWORD, "checkAccountPassword", 0x80e1440, false},
+	{QUERY_LOGIN_ACCOUNT, "loginAccount", 0, true},
 	{QUERY_LOGIN_ADMIN, "loginAdmin", 0x80e1610, false},
 	{QUERY_LOGIN_GAME, "loginGame", 0x80e1c10, true},
 	{QUERY_LOGOUT_GAME, "logoutGame", 0x80e3010, true},

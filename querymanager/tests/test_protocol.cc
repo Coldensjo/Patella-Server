@@ -131,21 +131,27 @@ static void testFraming() {
 static void testCatalogue() {
 	size_t count = 0;
 	const QueryInfo *table = queryTable(count);
-	CHECK(count == 49);
+	CHECK(count == 50);
 	size_t implemented = 0;
 	for (size_t i = 0; i < count; i++) {
 		if (i > 0) {
 			CHECK(table[i - 1].type < table[i].type);
 		}
-		CHECK(table[i].address >= 0x80e04b0 && table[i].address < 0x80e8c80);
+		// loginAccount is this project's request; bin/game has no method for it.
+		if (table[i].type == QUERY_LOGIN_ACCOUNT) {
+			CHECK(table[i].address == 0);
+		} else {
+			CHECK(table[i].address >= 0x80e04b0 && table[i].address < 0x80e8c80);
+		}
 		CHECK(findQueryInfo(table[i].type) == &table[i]);
 		if (table[i].implemented) {
 			implemented++;
 		}
 	}
-	CHECK(implemented == 26);
+	CHECK(implemented == 27);
 
 	CHECK(std::string(queryName(QUERY_LOGIN)) == "login");
+	CHECK(std::string(queryName(11)) == "loginAccount");
 	CHECK(std::string(queryName(20)) == "loginGame");
 	CHECK(std::string(queryName(21)) == "logoutGame");
 	CHECK(std::string(queryName(50)) == "loadPlayers");

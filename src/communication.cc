@@ -831,7 +831,17 @@ bool HandleLogin(TConnection *Connection) {
 	uint32_t AccountID;
 	char PlayerName[31];
 	char PlayerPassword[31];
+	// Not in bin/game: a 7.72 client sends terminal type and version in
+	// clear before the RSA block (command, 2 words, 128 bytes: 133 bytes),
+	// and leaves them out of the block. bin/game reads only the 7.70 layout
+	// (command, 128 bytes: 129 bytes), which is kept unchanged for every
+	// other packet size.
+	bool ClientLayout772 = (Connection->InDataSize == 1 + 4 + 128);
 	try {
+		if (ClientLayout772) {
+			TerminalType = Buffer.readWord();
+			TerminalVersion = Buffer.readWord();
+		}
 		unsigned char AssymmetricData[128];
 		Buffer.readBytes(AssymmetricData, 128);
 
@@ -850,8 +860,10 @@ bool HandleLogin(TConnection *Connection) {
 		Help.readByte();
 		Connection->SetSymmetricKey(AssymmetricData + Help.getPosition());
 		Help.skip(16);
-		TerminalType = Help.readWord();
-		TerminalVersion = Help.readWord();
+		if (!ClientLayout772) {
+			TerminalType = Help.readWord();
+			TerminalVersion = Help.readWord();
+		}
 		GamemasterClient = Help.readByte() != 0;
 		AccountID = Help.readQuad();
 		Help.readString(PlayerName, 30);

@@ -87,7 +87,7 @@ std::vector<uint8_t> Dispatcher::handle(Session &session, const std::vector<uint
 
 	if (logLevel() >= LogLevel::Debug) {
 		// The login requests carry passwords; their bytes stay out of the log.
-		bool secret = type == QUERY_LOGIN || type == QUERY_LOGIN_GAME;
+		bool secret = type == QUERY_LOGIN || type == QUERY_LOGIN_GAME || type == QUERY_LOGIN_ACCOUNT;
 		logMessage(LogLevel::Debug, "conn %llu %s request type=%u size=%zu data=%s", conn, world,
 			static_cast<unsigned>(type), request.size(),
 			secret ? "(not logged)" : hexDump(request, 64).c_str());
@@ -167,6 +167,7 @@ std::vector<uint8_t> Dispatcher::handle(Session &session, const std::vector<uint
 void Dispatcher::dispatch(Session &session, uint8_t type, ReadBuffer &in, WriteBuffer &out) {
 	switch (type) {
 	case QUERY_LOGIN: handleLogin(session, in, out); break;
+	case QUERY_LOGIN_ACCOUNT: handleLoginAccount(session, in, out); break;
 	case QUERY_LOAD_WORLD_CONFIG: handleLoadWorldConfig(session, in, out); break;
 	case QUERY_LOAD_PLAYERS: handleLoadPlayers(session, in, out); break;
 	case QUERY_LOGIN_GAME: handleLoginGame(session, in, out); break;
@@ -242,6 +243,96 @@ void Dispatcher::handleLogin(Session &session, ReadBuffer &in, WriteBuffer &out)
 	session.worldName = worldName;
 	Detail = format("application=%u", static_cast<unsigned>(applicationType));
 	out.writeByte(STATUS_OK);
+}
+
+// Query 11, loginAccount. Not in bin/game: the request of this project's
+// login server (loginserver/), which answers a client's login with the
+// character list. Only the login server's application type may send it.
+//   request:  quad AccountID, string Password, string IPAddress
+//   response, OK:
+//             byte NumberOfCharacters, then per character string Name,
+//             string World, 4 bytes IPAddress, word Port; then
+//             word PremiumDaysLeft
+//   response, ERROR: byte code, see LoginAccountError
+// The OK layout is the one of loginAdmin (12), the catalogued request that
+// answers with the same kind of list. IPAddress and Port of a character are
+// those of its world in the worlds table, which the game listens on
+// (loadWorldConfig). Characters of a world that does not exist are left
+// out, and at most 255 are sent. PremiumDaysLeft counts started days; with
+// 32-bit times it stays below 65535, which the client would show as
+// "Gratis Premium Account".
+void Dispatcher::handleLoginAccount(Session &session, ReadBuffer &in, WriteBuffer &out) {
+	uint32_t accountId = in.readQuad();
+	std::string password = in.readString();
+	std::string address = in.readString();
+	if (session.applicationType != APPLICATION_LOGIN) {
+		throw RequestFailed("only the login server may ask for an account's characters");
+	}
+	uint32_t now = Now();
+
+	Detail = format("account=%u", accountId);
+	std::optional<AccountRecord> account = Store.findAccount(accountId);
+	if (!account || account->deleted) {
+		Detail += " unknown";
+		return writeError(out, ACCOUNT_UNKNOWN);
+	}
+	if (account->password != password) {
+		Detail += " wrong password";
+		return writeError(out, ACCOUNT_WRONG_PASSWORD);
+	}
+	if (account->banishedUntil > now) {
+		Detail += " banished";
+		return writeError(out, ACCOUNT_BANISHED);
+	}
+	if (Store.isIpBanished(address, now)) {
+		Detail += " ip banished";
+		return writeError(out, ACCOUNT_IP_BANISHED);
+	}
+
+	struct Entry {
+		const CharacterRecord *character;
+		const WorldRecord *world;
+	};
+	std::vector<CharacterRecord> characters = Store.listAccountCharacters(accountId);
+	std::vector<WorldRecord> worlds;
+	std::vector<Entry> entries;
+	worlds.reserve(characters.size());
+	for (const CharacterRecord &character : characters) {
+		const WorldRecord *world = nullptr;
+		for (const WorldRecord &known : worlds) {
+			if (known.id == character.worldId) {
+				world = &known;
+				break;
+			}
+		}
+		if (world == nullptr) {
+			std::optional<WorldRecord> found = Store.getWorld(character.worldId);
+			if (!found) {
+				continue;
+			}
+			worlds.push_back(*found);
+			world = &worlds.back();
+		}
+		if (entries.size() < 255) {
+			entries.push_back(Entry{&character, world});
+		}
+	}
+
+	uint32_t premiumDays = 0;
+	if (account->premiumUntil > now) {
+		premiumDays = (account->premiumUntil - now - 1) / 86400 + 1;
+	}
+
+	out.writeByte(STATUS_OK);
+	out.writeByte(static_cast<uint8_t>(entries.size()));
+	for (const Entry &entry : entries) {
+		out.writeString(cut(entry.character->name));
+		out.writeString(cut(entry.world->name));
+		out.writeBytes(entry.world->config.address, 4);
+		out.writeWord(entry.world->config.port);
+	}
+	out.writeWord(static_cast<uint16_t>(premiumDays));
+	Detail += format(" characters=%zu premium_days=%u", entries.size(), premiumDays);
 }
 
 // Query 53, loadWorldConfig (0x80e1950), called once by LoadWorldConfig

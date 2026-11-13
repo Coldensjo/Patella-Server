@@ -153,6 +153,143 @@ void testLogin() {
 	CHECK(f.session.worldName == "Testia");
 }
 
+WriteBuffer loginAccountRequest(uint32_t accountId, const std::string &password,
+		const std::string &address = "192.0.2.1") {
+	WriteBuffer buffer = request(QUERY_LOGIN_ACCOUNT);
+	buffer.writeQuad(accountId);
+	buffer.writeString(password);
+	buffer.writeString(address);
+	return buffer;
+}
+
+void loginAsLoginServer(Fixture &f) {
+	WriteBuffer login = request(QUERY_LOGIN);
+	login.writeByte(APPLICATION_LOGIN);
+	login.writeString("login-secret");
+	CHECK(isOk(f.call(login)));
+	CHECK(f.session.loggedIn && f.session.worldId == 0);
+}
+
+void testLoginAccount() {
+	Fixture f;
+	f.storage.setApplicationPassword(APPLICATION_LOGIN, "login-secret");
+	WorldConfig config;
+	config.address[0] = 127;
+	config.address[1] = 0;
+	config.address[2] = 0;
+	config.address[3] = 1;
+	config.port = 7172;
+	uint32_t thirdWorldId = f.storage.putWorld("Zanera", config, false);
+
+	f.addAccount(111, "pw", StartTime + 3 * 86400);
+	f.addCharacter(1, "Bravo", 111);
+	f.addCharacter(2, "alpha", 111);
+	CharacterRecord deleted = f.addCharacter(3, "Charlie", 111);
+	deleted.deleted = true;
+	f.storage.putCharacter(deleted);
+	CharacterRecord elsewhere = f.addCharacter(4, "Delta", 111);
+	elsewhere.worldId = thirdWorldId;
+	f.storage.putCharacter(elsewhere);
+	CharacterRecord lost = f.addCharacter(5, "Echo", 111);
+	lost.worldId = 999;
+	f.storage.putCharacter(lost);
+	f.addCharacter(6, "Foxtrot", 222);
+	f.addAccount(222, "other");
+	f.addAccount(333, "empty");
+
+	// The game's application may not ask, and neither may anybody before a
+	// login.
+	CHECK(isFailed(f.call(loginAccountRequest(111, "pw"))));
+	f.login();
+	CHECK(isFailed(f.call(loginAccountRequest(111, "pw"))));
+
+	Fixture g;
+	g.storage.setApplicationPassword(APPLICATION_LOGIN, "login-secret");
+	WriteBuffer wrongPassword = request(QUERY_LOGIN);
+	wrongPassword.writeByte(APPLICATION_LOGIN);
+	wrongPassword.writeString("secret");
+	CHECK(isFailed(g.call(wrongPassword)));
+	CHECK(!g.session.loggedIn);
+
+	f.session = Session();
+	loginAsLoginServer(f);
+
+	// Characters ordered by name without regard to case; the deleted one and
+	// the one of an unknown world are left out. Each carries its world's
+	// address and port.
+	const uint8_t testia[4] = {10, 20, 30, 40};
+	const uint8_t zanera[4] = {127, 0, 0, 1};
+	WriteBuffer expected;
+	expected.writeByte(STATUS_OK);
+	expected.writeByte(3);
+	expected.writeString("alpha");
+	expected.writeString("Testia");
+	expected.writeBytes(testia, 4);
+	expected.writeWord(7171);
+	expected.writeString("Bravo");
+	expected.writeString("Testia");
+	expected.writeBytes(testia, 4);
+	expected.writeWord(7171);
+	expected.writeString("Delta");
+	expected.writeString("Zanera");
+	expected.writeBytes(zanera, 4);
+	expected.writeWord(7172);
+	expected.writeWord(3);
+	CHECK(f.call(loginAccountRequest(111, "pw")) == expected.data());
+
+	// Premium days count started days.
+	f.now = StartTime + 1;
+	std::vector<uint8_t> response = f.call(loginAccountRequest(111, "pw"));
+	CHECK(response.size() >= 2 && response[response.size() - 2] == 3 && response.back() == 0);
+	f.now = StartTime + 2 * 86400 + 1;
+	response = f.call(loginAccountRequest(111, "pw"));
+	CHECK(response.size() >= 2 && response[response.size() - 2] == 1 && response.back() == 0);
+	f.now = StartTime + 3 * 86400;
+	response = f.call(loginAccountRequest(111, "pw"));
+	CHECK(response.size() >= 2 && response[response.size() - 2] == 0 && response.back() == 0);
+	f.now = StartTime;
+	// The latest time there is: 49699 days (0xC223), below the 65535 that
+	// the client shows as a gratis premium account.
+	f.addAccount(111, "pw", 0xFFFFFFFFu);
+	response = f.call(loginAccountRequest(111, "pw"));
+	CHECK(response.size() >= 2 && response[response.size() - 2] == 0x23 && response.back() == 0xC2);
+
+	// An account without characters is not an error here; the login server
+	// decides what the client sees.
+	const std::vector<uint8_t> empty = {STATUS_OK, 0, 0, 0};
+	CHECK(f.call(loginAccountRequest(333, "empty")) == empty);
+
+	CHECK(isError(f.call(loginAccountRequest(444, "pw")), ACCOUNT_UNKNOWN));
+	CHECK(isError(f.call(loginAccountRequest(0, "")), ACCOUNT_UNKNOWN));
+	CHECK(isError(f.call(loginAccountRequest(111, "PW")), ACCOUNT_WRONG_PASSWORD));
+	CHECK(isError(f.call(loginAccountRequest(111, "")), ACCOUNT_WRONG_PASSWORD));
+
+	AccountRecord account = *f.storage.findAccount(222);
+	account.banishedUntil = StartTime + 1;
+	f.storage.putAccount(account);
+	// The password is checked first, so a banishment shows only to the owner.
+	CHECK(isError(f.call(loginAccountRequest(222, "x")), ACCOUNT_WRONG_PASSWORD));
+	CHECK(isError(f.call(loginAccountRequest(222, "other")), ACCOUNT_BANISHED));
+	f.now = StartTime + 1;
+	CHECK(f.call(loginAccountRequest(222, "other"))[0] == STATUS_OK);
+	f.now = StartTime;
+
+	account.banishedUntil = 0;
+	account.deleted = true;
+	f.storage.putAccount(account);
+	CHECK(isError(f.call(loginAccountRequest(222, "other")), ACCOUNT_UNKNOWN));
+
+	f.storage.banishIpAddress("198.51.100.7", StartTime + 60);
+	CHECK(isError(f.call(loginAccountRequest(111, "pw", "198.51.100.7")), ACCOUNT_IP_BANISHED));
+	CHECK(f.call(loginAccountRequest(111, "pw", "198.51.100.8"))[0] == STATUS_OK);
+
+	// A request that is too short fails and changes nothing.
+	WriteBuffer tooShort = request(QUERY_LOGIN_ACCOUNT);
+	tooShort.writeQuad(111);
+	CHECK(isFailed(f.call(tooShort)));
+	CHECK(f.call(loginAccountRequest(111, "pw"))[0] == STATUS_OK);
+}
+
 void testWorldConfig() {
 	Fixture f;
 	f.login();
@@ -955,6 +1092,7 @@ void all() {
 	// of the test output.
 	setLogFile("/dev/null");
 	testLogin();
+	testLoginAccount();
 	testWorldConfig();
 	testLoadPlayers();
 	testLoginGameSuccess();
