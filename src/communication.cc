@@ -820,12 +820,12 @@ bool HandleLogin(TConnection *Connection) {
 			TerminalType = Buffer.readWord();
 			TerminalVersion = Buffer.readWord();
 		}
-		unsigned char AssymmetricData[128];
-		Buffer.readBytes(AssymmetricData, 128);
+		unsigned char AsymmetricData[128];
+		Buffer.readBytes(AsymmetricData, 128);
 
 		RSAMutex.down();
 		try {
-			PrivateKey.decrypt(AssymmetricData);
+			PrivateKey.decrypt(AsymmetricData);
 		} catch (const char *s) {
 			error("HandleLogin: Fehler beim Entschl\xfcsseln (%s).\n", s);
 			RSAMutex.up();
@@ -834,9 +834,9 @@ bool HandleLogin(TConnection *Connection) {
 		}
 		RSAMutex.up();
 
-		TReadBuffer Help(AssymmetricData, 128);
+		TReadBuffer Help(AsymmetricData, 128);
 		Help.readByte();
-		Connection->SetSymmetricKey(AssymmetricData + Help.getPosition());
+		Connection->SetSymmetricKey(AsymmetricData + Help.getPosition());
 		Help.skip(16);
 		if (!ClientLayout772) {
 			TerminalType = Help.readWord();

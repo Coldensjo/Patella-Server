@@ -468,18 +468,18 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 		return Damage;
 	}
 
-	int proz = cr->Skills[SKILL_LEVEL]->Get() * 2;
-	proz += cr->Skills[SKILL_MAGICLEVEL]->Get() * 3;
+	int DamagePercent = cr->Skills[SKILL_LEVEL]->Get() * 2;
+	DamagePercent += cr->Skills[SKILL_MAGICLEVEL]->Get() * 3;
 	if (SpellNr != 0) {
-		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MAX_100) != 0 && proz > 100) {
-			proz = 100;
+		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MAX_100) != 0 && DamagePercent > 100) {
+			DamagePercent = 100;
 		}
-		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MIN_100) != 0 && proz < 100) {
-			proz = 100;
+		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MIN_100) != 0 && DamagePercent < 100) {
+			DamagePercent = 100;
 		}
 	}
 
-	int dam = Damage * proz / 100;
+	int dam = Damage * DamagePercent / 100;
 	return dam;
 }
 
