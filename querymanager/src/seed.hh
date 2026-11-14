@@ -6,8 +6,11 @@
 //                     entries) and the folders of the player files and data
 //                     ([paths] user and data); or, without config.toml, the
 //                     original .tibia ("World", "State", "QueryManager")
-//   usr/NN/<id>.usr   one file per character: id, name, outfit, last login
+//   usr/NN/<id>.usr   one file per character: id, name, outfit, last login,
+//                     and all of the character's player data (playerdata.hh)
 //   dat/owners.dat    house owners and the time their rent is paid until
+//   dat/items.toml    the object types the player files' item texts name (or
+//                     the original dat/objects.srv), for reading the files
 // (usr and dat: the folders config.toml names, else those in the game root)
 // What it does not provide, and seeding therefore takes from options:
 //   the world configuration the game asks for with loadWorldConfig.
@@ -71,8 +74,8 @@ struct PlayerFile {
 	bool hasName = false;
 };
 
-// Reads the head of a .usr file (LoadPlayerData, src/dbfuncs.cc, reads the
-// same keys with the same reader).
+// Reads the head of a .usr file (LoadPlayerFile, the game's old reader in
+// tools/convert/usr_files.cc, reads the same keys with the same tokens).
 PlayerFile readPlayerFile(const std::string &path);
 
 // Sex for an outfit, from the ranges TPlayer::CheckOutfit (src/crplayer.cc)
@@ -94,6 +97,11 @@ struct SeedOptions {
 	std::string gameRoot;                // directory with config.toml (or .tibia), usr/ and dat/
 	WorldConfig world;                   // values for loadWorldConfig
 	bool importPlayers = true;
+	// The player data of the imported characters: each player file read with
+	// the game's old reader and stored as the record the game's savePlayerData
+	// would send (tools/convert/player_records.hh). Data the database has
+	// already is kept. Needs importPlayers.
+	bool importPlayerData = true;
 	bool importHouseOwners = true;
 };
 
@@ -108,6 +116,10 @@ struct SeedReport {
 	size_t playersMale = 0;
 	size_t playersFemale = 0;
 	size_t playersOtherOutfit = 0;       // sex not derivable, stored as male
+	size_t playerDataImported = 0;
+	size_t playerDataDamaged = 0;        // imported as far as the old reader read it
+	size_t playerDataKept = 0;           // the database had data of the character already
+	size_t playerDataFailed = 0;         // not imported
 	size_t houseOwners = 0;
 	size_t houseOwnersWithoutCharacter = 0;
 	std::vector<std::string> warnings;

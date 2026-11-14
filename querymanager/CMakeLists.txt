@@ -29,13 +29,14 @@ target_include_directories(qm_server PUBLIC src)
 target_link_libraries(qm_server PUBLIC qm_protocol qm_storage Threads::Threads)
 
 # Seeding from a game server installation (config.toml or .tibia, usr/,
-# dat/owners.dat).
+# dat/owners.dat). The player files are read with the game's old reader, which
+# tools/convert's library has (player_records.hh).
 add_library(qm_seed STATIC
 	src/script.cc
 	src/seed.cc
 )
 target_include_directories(qm_seed PUBLIC src)
-target_link_libraries(qm_seed PUBLIC qm_storage tomlplusplus)
+target_link_libraries(qm_seed PUBLIC qm_storage tomlplusplus PRIVATE convert_common)
 
 add_executable(querymanager src/main.cc)
 target_link_libraries(querymanager PRIVATE qm_server)
@@ -49,3 +50,5 @@ foreach(test protocol handlers server seed)
 	target_link_libraries(qm_test_${test} PRIVATE qm_server qm_seed)
 	add_test(NAME querymanager_${test} COMMAND qm_test_${test})
 endforeach()
+# The seed test reads its made-up player files with the committed object types.
+target_compile_definitions(qm_test_seed PRIVATE PATELLA_ITEMS_TOML="${PROJECT_SOURCE_DIR}/data/items.toml")
