@@ -43,7 +43,7 @@ Thread StartThread(ThreadFunction *Function, void *Argument, bool Detach) {
 	pthread_t thread;
 	int result = pthread_create(&thread, nullptr, ThreadStarter, Starter);
 	if (result != 0) {
-		error("StartThread: Kann Thread nicht anlegen; Fehlercode %d.\n", result);
+		error("StartThread: Cannot create thread; error code %d.\n", result);
 		return 0;
 	}
 
@@ -68,7 +68,7 @@ Thread StartThread(ThreadFunction *Function, void *Argument, size_t StackSize, b
 	int result = pthread_create(&thread, &Attributes, ThreadStarter, Starter);
 	pthread_attr_destroy(&Attributes);
 	if (result != 0) {
-		error("StartThread: Kann Thread nicht anlegen; Fehlercode %d.\n", result);
+		error("StartThread: Cannot create thread; error code %d.\n", result);
 		return 0;
 	}
 
@@ -93,7 +93,7 @@ Thread StartThread(ThreadFunction *Function, void *Argument, void *Stack, size_t
 	int result = pthread_create(&thread, &Attributes, ThreadStarter, Starter);
 	pthread_attr_destroy(&Attributes);
 	if (result != 0) {
-		error("StartThread: Kann Thread nicht anlegen; Fehlercode %d.\n", result);
+		error("StartThread: Cannot create thread; error code %d.\n", result);
 		return 0;
 	}
 
@@ -129,23 +129,23 @@ int JoinThread(Thread OtherThread) {
 Semaphore::Semaphore(int initValue) {
 	this->value = initValue;
 	if (pthread_mutex_init(&this->mutex, nullptr) == -1) {
-		error("Semaphore::Semaphore: Kann Mutex nicht einrichten.\n");
+		error("Semaphore::Semaphore: Cannot set up mutex.\n");
 		return;
 	}
 
 	if (pthread_cond_init(&this->condition, nullptr) == -1) {
-		error("Semaphore::Semaphore: Kann Wartebedingung nicht einrichten.\n");
+		error("Semaphore::Semaphore: Cannot set up condition variable.\n");
 	}
 }
 
 Semaphore::~Semaphore() {
 	if (pthread_mutex_destroy(&this->mutex) == -1) {
-		error("Semaphore::~Semaphore: Kann Mutex nicht freigeben.\n");
+		error("Semaphore::~Semaphore: Cannot free mutex.\n");
 		return;
 	}
 
 	if (pthread_cond_destroy(&this->condition) == -1) {
-		error("Semaphore::~Semaphore: Kann Wartebedingung nicht freigeben.\n");
+		error("Semaphore::~Semaphore: Cannot free condition variable.\n");
 	}
 }
 

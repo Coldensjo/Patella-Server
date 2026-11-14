@@ -80,7 +80,7 @@ void TCombat::CheckTargetAndChase() {
 	}
 
 	if (Master == nullptr) {
-		error("TCombat::CanAttack: Kein Master gesetzt!\n");
+		error("TCombat::CanAttack: No Master set!\n");
 		throw ERROR;
 	}
 
@@ -154,7 +154,7 @@ void TCombat::Attack() {
 	}
 
 	if (Master == nullptr) {
-		error("TCombat::CanAttack: Kein Master gesetzt!\n");
+		error("TCombat::CanAttack: No Master set!\n");
 		throw ERROR;
 	}
 
@@ -319,7 +319,7 @@ void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 
 void TCombat::SetAttackMode(unsigned char b) {
 	if (b < ATTACK_MODE_OFFENSIVE || b > ATTACK_MODE_DEFENSIVE) {
-		error("TCombat::SetAttackMode: Ung\xfcltiger Angriffsmodus %d.\n", b);
+		error("TCombat::SetAttackMode: Invalid attack mode %d.\n", b);
 		return;
 	}
 
@@ -331,7 +331,7 @@ void TCombat::SetAttackMode(unsigned char b) {
 
 void TCombat::SetChaseMode(unsigned char b) {
 	if (b > CHASE_MODE_FOLLOW) {
-		error("TCombat::SetChaseMode: Ung\xfcltiger Verfolgungsmodus %d.\n", b);
+		error("TCombat::SetChaseMode: Invalid chase mode %d.\n", b);
 		return;
 	}
 
@@ -340,7 +340,7 @@ void TCombat::SetChaseMode(unsigned char b) {
 
 void TCombat::SetSecureMode(unsigned char b) {
 	if (b > SECURE_MODE_ON) {
-		error("TCombat::SetSecureMode: Ung\xfcltiger Sicherheitsmodus %d.\n", b);
+		error("TCombat::SetSecureMode: Invalid secure mode %d.\n", b);
 		return;
 	}
 
@@ -419,7 +419,7 @@ void TCombat::AddDamageToCombatList(uint32_t atk, unsigned short Damage) {
 }
 
 void TCombat::DistributeExperiencePoints(uint32_t Exp) {
-	print(3, "%s ist gestorben. Verteile %ld EXP...\n", Master->Name, (long)(int32_t)Exp);
+	print(3, "%s died. Distributing %ld EXP...\n", Master->Name, (long)(int32_t)Exp);
 	if (CombatDamage == 0) {
 		return;
 	}
@@ -444,7 +444,7 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 			}
 
 			Amount = (LevelVictim * 11 / 10 - LevelMurderer) * Amount / LevelVictim;
-			print(3, "%s erh\xe4lt %d EXP.\n", cr->Name, Amount);
+			print(3, "%s receives %d EXP.\n", cr->Name, Amount);
 		}
 
 		if (Amount != 0) {
@@ -509,7 +509,7 @@ void TCombat::GetWeapon() {
 	Fist = true;
 
 	if (!Master->GetCreatureObject().exists()) {
-		error("TCombat::GetWeapon: Kreatur-Objekt existiert nicht.\n");
+		error("TCombat::GetWeapon: Creature object does not exist.\n");
 		return;
 	}
 
@@ -748,7 +748,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 			}
 		} catch (RESULT r) {
 			if (r != DESTROYED) {
-				error("TCombat::RangeAttack: Konnte Ammo nicht verschieben/l\xf6schen (Exception %d, [%d,%d,%d].\n", r, x, y, z);
+				error("TCombat::RangeAttack: Could not move/delete ammo (Exception %d, [%d,%d,%d].\n", r, x, y, z);
 			}
 		}
 
