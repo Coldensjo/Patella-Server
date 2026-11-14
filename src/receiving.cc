@@ -1758,7 +1758,8 @@ void CRuleViolation(TConnection *Connection, TReadBuffer &Buffer) {
 
 	int NumberOfStatements = 0;
 	vector<TReportedStatement> *ReportedStatements = nullptr;
-	if ((in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_REPORT_RIGHT, LAST_REPORT_RIGHT) || Reason == 29)
+	if ((in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_REPORT_RIGHT, LAST_REPORT_RIGHT)
+				|| Reason == DESTRUCTIVE_BEHAVIOUR - FIRST_BANISHMENT_RIGHT)
 			&& StatementID != 0) {
 		int Result = GetCommunicationContext((Action == BANISHMENT_ACTION_STATEMENT_REPORT ? 0 : Gamemaster->ID),
 				StatementID, NumberOfStatements, ReportedStatements);

@@ -2335,8 +2335,8 @@ void TPlayer::RecordMurder(uint32_t Victim) {
 		}
 
 		if (Playerkilling == PLAYERKILLING_LIMIT_DOUBLED) {
-			PunishmentOrder(nullptr, Name, IPAddress, 28, 2,
-					"Exceeding the limit of unjustified kills by 100%.", 0, nullptr, 0, false);
+			PunishmentOrder(nullptr, Name, IPAddress, KILLING_EXCESSIVE_UNJUSTIFIED - FIRST_BANISHMENT_RIGHT,
+					BANISHMENT_ACTION_BANISHMENT, "Exceeding the limit of unjustified kills by 100%.", 0, nullptr, 0, false);
 		}
 	}
 }
