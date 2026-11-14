@@ -15,12 +15,12 @@
 struct TObjectType {
 	const char *Name;
 	const char *Description;
-	unsigned char Flags[9];
-	uint32_t Attributes[62];
-	int AttributeOffsets[18];
+	unsigned char Flags[(FLAGS + 7) / 8];
+	uint32_t Attributes[TYPEATTRIBUTES];
+	int AttributeOffsets[INSTANCEATTRIBUTES];
 };
 
-char FlagNames[66][20] = {
+char FlagNames[FLAGS][20] = {
 	"Bank",
 	"Clip",
 	"Bottom",
@@ -88,7 +88,7 @@ char FlagNames[66][20] = {
 	"ShowDetail",
 	"Special",
 };
-char TypeAttributeNames[62][30] = {
+char TypeAttributeNames[TYPEATTRIBUTES][30] = {
 	"Waypoints",
 	"Capacity",
 	"ChangeTarget",
@@ -152,7 +152,7 @@ char TypeAttributeNames[62][30] = {
 	"DisguiseTarget",
 	"Meaning",
 };
-FLAG TypeAttributeFlags[62] = {
+FLAG TypeAttributeFlags[TYPEATTRIBUTES] = {
 	BANK, CONTAINER, CHANGEUSE, KEYDOOR,
 	NAMEDOOR, LEVELDOOR, QUESTDOOR, FOOD,
 	INFORMATION, TEXT, WRITE, WRITEONCE,
@@ -170,7 +170,7 @@ FLAG TypeAttributeFlags[62] = {
 	AMMO, AMMO, ARMOR, HEIGHT,
 	DISGUISE, BANK,
 };
-FLAG InstanceAttributeFlags[18] = {
+FLAG InstanceAttributeFlags[INSTANCEATTRIBUTES] = {
 	CONTAINER, CHEST, CUMULATIVE, KEY,
 	KEYDOOR, LEVELDOOR, QUESTDOOR, QUESTDOOR,
 	RUNE, TEXT, TEXT, LIQUIDCONTAINER,
@@ -178,9 +178,14 @@ FLAG InstanceAttributeFlags[18] = {
 	EXPIRESTOP, WEAROUT,
 };
 vector<TObjectType> ObjectTypes(0, 5000, 1000);
-ObjectType SpecialObjects[49];
-unsigned char OldGroup[8192];
-unsigned char OldNumber[8192];
+
+// The size of the conversion tables of conversion.lst: the type numbers 0 to
+// 8191 can have an old group and number (OldGroup, OldNumber).
+const int CONVERSION_TYPES = 8192;
+
+ObjectType SpecialObjects[SPECIALMEANINGS];
+unsigned char OldGroup[CONVERSION_TYPES];
+unsigned char OldNumber[CONVERSION_TYPES];
 int NewType[65536];
 
 int GetFlagByName(char *Name) {
@@ -317,7 +322,7 @@ void LoadConversionList() {
 	char FileName[4096];
 	int Group, Number, Type;
 
-	for (int i = 0; i < 8192; i++) {
+	for (int i = 0; i < CONVERSION_TYPES; i++) {
 		OldGroup[i] = 0;
 		OldNumber[i] = 0;
 	}
@@ -340,7 +345,7 @@ void LoadConversionList() {
 		}
 		IN >> Number >> Type;
 
-		if (Type < 1 || Type > 8191) {
+		if (Type < 1 || Type > CONVERSION_TYPES - 1) {
 			error("LoadConversionList: Ung\xfcltiger Typ %d.\n", Type);
 			throw "Error while loading conversion.lst";
 		}
@@ -352,15 +357,16 @@ void LoadConversionList() {
 
 	IN.close();
 
-	for (int i = 0; i <= 10; i++) {
+	// No type (0) and the body containers keep their numbers, in group 0.
+	for (int i = 0; i <= LAST_BODY_POSITION; i++) {
 		OldGroup[i] = 0;
 		OldNumber[i] = static_cast<unsigned char>(i);
 		NewType[i] = i;
 	}
 
-	OldGroup[99] = 250;
-	OldNumber[99] = 0;
-	NewType[250 * 256 + 0] = 99;
+	OldGroup[TYPEID_CREATURE] = 250;
+	OldNumber[TYPEID_CREATURE] = 0;
+	NewType[250 * 256 + 0] = TYPEID_CREATURE;
 }
 
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
@@ -464,7 +470,7 @@ ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
 	snprintf(Pattern, sizeof(Pattern), " %s ", SearchName);
 
 	ObjectType BestType(0);
-	for (int TypeID = ObjectType(99).getTypeID() + 1; TypeID <= ObjectTypes.high(); TypeID++) {
+	for (int TypeID = ObjectType(TYPEID_CREATURE).getTypeID() + 1; TypeID <= ObjectTypes.high(); TypeID++) {
 		ObjectType Type(TypeID);
 		if (Movable && Type.getFlag(UNMOVE)) {
 			continue;
