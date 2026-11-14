@@ -41,6 +41,15 @@
 #include "receiving.hh"
 #include "main.hh"
 
+// The length of a round (RoundNr) in milliseconds. AdvanceGame also runs the
+// skills, the cron system and the creatures once a round, 250, 500 and 750
+// milliseconds after the round begins.
+const int ROUND_DURATION = 1000;
+
+// The application type the game server logs in to the query manager with (the
+// query manager's protocol.hh: APPLICATION_GAME).
+const int APPLICATION_GAME = 1;
+
 bool BeADaemon;
 int SigUsr1Counter;
 int SigAlarmCounter;
@@ -53,7 +62,7 @@ void ProcessCommand() {
 		char *CommandBuffer = GetCommandBuffer();
 		if (Command == COMMAND_BROADCAST) {
 			if (CommandBuffer != nullptr) {
-				BroadcastMessage(18, "%s", CommandBuffer);
+				BroadcastMessage(TALK_ADMIN_MESSAGE, "%s", CommandBuffer);
 			} else {
 				error("ProcessCommand: Text f\xfcr Broadcast ist NULL.\n");
 			}
@@ -78,23 +87,23 @@ void AdvanceGame(int Delay) {
 	CronTimeCounter += Delay;
 	OtherTimeCounter += Delay;
 
-	if (CreaturesTimeCounter >= 1750) {
-		CreaturesTimeCounter -= 1000;
+	if (CreaturesTimeCounter >= ROUND_DURATION + 750) {
+		CreaturesTimeCounter -= ROUND_DURATION;
 		ProcessCreatures();
 	}
 
-	if (CronTimeCounter >= 1500) {
-		CronTimeCounter -= 1000;
+	if (CronTimeCounter >= ROUND_DURATION + 500) {
+		CronTimeCounter -= ROUND_DURATION;
 		ProcessCronSystem();
 	}
 
-	if (SkillTimeCounter >= 1250) {
-		SkillTimeCounter -= 1000;
+	if (SkillTimeCounter >= ROUND_DURATION + 250) {
+		SkillTimeCounter -= ROUND_DURATION;
 		ProcessSkills();
 	}
 
-	if (OtherTimeCounter >= 1000) {
-		OtherTimeCounter -= 1000;
+	if (OtherTimeCounter >= ROUND_DURATION) {
+		OtherTimeCounter -= ROUND_DURATION;
 		RoundNr++;
 		SetRoundNr(RoundNr);
 		ProcessConnections();
@@ -146,26 +155,26 @@ void AdvanceGame(int Delay) {
 			int Time = Hour * 60 + Minute;
 			if ((Time + 5) % 1440 == RebootTime) {
 				if (Reboot) {
-					BroadcastMessage(18, "Server is saving game in 5 minutes.\nPlease come back in 10 minutes.");
+					BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is saving game in 5 minutes.\nPlease come back in 10 minutes.");
 				} else {
-					BroadcastMessage(18, "Server is going down in 5 minutes.\nPlease log out.");
+					BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is going down in 5 minutes.\nPlease log out.");
 				}
 				CloseGame();
 			}
 
 			if ((Time + 3) % 1440 == RebootTime) {
 				if (Reboot) {
-					BroadcastMessage(18, "Server is saving game in 3 minutes.\nPlease come back in 10 minutes.");
+					BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is saving game in 3 minutes.\nPlease come back in 10 minutes.");
 				} else {
-					BroadcastMessage(18, "Server is going down in 3 minutes.\nPlease log out.");
+					BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is going down in 3 minutes.\nPlease log out.");
 				}
 			}
 
 			if ((Time + 1) % 1440 == RebootTime) {
 				if (Reboot) {
-					BroadcastMessage(18, "Server is saving game in one minute.\nPlease log out.");
+					BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is saving game in one minute.\nPlease log out.");
 				} else {
-					BroadcastMessage(18, "Server is going down in one minute.\nPlease log out.");
+					BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is going down in one minute.\nPlease log out.");
 				}
 			}
 
@@ -191,7 +200,7 @@ void AdvanceGame(int Delay) {
 		Log("lag", "Verz\xf6gerung %d msec.\n", Delay);
 	}
 
-	if (Delay >= 1000) {
+	if (Delay >= ROUND_DURATION) {
 		if (!Lag && RoundNr > 10) {
 			error("AdvanceGame: Keine Kreaturbewegung wegen Lag (Verz\xf6gerung: %d msec).\n", Delay);
 		}
@@ -433,7 +442,7 @@ void LoadWorldConfig() {
 void InitAll() {
 	try {
 		ReadConfig();
-		SetQueryManagerLoginData(1, WorldName);
+		SetQueryManagerLoginData(APPLICATION_GAME, WorldName);
 		LoadWorldConfig();
 		InitSHM(!BeADaemon);
 		LockGame();
