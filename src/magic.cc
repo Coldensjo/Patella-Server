@@ -381,7 +381,7 @@ void TDamageImpact::handleCreature(TCreature *Victim) {
 	}
 
 	int Help = Power;
-	if (DamageType == 1 && AllowDefense) {
+	if (DamageType == DAMAGE_PHYSICAL && AllowDefense) {
 		Help -= Victim->Combat.GetDefendDamage();
 	}
 
@@ -987,7 +987,7 @@ void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) 
 	}
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
-	Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? 4 : 5));
+	Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	CreateField(x, y, z, Type, cr->ID, (WorldType == NON_PVP && cr->IsPeaceful()));
 	if (in(Type, 1, 3)) {
 		cr->BlockLogout(60, true);
@@ -1037,7 +1037,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? 4 : 5));
+		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
 
 	// The outer bound is "<", not "<=" as in the other circle spells.
@@ -1076,7 +1076,7 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? 4 : 5));
+		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
 
 	int StepX, StepY;
@@ -1186,7 +1186,7 @@ void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 		}
 	}
 
-	GraphicalEffect(x, y, z, 3);
+	GraphicalEffect(x, y, z, EFFECT_POFF);
 }
 
 void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
@@ -1218,7 +1218,7 @@ void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 		}
 	}
 
-	GraphicalEffect(x, y, z, 3);
+	GraphicalEffect(x, y, z, EFFECT_POFF);
 	cr->BlockLogout(60, true);
 }
 
@@ -1291,7 +1291,7 @@ void Teleport(TCreature *cr, char *Param) {
 		}
 
 		Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-		GraphicalEffect(x, y, z, 11);
+		GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	} else if (stricmp(Param, "down", -1) == 0) {
 		if (!CheckRight(cr->ID, TELEPORT_VERTICAL)) {
 			return;
@@ -1303,7 +1303,7 @@ void Teleport(TCreature *cr, char *Param) {
 		}
 
 		Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-		GraphicalEffect(x, y, z, 11);
+		GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	} else if (stricmp(Param, "fast", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
 			return;
@@ -1311,7 +1311,7 @@ void Teleport(TCreature *cr, char *Param) {
 
 		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(100);
 		AnnounceChangedCreature(cr->ID, 4);
-		GraphicalEffect(Obj, 13);
+		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "fastest", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
 			return;
@@ -1319,7 +1319,7 @@ void Teleport(TCreature *cr, char *Param) {
 
 		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(200);
 		AnnounceChangedCreature(cr->ID, 4);
-		GraphicalEffect(Obj, 13);
+		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "slow", -1) == 0 || stricmp(Param, "normal", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
 			return;
@@ -1327,7 +1327,7 @@ void Teleport(TCreature *cr, char *Param) {
 
 		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(0);
 		AnnounceChangedCreature(cr->ID, 4);
-		GraphicalEffect(Obj, 13);
+		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else {
 		if (sscanf(Param, "%d,%d,%d", &x, &y, &z) == 3 || sscanf(Param, "[%d,%d,%d]", &x, &y, &z) == 3) {
 			if (!CheckRight(cr->ID, TELEPORT_TO_COORDINATE)) {
@@ -1350,7 +1350,7 @@ void Teleport(TCreature *cr, char *Param) {
 			}
 
 			Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-			GraphicalEffect(x, y, z, 11);
+			GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 		} else {
 			if (!CheckRight(cr->ID, TELEPORT_TO_MARK)) {
 				return;
@@ -1366,7 +1366,7 @@ void Teleport(TCreature *cr, char *Param) {
 			}
 
 			Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-			GraphicalEffect(x, y, z, 11);
+			GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 		}
 	}
 }
@@ -1417,11 +1417,11 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 
 	Obj = cr->GetCreatureObject();
 	if (dest == pl) {
-		GraphicalEffect(Obj, 11);
+		GraphicalEffect(Obj, EFFECT_TELEPORT);
 		return;
 	}
 
-	GraphicalEffect(Obj, 3);
+	GraphicalEffect(Obj, EFFECT_POFF);
 	x = dest->posx;
 	y = dest->posy;
 	z = dest->posz;
@@ -1430,7 +1430,7 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 	}
 
 	Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	Log("banish", "%s teleportiert sich zu %s.\n", cr->Name, dest->Name);
 }
 
@@ -1479,7 +1479,7 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	}
 
 	Obj = dest->GetCreatureObject();
-	GraphicalEffect(Obj, 3);
+	GraphicalEffect(Obj, EFFECT_POFF);
 	x = cr->posx;
 	y = cr->posy;
 	z = cr->posz;
@@ -1488,7 +1488,7 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	}
 
 	Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
 
 void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
@@ -1506,7 +1506,7 @@ void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	Move(0, Obj, GetMapContainer(x, y + 1, z - 1), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
 
 void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
@@ -1558,7 +1558,7 @@ void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	Move(0, Obj, GetMapContainer(dx, dy, dz), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
 
 void MagicClimbing(TCreature *cr, char *Direction) {
@@ -1646,7 +1646,7 @@ void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 		}
 	}
 
-	GraphicalEffect(Con, 15);
+	GraphicalEffect(Con, EFFECT_MAGIC_GREEN);
 }
 
 void CreateMoney(TCreature *cr, char *Param) {
@@ -1689,7 +1689,7 @@ void CreateMoney(TCreature *cr, char *Param) {
 		CreateAtCreature(cr->ID, GetSpecialObject(MONEY_ONE), Count % 100);
 	}
 
-	GraphicalEffect(Con, 15);
+	GraphicalEffect(Con, EFFECT_MAGIC_GREEN);
 }
 
 void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
@@ -1715,7 +1715,7 @@ void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
 		CreateAtCreature(cr->ID, Type, 1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount) {
@@ -1739,7 +1739,7 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 	}
 
 	CreateAtCreature(cr->ID, Type, Amount);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
@@ -1779,7 +1779,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 	}
 
 	CreateMonster(Race, posx, posy, posz, 0, (God ? 0 : cr->ID), true);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
@@ -1827,15 +1827,15 @@ void StartMonsterraid(TCreature *cr, char *RaidName) {
 	char FileName[4096];
 	snprintf(FileName, sizeof(FileName), "%s/%s.evt", MONSTERPATH, RaidName);
 	if (!FileExists(FileName)) {
-		GraphicalEffect(cr->GetCreatureObject(), 3);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 		return;
 	}
 
 	try {
 		LoadMonsterRaid(FileName, (int)RoundNr,nullptr, nullptr, nullptr, nullptr);
-		GraphicalEffect(cr->GetCreatureObject(), 13);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 	} catch (const char *) {
-		GraphicalEffect(cr->GetCreatureObject(), 3);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 	}
 }
 
@@ -1896,7 +1896,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), 5);
+		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
 
 	for (int i = 0; i <= Radius; i++) {
@@ -1907,7 +1907,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 				continue;
 			}
 
-			GraphicalEffect(dx, dy, z, 13);
+			GraphicalEffect(dx, dy, z, EFFECT_MAGIC_BLUE);
 			Object Obj = GetFirstObject(dx, dy, z);
 			while (Obj != NONE) {
 				Object Help = Obj;
@@ -1948,7 +1948,7 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 		if (cr->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
 			cr->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 		}
-		GraphicalEffect(cr->GetCreatureObject(), 13);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 	}
 }
 
@@ -1971,7 +1971,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), 5);
+		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
 
 	for (int i = 0; i <= Radius; i++) {
@@ -1982,7 +1982,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 				continue;
 			}
 
-			GraphicalEffect(dx, dy, z, 13);
+			GraphicalEffect(dx, dy, z, EFFECT_MAGIC_BLUE);
 			Object Obj = GetFirstObject(dx, dy, z);
 			while (Obj != NONE) {
 				Object Help = Obj;
@@ -2059,8 +2059,8 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 		pl->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
-	GraphicalEffect(pl->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
+	GraphicalEffect(pl->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
@@ -2077,7 +2077,7 @@ void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 	}
 
 	sk->Change(AddMana);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, int percent, int duration) {
@@ -2115,8 +2115,8 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 		cr->BlockLogout(60, dest->Type == PLAYER);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 15);
-	GraphicalEffect(dest->GetCreatureObject(), 14);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
+	GraphicalEffect(dest->GetCreatureObject(), EFFECT_MAGIC_RED);
 }
 
 void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
@@ -2127,7 +2127,7 @@ void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	cr->SetTimer(SKILL_MANASHIELD, 1, Duration, Duration, -1);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
@@ -2143,7 +2143,7 @@ void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	dest->SetTimer(SKILL_POISON, 0, 0, 0, -1);
-	GraphicalEffect(dest->GetCreatureObject(), 13);
+	GraphicalEffect(dest->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) {
@@ -2157,7 +2157,7 @@ void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) 
 		cr->SetTimer(SKILL_SHINING, Radius, Duration / Radius, Duration / Radius, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
@@ -2170,7 +2170,7 @@ void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	cr->Outfit.OutfitID = 0;
 	cr->Outfit.ObjectType = 0;
 	cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
@@ -2192,7 +2192,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), 5);
+		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
 
 	// The circles start at radius 1; the center field is not affected.
@@ -2233,7 +2233,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 					AnnounceChangedCreature(dest->ID, 3);
 					NotifyAllCreatures(dest->GetCreatureObject(), 2, NONE);
 				} else {
-					GraphicalEffect(dx, dy, z, 4);
+					GraphicalEffect(dx, dy, z, EFFECT_BLOCK_HIT);
 					EffectShown = true;
 					if (WorldType == PVP_ENFORCED) {
 						for (int b = 1; b <= 10; b++) {
@@ -2253,7 +2253,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 			}
 
 			if (!EffectShown) {
-				GraphicalEffect(dx, dy, z, 13);
+				GraphicalEffect(dx, dy, z, EFFECT_MAGIC_BLUE);
 			}
 		}
 	}
@@ -2292,7 +2292,7 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 		cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Duration) {
@@ -2321,7 +2321,7 @@ void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Dur
 		cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void ChangeData(TCreature *cr, char *Param) {
@@ -2388,7 +2388,7 @@ void ChangeData(TCreature *cr, char *Param) {
 	}
 
 	Change(Obj, Attribute, newValue);
-	GraphicalEffect(cr->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, ObjectType Target) {
@@ -2407,7 +2407,7 @@ void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, O
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	Change(Obj, Target, 0);
-	GraphicalEffect(cr->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void Convince(TCreature *master, TCreature *slave) {
@@ -2430,8 +2430,8 @@ void Convince(TCreature *master, TCreature *slave) {
 	int Mana = GetRaceSummonCost(slave->Race);
 	CheckMana(master, Mana, 0, (WorldType == PVP_ENFORCED) ? 1000 : 2000);
 	ConvinceMonster(master, slave);
-	GraphicalEffect(master->GetCreatureObject(), 13);
-	GraphicalEffect(slave->GetCreatureObject(), 10);
+	GraphicalEffect(master->GetCreatureObject(), EFFECT_MAGIC_BLUE);
+	GraphicalEffect(slave->GetCreatureObject(), EFFECT_HIT_AREA);
 }
 
 void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
@@ -2444,7 +2444,7 @@ void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
 				continue;
 			}
 
-			GraphicalEffect(dx, dy, cr->posz, 13);
+			GraphicalEffect(dx, dy, cr->posz, EFFECT_MAGIC_BLUE);
 			Object Obj = GetFirstSpecObject(dx, dy, cr->posz, ObjectType(99));
 			if (Obj != NONE) {
 				TCreature *dest = GetCreature(Obj);
@@ -2544,7 +2544,7 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 		}
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void GetPosition(TCreature *cr) {
@@ -2691,7 +2691,7 @@ void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 		pl->Skills[i]->Increase(k);
 	}
 
-	GraphicalEffect(pl->GetCreatureObject(), 15);
+	GraphicalEffect(pl->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void ChangeProfession(TCreature *cr, char *Param) {
@@ -2743,7 +2743,7 @@ void ChangeProfession(TCreature *cr, char *Param) {
 		return;
 	}
 
-	GraphicalEffect(pl->GetCreatureObject(), 13);
+	GraphicalEffect(pl->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void EditGuests(TCreature *cr) {
@@ -3104,7 +3104,7 @@ void KickPlayer(TCreature *cr, char *Name) {
 		throw NAMEAMBIGUOUS;
 	}
 
-	GraphicalEffect(Opp->GetCreatureObject(), 15);
+	GraphicalEffect(Opp->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 	Opp->StartLogout(true, true);
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Player %s kicked out of the game.", Opp->Name);
 	Log("banish", "%s kickt %s.\n", pl->Name, Opp->Name);
@@ -3142,9 +3142,9 @@ void HomeTeleport(TCreature *cr, char *Name) {
 	}
 
 	Object Obj = Opp->GetCreatureObject();
-	GraphicalEffect(Obj, 3);
+	GraphicalEffect(Obj, EFFECT_POFF);
 	Move(0, Obj, GetMapContainer(Opp->startx, Opp->starty, Opp->startz), -1, false, NONE);
-	GraphicalEffect(Obj, 13);
+	GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Player %s has been moved to the temple.", Opp->Name);
 	Log("banish", "%s teleportiert %s zum Tempel.\n", pl->Name, Opp->Name);
 }
@@ -3156,7 +3156,7 @@ void SpellFailed(uint32_t CreatureID) {
 		return;
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 3);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 }
 
 void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
@@ -3235,7 +3235,7 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 			ClearQuestValues(cr);
 			break;
 		case 101:
-			KillAllMonsters(cr, 18, 2);
+			KillAllMonsters(cr, EFFECT_DEATH, 2);
 			break;
 		case 102:
 			StartMonsterraid(cr, SpellStr[4]);
@@ -3335,26 +3335,26 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 			break;
 		case 13:
 			Damage = ComputeDamage(cr, SpellNr, 150, 50);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 11, 5, 30, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 5, 30, DAMAGE_ENERGY);
 			break;
 		case 19:
 			Damage = ComputeDamage(cr, SpellNr, 30, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 7, 4, 45, 4);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 4, 45, DAMAGE_FIRE);
 			break;
 		case 20:
 			FindPerson(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[2]);
 			break;
 		case 22:
 			Damage = ComputeDamage(cr, SpellNr, 60, 20);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 6, 5, 0, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 5, 0, DAMAGE_ENERGY);
 			break;
 		case 23:
 			Damage = ComputeDamage(cr, SpellNr, 120, 80);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 6, 8, 0, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 8, 0, DAMAGE_ENERGY);
 			break;
 		case 24:
 			Damage = ComputeDamage(cr, SpellNr, 250, 50);
-			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 5, 6, 1, 4);
+			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION_AREA, 6, DAMAGE_PHYSICAL, ANIMATION_FIRE);
 			break;
 		case 29:
 			NegatePoison(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, cr);
@@ -3385,7 +3385,7 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 			break;
 		case 56:
 			Damage = ComputeDamage(cr, SpellNr, 200, 50);
-			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 9, 8, 32, 0);
+			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_POISON, 8, DAMAGE_POISON_CONDITION, ANIMATION_NONE);
 			break;
 		case 75:
 			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 9, 2000);
@@ -3399,7 +3399,7 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 		case 80:
 			Damage = ComputeDamage(cr, SpellNr, 80, 20);
 			Damage = cr->Skills[SKILL_LEVEL]->Get() * Damage / 25;
-			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[SKILL_LEVEL]->Get() * 4, 0, Damage, 10, 2, 1, 0);
+			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[SKILL_LEVEL]->Get() * 4, 0, Damage, EFFECT_HIT_AREA, 2, DAMAGE_PHYSICAL, ANIMATION_NONE);
 			break;
 		case 81:
 			MagicClimbing(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[3]);
@@ -3416,15 +3416,15 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 			break;
 		case 87:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 18, 1, 0, 1);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_DEATH, 1, 0, DAMAGE_PHYSICAL);
 			break;
 		case 88:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 11, 1, 0, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 1, 0, DAMAGE_ENERGY);
 			break;
 		case 89:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 7, 1, 0, 4);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 1, 0, DAMAGE_FIRE);
 			break;
 		case 90:
 			CancelInvisibility(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4);
@@ -3493,7 +3493,7 @@ void RuneSpell(uint32_t CreatureID, int SpellNr) {
 		throw MAGICITEM;
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 14);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_RED);
 }
 
 int TypeOfSpell(char *Text) {
@@ -3864,11 +3864,11 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				break;
 			case 7:
 				Damage = ComputeDamage(pl, SpellNr, 15, 5);
-				Combat(pl, Dest, 0, 0, Damage, 6, 4, 8);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
 				break;
 			case 8:
 				Damage = ComputeDamage(pl, SpellNr, 30, 10);
-				Combat(pl, Dest, 0, 0, Damage, 6, 4, 8);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
 				break;
 			case 12:
 				if (dest == nullptr) {
@@ -3881,22 +3881,22 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				break;
 			case 15:
 				Damage = ComputeDamage(pl, SpellNr, 20, 5);
-				MassCombat(pl, Dest, 0, 0, Damage, 7, 3, 4, 4);
+				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 3, DAMAGE_FIRE, ANIMATION_FIRE);
 				break;
 			case 16:
 				Damage = ComputeDamage(pl, SpellNr, 50, 15);
-				MassCombat(pl, Dest, 0, 0, Damage, 7, 4, 4, 4);
+				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 4, DAMAGE_FIRE, ANIMATION_FIRE);
 				break;
 			case 17:
 				MassCreateField(pl, Dest, 0, 0, 1, 3);
 				break;
 			case 18:
 				Damage = ComputeDamage(pl, SpellNr, 60, 40);
-				MassCombat(pl, Dest, 0, 0, Damage, 5, 1, 1, 4);
+				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION_AREA, 1, DAMAGE_PHYSICAL, ANIMATION_FIRE);
 				break;
 			case 21:
 				Damage = ComputeDamage(pl, SpellNr, 150, 20);
-				Combat(pl, Dest, 0, 0, Damage, 18, 11, 1);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_DEATH, ANIMATION_DEATH, DAMAGE_PHYSICAL);
 				break;
 			case 25:
 				CreateField(pl, Dest, 0, 0, 1);
@@ -3927,7 +3927,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				break;
 			case 50:
 				Damage = ComputeDamage(pl, SpellNr, 120, 20);
-				Combat(pl, Dest, 0, 0, Damage, 16, 4, 64);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_HIT, ANIMATION_FIRE, DAMAGE_FIRE_CONDITION);
 				break;
 			case 54:
 				if (dest == nullptr) {
@@ -3943,7 +3943,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				break;
 			case 77:
 				Damage = ComputeDamage(pl, SpellNr, 70, 20);
-				Combat(pl, Dest, 0, 0, Damage, 17, 5, 32);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_POISON_HIT, ANIMATION_ENERGY, DAMAGE_POISON_CONDITION);
 				break;
 			case 78:
 				CleanupField(pl, Dest, 0, 0);
