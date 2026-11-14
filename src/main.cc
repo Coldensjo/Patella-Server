@@ -51,7 +51,7 @@ void ProcessCommand() {
 	int Command = GetCommand();
 	if (Command != 0) {
 		char *CommandBuffer = GetCommandBuffer();
-		if (Command == 1) {
+		if (Command == COMMAND_BROADCAST) {
 			if (CommandBuffer != nullptr) {
 				BroadcastMessage(18, "%s", CommandBuffer);
 			} else {

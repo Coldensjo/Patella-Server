@@ -7,6 +7,11 @@
 struct Semaphore;
 struct TSharedMemory;
 
+// The command an operator tool leaves in the shared memory with SetCommand,
+// which ProcessCommand (main.cc) carries out in the next round: broadcast the
+// text of the command buffer. 0 is no command.
+const int COMMAND_BROADCAST = 1;
+
 void StartGame();
 void CloseGame();
 void EndGame();
