@@ -39,10 +39,10 @@
 #include "houses.hh"
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckRing,
-// CheckAffectedPlayers, SpendManaAndSoulPoints and every spell function from MassCombat
-// to ChangeData report a failure by throwing a RESULT. They have no exception
-// specification (C++17 has none), so an exception of another type passes to
-// the caller too.
+// CheckAffectedPlayers, SpendManaAndSoulPoints and every spell function from
+// MassCombat to ChangeData report a failure by throwing a RESULT. They have no
+// exception specification (C++17 has none), so an exception of another type
+// passes to the caller too.
 
 // The ammunition CreateArrows conjures, named after the spells that use them
 // (Conjure Arrow, Poisoned Arrow, Explosive Arrow, Conjure Bolt, Power Bolt).
