@@ -1252,7 +1252,7 @@ void TPlayer::LoadData() {
 
 	Race = PlayerData->Race;
 	OrgOutfit = PlayerData->OriginalOutfit;
-	StartCoordinates();
+	SetNewbieStartCoordinates();
 	posx = startx;
 	posy = starty;
 	posz = startz;
@@ -1415,7 +1415,7 @@ void TPlayer::SaveInventory() {
 	}
 }
 
-void TPlayer::StartCoordinates() {
+void TPlayer::SetNewbieStartCoordinates() {
 	GetStartPosition(startx, starty, startz, true);
 }
 

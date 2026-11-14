@@ -1426,7 +1426,7 @@ int AcceptorThreadLoop(void *) {
 	return 0;
 }
 
-void CheckThreadlibVersion() {
+void ChooseThreadStacks() {
 	UseOwnStacks = !FileExists("/etc/image-release");
 	if (UseOwnStacks) {
 		print(2, "Verwende eigene Stacks.\n");
@@ -1437,7 +1437,7 @@ void CheckThreadlibVersion() {
 
 // The original is declared throw(const char *), which C++17 no longer has.
 void InitCommunication() {
-	CheckThreadlibVersion();
+	ChooseThreadStacks();
 	InitCommunicationThreadStacks();
 	QueryManagerConnectionPool.init();
 

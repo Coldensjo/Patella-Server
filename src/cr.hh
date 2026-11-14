@@ -525,7 +525,7 @@ struct TPlayer : public TCreature {
 	void SaveData();
 	void LoadInventory(bool SetStandardInventory);
 	void SaveInventory();
-	void StartCoordinates();
+	void SetNewbieStartCoordinates();
 	void SetInList();
 	void DelInList();
 	void CheckOutfit();

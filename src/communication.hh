@@ -46,7 +46,7 @@ void CommunicationThread(int Socket);
 int HandleConnection(void *Data);
 bool OpenSocket();
 int AcceptorThreadLoop(void *);
-void CheckThreadlibVersion();
+void ChooseThreadStacks();
 // The communication threads that can run at once, one for each connection:
 // the number of own stacks, and the limit of ActiveConnections without them.
 const int MAX_COMMUNICATION_THREADS = 1100;
