@@ -12,12 +12,15 @@ What it does, in WSL Ubuntu-24.04:
      with the normal flags, debug information included, since gdb needs the type of RoundNr; in
      ~/.cache/patella-check/build-trace.
   2. For each build, one after the other and at the same paths: makes a runtime copy of the original installation
-     (--install, a tar or a folder; default /home/chris/patella-cmp/pristine.tar) in ~/.cache/patella-check/trace/game,
-     points the paths of its .tibia at the copy, gives it a scratch SHM key (--shm, default 17011) and scratch query
-     manager ports (--qm-port, default 17173, and the three after it for the other entries), seeds a scratch database
-     with the build's querymanager-seed (game port --port, default 17171), adds the two test accounts with a new
-     character each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; neither may have a player file) and
-     starts the build's query manager.
+     (--install, a tar or a folder; default /home/chris/patella-cmp/pristine.tar) in ~/.cache/patella-check/trace/game
+     and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
+     converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
+     relative, so they point at the copy). A tree without them (faithful) gets the copy's .tibia with its paths
+     pointed at the copy. Either config gets a scratch SHM key (--shm, default 17011) and scratch query manager ports
+     (--qm-port, default 17173, and the three after it for the other entries). Then it seeds a scratch database with
+     the build's querymanager-seed (game port --port, default 17171), adds the two test accounts with a new character
+     each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; neither may have a player file) and starts the
+     build's query manager. The game runs with HOME set to the copy, so it reads the copy's config.toml (or .tibia).
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
@@ -41,12 +44,14 @@ run or a build failed. 2: wrong usage.
 """
 
 import argparse
+import io
 import os
 import re
 import shutil
 import signal
 import subprocess
 import sys
+import tarfile
 import time
 
 # No __pycache__ next to the sources.
@@ -184,7 +189,7 @@ def kill_leftovers(cache, root, key):
 # ---------------------------------------------------------------- WSL side: one run
 
 def rewrite_tibia(path, game, shm, qm_port):
-	"""Points the .tibia of the runtime copy at the copy, the SHM key and the query manager ports at the scratch
+	"""Points the paths of the runtime copy's .tibia at the copy, its SHM key and query manager ports at the scratch
 	ones. Returns the world's name."""
 	with open(path, encoding="latin-1") as f:
 		text = f.read()
@@ -214,6 +219,57 @@ def rewrite_tibia(path, game, shm, qm_port):
 	with open(path, "w", encoding="latin-1") as f:
 		f.write(text)
 	return world.group(1)
+
+
+def write_config(source, game, shm, qm_port):
+	"""Writes the tree's data/config.toml as the copy's config.toml, with the SHM key and the query manager ports set
+	to the scratch ones; its paths must be relative, so they point at the copy. Returns the world's name."""
+	import tomllib
+	with open(source, encoding="utf-8") as f:
+		text = f.read()
+	try:
+		config = tomllib.loads(text)
+	except tomllib.TOMLDecodeError as e:
+		raise CheckError("data/config.toml: %s" % e)
+	for key, value in config.get("paths", {}).items():
+		if not isinstance(value, str) or value.startswith("/"):
+			raise CheckError("data/config.toml: [paths] %s = %r is not a relative path; the runtime copy needs paths "
+				"relative to it" % (key, value))
+	text, count = re.subn(r"(?m)^(\s*shm_key\s*=\s*)-?\d+", lambda m: "%s%d" % (m.group(1), shm), text)
+	if count != 1:
+		raise CheckError("data/config.toml: no shm_key")
+	entries = [0]
+
+	def port(m):
+		entries[0] += 1
+		return "%s%d" % (m.group(1), qm_port + entries[0] - 1)
+
+	# port is a key of [[query_manager]] only.
+	text = re.sub(r"(?m)^(\s*port\s*=\s*)\d+", port, text)
+	if not 1 <= entries[0] <= 4 or entries[0] != len(config.get("query_manager", [])):
+		raise CheckError("data/config.toml: %d query_manager entries with a port" % entries[0])
+	patched = tomllib.loads(text)
+	if patched["shm_key"] != shm or [q["port"] for q in patched["query_manager"]] != [qm_port + i
+			for i in range(entries[0])]:
+		raise CheckError("data/config.toml: the SHM key or the query manager ports could not be set")
+	world = patched.get("world", {}).get("name")
+	if not world:
+		raise CheckError("data/config.toml: no [world] name")
+	with open(os.path.join(game, "config.toml"), "w", encoding="utf-8", newline="\n") as f:
+		f.write(text)
+	return world
+
+
+def lay_out(game, data, options):
+	"""Lays the runtime copy out for a tree whose data/ folder is data (None: the tree has none). Returns the world's
+	name."""
+	tibia = os.path.join(game, ".tibia")
+	if data and os.path.isfile(os.path.join(data, "config.toml")):
+		world = write_config(os.path.join(data, "config.toml"), game, options["shm"], options["qm_port"])
+		if os.path.exists(tibia):
+			os.remove(tibia)
+		return world, "config.toml from the tree's data/, no .tibia"
+	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"]), ".tibia"
 
 
 def seed(binary, db, game, world, port, log_file):
@@ -277,8 +333,9 @@ def game_exit(console):
 	return found[-1] if found else "unknown (no exit in the console)"
 
 
-def run(side, build, options, key, root):
-	"""One run of a build. Returns its result: {"ok", "boot", "scenario", "exit"}."""
+def run(side, build, data, options, key, root):
+	"""One run of a build, with data the tree's data/ folder (None: none). Returns its result: {"ok", "boot",
+	"scenario", "exit"}."""
 	out = os.path.join(root, side)
 	game = os.path.join(root, "game")
 	db = os.path.join(root, "querymanager.sqlite")
@@ -299,7 +356,8 @@ def run(side, build, options, key, root):
 			os.makedirs(game)
 			if subprocess.run(["tar", "-x", "-C", game, "-f", options["install"]], check=False).returncode != 0:
 				raise CheckError("cannot unpack %s" % options["install"])
-		world = rewrite_tibia(os.path.join(game, ".tibia"), game, options["shm"], options["qm_port"])
+		world, layout = lay_out(game, data, options)
+		log("  %s: runtime copy with %s" % (side, layout))
 		seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world, options["port"],
 			os.path.join(out, "seed.log"))
 		qm_log = os.path.join(out, "qm.log")
@@ -429,10 +487,18 @@ def trace(arguments, data):
 			if listening(port):
 				raise CheckError("port %d is in use" % port)
 		os.makedirs(root, exist_ok=True)
+		trees = os.path.join(root, "data")
+		shutil.rmtree(trees, ignore_errors=True)
+		os.makedirs(trees)
+		if data:
+			with tarfile.open(fileobj=io.BytesIO(data)) as archive:
+				archive.extractall(trees, filter="data")
 		results = {}
 		for side in ("old", "new"):
 			log("trace_check: running %s, %s" % (side, arguments[side]["label"]))
-			results[side] = run(side, arguments[side]["dir"], options, key, root)
+			folder = os.path.join(trees, side, "data")
+			results[side] = run(side, arguments[side]["dir"], folder if os.path.isdir(folder) else None, options, key,
+				root)
 		import difflib
 		sys.path.insert(0, TRACE_TOOLS)
 		import compare_traces
@@ -472,6 +538,22 @@ def trace(arguments, data):
 WORKERS = {"trace": trace}
 
 
+def data_archive(trees):
+	"""A tar of the data/ folders of the trees ({side: tree}), as <side>/data/...; a tree without one adds nothing."""
+	buffer = io.BytesIO()
+	with tarfile.open(fileobj=buffer, mode="w") as out:
+		for side, tree in trees.items():
+			if not repro_check.git("ls-tree", "--name-only", tree, "data"):
+				continue
+			with tarfile.open(fileobj=io.BytesIO(repro_check.git("archive", "--format=tar", tree, "data",
+					binary=True))) as source:
+				for member in source.getmembers():
+					content = source.extractfile(member) if member.isfile() else None
+					member.name = side + "/" + member.name
+					out.addfile(member, content)
+	return buffer.getvalue()
+
+
 def main(argv):
 	if argv and argv[0] == "--worker":
 		return repro_check.worker_main(WORKERS, argv[1:])
@@ -505,7 +587,8 @@ def main(argv):
 			log("%s: %s and %s are the same tree: both runs use the same build, so this proves only that the runs "
 				"repeat" % (who, old_label, new_label))
 		return repro_check.call_worker(__file__, WORKERS, "trace", {"options": options,
-			"old": {"dir": old_dir, "label": old_label}, "new": {"dir": new_dir, "label": new_label}})["code"]
+			"old": {"dir": old_dir, "label": old_label}, "new": {"dir": new_dir, "label": new_label}},
+			data_archive({"old": old_tree, "new": new_tree}))["code"]
 
 
 if __name__ == "__main__":
