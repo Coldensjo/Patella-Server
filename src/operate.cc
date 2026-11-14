@@ -101,7 +101,7 @@ void AnnounceMovingCreature(uint32_t CreatureID, Object Con) {
 
 	int x, y, z;
 	GetObjectCoordinates(Con, x, y, z);
-	TFindCreatures Search(std::abs(x - cr->posx) / 2 + 17, std::abs(y - cr->posy) / 2 + 15, (x + cr->posx) / 2, (y + cr->posy) / 2, 1);
+	TFindCreatures Search(std::abs(x - cr->posx) / 2 + 17, std::abs(y - cr->posy) / 2 + 15, (x + cr->posx) / 2, (y + cr->posy) / 2, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -163,7 +163,7 @@ void AnnounceChangedField(Object Obj, int Type) {
 
 	int x, y, z;
 	GetObjectCoordinates(Obj, x, y, z);
-	TFindCreatures Search(16, 14, x, y, 1);
+	TFindCreatures Search(16, 14, x, y, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -202,7 +202,7 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 		return;
 	}
 
-	TFindCreatures Search(1, 1, Obj, 1);
+	TFindCreatures Search(1, 1, Obj, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -287,7 +287,7 @@ void AnnounceGraphicalEffect(int x, int y, int z, int Type) {
 		return;
 	}
 
-	TFindCreatures Search(16, 14, x, y, 1);
+	TFindCreatures Search(16, 14, x, y, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -306,7 +306,7 @@ void AnnounceTextualEffect(int x, int y, int z, int Color, char *Text) {
 		return;
 	}
 
-	TFindCreatures Search(16, 14, x, y, 1);
+	TFindCreatures Search(16, 14, x, y, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -325,7 +325,7 @@ void AnnounceMissile(int sx, int sy, int sz, int zx, int zy, int zz, int Type) {
 		return;
 	}
 
-	TFindCreatures Search(std::abs(sx - zx) / 2 + 17, std::abs(sy - zy) / 2 + 15, (sx + zx) / 2, (sy + zy) / 2, 1);
+	TFindCreatures Search(std::abs(sx - zx) / 2 + 17, std::abs(sy - zy) / 2 + 15, (sx + zx) / 2, (sy + zy) / 2, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -931,7 +931,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 		GetObjectCoordinates(Obj, x, y, z);
 		GetObjectCoordinates(OldCon, oldx, oldy, oldz);
 		if (std::abs(x - oldx) > 20 || std::abs(y - oldy) > 20) {
-			TFindCreatures Search1(10, 10, oldx, oldy, 7);
+			TFindCreatures Search1(10, 10, oldx, oldy, FIND_ALL);
 			while (true) {
 				uint32_t ID = Search1.getNext();
 				if (ID == 0) {
@@ -940,7 +940,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 
-			TFindCreatures Search2(10, 10, x, y, 7);
+			TFindCreatures Search2(10, 10, x, y, FIND_ALL);
 			while (true) {
 				uint32_t ID = Search2.getNext();
 				if (ID == 0) {
@@ -949,7 +949,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 		} else {
-			TFindCreatures Search((std::abs(x - oldx) + 1) / 2 + 10, (std::abs(y - oldy) + 1) / 2 + 10, (x + oldx) / 2, (y + oldy) / 2, 7);
+			TFindCreatures Search((std::abs(x - oldx) + 1) / 2 + 10, (std::abs(y - oldy) + 1) / 2 + 10, (x + oldx) / 2, (y + oldy) / 2, FIND_ALL);
 			while (true) {
 				uint32_t ID = Search.getNext();
 				if (ID == 0) {
@@ -959,7 +959,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 			}
 		}
 	} else {
-		TFindCreatures Search(10, 10, Obj, 7);
+		TFindCreatures Search(10, 10, Obj, FIND_ALL);
 		while (true) {
 			uint32_t ID = Search.getNext();
 			if (ID == 0) {
@@ -980,7 +980,7 @@ void NotifyTrades(Object Obj) {
 		return;
 	}
 
-	TFindCreatures Search(12, 10, Obj, 1);
+	TFindCreatures Search(12, 10, Obj, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -1072,7 +1072,7 @@ void CloseContainer(Object Con, bool Force) {
 		return;
 	}
 
-	TFindCreatures Search(12, 10, Con, 1);
+	TFindCreatures Search(12, 10, Con, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -2168,7 +2168,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 		}
 
 		int Radius = (Mode == TALK_YELL || Mode == TALK_ANIMAL_LOUD) ? 30 : 7;
-		TFindCreatures Search(Radius, Radius, x, y, 1);
+		TFindCreatures Search(Radius, Radius, x, y, FIND_PLAYERS);
 		while (true) {
 			uint32_t ID = Search.getNext();
 			if (ID == 0) {
@@ -2266,7 +2266,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 	}
 
 	if (Mode == TALK_SAY && cr->Type == PLAYER) {
-		TFindCreatures Search(3, 3, CreatureID, 2);
+		TFindCreatures Search(3, 3, CreatureID, FIND_NPCS);
 		while (true) {
 			uint32_t ID = Search.getNext();
 			if (ID == 0) {
@@ -2548,7 +2548,7 @@ void ProcessCronSystem() {
 }
 
 bool SectorRefreshable(int SectorX, int SectorY, int SectorZ) {
-	TFindCreatures SearchPlayers(31, 31, SectorX * 32 + 16, SectorY * 32 + 16, 1);
+	TFindCreatures SearchPlayers(31, 31, SectorX * 32 + 16, SectorY * 32 + 16, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = SearchPlayers.getNext();
 		if (ID == 0) {
@@ -2581,7 +2581,7 @@ void RefreshSector(int SectorX, int SectorY, int SectorZ, unsigned char *Data, i
 	TReadBuffer Buffer(Data, Size);
 	RefreshSector(SectorX, SectorY, SectorZ, Buffer);
 
-	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, 7);
+	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, FIND_ALL);
 	while (true) {
 		uint32_t CreatureID = SearchMonsters.getNext();
 		if (CreatureID == 0) {
@@ -2732,7 +2732,7 @@ void ApplyPatch(int SectorX, int SectorY, int SectorZ, bool FullSector, TReadScr
 	PatchSector(SectorX, SectorY, SectorZ, FullSector, Script, SaveHouses);
 	FinishHouseCleanup();
 
-	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, 7);
+	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, FIND_ALL);
 	while (true) {
 		uint32_t CreatureID = SearchMonsters.getNext();
 		if (CreatureID == 0) {
