@@ -135,29 +135,42 @@ const int MAX_SUMMONS = 2;
 
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
+// The eight directions of Direction(), counter-clockwise from the east, as
+// FindPerson names them; COMPASS_NONE for the same field. Adding 4 turns a
+// direction round.
+const int COMPASS_NONE = 0;
+const int COMPASS_EAST = 1;
+const int COMPASS_NORTHEAST = 2;
+const int COMPASS_NORTH = 3;
+const int COMPASS_NORTHWEST = 4;
+const int COMPASS_WEST = 5;
+const int COMPASS_SOUTHWEST = 6;
+const int COMPASS_SOUTH = 7;
+const int COMPASS_SOUTHEAST = 8;
+
 int Direction(int dx, int dy) {
 	if (dx == 0) {
 		if (dy == 0) {
-			return 0;
+			return COMPASS_NONE;
 		}
 		if (dy > 0) {
-			return 7;
+			return COMPASS_SOUTH;
 		}
-		return 3;
+		return COMPASS_NORTH;
 	}
 
 	int s = (dy << 8) / dx;
 	int r;
 	if (s < -618) {
-		r = 3;
+		r = COMPASS_NORTH;
 	} else if (s < -106) {
-		r = 2;
+		r = COMPASS_NORTHEAST;
 	} else if (s < 106) {
-		r = 1;
+		r = COMPASS_EAST;
 	} else if (s < 618) {
-		r = 8;
+		r = COMPASS_SOUTHEAST;
 	} else {
-		r = 7;
+		r = COMPASS_SOUTH;
 	}
 
 	if (dx < 0) {
@@ -1103,33 +1116,33 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 	int StepX, StepY;
 	int Dir = Direction(x - cr->posx, y - cr->posy);
 	switch (Dir) {
-		case 0: {
+		case COMPASS_NONE: {
 			throw NOROOM;
 		}
 
-		case 1:
-		case 5: {
+		case COMPASS_EAST:
+		case COMPASS_WEST: {
 			StepX = 0;
 			StepY = 1;
 			break;
 		}
 
-		case 2:
-		case 6: {
+		case COMPASS_NORTHEAST:
+		case COMPASS_SOUTHWEST: {
 			StepX = 1;
 			StepY = 1;
 			break;
 		}
 
-		case 3:
-		case 7: {
+		case COMPASS_NORTH:
+		case COMPASS_SOUTH: {
 			StepX = 1;
 			StepY = 0;
 			break;
 		}
 
-		case 4:
-		case 8: {
+		case COMPASS_NORTHWEST:
+		case COMPASS_SOUTHEAST: {
 			StepX = -1;
 			StepY = 1;
 			break;
@@ -2523,28 +2536,28 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 	} else {
 		char *Dir;
 		switch (Direction(Opp->posx - cr->posx, Opp->posy - cr->posy)) {
-			case 1:
+			case COMPASS_EAST:
 				Dir = "east";
 				break;
-			case 2:
+			case COMPASS_NORTHEAST:
 				Dir = "north-east";
 				break;
-			case 3:
+			case COMPASS_NORTH:
 				Dir = "north";
 				break;
-			case 4:
+			case COMPASS_NORTHWEST:
 				Dir = "north-west";
 				break;
-			case 5:
+			case COMPASS_WEST:
 				Dir = "west";
 				break;
-			case 6:
+			case COMPASS_SOUTHWEST:
 				Dir = "south-west";
 				break;
-			case 7:
+			case COMPASS_SOUTH:
 				Dir = "south";
 				break;
-			case 8:
+			case COMPASS_SOUTHEAST:
 				Dir = "south-east";
 				break;
 			default:
