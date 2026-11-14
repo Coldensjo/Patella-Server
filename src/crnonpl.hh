@@ -1,3 +1,7 @@
+// crnonpl.hh: the functions and data of crnonpl.cc, the creatures that are
+// not players: NPCs, monsters, the monster homes that spawn monsters, and the
+// node store of the NPCs' behaviour expressions.
+
 #ifndef PATELLA_CRNONPL_HH
 #define PATELLA_CRNONPL_HH
 

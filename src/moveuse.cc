@@ -1,3 +1,11 @@
+// moveuse.cc: the move and use rules. LoadDataBase reads moveuse.dat into one
+// rule database per event type (use, multi-use, movement, collision and
+// separation); HandleEvent runs the actions of the first rule whose conditions
+// hold. Also here: the object functions those actions use, depot boxes, mail
+// (a stamped letter or parcel goes into the addressee's open depot at once,
+// otherwise into DelayedMail until SendMails adds it to the depot in the
+// player's data), and the built-in uses of objects (the Use* functions).
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>

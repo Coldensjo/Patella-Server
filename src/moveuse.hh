@@ -1,3 +1,8 @@
+// moveuse.hh: the functions and data of moveuse.cc: the move and use rules of
+// moveuse.dat and the events that run them, the object functions their actions
+// use, depot boxes, mail, and the built-in uses of objects (containers, chests,
+// liquids, food, texts, doors, weapons).
+
 #ifndef PATELLA_MOVEUSE_HH
 #define PATELLA_MOVEUSE_HH
 

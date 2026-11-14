@@ -1,3 +1,9 @@
+// crnonpl.cc: the creatures that are not players. An NPC (TNPC) is made from
+// its .npc file and talks by the rules of its behaviour database (TBehaviour
+// rules with TNode expressions); a monster (TMonster) chooses a target,
+// fights, casts its spells and moves; a monster home spawns monsters of one
+// race and replaces the dead ones after its regeneration time.
+
 #include <algorithm>
 #include <climits>
 #include <cstdint>
