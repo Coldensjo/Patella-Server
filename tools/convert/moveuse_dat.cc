@@ -9,11 +9,11 @@
 // unknown name, which the old reader let through with whatever its entry held
 // (when no "(" followed the name), stays marked and the writer refuses it.
 //
-// GetSkillByName (crskill.cc) and GetInstanceAttributeByName with
-// InstanceAttributeNames (map.cc), which the reader asks for the numbers of
-// skills and instance attributes, are copied here unchanged: crskill.cc and
-// map.cc cannot be compiled into the converter, and the game still uses them
-// for the monsters and the map sectors.
+// GetSkillByName (crskill.cc), which the reader asks for the numbers of
+// skills, is copied here unchanged: crskill.cc cannot be compiled into the
+// converter, and the game still uses it for the monsters. The numbers of the
+// instance attributes come from map.cc's GetInstanceAttributeByName, which
+// the converter compiles for the player files.
 
 #include <cstdarg>
 #include <cstdint>
@@ -35,27 +35,6 @@
 // The marks of a condition and an action whose name the reader did not know.
 static const ConditionType UNKNOWN_CONDITION = static_cast<ConditionType>(NUMBER_OF_CONDITION_TYPES);
 static const ActionType UNKNOWN_ACTION = static_cast<ActionType>(NUMBER_OF_ACTION_TYPES);
-
-char InstanceAttributeNames[INSTANCEATTRIBUTES][30] = {
-	"Content",
-	"ChestQuestNumber",
-	"Amount",
-	"KeyNumber",
-	"KeyholeNumber",
-	"Level",
-	"DoorQuestNumber",
-	"DoorQuestValue",
-	"Charges",
-	"String",
-	"Editor",
-	"ContainerLiquidType",
-	"PoolLiquidType",
-	"AbsTeleportDestination",
-	"Responsible",
-	"RemainingExpireTime",
-	"SavedExpireTime",
-	"RemainingUses",
-};
 
 int GetSkillByName(char *Name) {
 	if (strcmp(Name, "level") == 0) {
@@ -127,16 +106,6 @@ int GetSkillByName(char *Name) {
 	if (strcmp(Name, "soulpoints") == 0) {
 		return SKILL_SOULPOINTS;
 	}
-	return -1;
-}
-
-int GetInstanceAttributeByName(char *Name) {
-	for (int i = 0; i < INSTANCEATTRIBUTES; i++) {
-		if (stricmp(InstanceAttributeNames[i], Name, -1) == 0) {
-			return i;
-		}
-	}
-
 	return -1;
 }
 

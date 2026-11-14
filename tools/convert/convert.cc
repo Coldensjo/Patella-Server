@@ -47,9 +47,29 @@
 //     The old numbers of the object types (group and number) and their types:
 //     conversion.lst to conversion.toml, which belongs in the installation's
 //     data folder. OUTPUT "-" is standard output.
+//
+//   patella-convert usr-export CONFIG_TOML OUTPUT_FOLDER [CHARACTER_ID...]
+//     The player data the query manager has of the world's characters (or of
+//     the characters given), as player files (OUTPUT_FOLDER/NN/<id>.usr),
+//     written with the game's old writer of them. CONFIG_TOML is the
+//     installation's config.toml: its world name, query manager entries and
+//     data folder (for the object types). Player files are imported with
+//     querymanager-seed --game-root.
+//
+//   patella-convert usr-check [--read-only] CONFIG_TOML [USER_FOLDER]
+//     The proof that the player data survives the way through the query
+//     manager, for every player file in USER_FOLDER (default: the config's
+//     [paths] user): the file read with the game's old reader must give the
+//     same TPlayerData, field by field, as loadPlayerData gives after
+//     querymanager-seed imported the file; and the same again after
+//     savePlayerData and loadPlayerData (but for the murders older than 30
+//     days, which a save drops). It also counts the imported files that the
+//     old writer gives back byte for byte. It prints only counts. Without
+//     --read-only it saves every character's data: use a scratch database.
 
 #include <cstdio>
 #include <cstring>
+#include <exception>
 #include <string>
 
 #include "circles_dat.hh"
@@ -70,6 +90,7 @@
 #include "spells_writer.hh"
 #include "tibia_config.hh"
 #include "tomlwrite.hh"
+#include "usr_commands.hh"
 
 static int Usage() {
 	fprintf(stderr, "usage: patella-convert config [--base DIR] TIBIA OUTPUT\n"
@@ -79,7 +100,9 @@ static int Usage() {
 			"       patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT\n"
 			"       patella-convert houses HOUSEAREAS_DAT HOUSES_DAT OUTPUT\n"
 			"       patella-convert map MAP_DAT OUTPUT\n"
-			"       patella-convert conversion CONVERSION_LST OUTPUT\n");
+			"       patella-convert conversion CONVERSION_LST OUTPUT\n"
+			"       patella-convert usr-export CONFIG_TOML OUTPUT_FOLDER [CHARACTER_ID...]\n"
+			"       patella-convert usr-check [--read-only] CONFIG_TOML [USER_FOLDER]\n");
 	return 2;
 }
 
@@ -218,8 +241,17 @@ int main(int argc, char **argv) {
 		if (strcmp(argv[1], "conversion") == 0) {
 			return ConvertConversion(argc - 2, argv + 2);
 		}
+		if (strcmp(argv[1], "usr-export") == 0) {
+			return UsrExport(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "usr-check") == 0) {
+			return UsrCheck(argc - 2, argv + 2);
+		}
 	} catch (const char *Text) {
 		fprintf(stderr, "patella-convert: %s\n", Text);
+		return 1;
+	} catch (const std::exception &e) {
+		fprintf(stderr, "patella-convert: %s\n", e.what());
 		return 1;
 	}
 	return Usage();

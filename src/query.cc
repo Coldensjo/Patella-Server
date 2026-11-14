@@ -1,9 +1,11 @@
 // query.cc: the game server's client of the query manager. TQueryManagerConnection, one connection with a request
-// for each query the game sends and the reading of its answer; TQueryManagerConnectionPool, the connections the
-// communication threads share; and the login data each connection sends first (SetQueryManagerLoginData).
+// for each query the game sends and the reading of its answer; TQueryManagerConnectionPool, the connections that
+// threads share (the communication threads', and the player data's of dbfuncs.cc); and the login data each
+// connection sends first (SetQueryManagerLoginData).
 
 #include <algorithm>
 #include <cstdint>
+#include <new>
 #include <cstdlib>
 #include <time.h>
 #include <errno.h>
@@ -226,6 +228,15 @@ void TQueryManagerConnection::sendString(char *s) {
 		WriteBuffer.writeString(s);
 	} catch (const char *s) {
 		error("TQueryManagerConnection::sendString: %s.\n", s);
+		QueryOk = false;
+	}
+}
+
+void TQueryManagerConnection::sendBytes(unsigned char *Buffer, int Count) {
+	try {
+		WriteBuffer.writeBytes(Buffer, Count);
+	} catch (const char *s) {
+		error("TQueryManagerConnection::sendBytes: %s.\n", s);
 		QueryOk = false;
 	}
 }
@@ -1116,22 +1127,66 @@ int TQueryManagerConnection::loadPlayers(uint32_t MinimumCharacterID, int &Numbe
 	return 0;
 }
 
-TQueryManagerConnectionPool::TQueryManagerConnectionPool(int Connections) : FreeQueryManagerConnections(Connections), QueryManagerConnectionMutex(1) {
+int TQueryManagerConnection::loadPlayerData(TPlayerData *Slot) {
+	prepareQuery(QUERY_LOAD_PLAYER_DATA);
+	sendQuad(Slot->CharacterID);
+	if (executeQuery(30, true) != STATUS_OK) {
+		error("TQueryManagerConnection::loadPlayerData: Request failed.\n");
+		return -1;
+	}
+
+	// Not getFlag: it reads a missing byte as 0, which would start the
+	// character as a new one.
+	try {
+		if (ReadBuffer.readByte() == 0) {
+			return 1;
+		}
+
+		ReadPlayerData(ReadBuffer, Slot);
+	} catch (const char *s) {
+		error("TQueryManagerConnection::loadPlayerData: Cannot read the data of player %ld: %s.\n", (long)(int32_t)Slot->CharacterID, s);
+		return -1;
+	} catch (const std::bad_alloc &) {
+		error("TQueryManagerConnection::loadPlayerData: No free memory for the data of player %ld.\n", (long)(int32_t)Slot->CharacterID);
+		return -1;
+	}
+
+	return 0;
+}
+
+int TQueryManagerConnection::savePlayerData(uint32_t CharacterID, unsigned char *Record, int Size) {
+	prepareQuery(QUERY_SAVE_PLAYER_DATA);
+	sendQuad(CharacterID);
+	sendBytes(Record, Size);
+	if (executeQuery(30, true) != STATUS_OK) {
+		error("TQueryManagerConnection::savePlayerData: Request failed.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+TQueryManagerConnectionPool::TQueryManagerConnectionPool(int Connections, int QueryBufferSize) : FreeQueryManagerConnections(Connections), QueryManagerConnectionMutex(1) {
 	if (Connections <= 0) {
 		error("TQueryManagerConnectionPool::TQueryManagerConnectionPool: Invalid connection count %d.\n", Connections);
 		Connections = 1;
 	}
 
 	NumberOfConnections = Connections;
+	BufferSize = QueryBufferSize;
 	QueryManagerConnection = nullptr;
 	QueryManagerConnectionFree = nullptr;
 }
 
 void TQueryManagerConnectionPool::init() {
-	QueryManagerConnection = new TQueryManagerConnection[NumberOfConnections];
+	QueryManagerConnection = new TQueryManagerConnection *[NumberOfConnections];
 	QueryManagerConnectionFree = new bool[NumberOfConnections];
 	for (int i = 0; i < NumberOfConnections; i++) {
-		if (!QueryManagerConnection[i].isConnected()) {
+		QueryManagerConnection[i] = new TQueryManagerConnection(BufferSize);
+	}
+
+	for (int i = 0; i < NumberOfConnections; i++) {
+		if (!QueryManagerConnection[i]->isConnected()) {
 			error("TQueryManagerConnectionPool::init: Cannot connect to the query manager.\n");
 			throw "cannot connect to query manager";
 		}
@@ -1145,18 +1200,36 @@ void TQueryManagerConnectionPool::exit() {
 		FreeQueryManagerConnections.down();
 	}
 
+	for (int i = 0; i < NumberOfConnections; i++) {
+		delete QueryManagerConnection[i];
+	}
 	delete[] QueryManagerConnection;
 	delete[] QueryManagerConnectionFree;
+	QueryManagerConnection = nullptr;
+	QueryManagerConnectionFree = nullptr;
+
+	// Free again, so that init can open the pool once more.
+	for (int i = 0; i < NumberOfConnections; i++) {
+		FreeQueryManagerConnections.up();
+	}
 }
 
 TQueryManagerConnection *TQueryManagerConnectionPool::getConnection() {
 	FreeQueryManagerConnections.down();
 	QueryManagerConnectionMutex.down();
+	// Not open (before init or after exit).
+	if (QueryManagerConnection == nullptr) {
+		QueryManagerConnectionMutex.up();
+		FreeQueryManagerConnections.up();
+		error("TQueryManagerConnectionPool::getConnection: The pool is not open.\n");
+		return nullptr;
+	}
+
 	for (int i = 0; i < NumberOfConnections; i++) {
 		if (QueryManagerConnectionFree[i]) {
 			QueryManagerConnectionFree[i] = false;
 			QueryManagerConnectionMutex.up();
-			return &QueryManagerConnection[i];
+			return QueryManagerConnection[i];
 		}
 	}
 
@@ -1167,7 +1240,7 @@ TQueryManagerConnection *TQueryManagerConnectionPool::getConnection() {
 
 void TQueryManagerConnectionPool::releaseConnection(TQueryManagerConnection *Connection) {
 	for (int i = 0; i < NumberOfConnections; i++) {
-		if (&QueryManagerConnection[i] == Connection) {
+		if (QueryManagerConnection[i] == Connection) {
 			QueryManagerConnectionFree[i] = true;
 			FreeQueryManagerConnections.up();
 			return;

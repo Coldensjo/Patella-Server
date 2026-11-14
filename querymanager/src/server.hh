@@ -1,9 +1,10 @@
 // TCP server of the query manager.
 //
-// The game server opens 14 connections while it starts and keeps 11 of them
-// open: the pool of ten that the login threads share (src/communication.cc)
-// and the one of the writer thread (src/writer.cc). The other three (world
-// config, player index, houses) are closed when their start-up work is done.
+// The game server opens 18 connections while it starts and keeps 15 of them
+// open: the pool of ten that the login threads share (src/communication.cc),
+// the four of the player data (src/dbfuncs.cc) and the one of the writer
+// thread (src/writer.cc). The other three (world config, player index,
+// houses) are closed when their start-up work is done.
 // It sends one request at a time on each connection. Every connection gets a
 // thread here; the dispatcher serialises the actual work.
 

@@ -19,7 +19,8 @@ const int APPLICATION_GAME = 1;
 // The query types the game sends: the first byte of a request (prepareQuery),
 // named after the TQueryManagerConnection method that sends it (QUERY_LOGIN:
 // connect's login request). The same names as in the query manager's
-// protocol.hh, which lists the other tools' too.
+// protocol.hh, which lists the other tools' too. 54 and 55 are this project's
+// own: the player data, which the 2006 game kept in its player files.
 const int QUERY_LOGIN = 0;
 const int QUERY_LOGIN_GAME = 20;
 const int QUERY_LOGOUT_GAME = 21;
@@ -51,6 +52,8 @@ const int QUERY_LOAD_PLAYERS = 50;
 const int QUERY_EXCLUDE_FROM_AUCTIONS = 51;
 const int QUERY_CANCEL_HOUSE_TRANSFER = 52;
 const int QUERY_LOAD_WORLD_CONFIG = 53;
+const int QUERY_LOAD_PLAYER_DATA = 54;
+const int QUERY_SAVE_PLAYER_DATA = 55;
 
 // The status byte of a response, which executeQuery returns: STATUS_FAILED
 // also when the request could not be sent or answered. STATUS_ERROR is
@@ -78,6 +81,8 @@ const int LOGIN_WRONG_ACCOUNT = 15;
 
 // The query managers the config may list (QUERY_MANAGER, config.cc).
 const int MAX_QUERY_MANAGERS = 10;
+
+struct TPlayerData;
 
 struct TQueryManagerSettings {
 	char Host[50];
@@ -124,6 +129,13 @@ struct TQueryManagerConnection {
 	int createPlayerlist(int NumberOfPlayers, char **Names, int *Levels, char (*Professions)[30], bool &NewRecord);
 	int logKilledCreatures(int NumberOfRaces, char **Names, int *KilledPlayers, int *KilledCreatures);
 	int loadPlayers(uint32_t MinimumCharacterID, int &NumberOfPlayers, char (*Names)[30], uint32_t *CharacterIDs);
+	// 0 with the slot of Slot->CharacterID filled, 1 if the query manager has
+	// no data of the character, -1 if the request failed or its data could
+	// not be read.
+	int loadPlayerData(TPlayerData *Slot);
+	// Record: the record WritePlayerData (dbfuncs.cc) wrote. 0, or -1 if the
+	// request failed.
+	int savePlayerData(uint32_t CharacterID, unsigned char *Record, int Size);
 private:
 	void connect();
 	void disconnect();
@@ -136,6 +148,7 @@ protected:
 	void sendWord(unsigned short w);
 	void sendQuad(uint32_t q);
 	void sendString(char *s);
+	void sendBytes(unsigned char *Buffer, int Count);
 	bool getFlag();
 	unsigned char getByte();
 	unsigned short getWord();
@@ -153,15 +166,19 @@ private:
 	bool QueryOk;
 };
 
+// Connections that threads share, one request at a time each. Each connection
+// gets a buffer of QueryBufferSize bytes (TQueryManagerConnection's default
+// unless given).
 struct TQueryManagerConnectionPool {
-	TQueryManagerConnectionPool(int Connections);
+	TQueryManagerConnectionPool(int Connections, int QueryBufferSize = 16384);
 	void init();
 	void exit();
 	TQueryManagerConnection *getConnection();
 	void releaseConnection(TQueryManagerConnection *Connection);
 private:
 	int NumberOfConnections;
-	TQueryManagerConnection *QueryManagerConnection;
+	int BufferSize;
+	TQueryManagerConnection **QueryManagerConnection;
 	bool *QueryManagerConnectionFree;
 	Semaphore FreeQueryManagerConnections;
 	Semaphore QueryManagerConnectionMutex;
