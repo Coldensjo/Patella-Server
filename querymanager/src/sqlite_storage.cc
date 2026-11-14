@@ -17,9 +17,9 @@ namespace {
 const int SchemaVersion = 1;
 
 // Table and column names follow the SQL statements the game writes to its
-// house log for the operator ("bei Reset: ..." in houses.c): tables Auctions
-// and HouseOwners, columns World, HouseID, Termination, NewOwner, Accepted,
-// Price. Everything else is this server's own design.
+// house log for the operator ("bei Reset: ..." in src/houses.cc): tables
+// Auctions and HouseOwners, columns World, HouseID, Termination, NewOwner,
+// Accepted, Price. Everything else is this server's own design.
 const char *const Schema =
 	"CREATE TABLE meta ("
 	"	key TEXT PRIMARY KEY,"

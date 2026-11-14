@@ -105,7 +105,7 @@ enum : size_t {
 		- MOTD_RESERVED_CHARACTERS * MAX_CHARACTER_ENTRY_SIZE,
 };
 
-// The game's version check (communication.c HandleLogin, TERMINALTYPES and
+// The game's version check (src/communication.cc HandleLogin, TERMINALTYPES and
 // TERMINALVERSION): terminal types 0 to 2, each from version 770 on.
 const int TERMINAL_TYPES = 3;
 const uint16_t TERMINAL_VERSION[TERMINAL_TYPES] = {770, 770, 770};

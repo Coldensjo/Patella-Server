@@ -137,7 +137,7 @@ static void testCatalogue() {
 		if (i > 0) {
 			CHECK(table[i - 1].type < table[i].type);
 		}
-		// loginAccount is this project's request; bin/game has no method for it.
+		// loginAccount is this project's request; the 2006 bin/game has none.
 		if (table[i].type == QUERY_LOGIN_ACCOUNT) {
 			CHECK(table[i].address == 0);
 		} else {

@@ -21,11 +21,11 @@
 
 namespace qm {
 
-// Key ReadConfig (config.c) passes to DisguisePassword for the QueryManager
-// entries; the static PasswordKey of config.c in bin/game.
+// Key ReadConfig passes to DisguisePassword for the QueryManager entries;
+// the static PasswordKey of src/config.cc.
 extern const char PasswordKey[];
 
-// DisguisePassword (config.c). The game applies it to the password it read
+// DisguisePassword (src/config.cc). The game applies it to the password it read
 // from .tibia and sends the result in the login request. Throws
 // std::runtime_error if the key is shorter than the password.
 std::string disguisePassword(const std::string &password, const std::string &key);
@@ -55,11 +55,11 @@ struct PlayerFile {
 	bool hasName = false;
 };
 
-// Reads the head of a .usr file (LoadPlayerData, dbfuncs.c, reads the same
-// keys with the same reader).
+// Reads the head of a .usr file (LoadPlayerData, src/dbfuncs.cc, reads the
+// same keys with the same reader).
 PlayerFile readPlayerFile(const std::string &path);
 
-// Sex for an outfit, from the ranges TPlayer::CheckOutfit (crplayer.c)
+// Sex for an outfit, from the ranges TPlayer::CheckOutfit (src/crplayer.cc)
 // accepts: 128..134 for Sex 1 (male), 136..142 for Sex 2 (female). Returns 0
 // for any other outfit.
 uint8_t sexFromOutfit(uint32_t outfit);
@@ -70,8 +70,8 @@ struct OwnerEntry {
 	uint32_t paidUntil = 0;
 };
 
-// Reads the house owners from dat/owners.dat (LoadOwners, houses.c, reads
-// the same file).
+// Reads the house owners from dat/owners.dat (LoadOwners, src/houses.cc,
+// reads the same file).
 std::vector<OwnerEntry> readOwners(const std::string &path);
 
 struct SeedOptions {

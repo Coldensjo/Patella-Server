@@ -9,15 +9,15 @@ namespace qm {
 
 // Query catalogue. Layouts of the implemented queries are documented at
 // their handlers in handlers.cc. The queries that are only catalogued have
-// no caller in bin/game (they are used by other CipSoft programs that share
-// query.c) or implement policy this server does not have; their layouts are
-// recorded here as read from the method bodies, so that they can be added
-// later without going back to the binary.
+// no caller in the game server (they are used by other CipSoft programs that
+// share TQueryManagerConnection) or implement policy this server does not
+// have; their layouts are recorded here, as the 2006 methods write and read
+// them, so that they can be added later.
 //
 //  10 checkAccountPassword
 //       request:  quad AccountID, string Password, string IPAddress
 //       response: OK: nothing. ERROR: byte code 1..4.
-//  11 loginAccount: not in bin/game, see handlers.cc.
+//  11 loginAccount: not sent by the game server, see handlers.cc.
 //  12 loginAdmin
 //       request:  quad AccountID, flag PrivateWorld
 //       response: OK: byte NumberOfCharacters, then per character

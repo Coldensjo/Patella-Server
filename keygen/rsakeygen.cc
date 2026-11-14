@@ -1,8 +1,8 @@
 // rsakeygen: writes a new RSA_PrivateKey.hh with two random 512-bit primes,
-// for builds without the original key (src/RSA_PrivateKey.hh is not in git).
-// The game server and the login server use it the way the original uses
-// RSA_PrivateKey.h: TRSAPrivateKey::init(RSA_PRIME_P, RSA_PRIME_Q), exponent
-// 65537. Clients need the modulus P*Q, which the header and the output give.
+// for builds without CipSoft's key (src/RSA_PrivateKey.hh is not in git).
+// The game server and the login server include it and call
+// TRSAPrivateKey::init(RSA_PRIME_P, RSA_PRIME_Q); the exponent is 65537.
+// Clients need the modulus P*Q, which the header and the output give.
 //
 // usage: rsakeygen FILE
 // FILE is left alone if it exists, so a key is made once per build directory.

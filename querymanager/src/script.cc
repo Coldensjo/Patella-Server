@@ -12,8 +12,8 @@ bool isDigit(int c) {
 	return c >= '0' && c <= '9';
 }
 
-// isAlpha (utils.c) also lists the German umlauts, but as negative values,
-// which getc never returns; so only ASCII letters count.
+// isAlpha (src/mudinc.cc) also lists the German umlauts, but as negative
+// values, which getc never returns; so only ASCII letters count.
 bool isAlpha(int c) {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }

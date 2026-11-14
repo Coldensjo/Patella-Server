@@ -216,8 +216,8 @@ uint32_t Dispatcher::requireWorld(const Session &session) const {
 //   response: status only
 // connect() treats every status other than 0 as "Anmeldung fehlgeschlagen"
 // and reads nothing else. The password is the one from the QueryManager
-// entry in .tibia after DisguisePassword (config.c); for the game server
-// LoginData is its world name (InitAll).
+// entry in .tibia after DisguisePassword (src/config.cc); for the game
+// server LoginData is its world name (InitAll).
 void Dispatcher::handleLogin(Session &session, ReadBuffer &in, WriteBuffer &out) {
 	uint8_t applicationType = in.readByte();
 	std::string password = in.readString();
@@ -248,9 +248,9 @@ void Dispatcher::handleLogin(Session &session, ReadBuffer &in, WriteBuffer &out)
 	out.writeByte(STATUS_OK);
 }
 
-// Query 11, loginAccount. Not in bin/game: the request of this project's
-// login server (loginserver/), which answers a client's login with the
-// character list. Only the login server's application type may send it.
+// Query 11, loginAccount. Not sent by the game server: the request of this
+// project's login server (loginserver/), which answers a client's login with
+// the character list. Only the login server's application type may send it.
 //   request:  quad AccountID, string Password, string IPAddress
 //   response, OK:
 //             byte NumberOfCharacters, then per character string Name,
@@ -338,8 +338,8 @@ void Dispatcher::handleLoginAccount(Session &session, ReadBuffer &in, WriteBuffe
 	Detail += format(" characters=%zu premium_days=%u", entries.size(), premiumDays);
 }
 
-// Query 53, loadWorldConfig, called once by LoadWorldConfig (main.c) on a
-// connection of its own.
+// Query 53, loadWorldConfig, called once by LoadWorldConfig (src/main.cc) on
+// a connection of its own.
 //   request:  nothing
 //   response: byte WorldType, byte RebootTime, 4 bytes IPAddress, word Port,
 //             word MaxPlayers, word PremiumPlayerBuffer, word MaxNewbies,
@@ -371,8 +371,8 @@ void Dispatcher::handleLoadWorldConfig(Session &session, ReadBuffer &, WriteBuff
 		static_cast<unsigned>(config.premiumNewbieBuffer));
 }
 
-// Query 50, loadPlayers, called by InitPlayerIndex (crplayer.c) to build the
-// name index of all characters of the world.
+// Query 50, loadPlayers, called by InitPlayerIndex (src/crplayer.cc) to build
+// the name index of all characters of the world.
 //   request:  quad MinimumCharacterID
 //   response: quad NumberOfPlayers, then per player string Name,
 //             quad CharacterID
@@ -391,8 +391,8 @@ void Dispatcher::handleLoadPlayers(Session &session, ReadBuffer &in, WriteBuffer
 	Detail = format("minimum=%u players=%zu", minimumId, players.size());
 }
 
-// Query 20, loginGame, called by PerformRegistration (communication.c) on a
-// pool connection when a client logs in.
+// Query 20, loginGame, called by PerformRegistration (src/communication.cc)
+// on a pool connection when a client logs in.
 //   request:  quad AccountID, string PlayerName, string Password,
 //             string IPAddress, flag PrivateWorld,
 //             flag PremiumAccountRequired, flag GamemasterRequired
@@ -409,8 +409,8 @@ void Dispatcher::handleLoadPlayers(Session &session, ReadBuffer &in, WriteBuffer
 // login counts the character as online; the game takes that back with
 // decrementIsOnline if it cannot let the player in after all.
 //
-// What decides each error code is not visible in bin/game; the checks below
-// follow the texts the game shows for the codes:
+// The game server does not show what decides each error code; the checks
+// below follow the texts the game shows for the codes:
 //  - INVITED and ALLOW_MULTICLIENT are right names the game ignores when
 //    they arrive, so they are taken to be the rights the query manager
 //    itself checks for private worlds and for a second character online.
@@ -516,13 +516,13 @@ void Dispatcher::handleLoginGame(Session &session, ReadBuffer &in, WriteBuffer &
 	for (const std::string &right : rights) {
 		out.writeString(right);
 	}
-	// Set by the original when this login starts premium time that was
-	// bought but not yet running. There is no payment system here.
+	// PremiumAccountActivated: this login starts premium time that was bought
+	// but not yet running. There is no payment system here, so it is false.
 	out.writeFlag(false);
 	Detail += format(" buddies=%zu rights=%zu", buddies.size(), rights.size());
 }
 
-// Query 21, logoutGame, called by ProcessLogoutOrder (writer.c) on the
+// Query 21, logoutGame, called by ProcessLogoutOrder (src/writer.cc) on the
 // writer thread's connection when a player leaves.
 //   request:  quad CharacterID, word Level, string Profession,
 //             string Residence, quad LastLoginTime, word TutorActivities
@@ -561,8 +561,8 @@ void Dispatcher::handleDecrementIsOnline(Session &session, ReadBuffer &in, Write
 	Detail = format("character=%u", characterId);
 }
 
-// Query 46, clearIsOnline, called by InitWriter (writer.c) at start and by
-// ClearPlayers.
+// Query 46, clearIsOnline, called by ClearPlayers (src/writer.cc), which
+// InitWriter calls at start.
 //   request:  nothing
 //   response: word NumberOfAffectedPlayers
 // The game logs an error if the number is not zero ("%d Spieler waren als
@@ -574,8 +574,8 @@ void Dispatcher::handleClearIsOnline(Session &session, ReadBuffer &, WriteBuffer
 	Detail = format("affected=%u", affected);
 }
 
-// Query 47, createPlayerlist, called by ProcessPlayerlistOrder (writer.c);
-// the order comes from CreatePlayerList (crplayer.c).
+// Query 47, createPlayerlist, called by ProcessPlayerlistOrder
+// (src/writer.cc); the order comes from CreatePlayerList (src/crplayer.cc).
 //   request:  word NumberOfPlayers, then per player string Name, word Level,
 //             string Profession
 //   response: flag NewRecord
@@ -617,7 +617,7 @@ void Dispatcher::handleCreatePlayerlist(Session &session, ReadBuffer &in, WriteB
 }
 
 // Query 48, logKilledCreatures, called by ProcessKillStatisticsOrder
-// (writer.c).
+// (src/writer.cc).
 //   request:  word NumberOfRaces, then per race string Name,
 //             quad KilledPlayers, quad KilledCreatures
 //   response: status only
@@ -639,7 +639,7 @@ void Dispatcher::handleLogKilledCreatures(Session &session, ReadBuffer &in, Writ
 }
 
 // Query 29, logCharacterDeath, called by ProcessCharacterDeathOrder
-// (writer.c).
+// (src/writer.cc).
 //   request:  quad CharacterID, word Level, quad Offender, string Remark,
 //             flag Unjustified, quad Time
 //   response: status only
@@ -657,7 +657,7 @@ void Dispatcher::handleLogCharacterDeath(Session &session, ReadBuffer &in, Write
 	Detail = format("character=%u offender=%u", death.characterId, death.offenderId);
 }
 
-// Query 30, addBuddy, called by ProcessAddBuddyOrder (writer.c).
+// Query 30, addBuddy, called by ProcessAddBuddyOrder (src/writer.cc).
 //   request:  quad AccountID, quad Buddy (a character id)
 //   response: status only
 void Dispatcher::handleAddBuddy(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -669,7 +669,7 @@ void Dispatcher::handleAddBuddy(Session &session, ReadBuffer &in, WriteBuffer &o
 	Detail = format("account=%u buddy=%u", accountId, buddyId);
 }
 
-// Query 31, removeBuddy, called by ProcessRemoveBuddyOrder (writer.c).
+// Query 31, removeBuddy, called by ProcessRemoveBuddyOrder (src/writer.cc).
 //   request:  quad AccountID, quad Buddy
 //   response: status only
 void Dispatcher::handleRemoveBuddy(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -681,8 +681,8 @@ void Dispatcher::handleRemoveBuddy(Session &session, ReadBuffer &in, WriteBuffer
 	Detail = format("account=%u buddy=%u", accountId, buddyId);
 }
 
-// Query 45, insertHouses, called by LoadHouses (houses.c) at every start
-// with all houses of dat/houses.dat.
+// Query 45, insertHouses, called by LoadHouses (src/houses.cc) at every
+// start with all houses of dat/houses.dat.
 //   request:  word NumberOfHouses, then per house word HouseID, string Name,
 //             quad Rent, string Description, word Size, word PositionX,
 //             word PositionY, byte PositionZ, string Town, flag Guildhouse
@@ -711,7 +711,7 @@ void Dispatcher::handleInsertHouses(Session &session, ReadBuffer &in, WriteBuffe
 	Detail = format("houses=%u", static_cast<unsigned>(count));
 }
 
-// Query 42, getHouseOwners, called by LoadOwners (houses.c) and
+// Query 42, getHouseOwners, called by LoadOwners (src/houses.cc) and
 // StartAuctions.
 //   request:  nothing
 //   response: word NumberOfHouses, then per house word HouseID,
@@ -759,7 +759,7 @@ void Dispatcher::handleInsertHouseOwner(Session &session, ReadBuffer &in, WriteB
 // gone by then, so an update that finds no entry has to succeed without
 // doing anything, like an SQL UPDATE that matches no row. Answering it with
 // a failure makes the game log "Kann Daten des vermieteten Hauses %d nicht
-// aktualisieren" for every evicted house (seen when running bin/game).
+// aktualisieren" for every evicted house (seen in a run of the game server).
 void Dispatcher::handleUpdateHouseOwner(Session &session, ReadBuffer &in, WriteBuffer &out) {
 	uint16_t houseId = in.readWord();
 	uint32_t ownerId = in.readQuad();
@@ -813,7 +813,8 @@ void Dispatcher::handleStartAuction(Session &session, ReadBuffer &in, WriteBuffe
 	Detail = format("house=%u", static_cast<unsigned>(houseId));
 }
 
-// Query 33, finishAuctions, called by FinishAuctions (houses.c) at start.
+// Query 33, finishAuctions, called by FinishAuctions (src/houses.cc) at
+// start.
 //   request:  nothing
 //   response: word NumberOfAuctions, then per auction word HouseID,
 //             quad CharacterID, string CharacterName, quad Bid
@@ -840,8 +841,8 @@ void Dispatcher::handleFinishAuctions(Session &session, ReadBuffer &, WriteBuffe
 // with Banish = false for a tenant who is thrown out for not paying the rent.
 //   request:  quad CharacterID, flag Banish
 //   response: status only
-// How long a banished character stays excluded is not visible in bin/game;
-// the exclusion is recorded with its time and the flag.
+// The game server does not show how long a banished character stays
+// excluded; the exclusion is recorded with its time and the flag.
 void Dispatcher::handleExcludeFromAuctions(Session &session, ReadBuffer &in, WriteBuffer &out) {
 	uint32_t characterId = in.readQuad();
 	bool banish = in.readFlag();

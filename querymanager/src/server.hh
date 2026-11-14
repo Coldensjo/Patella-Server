@@ -1,10 +1,10 @@
 // TCP server of the query manager.
 //
-// bin/game opens 14 connections while it starts and keeps 11 of them open:
-// the pool of ten that the login threads share (communication.c) and the
-// one of the writer thread (writer.c). The other three (world config,
-// player index, houses) are closed when their start-up work is done. It
-// sends one request at a time on each connection. Every connection gets a
+// The game server opens 14 connections while it starts and keeps 11 of them
+// open: the pool of ten that the login threads share (src/communication.cc)
+// and the one of the writer thread (src/writer.cc). The other three (world
+// config, player index, houses) are closed when their start-up work is done.
+// It sends one request at a time on each connection. Every connection gets a
 // thread here; the dispatcher serialises the actual work.
 
 #ifndef QM_SERVER_HH

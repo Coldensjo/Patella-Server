@@ -6,7 +6,7 @@
 // account number and password are the operator's choice. It can also create
 // new characters: they get the next free character id and have no player
 // file, so the game starts them as new characters (LoadPlayerData,
-// dbfuncs.c).
+// src/dbfuncs.cc).
 // --login-password, alone or with either mode, stores the password the
 // login server (loginserver/) presents. It sends it as it is, without the
 // game's DisguisePassword.

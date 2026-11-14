@@ -1,7 +1,8 @@
 // Character set helpers.
 //
 // Strings on the wire and in the game's data files are ISO-8859-1 (the
-// German log texts in bin/game are stored that way, e.g. 0xF6 for o-umlaut).
+// German log texts of the game server are stored that way, e.g. 0xF6 for
+// o-umlaut).
 // Inside this program a `std::string` that came from the wire or goes to it
 // holds those bytes unchanged. The SQLite implementation converts to UTF-8
 // for its TEXT columns and back.

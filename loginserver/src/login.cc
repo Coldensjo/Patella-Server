@@ -19,8 +19,8 @@ bool isTerminalSupported(uint16_t terminalType, uint16_t terminalVersion) {
 
 LoginKey::LoginKey() {
 	// Some of the texts TRSAPrivateKey throws belong to a string that is
-	// gone by the time they are caught (an original bug kept in src/), so
-	// they are not read here.
+	// gone by the time they are caught (a quirk src/TRSAPrivateKey.cc
+	// keeps), so they are not read here.
 	try {
 		Key.init(RSA_PRIME_P, RSA_PRIME_Q);
 	} catch (const char *) {
