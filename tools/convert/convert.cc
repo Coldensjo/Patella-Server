@@ -22,6 +22,13 @@
 //     The spells: the spell table the game had in its code (its old
 //     InitSpells, compiled into patella-convert) to spells.toml, which belongs
 //     in the installation's data folder. OUTPUT "-" is standard output.
+//
+//   patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT
+//     The move and use rules: moveuse.dat to moveuse.toml, which belongs in
+//     the installation's data folder. The object types come from ITEMS_TOML
+//     (the installation's items.toml): the rules may only name types that
+//     exist, and the comments give their names. OUTPUT "-" is standard
+//     output.
 
 #include <cstdio>
 #include <cstring>
@@ -31,6 +38,9 @@
 #include "circles_writer.hh"
 #include "config_writer.hh"
 #include "items_writer.hh"
+#include "moveuse_dat.hh"
+#include "moveuse_writer.hh"
+#include "objects.hh"
 #include "objects_srv.hh"
 #include "spells_reference.hh"
 #include "spells_writer.hh"
@@ -41,7 +51,8 @@ static int Usage() {
 	fprintf(stderr, "usage: patella-convert config [--base DIR] TIBIA OUTPUT\n"
 			"       patella-convert items OBJECTS_SRV OUTPUT\n"
 			"       patella-convert circles CIRCLES_DAT OUTPUT\n"
-			"       patella-convert spells OUTPUT\n");
+			"       patella-convert spells OUTPUT\n"
+			"       patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT\n");
 	return 2;
 }
 
@@ -105,6 +116,18 @@ static int ConvertSpells(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertMoveUse(int argc, char **argv) {
+	if (argc != 3 || (argv[0][0] == '-' && argv[0][1] != 0) || (argv[1][0] == '-' && argv[1][1] != 0)) {
+		return Usage();
+	}
+
+	LoadItems(argv[0]);
+	TMoveUseDatExtras Extras;
+	ReadMoveUseDat(argv[1], Extras);
+	WriteTextFile(argv[2], MoveUseToToml(Extras, DefinedTypes(argv[0])));
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		return Usage();
@@ -122,6 +145,9 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[1], "spells") == 0) {
 			return ConvertSpells(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "moveuse") == 0) {
+			return ConvertMoveUse(argc - 2, argv + 2);
 		}
 	} catch (const char *Text) {
 		fprintf(stderr, "patella-convert: %s\n", Text);

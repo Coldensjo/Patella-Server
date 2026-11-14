@@ -14,9 +14,12 @@ add_library(convert_common STATIC
 	circles_writer.cc
 	spells_reference.cc
 	spells_writer.cc
+	moveuse_dat.cc
+	moveuse_writer.cc
 	tomlwrite.cc
 	${GAME_SOURCE}/config.cc
 	${GAME_SOURCE}/magicdata.cc
+	${GAME_SOURCE}/moveusedata.cc
 	${GAME_SOURCE}/objects.cc
 	${GAME_SOURCE}/strings.cc
 	${GAME_SOURCE}/tomlfile.cc
@@ -86,3 +89,20 @@ add_executable(convert_test_spells tests/test_spells.cc)
 target_link_libraries(convert_test_spells PRIVATE convert_common)
 add_test(NAME convert_spells COMMAND convert_test_spells)
 add_test(NAME convert_spells_original COMMAND convert_test_spells --original ${PROJECT_SOURCE_DIR}/data/spells.toml)
+
+# The round trip of the move and use rules: the rules the game ends up with
+# from a moveuse.dat (through the old reader, ReadMoveUseDat) and from its
+# moveuse.toml (through LoadMoveUseRules) are the same, entry by entry and in
+# the same order. convert_moveuse uses made-up files; convert_moveuse_original
+# the original moveuse.dat, PATELLA_ORIGINAL_MOVEUSE, with the committed
+# data/items.toml for the object types, and the committed data/moveuse.toml,
+# which must also be exactly what patella-convert makes of it. It is skipped
+# when that moveuse.dat is not there.
+set(PATELLA_ORIGINAL_MOVEUSE "/mnt/c/Tibia/Patella-Gameserver/dat/moveuse.dat" CACHE FILEPATH
+	"The original installation's moveuse.dat, for the test convert_moveuse_original")
+add_executable(convert_test_moveuse tests/test_moveuse.cc)
+target_link_libraries(convert_test_moveuse PRIVATE convert_common)
+add_test(NAME convert_moveuse COMMAND convert_test_moveuse)
+add_test(NAME convert_moveuse_original COMMAND convert_test_moveuse --original ${PROJECT_SOURCE_DIR}/data/items.toml
+	${PATELLA_ORIGINAL_MOVEUSE} ${PROJECT_SOURCE_DIR}/data/moveuse.toml)
+set_tests_properties(convert_moveuse_original PROPERTIES SKIP_RETURN_CODE 77)

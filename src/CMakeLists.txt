@@ -21,6 +21,7 @@ add_executable(game
 	dbfuncs.cc
 	info.cc
 	moveuse.cc
+	moveusedata.cc
 	magic.cc
 	magicdata.cc
 	operate.cc

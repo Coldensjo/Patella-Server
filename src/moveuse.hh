@@ -1,6 +1,6 @@
-// moveuse.hh: the functions and data of moveuse.cc: the move and use rules of
-// moveuse.dat and the events that run them, the object functions their actions
-// use, depot boxes, mail, and the built-in uses of objects (containers, chests,
+// moveuse.hh: the functions and data of moveuse.cc: the events that run the
+// move and use rules (moveusedata.hh), the object functions their actions use,
+// depot boxes, mail, and the built-in uses of objects (containers, chests,
 // liquids, food, texts, doors, weapons).
 
 #ifndef PATELLA_MOVEUSE_HH
@@ -13,11 +13,7 @@
 struct Object;
 struct ObjectType;
 struct TDelayedMail;
-struct TMoveUseAction;
-struct TMoveUseCondition;
-struct TMoveUseDatabase;
 struct TPlayerData;
-struct TReadScriptFile;
 
 Object GetEventObject(int Number, Object User, Object Obj1, Object Obj2, Object Temp);
 bool Compare(int Value1, int Operator, int Value2);
@@ -49,18 +45,9 @@ void UseObjects(uint32_t CreatureID, Object Obj1, Object Obj2);
 void MovementEvent(Object Obj, Object Start, Object Dest);
 void SeparationEvent(Object Obj, Object Start);
 void CollisionEvent(Object Obj, Object Dest);
-void LoadParameters(TReadScriptFile &Script, int *Parameters, int NumberOfParameters, ...);
-void LoadCondition(TReadScriptFile &Script, TMoveUseCondition &Condition);
-void LoadAction(TReadScriptFile &Script, TMoveUseAction &Action);
-void LoadDataBase();
 void InitMoveUse();
 void ExitMoveUse();
 
-extern vector<TMoveUseCondition> MoveUseConditions;
-extern int NumberOfMoveUseConditions;
-extern vector<TMoveUseAction> MoveUseActions;
-extern int NumberOfMoveUseActions;
-extern TMoveUseDatabase MoveUseDatabases[5];
 extern vector<TDelayedMail> DelayedMail;
 extern int DelayedMails;
 
