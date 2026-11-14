@@ -80,7 +80,7 @@ void TCombat::CheckTargetAndChase() {
 	}
 
 	if (Master == nullptr) {
-		error("TCombat::CanAttack: No Master set!\n");
+		error("TCombat::CheckTargetAndChase: No Master set!\n");
 		throw ERROR;
 	}
 
@@ -154,7 +154,7 @@ void TCombat::Attack() {
 	}
 
 	if (Master == nullptr) {
-		error("TCombat::CanAttack: No Master set!\n");
+		error("TCombat::Attack: No Master set!\n");
 		throw ERROR;
 	}
 
