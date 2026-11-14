@@ -86,7 +86,7 @@ static std::string Header() {
 	Text += "#                                3 * magic level, in percent) is at most 100.\n";
 	Text += "#                factor_min_100  That factor is at least 100.\n";
 	Text += "#   rune         The rune a rune spell (\"ad\") makes: group and number, the\n";
-	Text += "#                object's old numbering (conversion.lst maps it to the type),\n";
+	Text += "#                object's old numbering (conversion.toml gives the type),\n";
 	Text += "#                group 1 to 255 and number 0 to 255; magic_level, the magic\n";
 	Text += "#                level needed to use the rune (its description says it); and\n";
 	Text += "#                charges, the charges the rune is made with. magic_level and\n";

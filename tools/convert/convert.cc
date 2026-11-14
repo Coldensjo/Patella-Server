@@ -35,6 +35,18 @@
 //     houses.dat (the houses) to houses.toml, which belongs in the
 //     installation's data folder. OUTPUT "-" is standard output. owners.dat,
 //     the owners the game writes, is not part of it.
+//
+//   patella-convert map MAP_DAT OUTPUT
+//     The map settings (the range of the sectors, the refreshed cylinders,
+//     the start positions, the marks and the depots): map.dat, with the
+//     mem.dat it includes (the memory settings, found next to it), to
+//     map.toml, which belongs in the installation's data folder. OUTPUT "-"
+//     is standard output.
+//
+//   patella-convert conversion CONVERSION_LST OUTPUT
+//     The old numbers of the object types (group and number) and their types:
+//     conversion.lst to conversion.toml, which belongs in the installation's
+//     data folder. OUTPUT "-" is standard output.
 
 #include <cstdio>
 #include <cstring>
@@ -43,9 +55,13 @@
 #include "circles_dat.hh"
 #include "circles_writer.hh"
 #include "config_writer.hh"
+#include "conversion_lst.hh"
+#include "conversion_writer.hh"
 #include "houses_dat.hh"
 #include "houses_writer.hh"
 #include "items_writer.hh"
+#include "map_dat.hh"
+#include "map_writer.hh"
 #include "moveuse_dat.hh"
 #include "moveuse_writer.hh"
 #include "objects.hh"
@@ -61,7 +77,9 @@ static int Usage() {
 			"       patella-convert circles CIRCLES_DAT OUTPUT\n"
 			"       patella-convert spells OUTPUT\n"
 			"       patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT\n"
-			"       patella-convert houses HOUSEAREAS_DAT HOUSES_DAT OUTPUT\n");
+			"       patella-convert houses HOUSEAREAS_DAT HOUSES_DAT OUTPUT\n"
+			"       patella-convert map MAP_DAT OUTPUT\n"
+			"       patella-convert conversion CONVERSION_LST OUTPUT\n");
 	return 2;
 }
 
@@ -149,6 +167,27 @@ static int ConvertHouses(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertMap(int argc, char **argv) {
+	if (argc != 2 || (argv[0][0] == '-' && argv[0][1] != 0)) {
+		return Usage();
+	}
+
+	TMapDatExtras Extras;
+	ReadMapDat(argv[0], Extras);
+	WriteTextFile(argv[1], MapToToml(Extras));
+	return 0;
+}
+
+static int ConvertConversion(int argc, char **argv) {
+	if (argc != 2 || (argv[0][0] == '-' && argv[0][1] != 0)) {
+		return Usage();
+	}
+
+	ReadConversionLst(argv[0]);
+	WriteTextFile(argv[1], ConversionToToml());
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		return Usage();
@@ -172,6 +211,12 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[1], "houses") == 0) {
 			return ConvertHouses(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "map") == 0) {
+			return ConvertMap(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "conversion") == 0) {
+			return ConvertConversion(argc - 2, argv + 2);
 		}
 	} catch (const char *Text) {
 		fprintf(stderr, "patella-convert: %s\n", Text);

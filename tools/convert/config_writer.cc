@@ -66,7 +66,7 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 		{"bin", BINPATH, "reboot-daily, run when the game ends for a reboot"},
 		{"map", MAPPATH, "the map sectors (*.sec) the game loads and saves"},
 		{"origmap", ORIGMAPPATH, "the original map sectors"},
-		{"data", DATAPATH, "items.toml, moveuse.dat, map.dat and the other data"},
+		{"data", DATAPATH, "items.toml, map.toml and the other data"},
 		{"user", USERPATH, "the player files (NN/<id>.usr)"},
 		{"log", LOGPATH, "the log files"},
 		{"save", SAVEPATH, "game.pid, swapped-out sectors, patches"},

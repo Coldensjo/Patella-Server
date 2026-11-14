@@ -27,9 +27,9 @@ static std::string Header() {
 	Text += "#   name       The area's name, for the reader; the game leaves it.\n";
 	Text += "#   sqm_price  What each field of a house in the area adds to its rent, in\n";
 	Text += "#              gold.\n";
-	Text += "#   depot      The number of the town's depot (Depot in map.dat): the town\n";
-	Text += "#              the query manager lists the area's houses under, and the depot\n";
-	Text += "#              the owner's items go to when a house is cleared.\n";
+	Text += "#   depot      The number of the town's depot ([[depot]] in map.toml): the\n";
+	Text += "#              town the query manager lists the area's houses under, and the\n";
+	Text += "#              depot the owner's items go to when a house is cleared.\n";
 	Text += "#\n";
 	Text += "# Each [[house]] is a house, in the order of their ids:\n";
 	Text += "#   id           The house's number, 1 to 65535, each higher than the one\n";

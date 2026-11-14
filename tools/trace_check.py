@@ -15,16 +15,17 @@ What it does, in WSL Ubuntu-24.04:
      (--install, a tar or a folder; default /home/chris/patella-cmp/pristine.tar) in ~/.cache/patella-check/trace/game
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
-     relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/moveuse.toml and
-     data/houses.toml go into the copy's data folder ([paths] data), and the files they were converted from,
-     objects.srv, circles.dat, moveuse.dat, houseareas.dat and houses.dat, are removed (spells.toml replaces the spell
-     table in the code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the copy, and
-     keeps those files. The scenario's clients read the object types from the file the copy has. Either config gets a
-     scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the three
-     after it for the other entries). Then it seeds a scratch database with the build's querymanager-seed (game port
-     --port, default 17171), adds the two test accounts with a new character each (900001 'Testa Alpha', male, and
-     900002 'Testb Beta', female; neither may have a player file) and starts the build's query manager. The game runs
-     with HOME set to the copy, so it reads the copy's config.toml (or .tibia).
+     relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/moveuse.toml,
+     data/houses.toml, data/map.toml and data/conversion.toml go into the copy's data folder ([paths] data), and the
+     files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat, houses.dat, map.dat with
+     the mem.dat it includes, and conversion.lst, are removed (spells.toml replaces the spell table in the code). A
+     tree without them (faithful) gets the copy's .tibia with its paths pointed at the copy, and keeps those files. The
+     scenario's clients read the object types from the file the copy has. Either config gets a scratch SHM key (--shm,
+     default 17011) and scratch query manager ports (--qm-port, default 17173, and the three after it for the other
+     entries). Then it seeds a scratch database with the build's querymanager-seed (game port --port, default 17171),
+     adds the two test accounts with a new character each (900001 'Testa Alpha', male, and 900002 'Testb Beta',
+     female; neither may have a player file) and starts the build's query manager. The game runs with HOME set to the
+     copy, so it reads the copy's config.toml (or .tibia).
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
@@ -282,6 +283,8 @@ DATA_FILES = [
 	("spells.toml", ()),
 	("moveuse.toml", ("moveuse.dat",)),
 	("houses.toml", ("houseareas.dat", "houses.dat")),
+	("map.toml", ("map.dat", "mem.dat")),
+	("conversion.toml", ("conversion.lst",)),
 ]
 
 

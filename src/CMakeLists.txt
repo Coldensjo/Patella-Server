@@ -15,6 +15,7 @@ add_executable(game
 	objects.cc
 	shm.cc
 	map.cc
+	mapdata.cc
 	houses.cc
 	housesdata.cc
 	threads.cc

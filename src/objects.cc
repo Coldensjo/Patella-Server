@@ -2,7 +2,9 @@
 // items.toml (data/items.toml in the repository, converted from the original
 // objects.srv by tools/convert), the names of their flags and attributes, the
 // special objects (GetSpecialObject), and the conversion of an old group and
-// number to a type number (conversion.lst).
+// number to a type number, loaded from conversion.toml (data/conversion.toml
+// in the repository, converted from the original conversion.lst by
+// tools/convert).
 
 #include "tomlfile.hh"
 
@@ -10,7 +12,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -482,39 +483,51 @@ void LoadObjects() {
 	LoadItems(FileName);
 }
 
-void LoadConversionList() {
-	std::ifstream IN;
-	char FileName[4096];
-	int Group, Number, Type;
+// An old group or number, a key of conversion.toml: 0 to 255, in decimal
+// without leading zeros (so that "7" and "07" cannot both give one).
+static int ReadOldNumber(const toml::key &Key, const char *What) {
+	const std::string Text(Key.str());
+	bool Valid = !Text.empty() && Text.size() <= 3 && (Text[0] != '0' || Text.size() == 1);
+	for (char c : Text) {
+		Valid = Valid && c >= '0' && c <= '9';
+	}
+	if (!Valid || atoi(Text.c_str()) > 255) {
+		TomlError(Key.source(), "%s \"%s\" must be a number from 0 to 255 without leading zeros", What, Text.c_str());
+	}
+	return atoi(Text.c_str());
+}
 
+void LoadConversions(const char *FileName) {
 	for (int i = 0; i < 65536; i++) {
 		NewType[i] = -1;
 	}
 
-	sprintf(FileName, "%s/conversion.lst", DATAPATH);
-	IN.open(FileName, std::ios::in);
-	if (IN.fail()) {
-		// Quirk: no argument is passed for %s.
-		error("LoadConversionList: Kann Datei %s nicht \xf6" "ffnen.\n");
-		throw "Cannot open conversion.lst";
-	}
-
-	while (true) {
-		IN >> Group;
-		if (IN.eof()) {
-			break;
+	toml::table File = TomlParseFile(FileName);
+	TomlCheckKeys(File, "the top level", {"group"});
+	if (const toml::table *Groups = TomlGetTable(File, "group")) {
+		for (const auto &GroupEntry : *Groups) {
+			int Group = ReadOldNumber(GroupEntry.first, "group");
+			if (!GroupEntry.second.is_table()) {
+				TomlError(GroupEntry.second.source(), "group %d must be a table", Group);
+			}
+			for (const auto &Entry : *GroupEntry.second.as_table()) {
+				int Number = ReadOldNumber(Entry.first, "number");
+				if ((Group == 0 && Number <= LAST_BODY_POSITION) || (Group == 250 && Number == 0)) {
+					TomlError(Entry.first.source(), "%d/%d is the game's own (0/0 to 0/%d and 250/0)", Group,
+							Number, LAST_BODY_POSITION);
+				}
+				if (!Entry.second.is_integer()) {
+					TomlError(Entry.second.source(), "the type of %d/%d must be an integer", Group, Number);
+				}
+				int64_t Type = Entry.second.as_integer()->get();
+				if (Type < 1 || Type > CONVERSION_TYPES - 1) {
+					TomlError(Entry.second.source(), "the type of %d/%d must lie between 1 and %d", Group, Number,
+							CONVERSION_TYPES - 1);
+				}
+				NewType[Group * 256 + Number] = static_cast<int>(Type);
+			}
 		}
-		IN >> Number >> Type;
-
-		if (Type < 1 || Type > CONVERSION_TYPES - 1) {
-			error("LoadConversionList: Ung\xfcltiger Typ %d.\n", Type);
-			throw "Error while loading conversion.lst";
-		}
-
-		NewType[Group * 256 + Number] = Type;
 	}
-
-	IN.close();
 
 	// No type (0) and the body containers keep their numbers, in group 0.
 	for (int i = 0; i <= LAST_BODY_POSITION; i++) {
@@ -522,6 +535,12 @@ void LoadConversionList() {
 	}
 
 	NewType[250 * 256 + 0] = TYPEID_CREATURE;
+}
+
+void LoadConversionList() {
+	char FileName[4096];
+	sprintf(FileName, "%s/conversion.toml", DATAPATH);
+	LoadConversions(FileName);
 }
 
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {

@@ -4,8 +4,8 @@
 // matrix3d of sectors of SECTOR_SIZE x SECTOR_SIZE fields, each field a map
 // container that holds its objects in a list. Sectors are loaded from and
 // saved to the .sec files, refreshed and patched; when no object slot is
-// free, the sector used longest ago is swapped out to a file. map.dat gives
-// the sectors' range, the depots, the marks and the start positions.
+// free, the sector used longest ago is swapped out to a file. The sectors'
+// range, the depots, the marks and the start positions are in mapdata.cc.
 
 #include <algorithm>
 #include <cerrno>
@@ -36,10 +36,6 @@ struct TObject {
 	uint32_t Attributes[4];
 };
 
-// The objects are kept in blocks of OBJECTS_PER_BLOCK (map.dat's CacheSize is
-// a multiple of it).
-const int OBJECTS_PER_BLOCK = 32768;
-
 struct TObjectBlock {
 	TObject Object[OBJECTS_PER_BLOCK];
 };
@@ -63,18 +59,6 @@ struct TCronEntry {
 	uint32_t RoundNr;
 	int Previous;
 	int Next;
-};
-
-struct TDepotInfo {
-	char Town[20];
-	int Size;
-};
-
-struct TMark {
-	char Name[20];
-	int x;
-	int y;
-	int z;
 };
 
 char InstanceAttributeNames[INSTANCEATTRIBUTES][30] = {
@@ -110,30 +94,12 @@ const int HASHENTRY_FREE = 0;
 const int HASHENTRY_IN_MEMORY = 1;
 const int HASHENTRY_SWAPPED_OUT = 2;
 const int HASHENTRY_RESERVED = 255;
-int HashTableSize;
 uint32_t HashTableMask;
 int HashTableFree;
 int ObjectCounter;
 vector<TCronEntry> CronEntry(0, 256, 256);
 int CronHashTable[CRON_HASH_TABLE_SIZE];
 int CronEntries;
-int OBCount;
-int SectorXMin;
-int SectorXMax;
-int SectorYMin;
-int SectorYMax;
-int SectorZMin;
-int SectorZMax;
-int RefreshedCylinders;
-vector<TDepotInfo> DepotInfo(0, 4, 5);
-vector<TMark> Mark(0, 4, 5);
-int Marks;
-int NewbieStartPositionX;
-int NewbieStartPositionY;
-int NewbieStartPositionZ;
-int VeteranStartPositionX;
-int VeteranStartPositionY;
-int VeteranStartPositionZ;
 static TDynamicWriteBuffer HelpBuffer(65536);
 
 TObject &AccessObject(Object Obj) {
@@ -2168,179 +2134,6 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 		error("PatchSector: Fehler %d beim Umbenennen von %s.\n", result, FileNameBak);
 		error("# Fehler %d: %s.\n", errno, strerror(errno));
 		throw "cannot patch ORIGMAP";
-	}
-}
-
-void ReadMapConfig() {
-	SectorXMin = 1000;
-	SectorXMax = 1015;
-	SectorYMin = 1000;
-	SectorYMax = 1015;
-	SectorZMin = 0;
-	SectorZMax = 15;
-	RefreshedCylinders = 1;
-	HashTableSize = 1048576;
-	OBCount = 655360;
-	Marks = 0;
-	NewbieStartPositionX = 0;
-	NewbieStartPositionY = 0;
-	NewbieStartPositionZ = 0;
-	VeteranStartPositionX = 0;
-	VeteranStartPositionY = 0;
-	VeteranStartPositionZ = 0;
-
-	char FileName[4096];
-	sprintf(FileName, "%s/map.dat", DATAPATH);
-
-	TReadScriptFile Script;
-	Script.open(FileName);
-	while (true) {
-		Script.nextToken();
-		if (Script.Token == ENDOFFILE) {
-			Script.close();
-			break;
-		}
-
-		if (Script.Token != IDENTIFIER) {
-			Script.error("Identifier expected");
-		}
-
-		char Ident[30];
-		strcpy(Ident, Script.getIdentifier());
-		Script.readSymbol('=');
-
-		if (strcmp(Ident, "sectorxmin") == 0) {
-			SectorXMin = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "sectorxmax") == 0) {
-			SectorXMax = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "sectorymin") == 0) {
-			SectorYMin = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "sectorymax") == 0) {
-			SectorYMax = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "sectorzmin") == 0) {
-			SectorZMin = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "sectorzmax") == 0) {
-			SectorZMax = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "refreshedcylinders") == 0) {
-			RefreshedCylinders = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "objects") == 0) {
-			HashTableSize = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "cachesize") == 0) {
-			OBCount = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "depot") == 0) {
-			Script.readSymbol('(');
-			int DepotNumber = Script.readNumber();
-			Script.readSymbol(',');
-			Script.nextToken();
-			if (Script.Token != STRING) {
-				Script.error("town name expected");
-			}
-
-			if (strlen(Script.getString()) > 19) {
-				Script.error("town name too long");
-			}
-
-			strcpy(DepotInfo(DepotNumber).Town, Script.getString());
-			Script.readSymbol(',');
-			DepotInfo(DepotNumber).Size = Script.readNumber();
-			Script.readSymbol(')');
-		}
-
-		if (strcmp(Ident, "mark") == 0) {
-			Script.readSymbol('(');
-			strcpy(Mark(Marks).Name, Script.readString());
-			Script.readSymbol(',');
-			Script.readCoordinate(Mark(Marks).x, Mark(Marks).y, Mark(Marks).z);
-			Script.readSymbol(')');
-			Marks++;
-		}
-
-		if (strcmp(Ident, "newbiestart") == 0) {
-			Script.readCoordinate(NewbieStartPositionX, NewbieStartPositionY, NewbieStartPositionZ);
-		}
-
-		if (strcmp(Ident, "veteranstart") == 0) {
-			Script.readCoordinate(VeteranStartPositionX, VeteranStartPositionY, VeteranStartPositionZ);
-		}
-	}
-
-	if (SectorXMin <= 0) {
-		throw "illegal value for SectorXMin";
-	}
-
-	if (SectorXMax >= 2047) {
-		throw "illegal value for SectorXMax";
-	}
-
-	if (SectorYMin <= 0) {
-		throw "illegal value for SectorYMin";
-	}
-
-	if (SectorYMax >= 2047) {
-		throw "illegal value for SectorYMax";
-	}
-
-	if (SectorZMin < 0) {
-		throw "illegal value for SectorZMin";
-	}
-
-	if (SectorZMax > 15) {
-		throw "illegal value for SectorZMax";
-	}
-
-	if (SectorXMin > SectorXMax) {
-		throw "SectorXMin is greater than SectorXMax";
-	}
-
-	if (SectorYMin > SectorYMax) {
-		throw "SectorYMin is greater than SectorYMax";
-	}
-
-	if (SectorZMin > SectorZMax) {
-		throw "SectorZMin is greater than SectorZMax";
-	}
-
-	if (OBCount % OBJECTS_PER_BLOCK != 0) {
-		throw "CacheSize must be a multiple of 32768";
-	}
-
-	if (OBCount <= 0) {
-		throw "illegal value for CacheSize";
-	}
-
-	OBCount /= OBJECTS_PER_BLOCK;
-	if (HashTableSize <= 0) {
-		throw "illegal value for Objects";
-	}
-
-	if ((HashTableSize & (HashTableSize - 1)) != 0) {
-		throw "Objects must be a power of 2";
-	}
-
-	if (NewbieStartPositionX == 0) {
-		throw "no start position for newbies specified";
-	}
-
-	if (VeteranStartPositionX == 0) {
-		throw "no start position for veterans specified";
 	}
 }
 

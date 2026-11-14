@@ -182,8 +182,8 @@ const int INSTANCEATTRIBUTES = 18;
 // The most pieces a cumulative object can hold (its AMOUNT).
 const int MAX_AMOUNT = 100;
 
-// The type numbers conversion.lst may give an old group and number: 1 to
-// 8191 (LoadConversionList refuses others).
+// The type numbers conversion.toml may give an old group and number: 1 to
+// 8191 (LoadConversions refuses others).
 const int CONVERSION_TYPES = 8192;
 
 enum SPECIALMEANING {
@@ -294,6 +294,15 @@ int GetFlagByName(char *Name);
 int GetTypeAttributeByName(char *Name);
 void LoadItems(const char *FileName);
 void LoadObjects();
+// Reads the conversion.toml file FileName into NewType: the type number of
+// each old group and number it gives (NewType[Group * 256 + Number]), -1 for
+// the others, then the game's own: 0/0 to 0/10 keep their numbers (no type
+// and the body containers) and 250/0 is the creature, as the game's old
+// LoadConversionList did from conversion.lst. Throws a const char *
+// "<file>:<line>:<column>: <what>" for what is wrong with it, and as
+// TomlParseFile does for a file that is not there or not TOML.
+void LoadConversions(const char *FileName);
+// LoadConversions of DATAPATH/conversion.toml.
 void LoadConversionList();
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number);
 bool ObjectTypeExists(int TypeID);
