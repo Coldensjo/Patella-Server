@@ -1,3 +1,6 @@
+// dbfuncs.hh: a player's data as the player file holds it (TPlayerData,
+// TOutfit) and the functions that load and save it (dbfuncs.cc).
+
 #ifndef PATELLA_DBFUNCS_HH
 #define PATELLA_DBFUNCS_HH
 

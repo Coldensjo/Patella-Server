@@ -1,3 +1,12 @@
+// writer.cc: the two threads that take slow work off the game thread. The
+// protocol thread writes the log files (LOGPATH/<name>.log) whose lines Log
+// queues for it. The writer thread carries out the orders the game queues
+// (InsertOrder): the query manager requests of logouts, player lists, kill
+// statistics, punishments, deaths, buddies and logins that did not happen
+// (decrementIsOnline), and the saving of the player files. Its replies
+// (broadcasts, direct messages, logouts) go back to the game thread, which
+// handles them in ProcessWriterThreadReplies.
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdarg>
@@ -598,7 +607,7 @@ void ProcessPlayerlistOrder(void *RawData) {
 
 	bool NewRecord;
 
-	// as in the original, a failed request returns without releasing the order
+	// quirk: a failed request returns without releasing the order
 	if (Data->NumberOfPlayers > 0) {
 		char *Names[Data->NumberOfPlayers];
 		int Levels[Data->NumberOfPlayers];
@@ -648,7 +657,7 @@ void ProcessKillStatisticsOrder(void *RawData) {
 		KilledCreatures[i] = Data->KilledCreatures[i];
 	}
 
-	// as in the original, a failed request returns without releasing the order
+	// quirk: a failed request returns without releasing the order
 	if (QueryManagerConnection->logKilledCreatures(Data->NumberOfRaces, RaceNames, KilledPlayers, KilledCreatures) != 0) {
 		error("ProcessKillStatisticsOrder: Anfrage fehlgeschlagen.\n");
 		return;
@@ -961,7 +970,7 @@ void ProcessBroadcastReply(void *RawData) {
 		return;
 	}
 
-	// the message itself is the format string, as in the original
+	// quirk: the message itself is the format string
 	BroadcastMessage(TALK_STATUS_MESSAGE, Data);
 	delete[] Data;
 }
@@ -1034,9 +1043,8 @@ void ClearPlayers() {
 	}
 }
 
-// The original is declared throw(const char *). C++17 has no dynamic exception
-// specifications, so an exception of another type now propagates instead of
-// ending in std::unexpected().
+// Throws a const char * when the query manager cannot be reached or a thread
+// cannot be started.
 void InitWriter() {
 	QueryManagerConnection = new TQueryManagerConnection(std::max(0x4000, MaxPlayers * 66 + 2));
 	if (!QueryManagerConnection->isConnected()) {
@@ -1061,11 +1069,9 @@ void InitWriter() {
 void AbortWriter() {
 	if (WriterThread != 0) {
 		WriterThread = 0;
-		// The original calls pthread_cancel(WriterThread) here, after it has
-		// cleared WriterThread, so it asks for thread 0 to be cancelled.
-		// LinuxThreads answered ESRCH and cancelled nothing; NPTL would
-		// dereference a null thread descriptor. The call is left out, which
-		// keeps the original effect.
+		// The writer thread is not cancelled, only woken from its wait for an
+		// order. (The 2006 server cancelled the WriterThread it had just
+		// cleared, thread 0, which cancelled nothing under LinuxThreads.)
 		OrderBufferEmpty.up();
 	}
 }

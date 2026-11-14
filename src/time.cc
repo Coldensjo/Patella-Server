@@ -1,3 +1,7 @@
+// time.cc: the round counter and the clocks: the game's time of day and its
+// light, the game date, the real time of day, and the round at which a real
+// time comes.
+
 #include <cstdint>
 #include <ctime>
 
@@ -13,8 +17,8 @@ const int SECONDS_PER_DAY = 86400;
 uint32_t RoundNr = 0;
 uint32_t ServerMilliseconds = 0;
 
-// time_t was a 32-bit long in the original; time() is narrowed to that width
-// wherever it is stored.
+// Quirk: time() is narrowed to a signed 32-bit value wherever it is stored,
+// as a 32-bit time_t holds it.
 
 void GetAmbiente(int &Brightness, int &Color) {
 	int Hour, Minute;

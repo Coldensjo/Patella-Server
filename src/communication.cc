@@ -1,3 +1,8 @@
+// communication.cc: the game server's side of the network. The acceptor thread takes the clients' connections and
+// starts a communication thread for each, which reads the login (RSA) and the client's packets (XTEA), sends the data
+// the game queued for it, and acts on the signals the game and the socket send it. With them: the threads' own stacks,
+// the network load statistics, the waiting list, and the pool of query manager connections the threads use.
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdint>
@@ -77,9 +82,10 @@ uint32_t EarliestFreeAccountAdmissionRound;
 store<TWaitinglistEntry, 100> Waitinglist;
 TWaitinglistEntry *WaitinglistHead;
 
-// Not in the original: the login time-out timer of each communication
-// thread, which stands in for the per-thread alarm() of LinuxThreads, and
-// whether timer_create gave this thread one (alarm() could not fail).
+// The login time-out timer of each communication thread, a POSIX timer that
+// sends SIGALRM to the thread itself (alarm() is the one timer of the process,
+// which the game thread uses for its beat), and whether timer_create gave this
+// thread one: without it the connection has no login time-out.
 static thread_local timer_t LoginTimer;
 static thread_local bool LoginTimerCreated;
 
@@ -109,8 +115,9 @@ void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
 	Stack = nullptr;
 	for (int i = 0; i < NumberOfFreeCommunicationThreadStacks; i++) {
 		int Number = FreeCommunicationThreadStacks[i];
-		// The original tests kill(pid, 0) == -1: under LinuxThreads the stored
-		// value is the PID of the thread that last ran on this stack.
+		// A stack is free once the thread that last ran on it has ended: the
+		// stored value is that thread's ID, and tgkill with signal 0 fails
+		// when the thread is gone.
 		if (LastUsingCommunicationThread[Number] == 0
 				|| tgkill(getpid(), LastUsingCommunicationThread[Number], 0) == -1) {
 			StackNumber = Number;
@@ -124,7 +131,7 @@ void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
 }
 
 void AttachCommunicationThreadStack(int StackNumber) {
-	// The original stores getpid(), under LinuxThreads the ID of the calling thread.
+	// The ID of the calling thread, which GetCommunicationThreadStack tests.
 	LastUsingCommunicationThread[StackNumber] = gettid();
 }
 
@@ -345,10 +352,9 @@ bool SendData(TConnection *Connection) {
 
 	int DataSize = Connection->NextToCommit - Connection->NextToSend;
 	int PacketSize = (DataSize + 7) / 8 * 8 + 2;
-	// The original declares PacketSize + 2 bytes, and WriteToSocket then pads
-	// PacketSize (never a multiple of 8) with 6 more bytes behind the end of
-	// the array. The 6 bytes are part of the array here; the write buffer
-	// keeps the original limit.
+	// PacketSize is never a multiple of 8, so WriteToSocket pads it with 6
+	// more bytes, behind the PacketSize + 2 bytes the write buffer is limited
+	// to. The array has room for them.
 	unsigned char Buffer[PacketSize + 2 + 6];
 	TWriteBuffer WriteBuffer(Buffer, PacketSize + 2);
 	WriteBuffer.writeWord(0);
@@ -591,8 +597,8 @@ int ReadFromSocket(TConnection *Connection, unsigned char *Buffer, int Size) {
 bool CallGameThread(TConnection *Connection) {
 	if (GameRunning()) {
 		Connection->WaitingForACK = true;
-		// The original calls kill(GetGameThreadPID(), SIGUSR1). The game thread
-		// is the main thread, so its thread ID is the process ID.
+		// SIGUSR1 to the game thread. It is the main thread, so its thread ID
+		// is the process ID.
 		if (tgkill(getpid(), GetGameThreadPID(), SIGUSR1) != 0) {
 			error("CallGameThread: Can't send SIGUSR1 to pid %d\n", GetGameThreadPID());
 			SendLoginMessage(Connection, SV_LOGIN_ERROR, "The server is not online.\nPlease try again later.", -1);
@@ -749,7 +755,7 @@ TPlayerData *PerformRegistration(TConnection *Connection, char *PlayerName, uint
 		return nullptr;
 	}
 
-	// The original compares with getpid(), which under LinuxThreads is the calling thread.
+	// Locked is the ID of the thread that locked the slot.
 	bool ReadOnly = PlayerData->Locked != gettid();
 	if (!ReadOnly || PlayerData->AccountID == 0) {
 		PlayerData->AccountID = AccountID;
@@ -792,11 +798,11 @@ bool HandleLogin(TConnection *Connection) {
 	uint32_t AccountID;
 	char PlayerName[31];
 	char PlayerPassword[31];
-	// Not in bin/game: a 7.72 client sends terminal type and version in
-	// clear before the RSA block (command, 2 words, 128 bytes: 133 bytes),
-	// and leaves them out of the block. bin/game reads only the 7.70 layout
-	// (command, 128 bytes: 129 bytes), which is kept unchanged for every
-	// other packet size.
+	// Two layouts: a 7.72 client sends terminal type and version in clear
+	// before the RSA block (command, 2 words, 128 bytes: 133 bytes) and
+	// leaves them out of the block; a 7.70 client sends them inside the block
+	// (command, 128 bytes: 129 bytes). A packet of any other size is read as
+	// the 7.70 layout.
 	bool ClientLayout772 = (Connection->InDataSize == 1 + 4 + 128);
 	try {
 		if (ClientLayout772) {
@@ -893,7 +899,7 @@ again:
 			return false;
 		}
 
-		// The original compares with getpid(), which under LinuxThreads is the calling thread.
+		// Locked is the ID of the thread that locked the slot.
 		ReadOnly = PlayerData->Locked != gettid();
 	} else {
 		print(3, "Spieler nicht auf Warteliste.\n");
@@ -1043,8 +1049,8 @@ again:
 
 		Connection->InDataSize = Connection->InData[0] + Connection->InData[1] * 256;
 		if (Connection->InDataSize > 2045 || Connection->InDataSize == 0) {
-			// The original logs the size of the packet here, not the size of
-			// the user data it has just read.
+			// Quirk: the message gives the size of the packet, not the size of
+			// the user data just read.
 			print(3, "Nutzdaten (%d Bytes) von Paket an Socket %d zu gro\xdf oder leer.\n", PacketSize, Connection->GetSocket());
 			goto again;
 		}
@@ -1052,7 +1058,8 @@ again:
 
 	bool Result;
 	if (Connection->GetState() == CONNECTION_CONNECTED) {
-		// alarm(0) in the original; see CommunicationThread.
+		// The login has arrived: the login time-out stops (CommunicationThread
+		// starts it).
 		if (LoginTimerCreated) {
 			struct itimerspec LoginTimeout;
 			memset(&LoginTimeout, 0, sizeof(LoginTimeout));
@@ -1100,9 +1107,9 @@ void CommunicationThread(int Socket) {
 	Connection->Connect(Socket);
 	Connection->WaitingForACK = false;
 
-	// The original calls fcntl(Socket, F_SETOWN, getpid()), which under
-	// LinuxThreads makes this thread the receiver of the socket's SIGIO. With
-	// NPTL only F_SETOWN_EX with F_OWNER_TID sends it to one thread.
+	// The socket's SIGIO goes to this thread: F_SETOWN_EX with F_OWNER_TID
+	// names one thread, where F_SETOWN with a process ID would let any thread
+	// of the process take it.
 	struct f_owner_ex Owner;
 	Owner.type = F_OWNER_TID;
 	Owner.pid = gettid();
@@ -1128,11 +1135,9 @@ void CommunicationThread(int Socket) {
 	sigfillset(&SignalSet);
 	sigprocmask(SIG_SETMASK, &SignalSet, nullptr);
 
-	// The original calls alarm(5) here and alarm(0) in ReceiveCommand. Under
-	// LinuxThreads that timer and its SIGALRM belonged to this thread. With
-	// NPTL alarm() is the one timer of the process, which the game thread
-	// uses for its beat, so the login time-out is a timer that signals this
-	// thread.
+	// The login time-out: 5 seconds, on a timer that sends SIGALRM to this
+	// thread; ReceiveCommand stops it when the login arrives. alarm() is the
+	// one timer of the process, which the game thread uses for its beat.
 	struct sigevent LoginTimerEvent;
 	memset(&LoginTimerEvent, 0, sizeof(LoginTimerEvent));
 	LoginTimerEvent.sigev_notify = SIGEV_THREAD_ID;
@@ -1151,14 +1156,12 @@ void CommunicationThread(int Socket) {
 	}
 	Connection->SigIOPending = false;
 
-	// The original waits on SignalSet as filled above, i.e. on every signal.
-	// Under LinuxThreads only signals sent to this thread's own PID reached
-	// it. With NPTL a thread in sigwait also takes process-directed signals:
-	// the beat SIGALRM of the game thread's setitimer and anything kill()ed
-	// to the server's PID. So the thread waits only for the signals it acts
-	// on, and hands each of those that neither its login timer raised nor a
-	// thread of this process sent (si_code does not tell tgkill from kill on
-	// every kernel, si_pid does) to the main thread, whose thread ID is the
+	// The thread waits only for the signals it acts on. A thread in sigwait
+	// also takes process-directed signals: the beat SIGALRM of the game
+	// thread's setitimer and anything kill()ed to the server's PID. So each
+	// of those that neither its login timer raised nor a thread of this
+	// process sent (si_code does not tell tgkill from kill on every kernel,
+	// si_pid does) is handed on to the main thread, whose thread ID is the
 	// process ID. SIGIO (from F_SETOWN_EX) and SIGPIPE (from send) are always
 	// directed at this thread.
 	sigemptyset(&SignalSet);
@@ -1237,7 +1240,7 @@ void CommunicationThread(int Socket) {
 
 int HandleConnection(void *Data) {
 	// Data is no pointer: the acceptor packs the stack number and the socket
-	// into it. The original casts it to int directly.
+	// into it.
 	int Socket = static_cast<int>(reinterpret_cast<intptr_t>(Data)) % 65536;
 	int StackNumber = static_cast<int>(reinterpret_cast<intptr_t>(Data)) / 65536;
 
@@ -1257,8 +1260,9 @@ int HandleConnection(void *Data) {
 		error("HandleConnection: Nicht abgefangene Exception unbekannten Typs.\n");
 	}
 
-	// Not in the original, where an escaping exception left nothing behind:
-	// a POSIX timer outlives its thread.
+	// CommunicationThread deletes its login timer when it ends; after an
+	// exception the timer is deleted here, since a POSIX timer outlives its
+	// thread.
 	if (LoginTimerCreated) {
 		timer_delete(LoginTimer);
 		LoginTimerCreated = false;
@@ -1296,7 +1300,7 @@ bool OpenSocket() {
 	ServerAddress.sin_addr.s_addr = inet_addr(GameAddress);
 	ServerAddress.sin_port = htons(static_cast<unsigned short>(GamePort));
 
-	// The original passes the address structure as the value of SO_REUSEADDR.
+	// Quirk: the address structure is passed as the value of SO_REUSEADDR.
 	// Its first four bytes are not zero, so the option is switched on.
 	if (setsockopt(TCPSocket, SOL_SOCKET, SO_REUSEADDR, &ServerAddress, sizeof(ServerAddress)) != 0) {
 		error("LaunchServer: Fehler %d bei setsockopt.\n", errno);
@@ -1321,17 +1325,16 @@ bool OpenSocket() {
 }
 
 int AcceptorThreadLoop(void *) {
-	// Not in the original: under LinuxThreads this thread had its own PID, so
-	// neither the game thread's beat SIGALRM (whose SA_INTERRUPT would break
-	// off accept) nor a signal kill()ed to the server's PID reached it. With
-	// NPTL it blocks every signal but SIGHUP, which ExitCommunication sends
-	// it. The communication threads it starts inherit this mask.
+	// The acceptor blocks every signal but SIGHUP, which ExitCommunication
+	// sends it: the game thread's beat SIGALRM (whose SA_INTERRUPT would
+	// break off accept) and the signals kill()ed to the server's PID go to
+	// other threads. The communication threads it starts inherit this mask.
 	sigset_t SignalSet;
 	sigfillset(&SignalSet);
 	sigdelset(&SignalSet, SIGHUP);
 	sigprocmask(SIG_SETMASK, &SignalSet, nullptr);
 
-	// The original stores getpid(), under LinuxThreads the ID of this thread.
+	// The ID of this thread, to which ExitCommunication sends SIGHUP.
 	AcceptorThreadPID = gettid();
 	print(1, "Warte auf Clients...\n");
 
@@ -1418,7 +1421,8 @@ void ChooseThreadStacks() {
 	}
 }
 
-// The original is declared throw(const char *), which C++17 no longer has.
+// Throws a const char * when it cannot connect to the query manager, open
+// the socket or start the acceptor thread.
 void InitCommunication() {
 	ChooseThreadStacks();
 	InitCommunicationThreadStacks();
@@ -1445,8 +1449,8 @@ void ExitCommunication() {
 	print(3, "Beende alle Verbindungen...\n");
 	TConnection *Connection = GetFirstConnection();
 	while (Connection != nullptr) {
-		// The original calls kill(Connection->GetPID(), SIGHUP), under
-		// LinuxThreads a signal to the thread that serves the connection.
+		// SIGHUP to the thread that serves the connection: GetPID is its
+		// thread ID (TConnection::Assign).
 		tgkill(getpid(), Connection->GetPID(), SIGHUP);
 		Connection = GetNextConnection();
 	}
@@ -1462,7 +1466,7 @@ void ExitCommunication() {
 
 	if (AcceptorThread != 0) {
 		if (AcceptorThreadPID != 0) {
-			// The original calls kill(AcceptorThreadPID, SIGHUP).
+			// SIGHUP to the acceptor thread, the one signal it does not block.
 			tgkill(getpid(), AcceptorThreadPID, SIGHUP);
 		}
 		JoinThread(AcceptorThread);

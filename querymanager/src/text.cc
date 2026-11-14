@@ -1,3 +1,6 @@
+// text.cc: the conversions between ISO-8859-1 and UTF-8, and the lower-case
+// key of a name (text.hh).
+
 #include "text.hh"
 
 #include <cstdint>

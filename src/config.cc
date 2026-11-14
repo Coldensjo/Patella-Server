@@ -1,3 +1,10 @@
+// config.cc: the server's settings. ReadConfig reads them from .tibia in the
+// home folder: the paths, the shared memory key, the debug level, the world's
+// name and state, the beat and the query managers. The world config (type,
+// reboot time, address, port, player limits) is filled in by main.cc's
+// LoadWorldConfig from the query manager. DisguisePassword disguises a query
+// manager password before it is sent.
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

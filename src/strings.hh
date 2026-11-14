@@ -1,3 +1,5 @@
+// strings.hh: the string tables and the text functions of strings.cc.
+
 #ifndef PATELLA_STRINGS_HH
 #define PATELLA_STRINGS_HH
 

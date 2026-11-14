@@ -1,3 +1,8 @@
+// vlong.cc: integers of any size for RSA: vlong with its arithmetic, modexp and
+// modinv, Montgomery multiplication (vlong_montgomery), and the conversions
+// from decimal text and to and from big-endian bytes. Copies of a vlong share
+// their value until an operator changes one of them (docopy).
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

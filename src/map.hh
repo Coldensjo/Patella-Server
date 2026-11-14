@@ -1,3 +1,8 @@
+// map.hh: Object, an object by its number, and the map's interface: the
+// objects and their containers, the cron of timed object changes, the fields
+// and their flags, house numbers, depots, marks and start positions, and
+// loading, saving, swapping, refreshing and patching the sectors.
+
 #ifndef PATELLA_MAP_HH
 #define PATELLA_MAP_HH
 

@@ -1,3 +1,9 @@
+// reader.cc: the reader thread, which loads files away from the game thread:
+// the sectors of the pristine map that a refresh restores, and the data of an
+// offline character whose mail is to be delivered. Orders and replies pass
+// through two ring buffers; the game thread handles the replies in
+// ProcessReaderThreadReplies.
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -50,7 +56,7 @@ struct TReaderThreadReply {
 const int ORDER_BUFFER_SIZE = 200;
 const int REPLY_BUFFER_SIZE = 200;
 
-// external functions that reader.hh cannot declare: they take an enum declared in this file
+// The buffer functions are not static, but reader.hh cannot declare them: they take an enum declared in this file.
 void InsertOrder(TReaderThreadOrderType OrderType, int SectorX, int SectorY, int SectorZ, uint32_t CharacterID);
 void GetOrder(TReaderThreadOrderType &OrderType, int &SectorX, int &SectorY, int &SectorZ, uint32_t &CharacterID);
 void InsertReply(TReaderThreadReplyType ReplyType, int SectorX, int SectorY, int SectorZ, unsigned char *Data, int Size);
@@ -215,7 +221,8 @@ again:
 		return;
 	}
 
-	// The original compares with getpid(), which under LinuxThreads is the calling thread.
+	// Locked is the thread ID (gettid) of the thread that holds the slot. If the game thread holds it, the order is
+	// dropped; if another thread does, this one waits and tries again.
 	if (PlayerData->Locked != gettid()) {
 		if (PlayerData->Locked != GetGameThreadPID()) {
 			DecreasePlayerPoolSlotSticky(PlayerData);

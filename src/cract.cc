@@ -1,3 +1,7 @@
+// cract.cc: the actions of creatures. TShortway, the path search of ToDoGo; TCreature's actions (Go, Move, Trade,
+// Use, Turn, Attack) and the notifications that follow them; and the to-do list (ToDoAdd, ToDoGo, ToDoMove, ...) that
+// Execute works through, one entry at a time.
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -26,10 +30,9 @@
 #include "cract.hh"
 
 // Go, Move, Trade, Use, Turn, Attack, ToDoGo, ToDoRotate, both ToDoMove,
-// ToDoTrade, both ToDoUse, ToDoTurn and ToDoAttack are declared throw(RESULT)
-// in the original. C++17 has no dynamic exception specifications, so an
-// exception of another type now propagates instead of ending in
-// std::unexpected().
+// ToDoTrade, both ToDoUse, ToDoTurn and ToDoAttack report a failure by
+// throwing a RESULT. They have no exception specification: an exception of
+// another type passes on to the caller.
 
 struct TShortwayPoint {
 	TShortwayPoint() {
@@ -227,7 +230,7 @@ void TShortway::Expand(TShortwayPoint *Node) {
 				if (FirstToExpand == Dest) {
 					FirstToExpand = Dest->NextToExpand;
 				} else {
-					// FirstToExpand is not checked for NULL, as in the original.
+					// Quirk: FirstToExpand is not checked for NULL.
 					TShortwayPoint *Search = FirstToExpand;
 					while (Search->NextToExpand != nullptr && Search->NextToExpand != Dest) {
 						Search = Search->NextToExpand;
@@ -319,8 +322,7 @@ void TCreature::Go(int x, int y, int z) {
 		throw NOTACCESSIBLE;
 	}
 
-	// The divisor is not guarded against a timer value of 7, as in the
-	// original.
+	// Quirk: the divisor is not guarded against a timer value of 7.
 	if (Skills[SKILL_DRUNKEN] != nullptr && Skills[SKILL_DRUNKEN]->TimerValue() > 0 && Skills[SKILL_DRUNKEN]->Get() == 0
 			&& rand() % (7 - Skills[SKILL_DRUNKEN]->TimerValue()) == 0) {
 		int dx = 0;
@@ -843,7 +845,7 @@ void TCreature::NotifyChangeInventory() {
 			continue;
 		}
 
-		// A negative skill number is not rejected, as in the original.
+		// Quirk: a negative skill number is not rejected.
 		int SkillNr = Obj.getAttribute(SKILLNUMBER);
 		if (SkillNr > MAX_SKILLS - 1) {
 			error("TCreature::NotifyChangeInventory: Objekt %d hat ung\xfcltige SKILLNUMBER %d.\n",
@@ -1048,7 +1050,8 @@ again:
 			return;
 		}
 	} catch (RESULT r) {
-		// ToDoClear resets Stop before it is read here, as in the original.
+		// Quirk: ToDoClear resets Stop, so Stop is always false where it is
+		// read here.
 		bool SnapbackNecessary = false;
 		if (ToDoClear() || Stop) {
 			SnapbackNecessary = true;
@@ -1230,7 +1233,7 @@ void TCreature::ToDoGo(int DestX, int DestY, int DestZ, bool Dest, int MaxSteps)
 }
 
 void TCreature::ToDoRotate(int Direction) {
-	// Negative directions are not rejected, as in the original.
+	// Quirk: negative directions are not rejected.
 	if (Direction > DIRECTION_WEST) {
 		throw ERROR;
 	}
@@ -1267,8 +1270,7 @@ void TCreature::ToDoMove(int sx, int sy, int sz, ObjectType Type, unsigned char 
 			throw NOTACCESSIBLE;
 		}
 
-		// The original reads the waypoints of the bank into a local it never
-		// uses.
+		// Quirk: the waypoints of the bank are read and not used.
 		Dest.getAttribute(WAYPOINTS);
 		TCreature *cr = GetCreature(Obj);
 		if (cr == nullptr) {
@@ -1434,7 +1436,7 @@ void TCreature::ToDoUse(unsigned char Count, Object Obj1, Object Obj2) {
 
 	ToDoWait(100);
 
-	// The original stores Count in the Dummy field here.
+	// Count goes into the Dummy field, which Execute passes on to Use.
 	TToDoEntry TD;
 	TD.Code = TDUse;
 	TD.Use.Obj1 = Obj1.getObjectID();

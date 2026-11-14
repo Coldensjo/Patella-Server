@@ -1,3 +1,6 @@
+// reader.hh: the reader thread (reader.cc), which loads map sectors and
+// character data away from the game thread.
+
 #ifndef PATELLA_READER_HH
 #define PATELLA_READER_HH
 

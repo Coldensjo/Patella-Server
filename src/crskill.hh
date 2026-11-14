@@ -1,3 +1,6 @@
+// crskill.hh: the skill numbers and GetSkillByName. TSkill and TSkillBase are
+// declared in cr.hh.
+
 #ifndef PATELLA_CRSKILL_HH
 #define PATELLA_CRSKILL_HH
 

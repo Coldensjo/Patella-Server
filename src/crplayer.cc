@@ -1,3 +1,12 @@
+// crplayer.cc: the players. The list of the players in the game
+// (PlayerList); the pool of player data slots (PlayerDataPool), which hold
+// what is loaded from and saved to the query manager for a character and
+// which the game and the other threads lock in turn; the index of all
+// character names, a tree by letter filled from the query manager; and
+// TPlayer (cr.hh): taking over a connection, loading and saving its data and
+// inventory, depots, buddies, professions, parties, trades, playerkilling and
+// its marks, spells and quest values.
+
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -29,10 +38,9 @@
 #include "strings.hh"
 #include "mudinc.hh"
 
-// LoadDepot, SaveDepot and TPlayer::MovePossible are declared throw(RESULT)
-// in the original, and InitPlayer has an exception specification as well.
-// C++17 has no dynamic exception specifications, so an exception of another
-// type now propagates instead of ending in std::unexpected().
+// LoadDepot, SaveDepot and TPlayer::MovePossible throw RESULT. No exception
+// specification limits them or InitPlayer (C++17 has none), so an exception
+// of any other type passes to the caller.
 
 const int PLAYERINDEX_LEAFSIZE = 10;
 const int PLAYERDATA_POOLSIZE = 2000;
@@ -873,7 +881,7 @@ void InitPlayerIndex() {
 		PlayerIndexHead.Child[i] = nullptr;
 	}
 
-	// The original does not delete the connection object on this path either.
+	// Quirk: the connection object is not deleted when it cannot connect.
 	TQueryManagerConnection *Connection = new TQueryManagerConnection(360007);
 	if (!Connection->isConnected()) {
 		error("InitPlayerIndex: Kann nicht zum Query-Manager verbinden.\n");
@@ -1119,7 +1127,8 @@ TPlayer::~TPlayer() {
 
 		if ((Profession != PROFESSION_NONE && Skills[SKILL_LEVEL]->Get() <= 5)
 				|| Skills[SKILL_HITPOINTS]->GetMax() <= 0) {
-			// The level line is logged in both cases, as in the original.
+			// Quirk: the level line is logged in both cases, also after the
+			// MaxHitpoints line.
 			if (Skills[SKILL_HITPOINTS]->GetMax() <= 0) {
 				Log("game", "Setze Spieler %s komplett zur\xfc" "ck wegen MaxHitpoints.\n", Name);
 			}
@@ -1391,7 +1400,7 @@ void TPlayer::SaveInventory() {
 			memcpy(PlayerData->Inventory, HelpBuffer.getData(), PlayerData->InventorySize);
 		}
 	} catch (const char *s) {
-		// Original bug: the player name for %s is not passed.
+		// Quirk: the player name for %s is not passed.
 		error("TPlayer::SaveInventory: Kann Inventory von Spieler %s nicht schreiben.\n");
 		error("# Fehler: %s\n", s);
 	}
@@ -1547,7 +1556,7 @@ void TPlayer::IdleStimulus() {
 
 void TPlayer::SetOpenContainer(int Window, Object Con) {
 	if (Window < 0 || Window > MAX_OPEN_CONTAINERS - 1) {
-		// Original bug: the window number for %d is not passed.
+		// Quirk: the window number for %d is not passed.
 		error("TPlayer::SetOpenContainer: Ung\xfcltige Fensternummer %d.\n");
 		return;
 	}
@@ -1562,7 +1571,7 @@ void TPlayer::SetOpenContainer(int Window, Object Con) {
 
 Object TPlayer::GetOpenContainer(int Window) {
 	if (Window < 0 || Window > MAX_OPEN_CONTAINERS - 1) {
-		// Original bug: the window number for %d is not passed.
+		// Quirk: the window number for %d is not passed.
 		error("TPlayer::GetOpenContainer: Ung\xfcltige Fensternummer %d.\n");
 		return NONE;
 	}
@@ -1693,8 +1702,8 @@ void TPlayer::AcceptTrade() {
 				}
 
 				if (first == invert && Help != NONE && Help.getFlag(CONTAINER) && Help != Obj[1 - p]) {
-					// The original asks for the container of Obj[1 - p] before it
-					// counts the objects in Help.
+					// The container of Obj[1 - p] is asked for before the objects
+					// in Help are counted.
 					int Count = 0;
 					if (Obj[1 - p].getContainer() == Help) {
 						Count = -1;

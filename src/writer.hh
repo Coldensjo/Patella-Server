@@ -1,3 +1,6 @@
+// writer.hh: the protocol thread, the writer thread's orders and replies, and
+// their start and end (writer.cc).
+
 #ifndef PATELLA_WRITER_HH
 #define PATELLA_WRITER_HH
 

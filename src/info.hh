@@ -1,3 +1,6 @@
+// info.hh: the queries of info.cc, the rights (RIGHT), the banishment actions,
+// the liquid colours and the magic field types.
+
 #ifndef PATELLA_INFO_HH
 #define PATELLA_INFO_HH
 

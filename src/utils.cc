@@ -1,3 +1,9 @@
+// utils.cc: the helpers every part of the server uses: print and error, which
+// call the handlers set with SetPrintFunction and SetErrorFunction; the byte
+// streams (TReadStream, TWriteStream) and their buffers (TReadBuffer,
+// TWriteBuffer, TDynamicWriteBuffer); random; FileExists; and the packing of
+// coordinates into one number.
+
 #include <cerrno>
 #include <cstdarg>
 #include <cstdint>
@@ -333,7 +339,7 @@ void TDynamicWriteBuffer::writeBytes(unsigned char *Buffer, int Count) {
 }
 
 int random(int low, int high) {
-	// Computed unsigned so that a span of 2^31 or more wraps as it did in the original.
+	// Computed unsigned, so a span of 2^31 or more wraps to a range of 0 or less and gives low.
 	int range = static_cast<int>(static_cast<uint32_t>(high) - static_cast<uint32_t>(low) + 1);
 	if (range <= 0) {
 		return low;

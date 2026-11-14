@@ -1,3 +1,7 @@
+// operate.hh: the operations of the game world (operate.cc), the talk modes
+// and chat channels, and the numbers of the client's magic effects, missiles
+// and colours.
+
 #ifndef PATELLA_OPERATE_HH
 #define PATELLA_OPERATE_HH
 

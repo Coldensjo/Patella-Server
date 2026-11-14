@@ -1,3 +1,6 @@
+// listener.cc: the login server's TCP side: accepting clients, reading their
+// login packet and sending the answer (listener.hh).
+
 #include "listener.hh"
 
 #include "log.hh"
@@ -22,7 +25,7 @@ namespace ls {
 
 namespace {
 
-// The game's texts where it has one for the same case (communication.c
+// The game's texts where it has one for the same case (src/communication.cc
 // HandleLogin), else this server's.
 const char *const TextVersionTooOld =
 	"Your terminal version is too old.\nPlease get a new version at\nhttp://www.tibia.com.";

@@ -1,3 +1,6 @@
+// TRSAPublicKey.hh: the length of an RSA block in bytes and the public
+// exponent.
+
 #ifndef PATELLA_TRSAPUBLICKEY_HH
 #define PATELLA_TRSAPUBLICKEY_HH
 

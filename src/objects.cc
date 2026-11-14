@@ -1,3 +1,8 @@
+// objects.cc: the object types: their table (ObjectTypes), loaded from
+// objects.srv, the names of their flags and attributes, the special objects
+// (GetSpecialObject), and the conversion of an old group and number to a type
+// number (conversion.lst).
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -294,8 +299,8 @@ void LoadObjects() {
 
 				if (Attribute == MEANING) {
 					int Meaning = ObjectTypes(TypeID).Attributes[MEANING];
-					// The original accepts 49 here and in GetSpecialObject,
-					// one past the last element of SpecialObjects.
+					// Quirk: 49 passes here and in GetSpecialObject, one past
+					// the last element of SpecialObjects.
 					if (!in(Meaning, 1, SPECIALMEANINGS)) {
 						Script.error("Unknown meaning");
 					}
@@ -323,7 +328,7 @@ void LoadConversionList() {
 	sprintf(FileName, "%s/conversion.lst", DATAPATH);
 	IN.open(FileName, std::ios::in);
 	if (IN.fail()) {
-		// The original passes no argument for %s.
+		// Quirk: no argument is passed for %s.
 		error("LoadConversionList: Kann Datei %s nicht \xf6" "ffnen.\n");
 		throw "Cannot open conversion.lst";
 	}

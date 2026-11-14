@@ -1,3 +1,7 @@
+// threads.cc: threads on POSIX threads: starting one (with the default
+// stack, a stack of a given size or a given stack), waiting for one and
+// pausing the caller, and a counting semaphore.
+
 #include <cstdlib>
 #include <pthread.h>
 #include <sched.h>

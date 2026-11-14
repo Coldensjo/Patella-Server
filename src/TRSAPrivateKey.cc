@@ -1,3 +1,7 @@
+// TRSAPrivateKey.cc: the server's RSA private key, made from its two primes,
+// and the decryption of a 128-byte block with it (by the Chinese remainder
+// theorem).
+
 #include <string>
 
 #include "vlong.hh"
@@ -24,7 +28,8 @@ void TRSAPrivateKey::init(const char *PrimeP, const char *PrimeQ) {
 	} catch (const char *pE) {
 		std::string Error = "failed to convert decimal text to large number for prime p, reason: ";
 		Error += pE;
-		// As in the original: the thrown pointer belongs to Error, which is destroyed during unwinding.
+		// Quirk: the thrown pointer belongs to Error, which is destroyed during unwinding; the same holds for the
+		// three throws of Error.c_str() below.
 		throw Error.c_str();
 	}
 

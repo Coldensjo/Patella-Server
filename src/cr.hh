@@ -1,3 +1,11 @@
+// cr.hh: the creatures. TCreature is the base of TPlayer (crplayer.cc) and of
+// the monsters and NPCs (crnonpl.cc); its parts are TCombat (crcombat.cc) and
+// TSkillBase with its TSkill objects (crskill.cc), and its to-do list holds
+// TToDoEntry entries, which cract.cc executes. TFindCreatures searches the
+// creatures near a point. The constants name the values of their fields:
+// directions, damage types, combat modes, professions, skulls, party shields,
+// outfits and logout results.
+
 #ifndef PATELLA_CR_HH
 #define PATELLA_CR_HH
 
@@ -383,8 +391,8 @@ private:
 
 struct TCreature : public TSkillBase {
 	TCreature();
-	// Exceptions other than RESULT leave the original destructor; a C++17
-	// destructor would end the process there unless it says otherwise.
+	// Exceptions other than RESULT leave the destructor, which catches only
+	// RESULT; without noexcept(false) such an exception would end the process.
 	virtual ~TCreature() noexcept(false);
 	int GetHealth();
 	int GetSpeed();

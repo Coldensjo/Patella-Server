@@ -1,3 +1,6 @@
+// utils.hh: print and error, the byte streams and buffers, random, FileExists,
+// the coordinate packing (utils.cc) and RandomShuffle.
+
 #ifndef PATELLA_UTILS_HH
 #define PATELLA_UTILS_HH
 
@@ -85,7 +88,7 @@ void UnpackRelativeCoordinate(uint32_t Code, int &dx, int &dy, int &dz);
 extern TPrintFunction *PrintFunction;
 extern TErrorFunction *ErrorFunction;
 
-// Defined below the prototypes it uses; the original header declares them first.
+// Defined below the prototypes it uses (error, random).
 template<class T>
 void RandomShuffle(T *Buffer, int Size) {
 	if (Buffer == nullptr) {

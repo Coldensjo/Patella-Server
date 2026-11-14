@@ -1,9 +1,10 @@
-// Wire protocol between bin/game and the query manager.
+// Wire protocol between the game server and the query manager.
 //
-// Everything in this file was read from the client side of the protocol in
-// bin/game (compile unit query.c, class TQueryManagerConnection) and from
-// the stream classes in utils.c. The method addresses in the query table
-// (protocol.cc) are those of the May 2006 binary.
+// The game server's side of it is TQueryManagerConnection (src/query.cc),
+// with the stream classes of src/utils.cc. The method addresses in the query
+// table (protocol.cc) are those of CipSoft's game server of May 2006
+// (bin/game), whose TQueryManagerConnection has every request of the table
+// but loginAccount.
 //
 // Framing, both directions (TQueryManagerConnection::executeQuery):
 //   u16 length                 little-endian, number of payload bytes
@@ -46,32 +47,33 @@ namespace qm {
 // Status byte at the start of every response.
 // executeQuery returns it to the caller; 3 is also logged by executeQuery
 // itself ("Anfrage fehlgeschlagen"). Status 1 is followed by a u8 error code
-// in the requests that define error codes. No caller in bin/game handles 2.
+// in the requests that define error codes. No caller in the game server
+// handles 2.
 enum Status : uint8_t {
 	STATUS_OK = 0,
 	STATUS_ERROR = 1,
 	STATUS_FAILED = 3,
 };
 
-// Application types sent in the login request. bin/game always sends 1
-// together with its world name (InitAll calls
-// SetQueryManagerLoginData(1, WorldName)). Other values belong to other
-// CipSoft programs and are not known from this binary; 2 is this project's
-// choice for its own login server (loginserver/), which sends no login data.
+// Application types sent in the login request. The game server always sends
+// 1 together with its world name (InitAll calls
+// SetQueryManagerLoginData(APPLICATION_GAME, WorldName)). Other values belong
+// to other CipSoft programs and are not known; 2 is this project's choice for
+// its own login server (loginserver/), which sends no login data.
 enum ApplicationType : uint8_t {
 	APPLICATION_GAME = 1,
 	APPLICATION_LOGIN = 2,
 };
 
-// Every query type bin/game can send. The number is the immediate passed to
-// the first TWriteBuffer::writeByte of the method (checked in the
-// disassembly), the name is the TQueryManagerConnection method.
+// Every query type of the 2006 TQueryManagerConnection, and loginAccount. The
+// number is the first byte the method writes (TWriteBuffer::writeByte), the
+// name is the method's.
 enum QueryType : uint8_t {
 	QUERY_LOGIN = 0,
 	QUERY_CHECK_ACCOUNT_PASSWORD = 10,
-	// Not sent by bin/game: the request of this project's login server. The
-	// number is free in the catalogue; CipSoft's own request for it is not
-	// known.
+	// Not sent by the game server: the request of this project's login
+	// server. The number is free in the catalogue; CipSoft's own request for
+	// it is not known.
 	QUERY_LOGIN_ACCOUNT = 11,
 	QUERY_LOGIN_ADMIN = 12,
 	QUERY_LOGIN_GAME = 20,
@@ -169,13 +171,13 @@ enum Limits : uint32_t {
 struct QueryInfo {
 	uint8_t type;
 	const char *name;        // TQueryManagerConnection method name
-	uint32_t address;        // address of that method in bin/game; 0 if bin/game has none
+	uint32_t address;        // address of that method in the 2006 bin/game; 0 if it has none
 	bool implemented;        // false: catalogued only, answered with STATUS_FAILED
 };
 
 // The catalogue of all query types, ordered by type.
 const QueryInfo *queryTable(size_t &count);
-// Returns nullptr for a type bin/game never sends.
+// Returns nullptr for a type that is not in the catalogue.
 const QueryInfo *findQueryInfo(uint8_t type);
 // Name for logging; "unknown" for a type that is not in the catalogue.
 const char *queryName(uint8_t type);

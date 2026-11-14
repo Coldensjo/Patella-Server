@@ -1,3 +1,11 @@
+// main.cc: the game server's start and its main loop. main reads the command
+// line, makes the server a daemon if asked and runs InitAll, LaunchGame and
+// ExitAll; when the game ends for a reboot it starts BINPATH/reboot-daily.
+// LaunchGame waits for SIGUSR1 (data from the connections) and SIGALRM (the
+// beat) and advances the game with AdvanceGame. Here too: the signal
+// handlers, the beat's timer, the PID file (LockGame, UnlockGame) and the
+// world config from the query manager (LoadWorldConfig).
+
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -256,8 +264,8 @@ void HandlerSigUsr1(int) {
 void DefaultHandler(int signo) {
 	char s[128];
 
-	// The original reads sys_siglist[signo], which glibc no longer exports;
-	// sigdescr_np returns the same descriptions.
+	// sigdescr_np gives the signal's description, the text sys_siglist[signo]
+	// held before glibc stopped exporting it.
 	snprintf(s, sizeof(s), "SigNr. %d: %s", signo, sigdescr_np(signo));
 	print(1, "DefaultHandler: Beende Game-Server (%s).\n", s);
 
@@ -348,14 +356,14 @@ void InitSignalHandler() {
 		count++;
 	}
 
-	// 21 handlers are set up; the original prints 28 as the expected number.
+	// Quirk: 21 handlers are set up, but the expected number printed is 28.
 	print(1, "InitSignalHandler: %d Signalhandler eingerichtet (Soll=%d)\n", count, 28);
 }
 
 void UnlockGame() {
 	char FileName[4096];
-	// The original leaves Pid uninitialised. When the read stores nothing
-	// (an empty file), 0 keeps the file, as a leftover stack value does.
+	// When the read stores nothing (an empty file), Pid stays 0 and the file
+	// is kept.
 	int Pid = 0;
 	std::ifstream IF;
 
@@ -371,7 +379,7 @@ void UnlockGame() {
 	}
 }
 
-// The original declares throw(const char *), which C++17 no longer has.
+// Throws a const char * when game.pid names another process.
 void LockGame() {
 	std::ifstream IF;
 	std::ofstream OF;
@@ -386,12 +394,8 @@ void LockGame() {
 		OF << getpid();
 		atexit(UnlockGame);
 	} else {
-		// The original leaves Pid uninitialised and its libstdc++ does not
-		// store into it when the read fails. Its stack slot is still unused
-		// at this point and reads 0 (checked under gdb with an empty
-		// game.pid), so an empty or non-numeric game.pid does not stop the
-		// start. Today's libstdc++ leaves Pid unset on an empty file, hence
-		// the 0 here.
+		// Pid stays 0 when the read fails, so an empty or non-numeric
+		// game.pid does not stop the start.
 		int Pid = 0;
 		IF >> Pid;
 		IF.close();
@@ -401,7 +405,8 @@ void LockGame() {
 	}
 }
 
-// The original declares throw(const char *), which C++17 no longer has.
+// Throws a const char * when the query manager cannot be reached or does not
+// give the world config.
 void LoadWorldConfig() {
 	TQueryManagerConnection Connection;
 	if (!Connection.isConnected()) {
@@ -471,9 +476,9 @@ void LaunchGame() {
 	SaveMapOn = true;
 	TimeReset();
 
-	// The original calls the BSD functions sigblock(sigmask(SIGUSR1)) and
-	// sigpause(0). glibc has deprecated them; sigprocmask and sigsuspend with
-	// the same masks do the same.
+	// SIGUSR1 stays blocked except inside sigsuspend, which waits with no
+	// signal blocked: a SIGUSR1 that comes after the counters are tested ends
+	// the wait instead of being missed.
 	sigset_t BlockSet, PauseSet;
 	sigemptyset(&BlockSet);
 	sigaddset(&BlockSet, SIGUSR1);

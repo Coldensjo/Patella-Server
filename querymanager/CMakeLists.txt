@@ -1,3 +1,6 @@
+# The query manager (querymanager), its seeding tool (querymanager-seed) and
+# their tests.
+
 find_package(SQLite3 REQUIRED)
 find_package(Threads REQUIRED)
 

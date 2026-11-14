@@ -1,3 +1,6 @@
+// communication.hh: the acceptor and communication threads, their stacks, the network load and the waiting list
+// (communication.cc).
+
 #ifndef PATELLA_COMMUNICATION_HH
 #define PATELLA_COMMUNICATION_HH
 

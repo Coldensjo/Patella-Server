@@ -1,3 +1,8 @@
+// crplayer.hh: the player functions outside TPlayer (cr.hh): the players in
+// the game (finding them, logging them all out, the online list for the
+// statistics, buddy notices and the gamemasters' requests), the depots, the
+// pool of player data slots and the index of all character names.
+
 #ifndef PATELLA_CRPLAYER_HH
 #define PATELLA_CRPLAYER_HH
 

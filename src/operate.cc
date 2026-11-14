@@ -1,3 +1,9 @@
+// operate.cc: the operations of the game world and what they announce: the
+// checks and moves of objects (Create, Move, Merge, Change, Delete, ...),
+// Look, Talk, Use and the other actions of the creatures, the cron system,
+// the refresh of map sectors and the map patches, the chat channels, the
+// communication log and the parties.
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
@@ -40,7 +46,7 @@ struct TChannel {
 	int Subscribers;
 	vector<uint32_t> InvitedPlayer;
 	int InvitedPlayers;
-	// ModeratorName stays uninitialised, as in the original.
+	// Quirk: ModeratorName stays uninitialised.
 	TChannel() : Subscriber(0, 10, 10), InvitedPlayer(0, 10, 10) {
 		Moderator = 0;
 		Subscribers = 0;
@@ -87,10 +93,8 @@ fifo<TListener> Listeners(1024);
 vector<TParty> Party(0, 100, 50);
 
 // CheckTopMoveObject through both CheckWeight overloads, Create, Copy, Move,
-// Merge, both Change overloads, Delete, Empty and Look are declared
-// throw(RESULT) in the original. C++17 has no dynamic exception
-// specifications, so an exception of another type now propagates instead of
-// ending in std::unexpected().
+// Merge, both Change overloads, Delete, Empty and Look report a failure by
+// throwing a RESULT. An exception of another type passes to the caller.
 
 void AnnounceMovingCreature(uint32_t CreatureID, Object Con) {
 	TCreature *cr = GetCreature(CreatureID);
@@ -513,7 +517,7 @@ fieldOk:
 	int sx, sy, sz;
 	GetObjectCoordinates(Obj, sx, sy, sz);
 	if (Obj.isCreature()) {
-		// The creature is not checked for nullptr, as in the original.
+		// Quirk: the creature is not checked for nullptr.
 		TCreature *cr = GetCreature(Obj);
 		if (std::abs(x - cr->posx) > 1 || std::abs(y - cr->posy) > 1 || std::abs(z - cr->posz) > 1) {
 			throw OUTOFRANGE;
@@ -1294,7 +1298,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 		}
 	}
 
-	// The original only logs this and carries on.
+	// An object that no longer exists is only logged; Move carries on.
 	if (!Obj.exists()) {
 		error("Move: \xdc" "bergebenes Objekt existiert nicht mehr.\n");
 	}
@@ -2010,8 +2014,8 @@ void Look(uint32_t CreatureID, Object Obj) {
 		} else if (CreatureID != 0 && !ObjectInRange(CreatureID, Obj, Size)) {
 			strcpy(s2, "\nYou are too far away to read it.");
 		} else if (Obj.getAttribute(EDITOR) != 0) {
-			// Separate statements keep the original's call order (text
-			// first); both calls can log.
+			// Separate statements set the call order (the text first); both
+			// calls can log.
 			char *Text = GetDynamicString(Obj.getAttribute(TEXTSTRING));
 			snprintf(s2, sizeof(s2), "\n%s has written: %s", GetDynamicString(Obj.getAttribute(EDITOR)), Text);
 		} else {
@@ -2023,12 +2027,10 @@ void Look(uint32_t CreatureID, Object Obj) {
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s", s);
 }
 
-// The original declares exception specifications: throw(RESULT) on Talk,
-// Use, Turn, CreatePool, EditText, CreateAtCreature, DeleteAtCreature,
-// OpenChannel, InviteToChannel, ExcludeFromChannel and JoinChannel, and
-// throw(const char *) on ApplyPatch and ApplyPatches. C++17 has no dynamic
-// exception specifications, so an exception of another type now propagates
-// instead of ending in std::unexpected().
+// Talk, Use, Turn, CreatePool, EditText, CreateAtCreature, DeleteAtCreature,
+// OpenChannel, InviteToChannel, ExcludeFromChannel and JoinChannel report a
+// failure by throwing a RESULT, ApplyPatch and ApplyPatches by throwing a
+// const char *. An exception of another type passes to the caller.
 
 void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool CheckSpamming) {
 	int x, y, z;
@@ -2056,7 +2058,8 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 	}
 
 	if (Mode == TALK_CHANNEL_CALL || Mode == TALK_GAMEMASTER_CHANNELCALL || Mode == TALK_HIGHLIGHT_CHANNELCALL || Mode == TALK_ANONYMOUS_CHANNELCALL) {
-		// atoi() of the 32-bit build saturated at the range of a 32-bit long.
+		// The channel number saturates at the range of a 32-bit int, as atoi()
+		// does where long has 32 bits.
 		Channel = (int)std::clamp<long>(strtol(Addressee, nullptr, 10), INT32_MIN, INT32_MAX);
 		if (Channel < 0 || Channel >= Channels) {
 			error("Talk: Ung\xfcltiger Kanal %d.\n", Channel);
@@ -2234,7 +2237,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 		TConnection *Connection = GetFirstConnection();
 		while (Connection != nullptr) {
 			if (Connection->IsOnline()) {
-				// The text goes out as the format string itself, as in the original.
+				// Quirk: the text goes out as the format string itself.
 				SendMessage(Connection, TALK_ADMIN_MESSAGE, Text);
 			}
 			Connection = GetNextConnection();
@@ -2943,8 +2946,8 @@ char *GetChannelName(int ChannelID, uint32_t CharacterID) {
 	}
 
 	if (ChannelID >= PUBLIC_CHANNELS) {
-		// A 30-character moderator name writes one byte past ChannelName, as in
-		// the original.
+		// Quirk: a 30-character moderator name writes one byte past
+		// ChannelName.
 		sprintf(ChannelName, "%s's Channel", Channel(ChannelID).ModeratorName);
 		return ChannelName;
 	}
@@ -3191,8 +3194,8 @@ void ExcludeFromChannel(uint32_t CharacterID, char *Name) {
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s has been excluded.", Name);
 	if (ChannelSubscribed(channel, OppID)) {
 		LeaveChannel(channel, OppID, false);
-		// Opp is NULL when the excluded player was not found online; the
-		// original dereferences it all the same.
+		// Quirk: Opp is NULL when the excluded player was not found online,
+		// and it is dereferenced all the same.
 		SendCloseChannel(Opp->GetConnection(), channel);
 	}
 }

@@ -1,3 +1,5 @@
+// TRSAPrivateKey.hh: the server's RSA private key (TRSAPrivateKey.cc).
+
 #ifndef PATELLA_TRSAPRIVATEKEY_HH
 #define PATELLA_TRSAPRIVATEKEY_HH
 

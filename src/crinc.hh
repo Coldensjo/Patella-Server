@@ -1,3 +1,9 @@
+// crinc.hh: the races and the monster raids, shared by the creature sources.
+// TRaceData holds one race of a .mon file (outfit, corpse, blood, fighting
+// values, flags, skills, talk, loot and spells), RaceData all of them;
+// TAttackWave is one wave of a raid (.evt file). ToDoQueue orders the
+// creatures by the time of their next to-do entry.
+
 #ifndef PATELLA_CRINC_HH
 #define PATELLA_CRINC_HH
 

@@ -1,3 +1,11 @@
+// moveuse.cc: the move and use rules. LoadDataBase reads moveuse.dat into one
+// rule database per event type (use, multi-use, movement, collision and
+// separation); HandleEvent runs the actions of the first rule whose conditions
+// hold. Also here: the object functions those actions use, depot boxes, mail
+// (a stamped letter or parcel goes into the addressee's open depot at once,
+// otherwise into DelayedMail until SendMails adds it to the depot in the
+// player's data), and the built-in uses of objects (the Use* functions).
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
@@ -174,7 +182,8 @@ struct TDelayedMail {
 	int PacketSize;
 };
 
-// external functions that moveuse.hh cannot declare: they take an enum declared in this file
+// Functions with external linkage that moveuse.hh cannot declare: they take an
+// enum declared in this file.
 bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp);
 void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp);
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2);
@@ -187,15 +196,13 @@ TMoveUseDatabase MoveUseDatabases[NUMBER_OF_EVENT_TYPES];
 vector<TDelayedMail> DelayedMail(0, 10, 10);
 int DelayedMails;
 
-// The original declares exception specifications: throw(RESULT) on
 // ChangeObject, LoadDepotBox, SaveDepotBox, SendMail, UseContainer, UseChest,
 // UseLiquidContainer, UseFood, UseTextObject, UseAnnouncer, UseKeyDoor,
 // UseNameDoor, UseLevelDoor, UseQuestDoor, UseWeapon, UseChangeObject,
-// UseObject, UseObjects, MovementEvent, SeparationEvent and CollisionEvent, and
-// throw(const char *) on LoadParameters, LoadCondition, LoadAction,
-// LoadDataBase and InitMoveUse. C++17 has no dynamic exception
-// specifications, so an exception of another type now propagates instead of
-// ending in std::unexpected().
+// UseObject, UseObjects, MovementEvent, SeparationEvent and CollisionEvent
+// throw RESULT; LoadParameters, LoadCondition, LoadAction, LoadDataBase and
+// InitMoveUse throw const char *. None has an exception specification (C++17
+// has no dynamic ones), so an exception of another type passes to the caller.
 
 Object GetEventObject(int Number, Object User, Object Obj1, Object Obj2, Object Temp) {
 	switch (Number) {
@@ -278,8 +285,8 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 			break;
 		case CONDITION_HASTEXT: {
 			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			// Separate statements keep the original's call order (parameter
-			// string first); both calls can log.
+			// Separate statements fix the call order: the parameter's string
+			// first. Both calls can log.
 			char *Text = GetDynamicString(Condition.Parameters[1]);
 			fulfilled = strcmp(GetDynamicString(Obj.getAttribute(TEXTSTRING)), Text) == 0;
 			break;
@@ -367,7 +374,7 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 		case CONDITION_ISOBJECTININVENTORY:
 			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
 			if (Obj.isCreature()) {
-				// The type is built before getCreatureID(), as in the original.
+				// The type is built before getCreatureID() is called.
 				ObjectType Type(Condition.Parameters[1]);
 				Temp = GetInventoryObject(Obj.getCreatureID(), Type, Condition.Parameters[2]);
 				fulfilled = Temp != NONE;
@@ -575,7 +582,7 @@ void ClearField(Object Obj, Object Exclude) {
 
 	int x, y, z;
 	GetObjectCoordinates(Obj, x, y, z);
-	// The container is fetched before getNextObject(), as in the original.
+	// The container is fetched before getNextObject() is called.
 	Object Con;
 	if (MovePossible(x + 1, y, z)) {
 		Con = GetMapContainer(x + 1, y, z);
@@ -700,10 +707,9 @@ void SendMail(Object Obj) {
 		return;
 	}
 
-	// Both lines are copied up to 256 characters, so the terminator can land
-	// one byte behind Addressee or Town, and a text without a line break makes
-	// the second loop start one byte behind the terminator. Both as in the
-	// original.
+	// Quirks: both lines are copied up to 256 characters, so the terminator can
+	// land one byte behind Addressee or Town, and a text without a line break
+	// makes the second loop start one byte behind the terminator.
 	int pos = 0;
 	char Addressee[256];
 	while (Text[pos] != '\n' && Text[pos] != 0 && pos < 256) {
@@ -804,8 +810,8 @@ void SendMails(TPlayerData *PlayerData) {
 		return;
 	}
 
-	// LinuxThreads: the original compares the lock owner with getpid(), the
-	// calling thread's PID there.
+	// Locked is the ID of the thread that holds the slot: gettid(), which is
+	// what getpid() returned per thread under LinuxThreads.
 	if (PlayerData->Locked != gettid()) {
 		error("SendMails: Slot ist nicht vom GameThread gesperrt.\n");
 		return;
@@ -848,8 +854,8 @@ void SendMails(TPlayerData *PlayerData) {
 		PlayerData->DepotSize[D.DepotNumber] = NewDepotSize;
 		Log("game", "Post an %s zugestellt.\n", PlayerData->Name);
 		if (i != DelayedMails - 1) {
-			// Member-call syntax evaluates DelayedMail(i) first, as the
-			// original does; with "=" C++17 evaluates the right side first.
+			// Member-call syntax evaluates DelayedMail(i) first; with "="
+			// C++17 evaluates the right side first.
 			DelayedMail(i).operator=(DelayedMail(DelayedMails - 1));
 		}
 		DelayedMails--;
@@ -996,7 +1002,7 @@ void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object 
 						cr2 = GetCreature(Obj);
 					}
 					if (Obj.getFlag(MAGICFIELD) && Obj.getAttribute(RESPONSIBLE) != 0) {
-						// CronInfo() runs before the type attribute is read, as in the original.
+						// CronInfo() runs before the type attribute is read.
 						uint32_t Remaining = CronInfo(Obj, false);
 						if (Remaining + 5 > Obj.getAttribute(TOTALEXPIRETIME)) {
 							cr2 = GetCreature(Obj.getAttribute(RESPONSIBLE));
@@ -1332,7 +1338,7 @@ void UseChest(uint32_t CreatureID, Object Chest) {
 
 	Object Treasure = GetFirstContainerObject(Chest);
 	if (Treasure.getFlag(UNMOVE) || !Treasure.getFlag(TAKE)) {
-		// The original passes no coordinates for the three %d.
+		// Quirk: no coordinates are passed for the three %d.
 		error("UseChest: Schatz auf Position [%d,%d,%d] ist nicht nehmbar.\n");
 		throw ERROR;
 	}

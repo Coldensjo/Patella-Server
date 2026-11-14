@@ -1,3 +1,6 @@
+// TXTEASymmetricKey.hh: the XTEA cipher of a connection
+// (TXTEASymmetricKey.cc).
+
 #ifndef PATELLA_TXTEASYMMETRICKEY_HH
 #define PATELLA_TXTEASYMMETRICKEY_HH
 

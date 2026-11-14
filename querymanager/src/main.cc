@@ -1,4 +1,4 @@
-// querymanager: the account and database service bin/game connects to.
+// querymanager: the account and database service the game server connects to.
 
 #include "handlers.hh"
 #include "log.hh"

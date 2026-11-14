@@ -1,3 +1,5 @@
+// vlong.hh: integers of any size for RSA (vlong.cc).
+
 #ifndef PATELLA_VLONG_HH
 #define PATELLA_VLONG_HH
 

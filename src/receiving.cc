@@ -1,3 +1,12 @@
+// receiving.cc: the handlers of the client's packets. ReceiveData reads the
+// command byte of a connection's packet. A connection that is still logging in
+// may send only CL_JOIN_GAME, which joins the game; any other command that
+// CommandAllowed lets through goes to its handler (C*). The handlers check the
+// player and the packet's values and act through the creature's to-do list or
+// the game's functions. ReceiveData() handles the packet of each connection
+// that waits for the game thread, then wakes the connection's communication
+// thread.
+
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
@@ -31,10 +40,10 @@
 #include "TXTEASymmetricKey.hh"
 #include "receiving.hh"
 
-// Every command handler that takes a TReadBuffer is declared
-// throw(const char *) in the original. C++17 has no dynamic exception
-// specifications, so an exception of another type now propagates instead of
-// ending in std::unexpected().
+// Every command handler that takes a TReadBuffer may throw const char *, as
+// TReadBuffer does on a short packet; ReceiveData catches it. The handlers have
+// no exception specification, so an exception of another type passes to the
+// caller as well.
 
 bool CommandAllowed(TConnection *Connection, unsigned short Command) {
 	if (Connection == nullptr) {
@@ -509,7 +518,7 @@ void CPrivateChannel(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	// The original does not check the player for NULL here.
+	// Quirk: the player is not checked for NULL here.
 	if (OppID == Connection->GetPlayer()->ID) {
 		SendMessage(Connection, TALK_FAILURE_MESSAGE, "You cannot set up a private message channel with yourself.");
 		return;
@@ -535,8 +544,8 @@ void CProcessRequest(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	// The original sends the literal "Name" instead of the player's name to
-	// SendFinishRequest in both error cases.
+	// Quirk: both error cases send the literal "Name" instead of the player's
+	// name to SendFinishRequest.
 	TPlayer *Opp;
 	if (IdentifyPlayer(Name, true, true, Opp) != 0) {
 		SendMessage(Connection, TALK_FAILURE_MESSAGE, "Player is not online any more.");
@@ -571,8 +580,8 @@ void CRemoveRequest(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	// The original sends the literal "Name" instead of the player's name to
-	// SendFinishRequest.
+	// Quirk: the error case sends the literal "Name" instead of the player's
+	// name to SendFinishRequest.
 	TPlayer *Opp;
 	if (IdentifyPlayer(Name, true, true, Opp) != 0) {
 		SendMessage(Connection, TALK_FAILURE_MESSAGE, "Player is not online any more.");
@@ -670,9 +679,9 @@ void CBugReport(TConnection *Connection, TReadBuffer &Buffer) {
 			posx, posy, posz,
 			ctime(&Time));
 
-	// A whitespace character other than ' ' at the start of a line that is
-	// followed by more than 74 characters without another whitespace makes
-	// this loop log empty lines forever, as in the original.
+	// Quirk: a whitespace character other than ' ' at the start of a line that
+	// is followed by more than 74 characters without another whitespace makes
+	// this loop log empty lines forever.
 	int LineStart = 0;
 	while (Text[LineStart] != '\0') {
 		int i = 0;

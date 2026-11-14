@@ -1,3 +1,6 @@
+// config.hh: the server's settings (config.cc): the paths, the world config and
+// the other values read from .tibia or from the query manager.
+
 #ifndef PATELLA_CONFIG_HH
 #define PATELLA_CONFIG_HH
 

@@ -1,7 +1,7 @@
 // Reader for the game's text data files (.tibia, usr/NN/<id>.usr,
 // dat/owners.dat), as far as seeding needs it.
 //
-// The token rules are those of TReadScriptFile::nextToken (script.c): '#'
+// The token rules are those of TReadScriptFile::nextToken (src/script.cc): '#'
 // starts a comment that runs to the end of the line; identifiers start with
 // a letter and continue with letters, digits and '_'; numbers are decimal;
 // strings are in double quotes, with "\n" for a newline and a backslash

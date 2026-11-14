@@ -1,3 +1,7 @@
+// query.cc: the game server's client of the query manager. TQueryManagerConnection, one connection with a request
+// for each query the game sends and the reading of its answer; TQueryManagerConnectionPool, the connections the
+// communication threads share; and the login data each connection sends first (SetQueryManagerLoginData).
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -683,7 +687,8 @@ int TQueryManagerConnection::reportStatement(uint32_t ReporterID, char *PlayerNa
 	sendQuad(BanishmentID);
 	sendQuad(StatementID);
 
-	// Only the unused entries at the front are left out of the count.
+	// Quirk: only the unused entries at the front are left out of the count,
+	// while every unused entry is left out of the list below.
 	int RealNumberOfStatements = NumberOfStatements;
 	for (int i = 0; i < NumberOfStatements && StatementIDs[i] == 0; i++) {
 		RealNumberOfStatements--;

@@ -1,3 +1,6 @@
+// account.cc: the login server's connection to the query manager
+// (account.hh).
+
 #include "account.hh"
 
 #include "protocol.hh"

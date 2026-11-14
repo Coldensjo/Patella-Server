@@ -1,3 +1,5 @@
+// houses.hh: the houses, their areas, owners, guests and doors, and the rents and auctions (houses.cc).
+
 #ifndef PATELLA_HOUSES_HH
 #define PATELLA_HOUSES_HH
 

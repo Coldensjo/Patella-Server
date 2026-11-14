@@ -1,3 +1,10 @@
+// magic.cc: the spells. The spell table (InitSpells) and the syllables that
+// CheckForSpell parses a spoken text into; the checks a spell passes
+// (spellbook, level, mana, ...); the impacts (TImpact) and the shapes that
+// apply them to fields and creatures, which the monsters' spells use too; the
+// spell functions, from attack and healing spells to the gamemasters'
+// commands; runes, magic items and potions; and the circles of circles.dat.
+
 #include <algorithm>
 #include <climits>
 #include <cstdint>
@@ -62,10 +69,10 @@ struct TSpellList {
 	int Amount;
 };
 
-// The syllables CheckForSpell and FindSpell look at by number: the first
-// syllable of a spell is its class (al: character rights, ad: runes, ex and
-// ut: spells cast at once, om: account rights), and "para" stands for a word
-// the caster chooses (a name, a number).
+// The syllables TypeOfSpell, CheckForSpell and FindSpell look at by number:
+// the first syllable of a spell is its class (al: character rights, ad:
+// runes, ex and ut: spells cast at once, om: account rights), and "para"
+// stands for a word the caster chooses (a name, a number).
 const int SYLLABLE_AL = 1;
 const int SYLLABLE_AD = 2;
 const int SYLLABLE_EX = 3;
@@ -233,9 +240,9 @@ const int SPELL_START_MONSTERRAID = 102;
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckRing,
 // CheckAffectedPlayers, CheckMana and every spell function from MassCombat
-// to ChangeData are declared throw(RESULT) in the original. C++17
-// has no dynamic exception specifications, so an exception of another type
-// now propagates instead of ending in std::unexpected().
+// to ChangeData report a failure by throwing a RESULT. They have no exception
+// specification (C++17 has none), so an exception of another type passes to
+// the caller too.
 
 // The ammunition CreateArrows conjures, named after the spells that use them
 // (Conjure Arrow, Poisoned Arrow, Explosive Arrow, Conjure Bolt, Power Bolt).
@@ -1164,7 +1171,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
 
-	// The outer bound is "<", not "<=" as in the other circle spells.
+	// Quirk: the outer bound is "<", not "<=" as in the other circle spells.
 	for (int i = 0; i < Radius; i++) {
 		for (int j = 0; j < Circle[i].Count; j++) {
 			int dx = x + Circle[i].x[j];
@@ -2709,7 +2716,8 @@ void GetQuestValue(TCreature *cr, char *Param) {
 		return;
 	}
 
-	// The original's 32-bit strtol saturates at the int range.
+	// A number outside the int range saturates at its bound, as strtol's
+	// result does with a 32-bit long.
 	int Number = (int)std::clamp(strtol(Param, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
 	if (in(Number, 0, MAX_QUESTS - 1)) {
 		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Quest value %d is %d.", Number, pl->GetQuestValue(Number));
@@ -3831,9 +3839,8 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 			break;
 		}
 
-		// The original also compares against SpellSyllable[51], one entry past
-		// the array; in the binary that is an empty string, which never matches
-		// a word that is not empty.
+		// The word is not empty, so the empty entries of SpellSyllable never
+		// match it.
 		for (int i = 1; i <= MAX_SYLLABLES - 1; i++) {
 			if (stricmp(SpellStr[syl], SpellSyllable[i], -1) == 0) {
 				Syllable[syl] = (unsigned char)i;
@@ -4160,9 +4167,8 @@ void InitCircles() {
 		throw "Cannot process \"circles.dat\"";
 	}
 
-	// gcc 3.2's operator>>(int&) leaves the target unchanged when a read fails,
-	// and rad keeps its stack slot across the loop, so a malformed entry
-	// repeats the previous radius.
+	// Quirk: an entry that cannot be read, and every one after it (the stream
+	// stays failed), takes the last radius read, or 0 before the first.
 	int rad = 0;
 	for (int y = 0; y < Y; y++) {
 		for (int x = 0; x < X; x++) {
@@ -4189,12 +4195,12 @@ TSpellList *CreateSpell(int SpellNr, ...) {
 			break;
 		}
 
-		// As in CheckForSpell, the original also compares against the empty
-		// string one entry past the end of SpellSyllable.
+		// Syl is not empty, so the empty entries of SpellSyllable never match
+		// it.
 		for (int i = 1; i <= MAX_SYLLABLES - 1; i++) {
 			if (strcmp(Syl, SpellSyllable[i]) == 0) {
-				// With an eleventh syllable this writes Syllable[10], which is
-				// RuneGr, before the error below, as in the original.
+				// Quirk: an eleventh syllable is written to Syllable[10], one
+				// past the array (where RuneGr follows), before the error below.
 				SpellList[SpellNr].Syllable[syl] = (unsigned char)i;
 				syl++;
 				if (syl > MAX_SPELL_SYLLABLES) {
@@ -4906,7 +4912,7 @@ static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool
 
 // EnchantObject through HomeTeleport, CharacterRightSpell, AccountRightSpell,
 // CastSpell, RuneSpell, DeleteRune, UseMagicItem, DrinkPotion and the static
-// CreateField are declared throw(RESULT) in the original, and InitCircles,
-// CreateSpell, InitSpells and InitMagic throw(const char *). C++17 has no
-// dynamic exception specifications, so an exception of another type now
-// propagates instead of ending in std::unexpected().
+// CreateField report a failure by throwing a RESULT, and InitCircles,
+// CreateSpell, InitSpells and InitMagic by throwing a const char *. They have
+// no exception specification (C++17 has none), so an exception of another
+// type passes to the caller too.

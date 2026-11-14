@@ -1,6 +1,6 @@
 # The RSA key of the game server and the login server. src/RSA_PrivateKey.hh
-# (the original server's key) is not in git. Without it, rsakeygen makes a new
-# key once, in the build directory, and prints the modulus clients need.
+# (CipSoft's key) is not in git. Without it, rsakeygen makes a new key once, in
+# the build directory, and prints the modulus clients need.
 add_executable(rsakeygen
 	rsakeygen.cc
 	${PROJECT_SOURCE_DIR}/src/vlong.cc

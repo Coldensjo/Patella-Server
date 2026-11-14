@@ -1,3 +1,9 @@
+// containr.hh: the server's container templates: matrix and matrix3d (fixed
+// index ranges in two and three dimensions), vector (an index range that grows
+// at either end on use), list (doubly linked), store (items handed out from
+// blocks of N, with a free list), fifo (a ring buffer that doubles when full)
+// and priority_queue (a binary heap, smallest key first).
+
 #ifndef PATELLA_CONTAINR_HH
 #define PATELLA_CONTAINR_HH
 
@@ -141,7 +147,7 @@ struct fifo {
 	T *append();
 	void remove();
 private:
-	// fifoIterator calls getEntry in the binary, so the original grants it access.
+	// fifoIterator calls getEntry, so it is a friend.
 	friend struct fifoIterator<T>;
 	T *Entry;
 	int Size;
