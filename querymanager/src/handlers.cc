@@ -892,8 +892,8 @@ void Dispatcher::handleCancelHouseTransfer(Session &session, ReadBuffer &in, Wri
 //   response: word NumberOfEvictions, then per eviction word HouseID,
 //             quad OwnerID
 // The game empties each listed house whose owner id still matches ("Account
-// von Haus %d ist nicht mehr bezahlt"). An owner whose character has no
-// account here is not listed: nothing is known about that account.
+// of house %d is no longer paid"). An owner whose character has no account
+// here is not listed: nothing is known about that account.
 void Dispatcher::handleEvictFreeAccounts(Session &session, ReadBuffer &, WriteBuffer &out) {
 	std::vector<HouseEviction> evictions = Store.listHousesOfFreeAccounts(requireWorld(session), Now());
 	out.writeByte(STATUS_OK);
