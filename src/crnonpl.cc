@@ -49,6 +49,112 @@ enum SITUATION {
 	VANISH = 4,
 };
 
+// The behaviour database of an NPC (the "behaviour" block of its .npc file):
+// rules of conditions, "->" and actions. The names below follow the script's
+// words where it has them.
+
+// The kinds of TNode: the comparisons of a condition (the operators <, >, =,
+// <>, <= and >=), the arithmetic of a term (+, - and *) and the values that
+// readValue reads. NODE_NUMBER_PARAMETER's Data is the N of "%N", NODE_NUMBER's
+// the number itself and NODE_SKILL's a skill number; count, spellknown,
+// spelllevel and questvalue have their argument in Left, random its two in
+// Left and Right.
+const int NODE_LESS = 1;
+const int NODE_GREATER = 2;
+const int NODE_EQUAL = 3;
+const int NODE_NOT_EQUAL = 4;
+const int NODE_LESS_EQUAL = 5;
+const int NODE_GREATER_EQUAL = 6;
+const int NODE_PLUS = 7;
+const int NODE_MINUS = 8;
+const int NODE_TIMES = 9;
+const int NODE_NUMBER_PARAMETER = 10;
+const int NODE_NUMBER = 11;
+const int NODE_TOPIC = 12;
+const int NODE_PRICE = 13;
+const int NODE_AMOUNT = 14;
+const int NODE_SKILL = 15;
+const int NODE_COUNT = 16;
+const int NODE_COUNTMONEY = 17;
+const int NODE_TYPE = 18;
+const int NODE_DATA = 19;
+const int NODE_SPELLKNOWN = 20;
+const int NODE_SPELLLEVEL = 21;
+const int NODE_RANDOM = 22;
+const int NODE_QUESTVALUE = 23;
+
+// The kinds of TCondition: a word the text must contain (a string), a property
+// (an identifier, PROPERTY_*), a number in the text ("%1" to "%3", which the
+// actions read as NODE_NUMBER_PARAMETER), a comparison (a NODE_* tree) and "!",
+// which takes the rule at once if the conditions before it hold.
+const int CONDITION_TEXT = 1;
+const int CONDITION_PROPERTY = 2;
+const int CONDITION_NUMBER = 3;
+const int CONDITION_EXPRESSION = 4;
+const int CONDITION_FORCE = 5;
+
+// The properties a CONDITION_PROPERTY tests, named by their identifiers.
+const int PROPERTY_ADDRESS = 1;
+const int PROPERTY_BUSY = 2;
+const int PROPERTY_VANISH = 3;
+const int PROPERTY_MALE = 4;
+const int PROPERTY_FEMALE = 5;
+const int PROPERTY_KNIGHT = 6;
+const int PROPERTY_PALADIN = 7;
+const int PROPERTY_SORCERER = 8;
+const int PROPERTY_DRUID = 9;
+const int PROPERTY_PREMIUM = 10;
+const int PROPERTY_PROMOTED = 11;
+const int PROPERTY_PZBLOCK = 12;
+const int PROPERTY_NONPVP = 13;
+const int PROPERTY_PVPENFORCED = 14;
+
+// The numbers a rule can take from the text ("%1" to "%3"), and the largest
+// value one of them gets: a larger number in the text counts as this.
+const int MAX_NUMBER_PARAMETERS = 3;
+const int MAX_TEXT_NUMBER = 500;
+
+// The kinds of TAction: "nop" (no action is stored), a text the NPC says,
+// "topic", "price", "amount", "type" or "data" = term (VARIABLE_*), "hp" =
+// term (a skill), a function with two arguments, one or none (FUNCTION_*), the
+// state change "idle", the timers "burning" and "poison" (two arguments), "*"
+// (the actions of the rule before as well) and a function with three
+// arguments. TAction::Number is the variable, skill, state or function.
+const int ACTION_NOP = 0;
+const int ACTION_TEXT = 1;
+const int ACTION_SET_VARIABLE = 2;
+const int ACTION_SET_SKILL = 3;
+const int ACTION_FUNCTION2 = 4;
+const int ACTION_FUNCTION1 = 5;
+const int ACTION_FUNCTION0 = 6;
+const int ACTION_CHANGE_STATE = 7;
+const int ACTION_SET_TIMER = 8;
+const int ACTION_PREVIOUS_RULE = 9;
+const int ACTION_FUNCTION3 = 10;
+
+// The variables of ACTION_SET_VARIABLE.
+const int VARIABLE_TOPIC = 1;
+const int VARIABLE_PRICE = 2;
+const int VARIABLE_AMOUNT = 3;
+const int VARIABLE_TYPE = 4;
+const int VARIABLE_DATA = 6;
+
+// The functions, numbered per kind: ACTION_FUNCTION2's, ACTION_FUNCTION1's,
+// ACTION_FUNCTION0's and ACTION_FUNCTION3's.
+const int FUNCTION_SETQUESTVALUE = 3;
+const int FUNCTION_EFFECTME = 1;
+const int FUNCTION_EFFECTOPP = 2;
+const int FUNCTION_PROFESSION = 3;
+const int FUNCTION_TEACHSPELL = 4;
+const int FUNCTION_SUMMON = 5;
+const int FUNCTION_CREATE = 6;
+const int FUNCTION_DELETE = 7;
+const int FUNCTION_CREATEMONEY = 1;
+const int FUNCTION_DELETEMONEY = 2;
+const int FUNCTION_QUEUE = 3;
+const int FUNCTION_TELEPORT = 1;
+const int FUNCTION_STARTPOSITION = 2;
+
 struct TNode {
 	int Type;
 	int Data;
@@ -208,7 +314,7 @@ void DeleteNode(TNode *Node) {
 }
 
 bool TCondition::set(int Type, void *Data) {
-	if (Type != 5 && Data == nullptr) {
+	if (Type != CONDITION_FORCE && Data == nullptr) {
 		error("TCondition::set: Data ist NULL.\n");
 		this->Type = 0;
 		return false;
@@ -216,64 +322,64 @@ bool TCondition::set(int Type, void *Data) {
 
 	this->Type = Type;
 	switch (Type) {
-		case 1:
+		case CONDITION_TEXT:
 			this->Text = AddDynamicString((char *)Data);
 			break;
-		case 2:
+		case CONDITION_PROPERTY:
 			this->Property = 0;
 			if (strcmp((char *)Data, "address") == 0) {
-				this->Property = 1;
+				this->Property = PROPERTY_ADDRESS;
 			}
 			if (strcmp((char *)Data, "busy") == 0) {
-				this->Property = 2;
+				this->Property = PROPERTY_BUSY;
 			}
 			if (strcmp((char *)Data, "vanish") == 0) {
-				this->Property = 3;
+				this->Property = PROPERTY_VANISH;
 			}
 			if (strcmp((char *)Data, "male") == 0) {
-				this->Property = 4;
+				this->Property = PROPERTY_MALE;
 			}
 			if (strcmp((char *)Data, "female") == 0) {
-				this->Property = 5;
+				this->Property = PROPERTY_FEMALE;
 			}
 			if (strcmp((char *)Data, "knight") == 0) {
-				this->Property = 6;
+				this->Property = PROPERTY_KNIGHT;
 			}
 			if (strcmp((char *)Data, "paladin") == 0) {
-				this->Property = 7;
+				this->Property = PROPERTY_PALADIN;
 			}
 			if (strcmp((char *)Data, "sorcerer") == 0) {
-				this->Property = 8;
+				this->Property = PROPERTY_SORCERER;
 			}
 			if (strcmp((char *)Data, "druid") == 0) {
-				this->Property = 9;
+				this->Property = PROPERTY_DRUID;
 			}
 			if (strcmp((char *)Data, "premium") == 0) {
-				this->Property = 10;
+				this->Property = PROPERTY_PREMIUM;
 			}
 			if (strcmp((char *)Data, "promoted") == 0) {
-				this->Property = 11;
+				this->Property = PROPERTY_PROMOTED;
 			}
 			if (strcmp((char *)Data, "pzblock") == 0) {
-				this->Property = 12;
+				this->Property = PROPERTY_PZBLOCK;
 			}
 			if (strcmp((char *)Data, "nonpvp") == 0) {
-				this->Property = 13;
+				this->Property = PROPERTY_NONPVP;
 			}
 			if (strcmp((char *)Data, "pvpenforced") == 0) {
-				this->Property = 14;
+				this->Property = PROPERTY_PVPENFORCED;
 			}
 			if (this->Property == 0) {
 				return false;
 			}
 			break;
-		case 3:
+		case CONDITION_NUMBER:
 			this->Number = *(int *)Data;
 			break;
-		case 4:
+		case CONDITION_EXPRESSION:
 			this->Expression = (TNode *)Data;
 			break;
-		case 5:
+		case CONDITION_FORCE:
 			break;
 		default:
 			error("TCondition::set: Ung\xfcltiger Bedingungstyp %d\n", Type);
@@ -284,10 +390,10 @@ bool TCondition::set(int Type, void *Data) {
 }
 
 void TCondition::clear() {
-	if (this->Type == 4) {
+	if (this->Type == CONDITION_EXPRESSION) {
 		DeleteNode(this->Expression);
 	}
-	if (this->Type == 1) {
+	if (this->Type == CONDITION_TEXT) {
 		DeleteDynamicString(this->Text);
 	}
 	this->Type = 0;
@@ -296,28 +402,28 @@ void TCondition::clear() {
 bool TAction::set(int Type, void *Data, void *Data2, void *Data3, void *Data4) {
 	this->Type = Type;
 	switch (Type) {
-		case 1:
+		case ACTION_TEXT:
 			this->Text = AddDynamicString((char *)Data);
 			break;
-		case 2:
-		case 3:
-		case 5:
+		case ACTION_SET_VARIABLE:
+		case ACTION_SET_SKILL:
+		case ACTION_FUNCTION1:
 			this->Number = *(int *)Data;
 			this->Expression = (TNode *)Data2;
 			break;
-		case 4:
-		case 8:
+		case ACTION_FUNCTION2:
+		case ACTION_SET_TIMER:
 			this->Number = *(int *)Data;
 			this->Expression = (TNode *)Data2;
 			this->Expression2 = (TNode *)Data3;
 			break;
-		case 6:
-		case 7:
+		case ACTION_FUNCTION0:
+		case ACTION_CHANGE_STATE:
 			this->Number = *(int *)Data;
 			break;
-		case 9:
+		case ACTION_PREVIOUS_RULE:
 			break;
-		case 10:
+		case ACTION_FUNCTION3:
 			this->Number = *(int *)Data;
 			this->Expression = (TNode *)Data2;
 			this->Expression2 = (TNode *)Data3;
@@ -332,17 +438,17 @@ bool TAction::set(int Type, void *Data, void *Data2, void *Data3, void *Data4) {
 }
 
 void TAction::clear() {
-	if (this->Type == 2 || this->Type == 3 || this->Type == 4 || this->Type == 5
-			|| this->Type == 8 || this->Type == 10) {
+	if (this->Type == ACTION_SET_VARIABLE || this->Type == ACTION_SET_SKILL || this->Type == ACTION_FUNCTION2
+			|| this->Type == ACTION_FUNCTION1 || this->Type == ACTION_SET_TIMER || this->Type == ACTION_FUNCTION3) {
 		DeleteNode(this->Expression);
 	}
-	if (this->Type == 4 || this->Type == 8 || this->Type == 10) {
+	if (this->Type == ACTION_FUNCTION2 || this->Type == ACTION_SET_TIMER || this->Type == ACTION_FUNCTION3) {
 		DeleteNode(this->Expression2);
 	}
-	if (this->Type == 10) {
+	if (this->Type == ACTION_FUNCTION3) {
 		DeleteNode(this->Expression3);
 	}
-	if (this->Type == 1) {
+	if (this->Type == ACTION_TEXT) {
 		DeleteDynamicString(this->Text);
 	}
 	this->Type = 0;
@@ -391,20 +497,20 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 			while (true) {
 				bool Success = false;
 				if (Script.Token == STRING) {
-					Success = this->Behaviour(this->Behaviours).addCondition(1, Script.getString());
+					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_TEXT, Script.getString());
 				}
 				if (Script.Token == IDENTIFIER) {
-					Success = this->Behaviour(this->Behaviours).addCondition(2, Script.getIdentifier());
+					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_PROPERTY, Script.getIdentifier());
 				}
 				if (Script.Token == SPECIAL && Script.getSpecial() == '!') {
-					Success = this->Behaviour(this->Behaviours).addCondition(5, nullptr);
+					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_FORCE, nullptr);
 				}
 				if (Script.Token == SPECIAL && Script.getSpecial() == '%') {
 					int Nr = Script.readNumber();
-					if (Nr < 1 || Nr > 3) {
+					if (Nr < 1 || Nr > MAX_NUMBER_PARAMETERS) {
 						Script.error("illegal ordinal number");
 					}
-					Success = this->Behaviour(this->Behaviours).addCondition(3, &Nr);
+					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_NUMBER, &Nr);
 				}
 
 				if (!Success) {
@@ -414,12 +520,12 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 					}
 					int Operator = 0;
 					switch (Script.getSpecial()) {
-						case '<': Operator = 1; break;
-						case '>': Operator = 2; break;
-						case '=': Operator = 3; break;
-						case 'N': Operator = 4; break;
-						case 'L': Operator = 5; break;
-						case 'G': Operator = 6; break;
+						case '<': Operator = NODE_LESS; break;
+						case '>': Operator = NODE_GREATER; break;
+						case '=': Operator = NODE_EQUAL; break;
+						case 'N': Operator = NODE_NOT_EQUAL; break;
+						case 'L': Operator = NODE_LESS_EQUAL; break;
+						case 'G': Operator = NODE_GREATER_EQUAL; break;
 						default:
 							Script.error("relational operator expected");
 							break;
@@ -427,7 +533,7 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 					Script.nextToken();
 					TNode *Term2 = this->readTerm(Script);
 					TNode *Comparison = NewNode(Operator, Term1, Term2);
-					this->Behaviour(this->Behaviours).addCondition(4, Comparison);
+					this->Behaviour(this->Behaviours).addCondition(CONDITION_EXPRESSION, Comparison);
 				} else {
 					Script.nextToken();
 				}
@@ -446,116 +552,116 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 		while (true) {
 			Script.nextToken();
 			if (Script.Token == STRING) {
-				this->Behaviour(this->Behaviours).addAction(1, Script.getString(), nullptr, nullptr, nullptr);
+				this->Behaviour(this->Behaviours).addAction(ACTION_TEXT, Script.getString(), nullptr, nullptr, nullptr);
 				Script.nextToken();
 			} else if (Script.Token == IDENTIFIER) {
 				char *Ident = Script.getIdentifier();
 				int Type = -1;
 				int Data = 0;
 				if (strcmp(Ident, "topic") == 0) {
-					Type = 2;
-					Data = 1;
+					Type = ACTION_SET_VARIABLE;
+					Data = VARIABLE_TOPIC;
 				}
 				if (strcmp(Ident, "price") == 0) {
-					Type = 2;
-					Data = 2;
+					Type = ACTION_SET_VARIABLE;
+					Data = VARIABLE_PRICE;
 				}
 				if (strcmp(Ident, "amount") == 0) {
-					Type = 2;
-					Data = 3;
+					Type = ACTION_SET_VARIABLE;
+					Data = VARIABLE_AMOUNT;
 				}
 				if (strcmp(Ident, "type") == 0) {
-					Type = 2;
-					Data = 4;
+					Type = ACTION_SET_VARIABLE;
+					Data = VARIABLE_TYPE;
 				}
 				if (strcmp(Ident, "data") == 0) {
-					Type = 2;
-					Data = 6;
+					Type = ACTION_SET_VARIABLE;
+					Data = VARIABLE_DATA;
 				}
 				if (strcmp(Ident, "hp") == 0) {
-					Type = 3;
-					Data = 2;
+					Type = ACTION_SET_SKILL;
+					Data = SKILL_HITPOINTS;
 				}
 				if (strcmp(Ident, "burning") == 0) {
-					Type = 8;
-					Data = 18;
+					Type = ACTION_SET_TIMER;
+					Data = SKILL_BURNING;
 				}
 				if (strcmp(Ident, "poison") == 0) {
-					Type = 8;
-					Data = 17;
+					Type = ACTION_SET_TIMER;
+					Data = SKILL_POISON;
 				}
 				if (strcmp(Ident, "setquestvalue") == 0) {
-					Type = 4;
-					Data = 3;
+					Type = ACTION_FUNCTION2;
+					Data = FUNCTION_SETQUESTVALUE;
 				}
 				if (strcmp(Ident, "effectme") == 0) {
-					Type = 5;
-					Data = 1;
+					Type = ACTION_FUNCTION1;
+					Data = FUNCTION_EFFECTME;
 				}
 				if (strcmp(Ident, "effectopp") == 0) {
-					Type = 5;
-					Data = 2;
+					Type = ACTION_FUNCTION1;
+					Data = FUNCTION_EFFECTOPP;
 				}
 				if (strcmp(Ident, "profession") == 0) {
-					Type = 5;
-					Data = 3;
+					Type = ACTION_FUNCTION1;
+					Data = FUNCTION_PROFESSION;
 				}
 				if (strcmp(Ident, "teachspell") == 0) {
-					Type = 5;
-					Data = 4;
+					Type = ACTION_FUNCTION1;
+					Data = FUNCTION_TEACHSPELL;
 				}
 				if (strcmp(Ident, "summon") == 0) {
-					Type = 5;
-					Data = 5;
+					Type = ACTION_FUNCTION1;
+					Data = FUNCTION_SUMMON;
 				}
 				if (strcmp(Ident, "create") == 0) {
-					Type = 5;
-					Data = 6;
+					Type = ACTION_FUNCTION1;
+					Data = FUNCTION_CREATE;
 				}
 				if (strcmp(Ident, "delete") == 0) {
-					Type = 5;
-					Data = 7;
+					Type = ACTION_FUNCTION1;
+					Data = FUNCTION_DELETE;
 				}
 				if (strcmp(Ident, "createmoney") == 0) {
-					Type = 6;
-					Data = 1;
+					Type = ACTION_FUNCTION0;
+					Data = FUNCTION_CREATEMONEY;
 				}
 				if (strcmp(Ident, "deletemoney") == 0) {
-					Type = 6;
-					Data = 2;
+					Type = ACTION_FUNCTION0;
+					Data = FUNCTION_DELETEMONEY;
 				}
 				if (strcmp(Ident, "queue") == 0) {
-					Type = 6;
-					Data = 3;
+					Type = ACTION_FUNCTION0;
+					Data = FUNCTION_QUEUE;
 				}
 				if (strcmp(Ident, "teleport") == 0) {
-					Type = 10;
-					Data = 1;
+					Type = ACTION_FUNCTION3;
+					Data = FUNCTION_TELEPORT;
 				}
 				if (strcmp(Ident, "startposition") == 0) {
-					Type = 10;
-					Data = 2;
+					Type = ACTION_FUNCTION3;
+					Data = FUNCTION_STARTPOSITION;
 				}
 				if (strcmp(Ident, "idle") == 0) {
-					Type = 7;
-					Data = 1;
+					Type = ACTION_CHANGE_STATE;
+					Data = IDLE;
 				}
 				if (strcmp(Ident, "nop") == 0) {
-					Type = 0;
+					Type = ACTION_NOP;
 				}
 
 				switch (Type) {
-					case 0:
+					case ACTION_NOP:
 						Script.nextToken();
 						break;
-					case 2:
-					case 3:
+					case ACTION_SET_VARIABLE:
+					case ACTION_SET_SKILL:
 						Script.readSymbol('=');
 						Script.nextToken();
 						this->Behaviour(this->Behaviours).addAction(Type, &Data, this->readTerm(Script), nullptr, nullptr);
 						break;
-					case 4:
-					case 8: {
+					case ACTION_FUNCTION2:
+					case ACTION_SET_TIMER: {
 						Script.readSymbol('(');
 						Script.nextToken();
 						TNode *Param1 = this->readTerm(Script);
@@ -571,7 +677,7 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 						Script.nextToken();
 						break;
 					}
-					case 5:
+					case ACTION_FUNCTION1:
 						Script.readSymbol('(');
 						Script.nextToken();
 						this->Behaviour(this->Behaviours).addAction(Type, &Data, this->readTerm(Script), nullptr, nullptr);
@@ -580,12 +686,12 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 						}
 						Script.nextToken();
 						break;
-					case 6:
-					case 7:
+					case ACTION_FUNCTION0:
+					case ACTION_CHANGE_STATE:
 						this->Behaviour(this->Behaviours).addAction(Type, &Data, nullptr, nullptr, nullptr);
 						Script.nextToken();
 						break;
-					case 10: {
+					case ACTION_FUNCTION3: {
 						Script.readSymbol('(');
 						Script.nextToken();
 						TNode *Param1 = this->readTerm(Script);
@@ -614,7 +720,7 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 				if (this->Behaviours == 0) {
 					Script.error("no previous pattern");
 				}
-				this->Behaviour(this->Behaviours).addAction(9, nullptr, nullptr, nullptr, nullptr);
+				this->Behaviour(this->Behaviours).addAction(ACTION_PREVIOUS_RULE, nullptr, nullptr, nullptr, nullptr);
 				Script.nextToken();
 			} else {
 				Script.error("illegal action");
@@ -634,55 +740,55 @@ TNode *TBehaviourDatabase::readValue(TReadScriptFile &Script) {
 	TNode *Second;
 	TNode *Node = nullptr;
 	if (Script.Token == NUMBER) {
-		Node = NewNode(11, Script.getNumber());
+		Node = NewNode(NODE_NUMBER, Script.getNumber());
 	} else if (Script.Token == IDENTIFIER) {
 		if (strcmp(Script.getIdentifier(), "topic") == 0) {
-			Node = NewNode(12, 0);
+			Node = NewNode(NODE_TOPIC, 0);
 		}
 		if (strcmp(Script.getIdentifier(), "price") == 0) {
-			Node = NewNode(13, 0);
+			Node = NewNode(NODE_PRICE, 0);
 		}
 		if (strcmp(Script.getIdentifier(), "amount") == 0) {
-			Node = NewNode(14, 0);
+			Node = NewNode(NODE_AMOUNT, 0);
 		}
 		if (strcmp(Script.getIdentifier(), "level") == 0) {
-			Node = NewNode(15, 0);
+			Node = NewNode(NODE_SKILL, SKILL_LEVEL);
 		}
 		if (strcmp(Script.getIdentifier(), "maglevel") == 0) {
-			Node = NewNode(15, 1);
+			Node = NewNode(NODE_SKILL, SKILL_MAGICLEVEL);
 		}
 		if (strcmp(Script.getIdentifier(), "hp") == 0) {
-			Node = NewNode(15, 2);
+			Node = NewNode(NODE_SKILL, SKILL_HITPOINTS);
 		}
 		if (strcmp(Script.getIdentifier(), "burning") == 0) {
-			Node = NewNode(15, 18);
+			Node = NewNode(NODE_SKILL, SKILL_BURNING);
 		}
 		if (strcmp(Script.getIdentifier(), "poison") == 0) {
-			Node = NewNode(15, 17);
+			Node = NewNode(NODE_SKILL, SKILL_POISON);
 		}
 		if (strcmp(Script.getIdentifier(), "count") == 0) {
 			Script.readSymbol('(');
 			Script.nextToken();
 			First = this->readTerm(Script);
-			Node = NewNode(16, First, nullptr);
+			Node = NewNode(NODE_COUNT, First, nullptr);
 			if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
 				Script.error(") expected");
 			}
 		} else {
 			if (strcmp(Script.getIdentifier(), "countmoney") == 0) {
-				Node = NewNode(17, 0);
+				Node = NewNode(NODE_COUNTMONEY, 0);
 			}
 			if (strcmp(Script.getIdentifier(), "type") == 0) {
-				Node = NewNode(18, 0);
+				Node = NewNode(NODE_TYPE, 0);
 			}
 			if (strcmp(Script.getIdentifier(), "data") == 0) {
-				Node = NewNode(19, 0);
+				Node = NewNode(NODE_DATA, 0);
 			}
 			if (strcmp(Script.getIdentifier(), "spellknown") == 0) {
 				Script.readSymbol('(');
 				Script.nextToken();
 				First = this->readTerm(Script);
-				Node = NewNode(20, First, nullptr);
+				Node = NewNode(NODE_SPELLKNOWN, First, nullptr);
 				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
 					Script.error(") expected");
 				}
@@ -690,7 +796,7 @@ TNode *TBehaviourDatabase::readValue(TReadScriptFile &Script) {
 				Script.readSymbol('(');
 				Script.nextToken();
 				First = this->readTerm(Script);
-				Node = NewNode(21, First, nullptr);
+				Node = NewNode(NODE_SPELLLEVEL, First, nullptr);
 				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
 					Script.error(") expected");
 				}
@@ -706,12 +812,12 @@ TNode *TBehaviourDatabase::readValue(TReadScriptFile &Script) {
 				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
 					Script.error(") expected");
 				}
-				Node = NewNode(22, First, Second);
+				Node = NewNode(NODE_RANDOM, First, Second);
 			} else if (strcmp(Script.getIdentifier(), "questvalue") == 0) {
 				Script.readSymbol('(');
 				Script.nextToken();
 				First = this->readTerm(Script);
-				Node = NewNode(23, First, nullptr);
+				Node = NewNode(NODE_QUESTVALUE, First, nullptr);
 				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
 					Script.error(") expected");
 				}
@@ -721,7 +827,7 @@ TNode *TBehaviourDatabase::readValue(TReadScriptFile &Script) {
 		if (Script.getSpecial() != '%') {
 			Script.error("illegal character");
 		}
-		Node = NewNode(10, Script.readNumber());
+		Node = NewNode(NODE_NUMBER_PARAMETER, Script.readNumber());
 	} else {
 		Script.error("illegal value");
 	}
@@ -739,7 +845,7 @@ TNode *TBehaviourDatabase::readFactor(TReadScriptFile &Script) {
 	while (Script.Token == SPECIAL && Script.getSpecial() == '*') {
 		Script.nextToken();
 		TNode *Right = this->readValue(Script);
-		Left = NewNode(9, Left, Right);
+		Left = NewNode(NODE_TIMES, Left, Right);
 	}
 	return Left;
 }
@@ -747,7 +853,7 @@ TNode *TBehaviourDatabase::readFactor(TReadScriptFile &Script) {
 TNode *TBehaviourDatabase::readTerm(TReadScriptFile &Script) {
 	TNode *Left = this->readFactor(Script);
 	while (Script.Token == SPECIAL && (Script.getSpecial() == '+' || Script.getSpecial() == '-')) {
-		int Operator = (Script.getSpecial() == '+' ? 7 : 8);
+		int Operator = (Script.getSpecial() == '+' ? NODE_PLUS : NODE_MINUS);
 		Script.nextToken();
 		TNode *Right = this->readFactor(Script);
 		Left = NewNode(Operator, Left, Right);
@@ -780,53 +886,53 @@ int TBehaviourDatabase::evaluate(TNPC *npc, TNode *Node, int *Number) {
 	// Both operands are evaluated into locals: the order of the evaluations
 	// (and of the random() calls inside them) is part of the behavior.
 	switch (Node->Type) {
-		case 1: {
+		case NODE_LESS: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left < Right;
 		}
-		case 2: {
+		case NODE_GREATER: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left > Right;
 		}
-		case 3: {
+		case NODE_EQUAL: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left == Right;
 		}
-		case 4: {
+		case NODE_NOT_EQUAL: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left != Right;
 		}
-		case 5: {
+		case NODE_LESS_EQUAL: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left <= Right;
 		}
-		case 6: {
+		case NODE_GREATER_EQUAL: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left >= Right;
 		}
-		case 7: {
+		case NODE_PLUS: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left + Right;
 		}
-		case 8: {
+		case NODE_MINUS: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left - Right;
 		}
-		case 9: {
+		case NODE_TIMES: {
 			int Left = this->evaluate(npc, Node->Left, Number);
 			int Right = this->evaluate(npc, Node->Right, Number);
 			return Left * Right;
 		}
-		case 10:
-			if (Node->Data < 1 || Node->Data > 3) {
+		case NODE_NUMBER_PARAMETER:
+			if (Node->Data < 1 || Node->Data > MAX_NUMBER_PARAMETERS) {
 				error("TBehaviourDatabase::evaluate: Ung\xfcltiger Zahl-Parameter %d.\n", Node->Data);
 				return 0;
 			}
@@ -835,41 +941,41 @@ int TBehaviourDatabase::evaluate(TNPC *npc, TNode *Node, int *Number) {
 				return 0;
 			}
 			return Number[Node->Data - 1];
-		case 11:
+		case NODE_NUMBER:
 			return Node->Data;
-		case 12:
+		case NODE_TOPIC:
 			return npc->Topic;
-		case 13:
+		case NODE_PRICE:
 			return npc->Price;
-		case 14:
+		case NODE_AMOUNT:
 			return npc->Amount;
-		case 15:
-			if (Node->Data >= 0 && Node->Data <= 2) {
+		case NODE_SKILL:
+			if (Node->Data >= SKILL_LEVEL && Node->Data <= SKILL_HITPOINTS) {
 				return Opp->Skills[Node->Data]->Get();
 			}
-			if (Node->Data == 17 || Node->Data == 18) {
+			if (Node->Data == SKILL_POISON || Node->Data == SKILL_BURNING) {
 				return Opp->Skills[Node->Data]->TimerValue();
 			}
 			error("TBehaviourDatabase::evaluate: Ung\xfcltiger Skill %d.\n", Node->Data);
 			return 0;
-		case 16:
+		case NODE_COUNT:
 			return CountInventoryObjects(npc->Interlocutor, this->evaluate(npc, Node->Left, Number), npc->Data);
-		case 17:
+		case NODE_COUNTMONEY:
 			return CountInventoryMoney(npc->Interlocutor);
-		case 18:
+		case NODE_TYPE:
 			return npc->TypeID;
-		case 19:
+		case NODE_DATA:
 			return (int)npc->Data;
-		case 20:
+		case NODE_SPELLKNOWN:
 			return Opp->SpellKnown(this->evaluate(npc, Node->Left, Number));
-		case 21:
+		case NODE_SPELLLEVEL:
 			return GetSpellLevel(this->evaluate(npc, Node->Left, Number));
-		case 22: {
+		case NODE_RANDOM: {
 			int Max = this->evaluate(npc, Node->Right, Number);
 			int Min = this->evaluate(npc, Node->Left, Number);
 			return random(Min, Max);
 		}
-		case 23:
+		case NODE_QUESTVALUE:
 			return Opp->GetQuestValue(this->evaluate(npc, Node->Left, Number));
 		default:
 			error("TBehaviourDatabase::evaluate: Ung\xfcltiger Knotentyp %d.\n", Node->Type);
@@ -897,7 +1003,7 @@ void TBehaviourDatabase::react(TNPC *npc, char *Text, SITUATION Situation) {
 
 	int maxConditions = -1;
 	int bestPattern = -1;
-	int Numbers[3];
+	int Numbers[MAX_NUMBER_PARAMETERS];
 	Numbers[0] = -1;
 	Numbers[1] = -1;
 	Numbers[2] = -1;
@@ -909,7 +1015,7 @@ void TBehaviourDatabase::react(TNPC *npc, char *Text, SITUATION Situation) {
 			TCondition &C = B.Condition(j);
 			char *Pos;
 			switch (C.Type) {
-				case 1:
+				case CONDITION_TEXT:
 					Pos = SearchForWord(GetDynamicString(C.Text), LastPos);
 					if (Pos == nullptr) {
 						fulfilled = false;
@@ -917,69 +1023,69 @@ void TBehaviourDatabase::react(TNPC *npc, char *Text, SITUATION Situation) {
 						LastPos = Pos + strlen(GetDynamicString(C.Text));
 					}
 					break;
-				case 2:
-					if (C.Property == 1 && Situation != ADDRESS && Situation != ADDRESSQUEUE) {
+				case CONDITION_PROPERTY:
+					if (C.Property == PROPERTY_ADDRESS && Situation != ADDRESS && Situation != ADDRESSQUEUE) {
 						fulfilled = false;
 					}
-					if (C.Property == 2 && Situation != BUSY) {
+					if (C.Property == PROPERTY_BUSY && Situation != BUSY) {
 						fulfilled = false;
 					}
-					if (C.Property == 3 && Situation != VANISH) {
+					if (C.Property == PROPERTY_VANISH && Situation != VANISH) {
 						fulfilled = false;
 					}
-					if (C.Property == 4 && Opp->Sex != 1) {
+					if (C.Property == PROPERTY_MALE && Opp->Sex != SEX_MALE) {
 						fulfilled = false;
 					}
-					if (C.Property == 5 && Opp->Sex != 2) {
+					if (C.Property == PROPERTY_FEMALE && Opp->Sex != SEX_FEMALE) {
 						fulfilled = false;
 					}
-					if (C.Property == 6 && Opp->GetEffectiveProfession() != 1) {
+					if (C.Property == PROPERTY_KNIGHT && Opp->GetEffectiveProfession() != PROFESSION_KNIGHT) {
 						fulfilled = false;
 					}
-					if (C.Property == 7 && Opp->GetEffectiveProfession() != 2) {
+					if (C.Property == PROPERTY_PALADIN && Opp->GetEffectiveProfession() != PROFESSION_PALADIN) {
 						fulfilled = false;
 					}
-					if (C.Property == 8 && Opp->GetEffectiveProfession() != 3) {
+					if (C.Property == PROPERTY_SORCERER && Opp->GetEffectiveProfession() != PROFESSION_SORCERER) {
 						fulfilled = false;
 					}
-					if (C.Property == 9 && Opp->GetEffectiveProfession() != 4) {
+					if (C.Property == PROPERTY_DRUID && Opp->GetEffectiveProfession() != PROFESSION_DRUID) {
 						fulfilled = false;
 					}
-					if (C.Property == 10 && !CheckRight(Opp->ID, PREMIUM_ACCOUNT)) {
+					if (C.Property == PROPERTY_PREMIUM && !CheckRight(Opp->ID, PREMIUM_ACCOUNT)) {
 						fulfilled = false;
 					}
-					if (C.Property == 11 && Opp->GetRealProfession() < 10) {
+					if (C.Property == PROPERTY_PROMOTED && Opp->GetRealProfession() < PROFESSION_PROMOTION) {
 						fulfilled = false;
 					}
-					if (C.Property == 12 && Opp->EarliestProtectionZoneRound <= RoundNr) {
+					if (C.Property == PROPERTY_PZBLOCK && Opp->EarliestProtectionZoneRound <= RoundNr) {
 						fulfilled = false;
 					}
-					if (C.Property == 13 && WorldType != NON_PVP) {
+					if (C.Property == PROPERTY_NONPVP && WorldType != NON_PVP) {
 						fulfilled = false;
 					}
-					if (C.Property == 14 && WorldType != PVP_ENFORCED) {
+					if (C.Property == PROPERTY_PVPENFORCED && WorldType != PVP_ENFORCED) {
 						fulfilled = false;
 					}
 					break;
-				case 3:
+				case CONDITION_NUMBER:
 					Pos = SearchForNumber(C.Number, LastPos);
 					if (Pos == nullptr) {
 						fulfilled = false;
 					} else {
 						// The original strtol() saturated at the 32-bit LONG_MAX.
 						Numbers[C.Number - 1] = (int)std::min(strtol(Pos, nullptr, 10), (long)INT32_MAX);
-						if (Numbers[C.Number - 1] > 500) {
-							Numbers[C.Number - 1] = 500;
+						if (Numbers[C.Number - 1] > MAX_TEXT_NUMBER) {
+							Numbers[C.Number - 1] = MAX_TEXT_NUMBER;
 						}
 						LastPos = Pos + 1;
 					}
 					break;
-				case 4:
+				case CONDITION_EXPRESSION:
 					if (this->evaluate(npc, C.Expression, Numbers) == 0) {
 						fulfilled = false;
 					}
 					break;
-				case 5:
+				case CONDITION_FORCE:
 					bestPattern = i;
 					goto Forced;
 			}
@@ -1013,7 +1119,7 @@ PreviousPattern:
 		int Value2;
 		int Value3;
 		switch (A.Type) {
-			case 1:
+			case ACTION_TEXT:
 				memset(Response, 0, sizeof(Response));
 				AText = GetDynamicString(A.Text);
 				for (unsigned int pos = 0; pos < strlen(AText); pos++) {
@@ -1055,27 +1161,27 @@ PreviousPattern:
 					error("TBehaviourDatabase::react: Text von NPC %s wird zu lang (%s...).\n", npc->Name, Response);
 				} else {
 					npc->ToDoWait(TalkDelay);
-					npc->ToDoTalk(1, nullptr, Response, false);
+					npc->ToDoTalk(TALK_SAY, nullptr, Response, false);
 					TalkDelay += 3100 + (int)(strlen(Response) / 2) * 100;
 					StartToDo = true;
 				}
 				break;
-			case 2:
+			case ACTION_SET_VARIABLE:
 				Value = this->evaluate(npc, A.Expression, Numbers);
 				switch (A.Number) {
-					case 1:
+					case VARIABLE_TOPIC:
 						npc->Topic = Value;
 						break;
-					case 2:
+					case VARIABLE_PRICE:
 						npc->Price = Value;
 						break;
-					case 3:
+					case VARIABLE_AMOUNT:
 						npc->Amount = Value;
 						break;
-					case 4:
+					case VARIABLE_TYPE:
 						npc->TypeID = Value;
 						break;
-					case 6:
+					case VARIABLE_DATA:
 						npc->Data = (uint32_t)Value;
 						break;
 					default:
@@ -1083,49 +1189,49 @@ PreviousPattern:
 						break;
 				}
 				break;
-			case 3:
+			case ACTION_SET_SKILL:
 				Value = this->evaluate(npc, A.Expression, Numbers);
-				if (A.Number != 2) {
+				if (A.Number != SKILL_HITPOINTS) {
 					error("TBehaviourDatabase::react: Ung\xfcltiger Skill.\n");
 					break;
 				}
-				Opp->Skills[2]->Set(Value);
-				if (Opp->Skills[2]->Get() < 1) {
+				Opp->Skills[SKILL_HITPOINTS]->Set(Value);
+				if (Opp->Skills[SKILL_HITPOINTS]->Get() < 1) {
 					error("TBehaviourDatabase::react: NPC %s t\xf6tet Spieler.\n", npc->Name);
 					Opp->Death();
 				}
 				break;
-			case 4:
+			case ACTION_FUNCTION2:
 				Value = this->evaluate(npc, A.Expression, Numbers);
 				Value2 = this->evaluate(npc, A.Expression2, Numbers);
-				if (A.Number != 3) {
+				if (A.Number != FUNCTION_SETQUESTVALUE) {
 					error("TBehaviourDatabase::react (4): Ung\xfcltige Funktionsnummer.\n");
 					break;
 				}
 				Opp->SetQuestValue(Value, Value2);
 				break;
-			case 5:
+			case ACTION_FUNCTION1:
 				Value = this->evaluate(npc, A.Expression, Numbers);
 				switch (A.Number) {
-					case 1:
+					case FUNCTION_EFFECTME:
 						GraphicalEffect(npc->GetCreatureObject(), Value);
 						break;
-					case 2:
+					case FUNCTION_EFFECTOPP:
 						GraphicalEffect(Opp->GetCreatureObject(), Value);
 						break;
-					case 3:
+					case FUNCTION_PROFESSION:
 						Opp->SetProfession((unsigned char)Value);
 						break;
-					case 4:
+					case FUNCTION_TEACHSPELL:
 						Opp->LearnSpell(Value);
 						break;
-					case 5:
+					case FUNCTION_SUMMON:
 						CreateMonster(Value, npc->posx, npc->posy, npc->posz, 0, 0, true);
 						break;
-					case 6:
+					case FUNCTION_CREATE:
 						npc->GiveTo(Value, npc->Amount);
 						break;
-					case 7:
+					case FUNCTION_DELETE:
 						npc->GetFrom(Value, npc->Amount);
 						break;
 					default:
@@ -1133,15 +1239,15 @@ PreviousPattern:
 						break;
 				}
 				break;
-			case 6:
+			case ACTION_FUNCTION0:
 				switch (A.Number) {
-					case 1:
+					case FUNCTION_CREATEMONEY:
 						npc->GiveMoney(npc->Price);
 						break;
-					case 2:
+					case FUNCTION_DELETEMONEY:
 						npc->GetMoney(npc->Price);
 						break;
-					case 3:
+					case FUNCTION_QUEUE:
 						if (Situation != BUSY) {
 							error("TBehaviourDatabase::react (6): falsche Situation f\xfcr Aktion \"Queue\".\n");
 						}
@@ -1152,7 +1258,7 @@ PreviousPattern:
 						break;
 				}
 				break;
-			case 7:
+			case ACTION_CHANGE_STATE:
 				if (!StartToDo) {
 					npc->State = (STATE)A.Number;
 					if (Situation == ADDRESSQUEUE) {
@@ -1167,41 +1273,41 @@ PreviousPattern:
 					npc->ToDoChangeState(A.Number);
 				}
 				break;
-			case 8:
+			case ACTION_SET_TIMER:
 				Value = this->evaluate(npc, A.Expression, Numbers);
 				Value2 = this->evaluate(npc, A.Expression2, Numbers);
-				if (A.Number != 17 && A.Number != 18) {
+				if (A.Number != SKILL_POISON && A.Number != SKILL_BURNING) {
 					error("TBehaviourDatabase::react (8): Ung\xfcltiger Skill.\n");
 					break;
 				}
 				if (Value == 0 || Opp->Skills[A.Number]->TimerValue() < Value) {
 					Opp->SetTimer((unsigned short)A.Number, Value, Value2, Value2, -1);
-					if (A.Number == 18) {
+					if (A.Number == SKILL_BURNING) {
 						Opp->FireDamageOrigin = 0;
 					} else {
 						Opp->PoisonDamageOrigin = 0;
 					}
 				}
 				break;
-			case 9:
+			case ACTION_PREVIOUS_RULE:
 				if (bestPattern == 0) {
 					error("TBehaviourDatabase::react (9): Kein vorheriges Muster.\n");
 					break;
 				}
 				bestPattern--;
 				goto PreviousPattern;
-			case 10:
+			case ACTION_FUNCTION3:
 				Value = this->evaluate(npc, A.Expression, Numbers);
 				Value2 = this->evaluate(npc, A.Expression2, Numbers);
 				Value3 = this->evaluate(npc, A.Expression3, Numbers);
-				if (A.Number == 1) {
+				if (A.Number == FUNCTION_TELEPORT) {
 					print(3, "NPC teleportiert Gespr\xe4" "chspartner nach [%d,%d,%d].\n", Value, Value2, Value3);
 					try {
 						Move(0, Opp->GetCreatureObject(), GetMapContainer(Value, Value2, Value3), -1, false, NONE);
 					} catch (RESULT r) {
 						error("TBehaviourDatabase::react (10): Exception %d.\n", r);
 					}
-				} else if (A.Number == 2) {
+				} else if (A.Number == FUNCTION_STARTPOSITION) {
 					print(3, "NPC setzt Startkoordinate f\xfcr Gespr\xe4" "chspartner auf [%d,%d,%d].\n", Value, Value2, Value3);
 					if (Opp->Type == PLAYER) {
 						Opp->startx = Value;
