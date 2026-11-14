@@ -391,8 +391,8 @@ private:
 
 struct TCreature : public TSkillBase {
 	TCreature();
-	// Exceptions other than RESULT leave the original destructor; a C++17
-	// destructor would end the process there unless it says otherwise.
+	// Exceptions other than RESULT leave the destructor, which catches only
+	// RESULT; without noexcept(false) such an exception would end the process.
 	virtual ~TCreature() noexcept(false);
 	int GetHealth();
 	int GetSpeed();

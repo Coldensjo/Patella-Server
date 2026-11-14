@@ -42,11 +42,10 @@
 // chains the creatures in each block (two blocks per sector side, see InitCr).
 const int CHAIN_BLOCK_SIZE = 16;
 
-// TCreature::MovePossible is declared throw(RESULT) in the original, and
-// LoadRace, LoadRaces, LoadMonsterRaid, LoadMonsterRaids and InitCr are
-// declared throw(const char *). C++17 has no dynamic exception specifications,
-// so an exception of another type now propagates instead of ending in
-// std::unexpected().
+// TCreature::MovePossible may throw RESULT, and LoadRace, LoadRaces,
+// LoadMonsterRaid, LoadMonsterRaids and InitCr may throw const char *. None of
+// them has an exception specification, so an exception of another type passes
+// to the caller as well.
 
 TCreature *HashList[HASH_LIST_SIZE];
 vector<TCreature *> CreatureList(0, 10000, 1000, nullptr);
@@ -197,7 +196,7 @@ void DeleteChainCreature(TCreature *cr) {
 
 void InsertChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
-		// The original names DeleteChainCreature here.
+		// Quirk: the message names DeleteChainCreature.
 		error("DeleteChainCreature: \xdc" "begebene Kreatur existiert nicht.\n");
 		return;
 	}
@@ -217,7 +216,7 @@ void InsertChainCreature(TCreature *cr, int newx, int newy) {
 
 void MoveChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
-		// The original names DeleteChainCreature here.
+		// Quirk: the message names DeleteChainCreature.
 		error("DeleteChainCreature: \xdc" "begebene Kreatur existiert nicht.\n");
 		return;
 	}
@@ -234,7 +233,7 @@ TFindCreatures::TFindCreatures(int radx, int rady, int x, int y, int Mask) {
 	initSearch(radx, rady, x, y, Mask);
 }
 
-// Only finished is set if the creature does not exist, as in the original.
+// If the creature does not exist, only finished is set.
 TFindCreatures::TFindCreatures(int radx, int rady, uint32_t CreatureID, int Mask) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -247,7 +246,7 @@ TFindCreatures::TFindCreatures(int radx, int rady, uint32_t CreatureID, int Mask
 	SkipID = CreatureID;
 }
 
-// Only finished is set if the object does not exist, as in the original.
+// If the object does not exist, only finished is set.
 TFindCreatures::TFindCreatures(int radx, int rady, Object Obj, int Mask) {
 	if (!Obj.exists()) {
 		error("TFindCreatures::TFindCreatures: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -348,8 +347,8 @@ void WriteKillStatistics() {
 
 		if (i > 0) {
 			sprintf(Names + NumberOfRaces * 30, "%s %s", RaceData[i].Article, RaceData[i].Name);
-			// The result is not copied back, as in the original: the name
-			// stays in the singular and without capitals.
+			// Quirk: the result is not copied back, so the name stays in the
+			// singular and without capitals.
 			Capitals(Plural(Names + NumberOfRaces * 30, 0));
 		} else {
 			strcpy(Names + NumberOfRaces * 30, "(fire/poison/energy)");
@@ -379,7 +378,7 @@ void ExitKillStatistics() {
 }
 
 // Name, OrgOutfit, Outfit, Sex, Race, Type and Profession are not
-// initialized, as in the original.
+// initialized here.
 TCreature::TCreature() : ToDoList(0, 20, 10) {
 	Combat.SetMaster(this);
 	ID = 0;
@@ -555,8 +554,8 @@ void TCreature::SetID(uint32_t CharacterID) {
 	HashList[m] = this;
 }
 
-// The entry is found by its ID, and the successor of the found entry is
-// linked in, as in the original.
+// The entry is found by its ID, and its predecessor in the hash chain is
+// linked to its successor.
 void TCreature::DelID() {
 	uint32_t m = ID % HASH_LIST_SIZE;
 	TCreature *cr = HashList[m];
@@ -752,7 +751,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 				continue;
 			}
 
-			// The original calculates this as unsigned.
+			// The product is calculated as unsigned.
 			Damage = (int)((uint32_t)Damage * (100 - Obj.getAttribute(DAMAGEREDUCTION)) / 100);
 
 			if (Obj.getFlag(WEAROUT)) {
@@ -762,9 +761,9 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 					try {
 						Change(Obj, ObjectType(Obj.getAttribute(WEAROUTTARGET)), 0);
 					} catch (RESULT r) {
-						// The original passes one argument for two
-						// conversions: the type takes the place of the
-						// exception number, the second number is undefined.
+						// Quirk: one argument for two conversions: the type
+						// takes the place of the exception number, and the
+						// second number is undefined.
 						error("TCreature::Damage: Exception %d beim Abnutzen von Objekt %d.\n", Obj.getObjectType().getTypeID());
 					}
 				}
@@ -974,8 +973,8 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		}
 
 		default: {
-			// The original returns here: the hitpoints are already
-			// reduced, but a death is not handled.
+			// Quirk: this returns with the hitpoints already reduced,
+			// so a death is not handled.
 			error("TCreature::Damage: Ung\xfcltiger Schadenstyp %d.\n", DamageType);
 			return Damage;
 		}
@@ -1234,7 +1233,7 @@ bool GetRaceUnpushable(int Race) {
 }
 
 // The properties are tested one after the other without else, and neither an
-// unknown property nor an unknown flag is an error, as in the original.
+// unknown property nor an unknown flag is an error.
 void LoadRace(char *FileName) {
 	print(1, "Lade Rassendaten aus Datei %s...\n", FileName);
 
@@ -1565,8 +1564,7 @@ void LoadRace(char *FileName) {
 					S.Impact = IMPACT_OUTFIT;
 					Script.readSymbol('(');
 					// For an outfit of an object type only two of the four
-					// bytes are read, so ImpactParam3 is undefined, as in
-					// the original.
+					// bytes are read, so ImpactParam3 is undefined.
 					TOutfit HelpOutfit;
 					HelpOutfit.load(Script);
 					S.ImpactParam1 = HelpOutfit.OutfitID;
@@ -1639,8 +1637,8 @@ TAttackWave::~TAttackWave() {
 }
 
 // The properties of a wave are tested one after the other without else, and
-// an unknown property is not an error, as in the original. Type is only
-// written with the type of the raid; it is not preset.
+// an unknown property is not an error. Type is only written with the type of
+// the raid; it is not preset.
 void LoadMonsterRaid(char *FileName, int Start, bool *Type, int *Date, int *Interval, int *Duration) {
 	if (FileName == nullptr) {
 		error("LoadMonsterRaid: Dateiname ist NULL.\n");
@@ -1888,7 +1886,7 @@ void ProcessMonsterRaids() {
 		AttackWaveQueue.deleteMin();
 		print(2, "Angriff von Monstern der Rasse %d.\n", AttackWave->Race);
 		if (AttackWave->Message != 0) {
-			// The format ends with a single '%', as in the original.
+			// Quirk: the format ends with a single '%'.
 			BroadcastMessage(TALK_EVENT_MESSAGE, "%s%", GetDynamicString(AttackWave->Message));
 		}
 

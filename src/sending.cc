@@ -178,8 +178,9 @@ void SendAll() {
 		} else {
 			Connection->WillingToSend = false;
 			if (Connection->IsOnline() && Connection->NextToSend != Connection->NextToCommit) {
-				// The original is kill(PID, SIGUSR2) with the LinuxThreads PID of the
-				// connection's communication thread.
+				// SIGUSR2 wakes the connection's communication thread. GetPID is
+				// that thread's ID (gettid in TConnection::Assign), so tgkill
+				// signals that thread alone.
 				tgkill(getpid(), Connection->GetPID(), SIGUSR2);
 			}
 		}
@@ -902,7 +903,7 @@ void SendDeleteField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	SendWord(Connection, (unsigned short)y);
 	SendByte(Connection, (unsigned char)z);
 	if (!Obj.exists()) {
-		// The original names SendAddField in this message.
+		// Quirk: the message names SendAddField.
 		error("SendAddField: \xdc" "bergebenes Objekt existiert nicht.\n");
 		return;
 	}
@@ -1815,7 +1816,8 @@ void BroadcastMessage(int Mode, char *Text, ...) {
 	TConnection *Connection = GetFirstConnection();
 	while (Connection != nullptr) {
 		if (Connection->IsOnline()) {
-			// As in the original, the finished message is the format string here.
+			// Quirk: the finished message is SendMessage's format string, so a '%'
+			// in it is read as a conversion.
 			SendMessage(Connection, Mode, Message);
 		}
 		Connection = GetNextConnection();
