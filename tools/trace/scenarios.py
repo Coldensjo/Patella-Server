@@ -1,0 +1,302 @@
+"""Scenarios for run_scenario.py. Each is a function of the context; ctx.at(n)
+waits for step round n (relative to the start round), ctx.login(key) logs a
+test client in. tools/trace_check.py runs them (run_scenario.py --list).
+
+The test characters are new (no player file): they start in the Rookgaard
+temple, a at [32097,32219,7] and b next to it at [32098,32219,7]. The temple
+is a protection zone; the NPC Cipfried walks around in it.
+"""
+
+SCENARIOS = {}
+
+INV = 0xFFFF            # x of an inventory position: (0xFFFF, slot, 0)
+SLOT_BACKPACK = 3
+SLOT_LEFT = 6           # the torch
+SLOT_RIGHT = 5          # the club
+TORCH = 2920
+CLUB = 3270
+BAG = 2853
+
+
+def scenario(start_round=20):
+	def deco(f):
+		f.start_round = start_round
+		SCENARIOS[f.__name__] = f
+		return f
+	return deco
+
+
+@scenario()
+def smoke(ctx):
+	"""Login of both new characters, a ping, logout."""
+	ctx.at(0)
+	a = ctx.login("a")
+	ctx.at(3)
+	b = ctx.login("b")
+	ctx.at(5)
+	a.ping()
+	ctx.at(7)
+	a.logout()
+	b.logout()
+	ctx.at(9)
+
+
+class Steps:
+	"""Hands out step rounds: s.next(k) waits k rounds after the last step."""
+
+	def __init__(self, ctx):
+		self.ctx = ctx
+		self.n = 0
+
+	def __call__(self, k=2):
+		self.n += k
+		self.ctx.at(self.n)
+		return self.n
+
+
+def movement(ctx, s, a, b):
+	a.note("=== look")
+	a.look(32097, 32219, 7)                 # own tile
+	s(1)
+	a.look(32098, 32219, 7)                 # b
+	b.look(32097, 32219, 7)                 # a
+	s(1)
+	a.look(32093, 32219, 7)                 # coal basin, 4 fields away
+	a.look(32097, 32217, 7)                 # where Cipfried started
+	s(1)
+	a.look(INV, SLOT_LEFT, 0)               # the torch in the hand
+	a.look(INV, 0, 0)                       # invalid inventory position
+	s(1)
+	a.refresh_field(32096, 32219, 7)
+	s(1)
+
+	a.note("=== turn")
+	for d in ("n", "e", "s", "w"):
+		a.turn(d)
+		s(1)
+
+	a.note("=== walk all directions, into obstacles")
+	for d, k in (("s", 2), ("s", 2), ("s", 2), ("sw", 3), ("w", 2), ("nw", 3), ("n", 2), ("nw", 3),
+			("ne", 3), ("e", 2), ("se", 3), ("ne", 3)):
+		a.walk(d)
+		s(k)
+	a.note("=== walk twice without waiting (the second cancels the first)")
+	a.walk("w")
+	a.walk("e")
+	s(3)
+
+	a.note("=== auto-walk")
+	a.autowalk(["w", "w", "n", "e", "e"])
+	s(5)
+	a.autowalk(["s", "s", "s", "s"])        # ends at the coal basin
+	s(5)
+	a.autowalk(["n", "n", "n"])
+	s(1)
+	a.stop()
+	s(3)
+	a.autowalk([])
+	s(1)
+	b.note("=== b back to its own start if it was moved")
+
+
+def social(ctx, s, a, b):
+	a.note("=== say, whisper, yell")
+	a.say("hello there")
+	s(2)
+	b.whisper("psst")
+	s(2)
+	a.yell("HELLO")                         # level 1: refused
+	s(2)
+	a.note("=== NPC")
+	a.say("hi")
+	s(3)
+	a.say("name")
+	s(3)
+	a.say("bye")
+	s(3)
+
+	a.note("=== channels")
+	a.get_channels()
+	s(1)
+	a.join_channel(4)
+	b.join_channel(4)
+	s(1)
+	a.channel_say(4, "on the game channel")  # level 1: refused
+	s(1)
+	a.join_channel(3)                        # request queue: not allowed
+	a.join_channel(1)                        # gamemaster channel: not allowed
+	s(1)
+	a.leave_channel(4)
+	s(1)
+	a.open_own_channel()
+	s(1)
+
+	a.note("=== private messages")
+	a.private("Testb Beta", "hi b, this is a")
+	s(2)
+	b.private("Testa Alpha", "hi a")
+	s(2)
+	a.private("Nobody Here At All", "anyone?")
+	s(2)
+	a.private_channel("Testb Beta")
+	a.private_channel("Testa Alpha")         # with yourself
+	a.private_channel("Nobody Here At All")
+	s(2)
+
+	a.note("=== spells")
+	a.say("exura")
+	s(2)
+	a.say("utevo lux")
+	s(2)
+	a.say("exevo vis hur")
+	s(2)
+	b.say("exura vita")
+	s(2)
+
+	a.note("=== outfit")
+	a.get_outfit()
+	s(1)
+	a.set_outfit(129, [10, 20, 30, 40])
+	s(2)
+	a.set_outfit(134, [1, 2, 3, 4])          # premium outfit, free account: refused
+	b.set_outfit(128, [1, 2, 3, 4])          # male outfit for a female character: refused
+	s(2)
+	b.set_outfit(137, [132, 0, 5, 132])
+	s(2)
+
+	a.note("=== buddies")
+	a.add_buddy("Testb Beta")
+	s(2)
+	a.add_buddy("Nobody Here At All")
+	s(2)
+	a.ping()
+	b.ping()
+	s(1)
+
+
+def interaction(ctx, s, a, b):
+	a.note("=== fight modes")
+	a.tactics(1, 0, 1)
+	s(1)
+	a.tactics(3, 1, 0)
+	s(1)
+	a.tactics(4, 0, 0)                       # invalid
+	s(1)
+
+	a.note("=== attack and follow b in the protection zone")
+	a.attack(b.id)
+	s(2)
+	a.cancel()
+	s(1)
+	a.follow(b.id)
+	s(2)
+	b.walk("e")
+	s(3)
+	b.walk("w")
+	s(3)
+	a.cancel()
+	s(2)
+	a.attack(123456789)                      # no such creature
+	s(1)
+
+	a.note("=== party")
+	a.party_invite(b.id)
+	s(2)
+	b.party_join(a.id)
+	s(2)
+	a.party_pass(b.id)
+	s(2)
+	a.party_leave()
+	s(2)
+	b.party_leave()
+	s(2)
+	a.party_invite(b.id)
+	s(2)
+	a.party_revoke(b.id)
+	s(2)
+	b.party_join(a.id)                       # no longer invited
+	s(2)
+	a.party_leave()                          # not in a party
+	s(2)
+
+	a.note("=== containers and moving objects")
+	a.use((INV, SLOT_BACKPACK, 0), BAG, 0, 0)
+	s(2)
+	a.move((INV, SLOT_LEFT, 0), TORCH, 0, (INV, 64, 0), 1)       # torch into the bag
+	s(2)
+	a.move((INV, 64, 0), TORCH, 0, (INV, SLOT_LEFT, 0), 1)       # and back
+	s(2)
+	p = a.pos
+	a.move((INV, SLOT_LEFT, 0), TORCH, 0, p, 1)                   # torch onto the own field
+	s(2)
+	a.move(p, TORCH, 1, (INV, SLOT_LEFT, 0), 1)                   # and back into the hand
+	s(2)
+	a.move((INV, SLOT_RIGHT, 0), CLUB, 0, (INV, 1, 0), 1)         # club onto the head: refused
+	s(2)
+	a.close_container(0)
+	s(1)
+
+	a.note("=== trade")
+	a.trade((INV, SLOT_LEFT, 0), TORCH, 0, b.id)
+	s(2)
+	b.trade((INV, SLOT_LEFT, 0), TORCH, 0, a.id)
+	s(2)
+	b.inspect_trade(0, 0)
+	b.inspect_trade(1, 0)
+	s(1)
+	a.accept_trade()
+	s(1)
+	b.accept_trade()
+	s(2)
+	a.trade((INV, SLOT_RIGHT, 0), CLUB, 0, b.id)
+	s(2)
+	b.reject_trade()
+	s(2)
+	a.trade((INV, SLOT_BACKPACK, 0), BAG, 0, b.id)                # a container with its content
+	s(2)
+	a.reject_trade()
+	s(2)
+
+	a.note("=== buddy removal")
+	a.remove_buddy(b.id)
+	s(2)
+
+
+@scenario()
+def full(ctx):
+	"""Two new characters: look, turn, walk, auto-walk, talk, channels,
+	private messages, spells, outfit, buddies, fight modes, attack/follow,
+	party, containers, moving objects, trade, logout and a second login
+	with the saved player files."""
+	s = Steps(ctx)
+	ctx.at(0)
+	a = ctx.login("a")
+	s(2)
+	b = ctx.login("b")
+	s(2)
+	movement(ctx, s, a, b)
+	social(ctx, s, a, b)
+	interaction(ctx, s, a, b)
+
+	a.note("=== buddy goes offline")
+	a.add_buddy("Testb Beta")
+	s(2)
+	b.logout()
+	s(3)
+	a.logout()
+	s(4)
+
+	a.note("=== second login, with the player files written at logout")
+	a = ctx.login("a")
+	s(2)
+	b = ctx.login("b")
+	s(2)
+	a.say("back again")
+	s(2)
+	a.walk("s")
+	s(2)
+	a.remove_buddy(b.id)
+	s(1)
+	a.logout()
+	b.logout()
+	s(4)

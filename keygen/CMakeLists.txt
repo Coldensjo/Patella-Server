@@ -8,8 +8,26 @@ add_executable(rsakeygen
 target_include_directories(rsakeygen PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(rsakeygen PRIVATE -fwrapv -fno-strict-aliasing)
 
+# PATELLA_RSA_KEY_HEADER: a header in rsakeygen's format to use instead of
+# src/RSA_PrivateKey.hh or a generated key, copied into the build directory as
+# RSA_PrivateKey.hh. tools/repro_check.py gives all its builds one key this way.
+# It cannot be combined with src/RSA_PrivateKey.hh: the sources include the key
+# with quotes, which finds the file next to them before any include directory.
+set(PATELLA_RSA_KEY_HEADER "" CACHE FILEPATH "RSA key header to use instead of src/RSA_PrivateKey.hh or a generated one")
+
 add_library(rsa_private_key INTERFACE)
-if(EXISTS ${PROJECT_SOURCE_DIR}/src/RSA_PrivateKey.hh)
+if(PATELLA_RSA_KEY_HEADER)
+	if(NOT EXISTS ${PATELLA_RSA_KEY_HEADER})
+		message(FATAL_ERROR "PATELLA_RSA_KEY_HEADER: no such file: ${PATELLA_RSA_KEY_HEADER}")
+	endif()
+	if(EXISTS ${PROJECT_SOURCE_DIR}/src/RSA_PrivateKey.hh)
+		message(FATAL_ERROR "PATELLA_RSA_KEY_HEADER is set, but src/RSA_PrivateKey.hh exists and would be included instead")
+	endif()
+	set(RSA_KEY_DIR ${PROJECT_BINARY_DIR}/rsa-key)
+	configure_file(${PATELLA_RSA_KEY_HEADER} ${RSA_KEY_DIR}/RSA_PrivateKey.hh COPYONLY)
+	message(STATUS "RSA key: ${PATELLA_RSA_KEY_HEADER}")
+	target_include_directories(rsa_private_key INTERFACE ${RSA_KEY_DIR})
+elseif(EXISTS ${PROJECT_SOURCE_DIR}/src/RSA_PrivateKey.hh)
 	message(STATUS "RSA key: src/RSA_PrivateKey.hh")
 	target_include_directories(rsa_private_key INTERFACE ${PROJECT_SOURCE_DIR}/src)
 else()
