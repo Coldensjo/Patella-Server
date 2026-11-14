@@ -11,11 +11,13 @@ runs git; in WSL it runs Windows' git.exe, since git itself is slow on a /mnt/c 
 
 comments  Every source that differs between <old> and <new> is the same code: the same lines once the comments are
           removed, trailing white space is removed and empty lines are dropped. White space inside a line of code
-          counts, because the test macros store their expressions as written. Added, deleted and renamed sources fail.
-          Changed files that are not sources are listed and not checked.
+          counts, because the test macros store their expressions as written. A line ended by a backslash is joined
+          with the next first, as the compiler does, so a `//` comment ended so takes the next line with it. Added,
+          deleted and renamed sources fail. Changed files that are not sources are listed and not checked.
 names     Every source of <new> is <old>'s with the names replaced, white space apart: the same tokens once each old
-          name is mapped to its new one (in code, comments and strings alike). No new name is in <old>, and no old name
-          is left in <new>. Added, deleted and renamed sources fail.
+          name is mapped to its new one (in code, comments and strings alike). White space counts inside a string or
+          character literal, and between the tokens of a preprocessor directive and at its end. No new name is in
+          <old>, and no old name is left in <new>. Added, deleted and renamed sources fail.
 rename    Replaces each old name, as a whole word, in every source of the working tree: code, comments and strings.
           The replacements inside string literals are listed, since a text the player sees may be among them.
 
@@ -40,6 +42,13 @@ RAW_STRING = re.compile(r'R"([^()\\ ]{0,16})\(')
 ENCODING_PREFIX = re.compile(r"(?:^|[^A-Za-z0-9_])(?:u8|u|U|L)$")
 # An identifier, a number with its suffix, a run of white space, or any other single character.
 TOKEN = re.compile(r"[A-Za-z_]\w*|\d[\w.]*|\s+|.", re.DOTALL)
+# A token of code: as TOKEN, but a number may hold an exponent's sign and digit separators, and an operator of several
+# characters is one token (so that `& &` is not `&&`).
+CODE_TOKEN = re.compile(r"[A-Za-z_]\w*|\.?\d(?:[eEpP][+-]|[\w.'])*|%:%:|\.\.\.|<<=|>>=|->\*|<=>|::|->|\+\+|--|<<|>>|<="
+	r"|>=|==|!=|&&|\|\||[-+*/%&|^]=|##|\.\*|\s+|.", re.DOTALL)
+# A backslash at the end of a line joins it with the next one, before anything else is done with the text (so a `//`
+# comment ended by one goes on in the next line).
+SPLICE = re.compile(r"\\\r?\n")
 
 
 class CheckError(Exception):
@@ -47,8 +56,8 @@ class CheckError(Exception):
 
 
 def spans(text):
-	"""The comments and the string literals of a C++ text: [(start, end, "comment" or "string")]. A `//` comment ends
-	before its newline."""
+	"""The comments, string literals and character literals of a C++ text whose lines are joined (SPLICE):
+	[(start, end, "comment", "string" or "char")]. A `//` comment ends before its newline."""
 	found = []
 	i = 0
 	n = len(text)
@@ -82,17 +91,21 @@ def spans(text):
 			if i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_") and not ENCODING_PREFIX.search(text[max(0, i - 3):i]):
 				i += 1
 			else:
+				start = i
 				i += 1
 				while i < n and text[i] != "'" and text[i] != "\n":
 					i += 2 if text[i] == "\\" else 1
 				i += 1
+				found.append((start, min(i, n), "char"))
 		else:
 			i += 1
 	return found
 
 
 def code_lines(text):
-	"""The text's lines without comments, trailing white space and empty lines."""
+	"""The text's lines without comments, trailing white space and empty lines; a line ended by a backslash is joined
+	with the next first."""
+	text = SPLICE.sub("", text)
 	out = []
 	last = 0
 	for start, end, kind in spans(text):
@@ -104,10 +117,54 @@ def code_lines(text):
 	return [line for line in lines if line]
 
 
+def words(text):
+	"""The identifiers of the text, in code, comments and strings alike."""
+	return set(t for t in TOKEN.findall(text) if t[0].isalpha() or t[0] == "_")
+
+
 def tokens(text, names=None):
-	"""The text's tokens without white space, each name of `names` replaced."""
-	found = [t for t in TOKEN.findall(text) if not t.isspace()]
-	return [names.get(t, t) for t in found] if names else found
+	"""The text's tokens without the white space that does not count, each name of `names` replaced. A string or
+	character literal is one token, its white space kept, with the names in it replaced as whole words (as rename
+	does). A comment is its words and signs. In a preprocessor directive the white space between two tokens counts
+	(`#define F(x)` is not `#define F (x)`), and so does its end."""
+	text = SPLICE.sub("", text)
+	names = names or {}
+	word = re.compile(r"\b(%s)\b" % "|".join(map(re.escape, names))) if names else None
+	found = []
+	state = {"line start": True, "directive": False, "space": False}
+
+	def add(token):
+		if state["line start"] and token in ("#", "%:"):
+			state["directive"] = True
+		elif state["directive"] and state["space"]:
+			found.append(" ")
+		state["line start"] = state["space"] = False
+		found.append(token)
+
+	def code(segment):
+		for t in CODE_TOKEN.findall(segment):
+			if not t.isspace():
+				add(names.get(t, t))
+				continue
+			if "\n" in t:
+				if state["directive"]:
+					found.append("\n")
+					state["directive"] = False
+				state["line start"] = True
+			state["space"] = True
+
+	last = 0
+	for start, end, kind in spans(text):
+		code(text[last:start])
+		last = end
+		literal = text[start:end]
+		if kind == "comment":
+			found.extend(names.get(t, t) for t in TOKEN.findall(literal) if not t.isspace())
+			state["space"] = True
+		else:
+			add(word.sub(lambda m: names[m.group(1)], literal) if word else literal)
+	code(text[last:])
+	return found
 
 
 def git(*arguments, binary=False):
@@ -221,17 +278,20 @@ def check_names(arguments):
 	for path in sorted(set(before) & set(after)):
 		was = read(old, path)
 		now = read(new, path)
-		was_tokens = tokens(was)
-		found = new_names.intersection(was_tokens)
+		found = new_names.intersection(words(was))
 		if found:
 			print("NEW NAME ALREADY IN %s: %s" % (path, ", ".join(sorted(found))))
 			bad += 1
-		left = set(names).intersection(tokens(now))
+		left = set(names).intersection(words(now))
 		if left:
 			print("OLD NAME LEFT IN %s: %s" % (path, ", ".join(sorted(left))))
 			bad += 1
-		if [names.get(t, t) for t in was_tokens] != tokens(now):
-			print("OTHER DIFFERENCE IN %s" % path)
+		expected = tokens(was, names)
+		got = tokens(now)
+		if expected != got:
+			i = next((k for k, (x, y) in enumerate(zip(expected, got)) if x != y), min(len(expected), len(got)))
+			print("OTHER DIFFERENCE IN %s\n  expected: %s\n  is:       %s" % (path, " ".join(map(repr, expected[i:i + 6])),
+				" ".join(map(repr, got[i:i + 6]))))
 			bad += 1
 		if was != now:
 			differing += 1
