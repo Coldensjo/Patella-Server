@@ -19,6 +19,9 @@ extern char SAVEPATH[4096];
 extern char BINPATH[4096];
 extern char MONSTERPATH[4096];
 extern char NPCPATH[4096];
+// The file of the server's RSA private key (rsa_key, by default key.pem in
+// the config file's folder), as a full path unless written as an absolute one.
+extern char RSAKEYPATH[4096];
 extern int SHMKey;
 extern int GamePort;
 extern char GameAddress[16];
@@ -39,9 +42,10 @@ extern const char PasswordKey[9];
 void DisguisePassword(char *Password, const char *Key);
 
 // Sets every setting to its value for a config that does not name it: empty
-// paths, SHM key 0, debug level 1, a public world without a name, beat 200,
-// no query managers; and the world config to type NORMAL, reboot time 540,
-// address 0.0.0.0, port 0 and no players.
+// paths (LoadConfig then sets RSAKEYPATH to key.pem in the file's folder),
+// SHM key 0, debug level 1, a public world without a name, beat 200, no query
+// managers; and the world config to type NORMAL, reboot time 540, address
+// 0.0.0.0, port 0 and no players.
 void SetConfigDefaults();
 
 // Reads the settings from the TOML file FileName, over the defaults. Throws a

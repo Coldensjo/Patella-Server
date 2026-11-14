@@ -3,8 +3,8 @@
 
 #include "login.hh"
 
-#include "RSA_PrivateKey.hh"
 #include "protocol.hh"
+#include "rsakeyfile.hh"
 
 #include <algorithm>
 #include <cstdlib>
@@ -17,15 +17,17 @@ bool isTerminalSupported(uint16_t terminalType, uint16_t terminalVersion) {
 	return terminalType < TERMINAL_TYPES && terminalVersion >= TERMINAL_VERSION[terminalType];
 }
 
-LoginKey::LoginKey() {
+LoginKey::LoginKey(const std::string &fileName) {
+	TRSAKeyFile file = ReadRSAKeyFile(fileName);
 	// Some of the texts TRSAPrivateKey throws belong to a string that is
 	// gone by the time they are caught (a quirk src/TRSAPrivateKey.cc
 	// keeps), so they are not read here.
 	try {
-		Key.init(RSA_PRIME_P, RSA_PRIME_Q);
+		Key.init(file.PrimeP.c_str(), file.PrimeQ.c_str());
 	} catch (const char *) {
-		throw std::runtime_error("cannot set up the RSA key");
+		throw std::runtime_error(fileName + ": cannot set up the RSA key");
 	}
+	Modulus = file.Modulus;
 }
 
 void LoginKey::decrypt(uint8_t block[RSA_BLOCK_SIZE]) {

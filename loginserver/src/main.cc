@@ -37,6 +37,8 @@ void usage(const char *program) {
 		"  --qm-port PORT         query manager port (default: 7173)\n"
 		"  --qm-password PASSWORD the login server's application password, as stored\n"
 		"                         with querymanager-seed --login-password\n"
+		"  --key FILE             the RSA private key: the game server's key file, PEM\n"
+		"                         (default: key.pem in the working directory)\n"
 		"  --motd TEXT            message of the day, shown once per number\n"
 		"  --motd-number N        its number, 1 to 2147483647 (default: derived from TEXT,\n"
 		"                         so that a new text is shown again)\n"
@@ -46,9 +48,8 @@ void usage(const char *program) {
 		"  --max-per-address N    open client connections from one address (default: 4)\n"
 		"  --log FILE             append the log to FILE instead of writing to stderr\n"
 		"  --log-level LEVEL      error, warning, info (default) or debug\n"
-		"The RSA key is the game server's (src/RSA_PrivateKey.hh, or the key the\n"
-		"build generated in generated/RSA_PrivateKey.hh). Stop the server with\n"
-		"SIGINT or SIGTERM.\n",
+		"Clients need the key's modulus (rsakeygen --modulus FILE prints it). Stop\n"
+		"the server with SIGINT or SIGTERM.\n",
 		program);
 }
 
@@ -77,6 +78,7 @@ int main(int argc, char **argv) {
 	std::string qmAddress = "127.0.0.1";
 	long qmPort = 7173;
 	std::string qmPassword;
+	std::string keyFile = "key.pem";
 	bool haveMotdNumber = false;
 
 	for (int i = 1; i < argc; i++) {
@@ -103,6 +105,8 @@ int main(int argc, char **argv) {
 			ok = parseNumber(value, 1, 65535, qmPort);
 		} else if (option == "--qm-password") {
 			qmPassword = value;
+		} else if (option == "--key") {
+			keyFile = value;
 		} else if (option == "--motd") {
 			// The terminal gives UTF-8; the client shows ISO-8859-1.
 			options.motd = true;
@@ -155,7 +159,7 @@ int main(int argc, char **argv) {
 	}
 
 	try {
-		ls::LoginKey key;
+		ls::LoginKey key(keyFile);
 		ls::QueryManagerClient accounts(qmAddress, static_cast<uint16_t>(qmPort), qmPassword, 10);
 		ls::Listener listener(options, key, accounts);
 		listener.start();
@@ -169,8 +173,8 @@ int main(int argc, char **argv) {
 		sigaction(SIGTERM, &action, nullptr);
 		signal(SIGPIPE, SIG_IGN);
 
-		qm::logMessage(qm::LogLevel::Info, "login server ready, query manager %s:%ld%s", qmAddress.c_str(),
-			qmPort, options.motd ? (", message of the day " + std::to_string(options.motdNumber)).c_str() : "");
+		qm::logMessage(qm::LogLevel::Info, "login server ready, key %s, query manager %s:%ld%s", keyFile.c_str(),
+			qmAddress.c_str(), qmPort, options.motd ? (", message of the day " + std::to_string(options.motdNumber)).c_str() : "");
 		listener.run();
 		ActiveListener = nullptr;
 		qm::logMessage(qm::LogLevel::Info, "login server stopped");

@@ -21,6 +21,8 @@ doc/
 docs/
 notes/
 
-# The RSA key stays local; without it the build generates one (keygen/)
+# RSA keys stay local: key files (key.pem, made with keygen/rsakeygen) and
+# the old header format of CipSoft's key
+*.pem
 src/RSA_PrivateKey.hh
 !README.md

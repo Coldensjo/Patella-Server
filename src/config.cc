@@ -1,7 +1,8 @@
 // config.cc: the server's settings. ReadConfig reads them from config.toml
 // (data/config.toml in the repository is an example, converted from the
 // original .tibia by tools/convert): the paths, the shared memory key, the
-// debug level, the world's name and state, the beat and the query managers.
+// debug level, the world's name and state, the beat, the query managers and
+// the file of the RSA key (communication.cc's ReadPrivateKey reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
 // in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
 // disguises a query manager password before it is sent.
@@ -30,6 +31,7 @@ char NPCPATH[4096];
 char ORIGMAPPATH[4096];
 char SAVEPATH[4096];
 char USERPATH[4096];
+char RSAKEYPATH[4096];
 int SHMKey;
 int GamePort;
 char GameAddress[16];
@@ -76,6 +78,7 @@ void SetConfigDefaults() {
 	ORIGMAPPATH[0] = 0;
 	SAVEPATH[0] = 0;
 	USERPATH[0] = 0;
+	RSAKEYPATH[0] = 0;
 	SHMKey = 0;
 	GamePort = 0;
 	strcpy(GameAddress, "0.0.0.0");
@@ -92,10 +95,10 @@ void SetConfigDefaults() {
 	NumberOfQueryManagers = 0;
 }
 
-// A folder of [paths]. A relative one is taken relative to Folder, the
-// folder of the config file as a full path without a trailing '/': it is
-// written out as Folder/<path>, and "." as Folder. An absolute or empty one is
-// kept as it is written.
+// A path of Table (a folder of [paths], or rsa_key). A relative one is taken
+// relative to Folder, the folder of the config file as a full path without a
+// trailing '/': it is written out as Folder/<path>, and "." as Folder. An
+// absolute or empty one is kept as it is written.
 static void ReadPath(const toml::table &Paths, const char *Key, const std::string &Folder, char *Path) {
 	char Value[4096];
 	if (!TomlGetString(Paths, Key, Value, sizeof(Value))) {
@@ -160,11 +163,25 @@ void LoadConfig(const char *FileName) {
 	SetConfigDefaults();
 
 	toml::table Config = TomlParseFile(FileName);
-	TomlCheckKeys(Config, "the top level", {"debug_level", "beat", "shm_key", "world", "paths", "query_manager"});
+	TomlCheckKeys(Config, "the top level",
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "paths", "query_manager"});
+	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
 	TomlGetNumber(Config, "beat", Beat, INT_MIN, INT_MAX);
 	TomlGetNumber(Config, "shm_key", SHMKey, INT_MIN, INT_MAX);
+
+	// The RSA key file: key.pem next to the config file unless rsa_key names
+	// another.
+	std::string DefaultKey = (Folder == "/" ? "" : Folder) + "/key.pem";
+	if (DefaultKey.size() >= sizeof(RSAKEYPATH)) {
+		throw "the folder of the config file is too long for the default rsa_key";
+	}
+	strcpy(RSAKEYPATH, DefaultKey.c_str());
+	ReadPath(Config, "rsa_key", Folder, RSAKEYPATH);
+	if (RSAKEYPATH[0] == 0) {
+		TomlError(Config.get("rsa_key")->source(), "rsa_key must name a file");
+	}
 
 	if (const toml::table *World = TomlGetTable(Config, "world")) {
 		TomlCheckKeys(*World, "[world]", {"name", "state"});
@@ -184,7 +201,6 @@ void LoadConfig(const char *FileName) {
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {
 		TomlCheckKeys(*Paths, "[paths]",
 				{"bin", "data", "map", "origmap", "monster", "npc", "user", "log", "save"});
-		std::string Folder = FolderOf(FileName);
 		ReadPath(*Paths, "bin", Folder, BINPATH);
 		ReadPath(*Paths, "data", Folder, DATAPATH);
 		ReadPath(*Paths, "map", Folder, MAPPATH);

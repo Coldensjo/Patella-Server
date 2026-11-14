@@ -1,169 +1,88 @@
-// rsakeygen: writes a new RSA_PrivateKey.hh with two random 512-bit primes,
-// for builds without CipSoft's key (src/RSA_PrivateKey.hh is not in git).
-// The game server and the login server include it and call
-// TRSAPrivateKey::init(RSA_PRIME_P, RSA_PRIME_Q); the exponent is 65537.
-// Clients need the modulus P*Q, which the header and the output give.
+// rsakeygen: makes and reads the key file (key.pem) of the game server and
+// the login server (src/rsakeyfile.hh): an RSA private key of 1024 bits with
+// the exponent 65537, in PKCS#1 PEM. Clients need its modulus, which every
+// command prints as RsaModulus=...; the primes are never printed.
 //
-// usage: rsakeygen FILE
-// FILE is left alone if it exists, so a key is made once per build directory.
+// usage:
+//   rsakeygen FILE
+//       writes a new key with two random 512-bit primes into FILE
+//   rsakeygen --modulus FILE
+//       checks the key file FILE (PKCS#1 or PKCS#8) and prints its modulus
+//   rsakeygen --from-header HEADER FILE
+//       writes the key of a header in the old format (RSA_PRIME_P and
+//       RSA_PRIME_Q as decimal texts, as in the original RSA_PrivateKey.hh)
+//       into FILE
+// FILE is created with mode 0600 and never overwritten.
 
-#include "vlong.hh"
+#include "rsakeyfile.hh"
 
 #include <cstdio>
+#include <cstring>
+#include <stdexcept>
 #include <string>
-#include <sys/stat.h>
 
 namespace {
 
-const unsigned int SMALL_PRIMES_LIMIT = 2000;
-const int MILLER_RABIN_ROUNDS = 40;
-
-FILE *Random = nullptr;
-
-void randomBytes(unsigned char *Data, size_t Size) {
-	if (fread(Data, 1, Size, Random) != Size) {
-		throw "cannot read /dev/urandom";
-	}
+void usage(const char *Program) {
+	fprintf(stderr,
+		"usage: %s FILE                       write a new key into FILE\n"
+		"       %s --modulus FILE             print the modulus of the key file FILE\n"
+		"       %s --from-header HEADER FILE  write the key of an old RSA_PrivateKey.hh into FILE\n"
+		"FILE is a PEM file, written with mode 0600 and never overwritten. Each\n"
+		"command prints the RsaModulus= clients need.\n",
+		Program, Program, Program);
 }
 
-vlong randomNumber(size_t Bytes) {
-	unsigned char Data[128];
-	randomBytes(Data, Bytes);
-	vlong Number;
-	vlong::convert(Data, static_cast<unsigned short>(Bytes), Number);
-	return Number;
+std::string readHeader(const char *FileName) {
+	FILE *File = fopen(FileName, "rb");
+	if (File == nullptr) {
+		throw std::runtime_error(std::string(FileName) + ": cannot open the header");
+	}
+	std::string Text;
+	char Buffer[4096];
+	size_t Count;
+	while ((Count = fread(Buffer, 1, sizeof(Buffer), File)) > 0) {
+		Text.append(Buffer, Count);
+	}
+	bool Failed = ferror(File) != 0;
+	fclose(File);
+	if (Failed) {
+		throw std::runtime_error(std::string(FileName) + ": cannot read the header");
+	}
+	return Text;
 }
 
-std::string toDecimal(vlong Number) {
-	std::string Digits;
-	while (Number > 0) {
-		Digits.insert(Digits.begin(), static_cast<char>('0' + static_cast<unsigned int>(Number % 10)));
-		Number = Number / 10;
-	}
-	return Digits.empty() ? "0" : Digits;
-}
-
-bool isProbablePrime(const vlong &n) {
-	for (unsigned int p = 3; p < SMALL_PRIMES_LIMIT; p += 2) {
-		bool PrimeP = true;
-		for (unsigned int k = 3; k * k <= p; k += 2) {
-			if (p % k == 0) {
-				PrimeP = false;
-				break;
-			}
-		}
-		if (PrimeP && n % p == 0) {
-			return false;
-		}
-	}
-
-	vlong NMinus1 = n - 1;
-	vlong d = NMinus1;
-	int s = 0;
-	while (d % 2 == 0) {
-		d = d / 2;
-		s++;
-	}
-
-	for (int Round = 0; Round < MILLER_RABIN_ROUNDS; Round++) {
-		vlong a = randomNumber(64) % (n - 3) + 2;
-		vlong x = vlong::modexp(a, d, n);
-		if (x == 1 || (x + 1) % n == 0) {
-			continue;
-		}
-		bool Composite = true;
-		for (int r = 1; r < s; r++) {
-			x = vlong::modexp(x, 2, n);
-			if ((x + 1) % n == 0) {
-				Composite = false;
-				break;
-			}
-		}
-		if (Composite) {
-			return false;
-		}
-	}
-	return true;
-}
-
-// A 512-bit prime with its two top bits set, so that P*Q has 1024 bits and
-// every 128-byte block with a leading 0 is below the modulus, and with
-// gcd(65537, p-1) = 1, so that the exponent has an inverse.
-vlong randomPrime() {
-	for (;;) {
-		unsigned char Data[64];
-		randomBytes(Data, sizeof(Data));
-		Data[0] |= 0xC0;
-		Data[63] |= 0x01;
-		vlong Candidate;
-		vlong::convert(Data, sizeof(Data), Candidate);
-		if ((Candidate - 1) % 65537 == 0) {
-			continue;
-		}
-		if (isProbablePrime(Candidate)) {
-			return Candidate;
-		}
-	}
-}
-
-bool fileExists(const char *FileName) {
-	struct stat Status;
-	return stat(FileName, &Status) == 0;
+// Writes the key of the primes into FileName and prints its modulus, as read
+// back from the file.
+void writeKey(const std::string &PrimeP, const std::string &PrimeQ, const char *FileName, const char *What) {
+	WriteRSAKeyFile(FileName, MakeRSAKeyPEM(PrimeP, PrimeQ));
+	TRSAKeyFile Key = ReadRSAKeyFile(FileName);
+	printf("rsakeygen: %s in %s\nRsaModulus=%s\n", What, FileName, Key.Modulus.c_str());
 }
 
 } // namespace
 
 int main(int argc, char **argv) {
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s FILE\n", argv[0]);
-		return 2;
-	}
-	const char *FileName = argv[1];
-	if (fileExists(FileName)) {
-		return 0;
-	}
-
 	try {
-		Random = fopen("/dev/urandom", "rb");
-		if (Random == nullptr) {
-			throw "cannot open /dev/urandom";
+		if (argc == 2 && argv[1][0] != '-') {
+			std::string PrimeP;
+			std::string PrimeQ;
+			GenerateRSAPrimes(PrimeP, PrimeQ);
+			writeKey(PrimeP, PrimeQ, argv[1], "new RSA key");
+		} else if (argc == 3 && strcmp(argv[1], "--modulus") == 0) {
+			TRSAKeyFile Key = ReadRSAKeyFile(argv[2]);
+			printf("RsaModulus=%s\n", Key.Modulus.c_str());
+		} else if (argc == 4 && strcmp(argv[1], "--from-header") == 0) {
+			std::string PrimeP;
+			std::string PrimeQ;
+			ParseRSAKeyHeader(readHeader(argv[2]), argv[2], PrimeP, PrimeQ);
+			writeKey(PrimeP, PrimeQ, argv[3], (std::string("the RSA key of ") + argv[2]).c_str());
+		} else {
+			usage(argv[0]);
+			return argc == 2 && (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) ? 0 : 2;
 		}
-		vlong p = randomPrime();
-		vlong q = randomPrime();
-		while (!(p < q) && !(q < p)) {
-			q = randomPrime();
-		}
-		fclose(Random);
-		std::string P = toDecimal(p);
-		std::string Q = toDecimal(q);
-		std::string N = toDecimal(p * q);
-		if (P.size() > 155 || Q.size() > 155) {
-			throw "prime has more than 155 digits";
-		}
-
-		std::string Temporary = std::string(FileName) + ".tmp";
-		FILE *File = fopen(Temporary.c_str(), "w");
-		if (File == nullptr) {
-			throw "cannot write the key file";
-		}
-		fprintf(File,
-			"#ifndef PATELLA_RSA_PRIVATEKEY_HH\n"
-			"#define PATELLA_RSA_PRIVATEKEY_HH\n"
-			"\n"
-			"// Generated by rsakeygen. Keep it secret. Clients need the modulus:\n"
-			"// RsaModulus=%s\n"
-			"\n"
-			"static const char RSA_PRIME_P[156] = \"%s\";\n"
-			"static const char RSA_PRIME_Q[156] = \"%s\";\n"
-			"\n"
-			"#endif\n",
-			N.c_str(), P.c_str(), Q.c_str());
-		if (fclose(File) != 0 || rename(Temporary.c_str(), FileName) != 0) {
-			throw "cannot write the key file";
-		}
-		printf("rsakeygen: new RSA key in %s\nRsaModulus=%s\n", FileName, N.c_str());
-	} catch (const char *Error) {
-		fprintf(stderr, "rsakeygen: %s\n", Error);
+	} catch (const std::exception &e) {
+		fprintf(stderr, "rsakeygen: %s\n", e.what());
 		return 1;
 	}
 	return 0;

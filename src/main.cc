@@ -431,6 +431,7 @@ void LoadWorldConfig() {
 void InitAll(const char *ConfigFile) {
 	try {
 		ReadConfig(ConfigFile);
+		ReadPrivateKey();
 		SetQueryManagerLoginData(APPLICATION_GAME, WorldName);
 		LoadWorldConfig();
 		InitSHM(!BeADaemon);
