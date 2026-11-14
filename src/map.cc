@@ -466,6 +466,9 @@ Object SplitObject(Object Obj, int Count) {
 	return Copy;
 }
 
+// The most pieces a cumulative object holds (its AMOUNT).
+const int MAX_AMOUNT = 100;
+
 void MergeObjects(Object Obj, Object Dest) {
 	if (!Obj.exists()) {
 		error("MergeObjects: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -501,9 +504,9 @@ void MergeObjects(Object Obj, Object Dest) {
 	}
 
 	Dest.changeAttribute(AMOUNT, Obj.getAttribute(AMOUNT));
-	if (Dest.getAttribute(AMOUNT) > 100) {
+	if (Dest.getAttribute(AMOUNT) > MAX_AMOUNT) {
 		error("MergeObjects: Neues Objekt enth\xe4lt mehr als 100 Teile.\n");
-		Dest.setAttribute(AMOUNT, 100);
+		Dest.setAttribute(AMOUNT, MAX_AMOUNT);
 	}
 
 	DeleteObject(Obj);
@@ -688,6 +691,16 @@ Object CreateObject() {
 	return Object(Iterator);
 }
 
+// GetObjectPriority's results: the order of the objects in a field's list
+// (PlaceObject). Two BANK, two BOTTOM or two TOP objects on one field are an
+// error.
+const int PRIORITY_BANK = 0;
+const int PRIORITY_CLIP = 1;
+const int PRIORITY_BOTTOM = 2;
+const int PRIORITY_TOP = 3;
+const int PRIORITY_CREATURE = 4;
+const int PRIORITY_OTHER = 5;
+
 int GetObjectPriority(Object Obj) {
 	if (!Obj.exists()) {
 		error("GetObjectPriority: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -695,26 +708,26 @@ int GetObjectPriority(Object Obj) {
 	}
 
 	if (Obj.getFlag(BANK)) {
-		return 0;
+		return PRIORITY_BANK;
 	}
 
 	if (Obj.getFlag(CLIP)) {
-		return 1;
+		return PRIORITY_CLIP;
 	}
 
 	if (Obj.getFlag(BOTTOM)) {
-		return 2;
+		return PRIORITY_BOTTOM;
 	}
 
 	if (Obj.getFlag(TOP)) {
-		return 3;
+		return PRIORITY_TOP;
 	}
 
 	if (Obj.isCreature()) {
-		return 4;
+		return PRIORITY_CREATURE;
 	}
 
-	return 5;
+	return PRIORITY_OTHER;
 }
 
 void PlaceObject(Object Obj, Object Con, bool Append) {
@@ -746,16 +759,17 @@ void PlaceObject(Object Obj, Object Con, bool Append) {
 				break;
 			}
 
-			if (!Append && (SearchPriority == 4 || SearchPriority == 5)) {
+			if (!Append && (SearchPriority == PRIORITY_CREATURE || SearchPriority == PRIORITY_OTHER)) {
 				if (SearchPriority == ObjPriority) {
 					break;
 				}
 			} else if (SearchPriority == ObjPriority
-					&& (ObjPriority == 0 || ObjPriority == 2 || ObjPriority == 3)) {
+					&& (ObjPriority == PRIORITY_BANK || ObjPriority == PRIORITY_BOTTOM
+						|| ObjPriority == PRIORITY_TOP)) {
 				int x, y, z;
 				GetObjectCoordinates(Con, x, y, z);
 				error("PlaceObject: Zwei %s-Objekte (%d und %d) auf Feld [%d,%d,%d].\n",
-						ObjPriority == 0 ? "BANK" : (ObjPriority == 2 ? "BOTTOM" : "TOP"),
+						ObjPriority == PRIORITY_BANK ? "BANK" : (ObjPriority == PRIORITY_BOTTOM ? "BOTTOM" : "TOP"),
 						Obj.getObjectType().getTypeID(), Search.getObjectType().getTypeID(),
 						x, y, z);
 			}
