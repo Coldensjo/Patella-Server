@@ -6,7 +6,7 @@
 
 // The skill numbers: the index into TSkillBase::Skills and the skill tables
 // of TPlayerData. The names are the words GetSkillByName knows (the skill
-// names of the monster and NPC scripts; moveuse.toml has them in snake_case).
+// names of the monster and NPC scripts; triggers.toml has them in snake_case).
 const int SKILL_LEVEL = 0;
 const int SKILL_MAGICLEVEL = 1;
 const int SKILL_HITPOINTS = 2;

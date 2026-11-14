@@ -1,9 +1,9 @@
-// moveusedata.hh: the move and use rules (moveusedata.cc): their events,
+// triggersdata.hh: the trigger rules (triggersdata.cc): their events,
 // conditions and actions, the tables the game keeps them in, and their loader,
-// which reads moveuse.toml. moveuse.cc holds what the rules do.
+// which reads triggers.toml. triggers.cc holds what the rules do.
 
-#ifndef PATELLA_MOVEUSEDATA_HH
-#define PATELLA_MOVEUSEDATA_HH
+#ifndef PATELLA_TRIGGERSDATA_HH
+#define PATELLA_TRIGGERSDATA_HH
 
 #include "containr.hh"
 #include "tomlfile.hh"
@@ -116,7 +116,7 @@ enum ParameterType {
 	PARAMETER_COMPARISON = 11,
 };
 
-// The number of event types, one rule database each (MoveUseDatabases).
+// The number of event types, one rule database each (TriggerDatabases).
 const int NUMBER_OF_EVENT_TYPES = 5;
 
 // The number of condition types and action types.
@@ -135,78 +135,78 @@ const int EVENTOBJECT_USER = 3;
 const int EVENTOBJECT_TEMP = 4;
 const int NUMBER_OF_EVENTOBJECTS = 5;
 
-struct TMoveUseCondition {
+struct TTriggerCondition {
 	ModifierType Modifier;
 	ConditionType Condition;
 	int Parameters[MAX_PARAMETERS];
 };
 
-struct TMoveUseAction {
+struct TTriggerAction {
 	ActionType Action;
 	int Parameters[MAX_PARAMETERS];
 };
 
-// A rule: its conditions and actions, as index ranges into MoveUseConditions
-// and MoveUseActions.
-struct TMoveUseRule {
+// A rule: its conditions and actions, as index ranges into TriggerConditions
+// and TriggerActions.
+struct TTriggerRule {
 	int FirstCondition;
 	int LastCondition;
 	int FirstAction;
 	int LastAction;
 };
 
-struct TMoveUseDatabase {
-	vector<TMoveUseRule> Rules;
+struct TTriggerDatabase {
+	vector<TTriggerRule> Rules;
 	int NumberOfRules;
-	TMoveUseDatabase() : Rules(1, 100, 100) { NumberOfRules = 0; }
+	TTriggerDatabase() : Rules(1, 100, 100) { NumberOfRules = 0; }
 };
 
-// A condition type or an action type as moveuse.toml names it, with its
+// A condition type or an action type as triggers.toml names it, with its
 // parameters.
-struct TMoveUseSignature {
+struct TTriggerSignature {
 	const char *Key;
 	int NumberOfParameters;
 	ParameterType Parameters[MAX_PARAMETERS];
 };
 
-// The names moveuse.toml gives: the condition and action types, by their
+// The names triggers.toml gives: the condition and action types, by their
 // number; the event types; the event objects (EVENTOBJECT_); the instance
 // attributes (INSTANCEATTRIBUTE); the rights a rule can ask for; the
 // comparisons, with the character the tables hold. The skills are objects.hh's
 // SkillKeys.
-extern const TMoveUseSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES];
-extern const TMoveUseSignature ActionSignatures[NUMBER_OF_ACTION_TYPES];
+extern const TTriggerSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES];
+extern const TTriggerSignature ActionSignatures[NUMBER_OF_ACTION_TYPES];
 extern const char *const EventKeys[NUMBER_OF_EVENT_TYPES];
 extern const char *const EventObjectKeys[NUMBER_OF_EVENTOBJECTS];
 extern const char *const InstanceAttributeKeys[];
-struct TMoveUseKey {
+struct TTriggerKey {
 	const char *Key;
 	int Value;
 };
-extern const TMoveUseKey RightKeys[2];
-extern const TMoveUseKey ComparisonKeys[6];
+extern const TTriggerKey RightKeys[2];
+extern const TTriggerKey ComparisonKeys[6];
 
-// Reads the [[rule]] entries of a parsed moveuse.toml into the tables, in
+// Reads the [[rule]] entries of a parsed triggers.toml into the tables, in
 // their order: each rule becomes the next rule of its event's database, its
-// conditions and actions are appended to MoveUseConditions and
-// MoveUseActions after the ones there, and its texts are added as dynamic
+// conditions and actions are appended to TriggerConditions and
+// TriggerActions after the ones there, and its texts are added as dynamic
 // strings in their order. Empties the databases first, as the game's old
-// LoadDataBase did; InitMoveUse sets the condition and action counts to 0.
+// LoadDataBase did; InitTriggers sets the condition and action counts to 0.
 // Throws a const char * "<file>:<line>:<column>: <what>" for what is wrong
 // with it. The object types must be loaded: a type a rule names must exist.
-void ReadMoveUseRules(const toml::table &File);
+void ReadTriggerRules(const toml::table &File);
 
-// ReadMoveUseRules of the moveuse.toml file FileName.
-void LoadMoveUseRules(const char *FileName);
+// ReadTriggerRules of the triggers.toml file FileName.
+void LoadTriggerRules(const char *FileName);
 
-// LoadMoveUseRules of moveuse.toml in the data folder (DATAPATH), with the
+// LoadTriggerRules of triggers.toml in the data folder (DATAPATH), with the
 // log lines of the game's old LoadDataBase.
-void LoadDataBase();
+void LoadTriggers();
 
-extern vector<TMoveUseCondition> MoveUseConditions;
-extern int NumberOfMoveUseConditions;
-extern vector<TMoveUseAction> MoveUseActions;
-extern int NumberOfMoveUseActions;
-extern TMoveUseDatabase MoveUseDatabases[NUMBER_OF_EVENT_TYPES];
+extern vector<TTriggerCondition> TriggerConditions;
+extern int NumberOfTriggerConditions;
+extern vector<TTriggerAction> TriggerActions;
+extern int NumberOfTriggerActions;
+extern TTriggerDatabase TriggerDatabases[NUMBER_OF_EVENT_TYPES];
 
 #endif

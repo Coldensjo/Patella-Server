@@ -1,5 +1,5 @@
-// moveuse.cc: what the move and use rules do. LoadDataBase (moveusedata.cc)
-// reads moveuse.toml into one rule database per event type (use, multi-use,
+// triggers.cc: what the trigger rules do. LoadTriggers (triggersdata.cc) reads
+// triggers.toml into one rule database per event type (use, multi-use,
 // movement, collision and separation); HandleEvent runs the actions of the
 // first rule whose conditions hold. Also here: the object functions those
 // actions use, depot boxes, mail (a stamped letter or parcel goes into the
@@ -36,8 +36,8 @@
 #include "sending.hh"
 #include "strings.hh"
 #include "writer.hh"
-#include "moveuse.hh"
-#include "moveusedata.hh"
+#include "triggers.hh"
+#include "triggersdata.hh"
 
 struct TDelayedMail {
 	uint32_t CharacterID;
@@ -46,10 +46,10 @@ struct TDelayedMail {
 	int PacketSize;
 };
 
-// Functions with external linkage that moveuse.hh does not declare: they take
-// an enum of moveusedata.hh, which moveuse.hh does not include.
-bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp);
-void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp);
+// Functions with external linkage that triggers.hh does not declare: they take
+// an enum of triggersdata.hh, which triggers.hh does not include.
+bool CheckCondition(EventType, TTriggerCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp);
+void ExecuteAction(EventType Event, TTriggerAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp);
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2);
 
 vector<TDelayedMail> DelayedMail(0, 10, 10);
@@ -59,7 +59,7 @@ int DelayedMails;
 // UseLiquidContainer, UseFood, UseTextObject, UseAnnouncer, UseKeyDoor,
 // UseNameDoor, UseLevelDoor, UseQuestDoor, UseWeapon, UseChangeObject,
 // UseObject, UseObjects, MovementEvent, SeparationEvent and CollisionEvent
-// throw RESULT; InitMoveUse throws const char * (LoadDataBase's). None has an
+// throw RESULT; InitTriggers throws const char * (LoadTriggers'). None has an
 // exception specification (C++17 has no dynamic ones), so an exception of
 // another type passes to the caller.
 
@@ -101,7 +101,7 @@ bool Compare(int Value1, int Operator, int Value2) {
 	}
 }
 
-bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp) {
+bool CheckCondition(EventType, TTriggerCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp) {
 	Object Obj;
 	int x1, y1, z1;
 	int x2, y2, z2;
@@ -300,7 +300,7 @@ again:
 		}
 		int x, y, z;
 		GetObjectCoordinates(Con, x, y, z);
-		error("moveuse::CreateObject: Exception %d, object %d, position [%d,%d,%d].\n", r, Type.getTypeID(), x, y, z);
+		error("triggers::CreateObject: Exception %d, object %d, position [%d,%d,%d].\n", r, Type.getTypeID(), x, y, z);
 		return NONE;
 	}
 }
@@ -468,22 +468,22 @@ void ClearField(Object Obj, Object Exclude) {
 void LoadDepotBox(uint32_t CreatureID, int Nr, Object Con) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("moveuse::LoadDepotBox: Creature not found.\n");
+		error("triggers::LoadDepotBox: Creature not found.\n");
 		return;
 	}
 
 	if (!Con.exists()) {
-		error("moveuse::LoadDepotBox: Given container does not exist.\n");
+		error("triggers::LoadDepotBox: Given container does not exist.\n");
 		return;
 	}
 
 	if (!Con.getFlag(CONTAINER)) {
-		error("moveuse::LoadDepotBox: Given object is not a container.\n");
+		error("triggers::LoadDepotBox: Given object is not a container.\n");
 		return;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("moveuse::LoadDepotBox: Creature is not a player.\n");
+		error("triggers::LoadDepotBox: Creature is not a player.\n");
 		return;
 	}
 
@@ -503,22 +503,22 @@ void LoadDepotBox(uint32_t CreatureID, int Nr, Object Con) {
 void SaveDepotBox(uint32_t CreatureID, int Nr, Object Con) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("moveuse::SaveDepotBox: Creature not found.\n");
+		error("triggers::SaveDepotBox: Creature not found.\n");
 		return;
 	}
 
 	if (!Con.exists()) {
-		error("moveuse::SaveDepotBox: Given container does not exist.\n");
+		error("triggers::SaveDepotBox: Given container does not exist.\n");
 		return;
 	}
 
 	if (!Con.getFlag(CONTAINER)) {
-		error("moveuse::SaveDepotBox: Given object is not a container.\n");
+		error("triggers::SaveDepotBox: Given object is not a container.\n");
 		return;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("moveuse::SaveDepotBox: Creature is not a player.\n");
+		error("triggers::SaveDepotBox: Creature is not a player.\n");
 		return;
 	}
 
@@ -759,7 +759,7 @@ void TextEffect(char *Text, int x, int y, int z, int Radius) {
 	}
 }
 
-void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp) {
+void ExecuteAction(EventType Event, TTriggerAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp) {
 	Object Obj, Con;
 	int x, y, z, dx, dy, dz;
 	TCreature *cr, *cr2;
@@ -1101,18 +1101,18 @@ void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object 
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 	static int RecursionDepth = 0;
 	if (RecursionDepth > 10) {
-		error("HandleEvent: Endless loop suspected in the move/use system.\n");
+		error("HandleEvent: Endless loop suspected in the trigger rules.\n");
 		return false;
 	}
 
 	RecursionDepth++;
-	TMoveUseDatabase &DB = MoveUseDatabases[Event];
+	TTriggerDatabase &DB = TriggerDatabases[Event];
 	for (int rule = 1; rule <= DB.NumberOfRules; rule++) {
-		TMoveUseRule &Rule = DB.Rules(rule);
+		TTriggerRule &Rule = DB.Rules(rule);
 		bool fulfilled = true;
 		Object Temp = NONE;
 		for (int condition = Rule.FirstCondition; condition <= Rule.LastCondition; condition++) {
-			TMoveUseCondition &Condition = MoveUseConditions(condition);
+			TTriggerCondition &Condition = TriggerConditions(condition);
 			if (!CheckCondition(Event, Condition, User, Obj1, Obj2, Temp)) {
 				fulfilled = false;
 				break;
@@ -1121,7 +1121,7 @@ bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 
 		if (fulfilled) {
 			for (int action = Rule.FirstAction; action <= Rule.LastAction; action++) {
-				TMoveUseAction &Action = MoveUseActions(action);
+				TTriggerAction &Action = TriggerActions(action);
 				ExecuteAction(Event, Action, User, Obj1, Obj2, Temp);
 			}
 			RecursionDepth--;
@@ -1934,15 +1934,15 @@ void CollisionEvent(Object Obj, Object Dest) {
 	}
 }
 
-void InitMoveUse() {
-	NumberOfMoveUseConditions = 0;
-	NumberOfMoveUseActions = 0;
-	LoadDataBase();
+void InitTriggers() {
+	NumberOfTriggerConditions = 0;
+	NumberOfTriggerActions = 0;
+	LoadTriggers();
 	DelayedMails = 0;
 }
 
-void ExitMoveUse() {
+void ExitTriggers() {
 	for (int i = 0; i < DelayedMails; i++) {
-		error("ExitMoveUse: Parcel to %ld was not delivered.\n", (long)(int32_t)DelayedMail(i).CharacterID);
+		error("ExitTriggers: Parcel to %ld was not delivered.\n", (long)(int32_t)DelayedMail(i).CharacterID);
 	}
 }

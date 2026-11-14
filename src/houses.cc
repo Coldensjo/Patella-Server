@@ -20,7 +20,7 @@
 #include "objects.hh"
 #include "map.hh"
 #include "info.hh"
-#include "moveuse.hh"
+#include "triggers.hh"
 #include "cr.hh"
 #include "crplayer.hh"
 #include "containr.hh"

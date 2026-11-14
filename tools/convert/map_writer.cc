@@ -45,8 +45,8 @@ static std::string Header() {
 	Text += "#\n";
 	Text += "# Each [[depot]] is a town's depot:\n";
 	Text += "#   id    Its number, 0 to 8 (a player has one depot of each number), each\n";
-	Text += "#         at most once. The move and use rules (load_depot, save_depot)\n";
-	Text += "#         and the areas of houses.toml name it.\n";
+	Text += "#         at most once. The trigger rules (load_depot, save_depot) and the\n";
+	Text += "#         areas of houses.toml name it.\n";
 	Text += "#   town  The town's name, at most 19 characters: letters and parcels sent\n";
 	Text += "#         to the town go into this depot, and the query manager lists the\n";
 	Text += "#         town's houses under it.\n";

@@ -1,5 +1,5 @@
 // moveuse_dat.hh: the reader of the original moveuse.dat (moveuse_dat.cc), the
-// game's LoadDataBase as it was before the game read moveuse.toml.
+// game's LoadDataBase as it was before the game read triggers.toml.
 
 #ifndef PATELLA_CONVERT_MOVEUSE_DAT_HH
 #define PATELLA_CONVERT_MOVEUSE_DAT_HH
@@ -26,8 +26,8 @@ struct TMoveUseDatExtras {
 	std::vector<TMoveUseDatEntry> Entries;
 };
 
-// Reads the moveuse.dat file FileName into the game's MoveUseConditions,
-// MoveUseActions and MoveUseDatabases (moveusedata.hh), and its texts into
+// Reads the moveuse.dat file FileName into the game's TriggerConditions,
+// TriggerActions and TriggerDatabases (triggersdata.hh), and its texts into
 // the dynamic strings, as the game's old InitMoveUse and LoadDataBase did. The
 // object types must be loaded. Throws a const char * as it did: the script
 // reader's errors ("Unknown object type", "'->' expected", ...).

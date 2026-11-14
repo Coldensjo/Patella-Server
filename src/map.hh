@@ -73,7 +73,7 @@ const int MAPFLAG_PROTECTIONZONE = 4;
 // number (a word) followed by its attributes, each an attribute number (a
 // byte) and its value, and END_OF_ATTRIBUTES. The attribute CONTENT has no
 // value; the objects inside follow it, ended by END_OF_OBJECTS, and then the
-// container's END_OF_ATTRIBUTES. moveuse.cc writes an empty depot chest in
+// container's END_OF_ATTRIBUTES. triggers.cc writes an empty depot chest in
 // this form.
 const int END_OF_OBJECTS = 0xFFFF;
 const int END_OF_ATTRIBUTES = 0xFF;

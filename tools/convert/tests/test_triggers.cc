@@ -1,14 +1,14 @@
-// test_moveuse.cc: the round trip of the move and use rules. The tables the
-// game ends up with from a moveuse.dat, through the old reader
-// (ReadMoveUseDat), and from the moveuse.toml patella-convert makes of it,
-// through the game's LoadMoveUseRules, must be the same, entry by entry;
-// LoadMoveUseRules must refuse what is wrong with the file and line.
+// test_triggers.cc: the round trip of the trigger rules. The tables the game
+// ends up with from a moveuse.dat, through the old reader (ReadMoveUseDat), and
+// from the triggers.toml patella-convert makes of it, through the game's
+// LoadTriggerRules, must be the same, entry by entry; LoadTriggerRules must
+// refuse what is wrong with the file and line.
 //
-//   convert_test_moveuse
+//   convert_test_triggers
 //     With made-up files in a temporary folder.
-//   convert_test_moveuse --original ITEMS_TOML MOVEUSE_DAT MOVEUSE_TOML
+//   convert_test_triggers --original ITEMS_TOML MOVEUSE_DAT TRIGGERS_TOML
 //     With the original moveuse.dat, the committed items.toml for the object
-//     types and the committed moveuse.toml: MOVEUSE_TOML must be exactly what
+//     types and the committed triggers.toml: TRIGGERS_TOML must be exactly what
 //     patella-convert makes of MOVEUSE_DAT, and give the same tables; and every
 //     change of one value, name or entry of it must give rules that behave
 //     differently, or an error. Exit code 77 (skipped) when MOVEUSE_DAT is not
@@ -30,8 +30,8 @@
 
 #include "map.hh"
 #include "moveuse_dat.hh"
-#include "moveuse_writer.hh"
-#include "moveusedata.hh"
+#include "triggers_writer.hh"
+#include "triggersdata.hh"
 #include "objects.hh"
 #include "strings.hh"
 #include "tomlfile.hh"
@@ -64,18 +64,18 @@ static std::string Printable(const char *Text) {
 
 // The signature of a condition or action type, or nullptr for a number that
 // is none.
-static const TMoveUseSignature *ConditionSignature(int Type) {
+static const TTriggerSignature *ConditionSignature(int Type) {
 	return Type >= 0 && Type < NUMBER_OF_CONDITION_TYPES ? &ConditionSignatures[Type] : nullptr;
 }
 
-static const TMoveUseSignature *ActionSignature(int Type) {
+static const TTriggerSignature *ActionSignature(int Type) {
 	return Type >= 0 && Type < NUMBER_OF_ACTION_TYPES ? &ActionSignatures[Type] : nullptr;
 }
 
 // The parameters as "field\tvalue" lines, all five, with the texts of the
 // text parameters.
 static std::string DumpParameters(const std::string &Prefix, const int *Parameters,
-		const TMoveUseSignature *Signature) {
+		const TTriggerSignature *Signature) {
 	std::string Out;
 	for (int j = 0; j < MAX_PARAMETERS; j++) {
 		Out += Prefix + "parameter " + std::to_string(j) + "\t" + std::to_string(Parameters[j]) + "\n";
@@ -91,27 +91,27 @@ static std::string DumpParameters(const std::string &Prefix, const int *Paramete
 // The tables as "field\tvalue" lines.
 static std::string DumpTables() {
 	std::string Out;
-	Out += "conditions\t" + std::to_string(NumberOfMoveUseConditions) + "\n";
-	Out += "actions\t" + std::to_string(NumberOfMoveUseActions) + "\n";
-	for (int i = 1; i <= NumberOfMoveUseConditions + 1 && i <= POISONED_ENTRIES; i++) {
-		const TMoveUseCondition &C = MoveUseConditions(i);
+	Out += "conditions\t" + std::to_string(NumberOfTriggerConditions) + "\n";
+	Out += "actions\t" + std::to_string(NumberOfTriggerActions) + "\n";
+	for (int i = 1; i <= NumberOfTriggerConditions + 1 && i <= POISONED_ENTRIES; i++) {
+		const TTriggerCondition &C = TriggerConditions(i);
 		std::string Prefix = "condition " + std::to_string(i) + " ";
 		Out += Prefix + "modifier\t" + std::to_string(static_cast<int>(C.Modifier)) + "\n";
 		Out += Prefix + "type\t" + std::to_string(static_cast<int>(C.Condition)) + "\n";
 		Out += DumpParameters(Prefix, C.Parameters, ConditionSignature(C.Condition));
 	}
-	for (int i = 1; i <= NumberOfMoveUseActions + 1 && i <= POISONED_ENTRIES; i++) {
-		const TMoveUseAction &A = MoveUseActions(i);
+	for (int i = 1; i <= NumberOfTriggerActions + 1 && i <= POISONED_ENTRIES; i++) {
+		const TTriggerAction &A = TriggerActions(i);
 		std::string Prefix = "action " + std::to_string(i) + " ";
 		Out += Prefix + "type\t" + std::to_string(static_cast<int>(A.Action)) + "\n";
 		Out += DumpParameters(Prefix, A.Parameters, ActionSignature(A.Action));
 	}
 	for (int Event = 0; Event < NUMBER_OF_EVENT_TYPES; Event++) {
-		TMoveUseDatabase &Database = MoveUseDatabases[Event];
+		TTriggerDatabase &Database = TriggerDatabases[Event];
 		std::string Prefix = "event " + std::to_string(Event) + " ";
 		Out += Prefix + "rules\t" + std::to_string(Database.NumberOfRules) + "\n";
 		for (int r = 1; r <= Database.NumberOfRules + 1 && r <= POISONED_RULES; r++) {
-			const TMoveUseRule &Rule = Database.Rules(r);
+			const TTriggerRule &Rule = Database.Rules(r);
 			Out += Prefix + "rule " + std::to_string(r) + "\t" + std::to_string(Rule.FirstCondition) + " "
 					+ std::to_string(Rule.LastCondition) + " " + std::to_string(Rule.FirstAction) + " "
 					+ std::to_string(Rule.LastAction) + "\n";
@@ -122,17 +122,17 @@ static std::string DumpTables() {
 
 static void Poison() {
 	for (int i = 1; i <= POISONED_ENTRIES; i++) {
-		memset(static_cast<void *>(&MoveUseConditions(i)), POISON, sizeof(TMoveUseCondition));
-		memset(static_cast<void *>(&MoveUseActions(i)), POISON, sizeof(TMoveUseAction));
+		memset(static_cast<void *>(&TriggerConditions(i)), POISON, sizeof(TTriggerCondition));
+		memset(static_cast<void *>(&TriggerActions(i)), POISON, sizeof(TTriggerAction));
 	}
 	for (int Event = 0; Event < NUMBER_OF_EVENT_TYPES; Event++) {
 		for (int r = 1; r <= POISONED_RULES; r++) {
-			memset(static_cast<void *>(&MoveUseDatabases[Event].Rules(r)), POISON, sizeof(TMoveUseRule));
+			memset(static_cast<void *>(&TriggerDatabases[Event].Rules(r)), POISON, sizeof(TTriggerRule));
 		}
-		memset(static_cast<void *>(&MoveUseDatabases[Event].NumberOfRules), POISON, sizeof(int));
+		memset(static_cast<void *>(&TriggerDatabases[Event].NumberOfRules), POISON, sizeof(int));
 	}
-	memset(static_cast<void *>(&NumberOfMoveUseConditions), POISON, sizeof(int));
-	memset(static_cast<void *>(&NumberOfMoveUseActions), POISON, sizeof(int));
+	memset(static_cast<void *>(&NumberOfTriggerConditions), POISON, sizeof(int));
+	memset(static_cast<void *>(&NumberOfTriggerActions), POISON, sizeof(int));
 }
 
 static std::function<void()> OldLoader(const fs::path &File) {
@@ -142,12 +142,12 @@ static std::function<void()> OldLoader(const fs::path &File) {
 	};
 }
 
-// The game's way: InitMoveUse sets the counts to 0, LoadDataBase loads.
+// The game's way: InitTriggers sets the counts to 0, LoadTriggers loads.
 static std::function<void()> NewLoader(const fs::path &File) {
 	return [File]() {
-		NumberOfMoveUseConditions = 0;
-		NumberOfMoveUseActions = 0;
-		LoadMoveUseRules(File.c_str());
+		NumberOfTriggerConditions = 0;
+		NumberOfTriggerActions = 0;
+		LoadTriggerRules(File.c_str());
 	};
 }
 
@@ -162,18 +162,18 @@ static std::string Snapshot(const std::function<void()> &Load) {
 // The object types defined in the items.toml loaded in this process.
 static std::vector<bool> Defined;
 
-// The moveuse.toml patella-convert makes of a moveuse.dat file (with the
+// The triggers.toml patella-convert makes of a moveuse.dat file (with the
 // object types loaded in this process).
 static std::string Convert(const fs::path &File) {
 	return InChild([&]() {
 		TMoveUseDatExtras Extras;
 		ReadMoveUseDat(File.c_str(), Extras);
-		return MoveUseToToml(Extras, Defined);
+		return TriggersToToml(Extras, Defined);
 	});
 }
 
 // Converts a moveuse.dat text, loads both and compares them. Returns the
-// moveuse.toml text.
+// triggers.toml text.
 static std::string RoundTrip(const fs::path &Folder, const char *Name, const std::string &MoveUseDat) {
 	fs::path Original = Folder / (std::string(Name) + ".dat");
 	fs::path Converted = Folder / (std::string(Name) + ".toml");
@@ -193,13 +193,13 @@ static std::string RoundTrip(const fs::path &Folder, const char *Name, const std
 		Failures++;
 		return Text;
 	}
-	if (!Same(Expected, Actual, Name, "moveuse.dat", "moveuse.toml")) {
-		fprintf(stderr, "%s: moveuse.toml was:\n%s", Name, Text.c_str());
+	if (!Same(Expected, Actual, Name, "moveuse.dat", "triggers.toml")) {
+		fprintf(stderr, "%s: triggers.toml was:\n%s", Name, Text.c_str());
 	}
 	return Text;
 }
 
-// The rules of a moveuse.toml text: what follows the header.
+// The rules of a triggers.toml text: what follows the header.
 static std::string Rules(const std::string &Toml) {
 	size_t Start = Toml.find("\n[[rule]]\n");
 	return Start == std::string::npos ? std::string() : Toml.substr(Start);
@@ -394,13 +394,13 @@ static void TestRefusals(const fs::path &Folder) {
 }
 
 static void TestErrors(const fs::path &Folder) {
-	fs::path File = Folder / "errors" / "moveuse.toml";
+	fs::path File = Folder / "errors" / "triggers.toml";
 	auto Load = [&](const std::string &Text) {
 		WriteFile(File, Text);
 		return InChild([&]() {
-			NumberOfMoveUseConditions = 0;
-			NumberOfMoveUseActions = 0;
-			LoadMoveUseRules(File.c_str());
+			NumberOfTriggerConditions = 0;
+			NumberOfTriggerActions = 0;
+			LoadTriggerRules(File.c_str());
 			return std::string();
 		});
 	};
@@ -519,7 +519,7 @@ static void TestErrors(const fs::path &Folder) {
 	CHECK(Load(C("{ name = \"has_text\", args = [\"obj1\", \"" + std::string(3998, 'x') + "\"] }")) == "");
 
 	std::string Missing = InChild([&]() {
-		LoadMoveUseRules((Folder / "missing.toml").c_str());
+		LoadTriggerRules((Folder / "missing.toml").c_str());
 		return std::string();
 	});
 	CHECK(IsError(Missing) && Missing.find((Folder / "missing.toml").string()) != std::string::npos);
@@ -532,7 +532,7 @@ static void TestErrors(const fs::path &Folder) {
 static std::string RulesInUse() {
 	std::string Out;
 	std::vector<uint32_t> Texts;
-	auto Parameters = [&](const int *Values, const TMoveUseSignature *Signature) {
+	auto Parameters = [&](const int *Values, const TTriggerSignature *Signature) {
 		for (int j = 0; Signature != nullptr && j < Signature->NumberOfParameters; j++) {
 			if (Signature->Parameters[j] == PARAMETER_TEXT) {
 				Out += " " + Printable(GetDynamicString(static_cast<uint32_t>(Values[j])));
@@ -543,19 +543,19 @@ static std::string RulesInUse() {
 		}
 	};
 	for (int Event = 0; Event < NUMBER_OF_EVENT_TYPES; Event++) {
-		TMoveUseDatabase &Database = MoveUseDatabases[Event];
+		TTriggerDatabase &Database = TriggerDatabases[Event];
 		for (int r = 1; r <= Database.NumberOfRules; r++) {
-			const TMoveUseRule &Rule = Database.Rules(r);
+			const TTriggerRule &Rule = Database.Rules(r);
 			Out += "rule " + std::to_string(Event) + "\n";
 			for (int i = Rule.FirstCondition; i <= Rule.LastCondition; i++) {
-				const TMoveUseCondition &C = MoveUseConditions(i);
+				const TTriggerCondition &C = TriggerConditions(i);
 				Out += "c " + std::to_string(static_cast<int>(C.Modifier)) + " "
 						+ std::to_string(static_cast<int>(C.Condition));
 				Parameters(C.Parameters, ConditionSignature(C.Condition));
 				Out += "\n";
 			}
 			for (int i = Rule.FirstAction; i <= Rule.LastAction; i++) {
-				const TMoveUseAction &A = MoveUseActions(i);
+				const TTriggerAction &A = TriggerActions(i);
 				Out += "a " + std::to_string(static_cast<int>(A.Action));
 				Parameters(A.Parameters, ActionSignature(A.Action));
 				Out += "\n";
@@ -569,13 +569,13 @@ static std::string RulesInUse() {
 	return Out;
 }
 
-// Loads a parsed moveuse.toml in this process: the rules in use, or
+// Loads a parsed triggers.toml in this process: the rules in use, or
 // "error: ..." for a const char * the load threw.
 static std::string LoadInProcess(const toml::table &File) {
-	NumberOfMoveUseConditions = 0;
-	NumberOfMoveUseActions = 0;
+	NumberOfTriggerConditions = 0;
+	NumberOfTriggerActions = 0;
 	try {
-		ReadMoveUseRules(File);
+		ReadTriggerRules(File);
 	} catch (const char *Error) {
 		return std::string("error: ") + Error;
 	}
@@ -593,7 +593,7 @@ static std::string NextKey(const std::string &Value, const char *const *Keys, in
 	return Value + "x";
 }
 
-static std::string NextKey(const std::string &Value, const TMoveUseKey *Keys, int Count) {
+static std::string NextKey(const std::string &Value, const TTriggerKey *Keys, int Count) {
 	std::vector<const char *> Names;
 	for (int i = 0; i < Count; i++) {
 		Names.push_back(Keys[i].Key);
@@ -656,8 +656,8 @@ static int TestMutations(toml::table &File, const std::string &Expected) {
 				std::string Prefix = std::string(IsCondition ? "condition " : "action ") + std::to_string(e + 1);
 				std::string Name = Entry.get("name")->as_string()->get();
 				std::vector<const char *> Names;
-				const TMoveUseSignature *Signature = nullptr;
-				const TMoveUseSignature *List2 = IsCondition ? ConditionSignatures : ActionSignatures;
+				const TTriggerSignature *Signature = nullptr;
+				const TTriggerSignature *List2 = IsCondition ? ConditionSignatures : ActionSignatures;
 				int Count = IsCondition ? NUMBER_OF_CONDITION_TYPES : NUMBER_OF_ACTION_TYPES;
 				for (int i = 0; i < Count; i++) {
 					Names.push_back(List2[i].Key);
@@ -755,7 +755,7 @@ static int TestMutations(toml::table &File, const std::string &Expected) {
 	return Changes;
 }
 
-static int Original(const char *ItemsToml, const char *MoveUseDat, const char *MoveUseToml) {
+static int Original(const char *ItemsToml, const char *MoveUseDat, const char *TriggersToml) {
 	if (!fs::is_regular_file(MoveUseDat)) {
 		printf("skipped: no %s\n", MoveUseDat);
 		return 77;
@@ -766,20 +766,20 @@ static int Original(const char *ItemsToml, const char *MoveUseDat, const char *M
 	Defined = DefinedTypes(ItemsToml);
 
 	std::string Text = Convert(MoveUseDat);
-	std::string Committed = ReadFile(MoveUseToml);
+	std::string Committed = ReadFile(TriggersToml);
 	if (Committed != Text) {
-		fprintf(stderr, "%s is not what patella-convert moveuse makes of %s (%s)\n", MoveUseToml, MoveUseDat,
+		fprintf(stderr, "%s is not what patella-convert triggers makes of %s (%s)\n", TriggersToml, MoveUseDat,
 				IsError(Text) ? Text.c_str() : "a different text");
 		Failures++;
 	}
 
 	std::string Expected = Snapshot(OldLoader(MoveUseDat));
-	std::string Actual = Snapshot(NewLoader(MoveUseToml));
+	std::string Actual = Snapshot(NewLoader(TriggersToml));
 	if (IsError(Expected) || IsError(Actual)) {
 		fprintf(stderr, "a load failed: %s / %s\n", Expected.substr(0, 200).c_str(), Actual.substr(0, 200).c_str());
 		return 1;
 	}
-	if (Same(Expected, Actual, "original", "moveuse.dat", "moveuse.toml")) {
+	if (Same(Expected, Actual, "original", "moveuse.dat", "triggers.toml")) {
 		std::map<std::string, std::string> Values = Fields(Actual);
 		int Texts = 0;
 		for (const auto &Value : Values) {
@@ -790,12 +790,12 @@ static int Original(const char *ItemsToml, const char *MoveUseDat, const char *M
 			Rules += (Event > 0 ? "/" : "") + Values["event " + std::to_string(Event) + " rules"];
 		}
 		printf("%s and %s give the same tables: %s rules (use/multi_use/movement/collision/separation), "
-				"%s conditions, %s actions, %d texts; %d values compared\n", MoveUseDat, MoveUseToml,
+				"%s conditions, %s actions, %d texts; %d values compared\n", MoveUseDat, TriggersToml,
 				Rules.c_str(), Values["conditions"].c_str(), Values["actions"].c_str(), Texts,
 				static_cast<int>(Values.size()));
 	}
 
-	toml::table File = TomlParseFile(MoveUseToml);
+	toml::table File = TomlParseFile(TriggersToml);
 	std::string InUse = LoadInProcess(File);
 	if (IsError(InUse)) {
 		fprintf(stderr, "%s\n", InUse.c_str());
@@ -803,7 +803,7 @@ static int Original(const char *ItemsToml, const char *MoveUseDat, const char *M
 	}
 	int Changes = TestMutations(File, InUse);
 	CHECK(LoadInProcess(File) == InUse);
-	printf("%d changes of single values, names or entries of %s, each caught\n", Changes, MoveUseToml);
+	printf("%d changes of single values, names or entries of %s, each caught\n", Changes, TriggersToml);
 	return Failures == 0 ? 0 : 1;
 }
 
@@ -823,11 +823,11 @@ int main(int argc, char **argv) {
 		return Result;
 	}
 	if (argc != 1) {
-		fprintf(stderr, "usage: convert_test_moveuse [--original ITEMS_TOML MOVEUSE_DAT MOVEUSE_TOML]\n");
+		fprintf(stderr, "usage: convert_test_triggers [--original ITEMS_TOML MOVEUSE_DAT TRIGGERS_TOML]\n");
 		return 2;
 	}
 
-	fs::path Folder = TemporaryFolder("convert-test-moveuse");
+	fs::path Folder = TemporaryFolder("convert-test-triggers");
 	try {
 		WriteFile(Folder / "items.toml", TestItems);
 		LoadItems((Folder / "items.toml").c_str());

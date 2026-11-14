@@ -41,7 +41,7 @@
 #include "strings.hh"
 #include "writer.hh"
 #include "houses.hh"
-#include "moveuse.hh"
+#include "triggers.hh"
 #include "magic.hh"
 #include "crmain.hh"
 #include "crnonpl.hh"
@@ -445,7 +445,7 @@ void InitAll(const char *ConfigFile) {
 		InitReader();
 		InitObjects();
 		InitMap();
-		InitMoveUse();
+		InitTriggers();
 		InitMagic();
 		InitCr();
 		InitHouses();
@@ -461,7 +461,7 @@ void ExitAll() {
 	EndGame();
 	ExitTime();
 	ExitCr();
-	ExitMoveUse();
+	ExitTriggers();
 	ExitHouses();
 	ExitMap(SaveMapOn);
 	ExitReader();

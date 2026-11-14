@@ -30,7 +30,7 @@
 #include "crmain.hh"
 #include "crplayer.hh"
 #include "sending.hh"
-#include "moveuse.hh"
+#include "triggers.hh"
 #include "magic.hh"
 #include "houses.hh"
 #include <algorithm>

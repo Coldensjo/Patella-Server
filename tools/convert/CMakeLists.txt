@@ -21,7 +21,7 @@ add_library(convert_common STATIC
 	spells_writer.cc
 	commands_reference.cc
 	moveuse_dat.cc
-	moveuse_writer.cc
+	triggers_writer.cc
 	houses_dat.cc
 	houses_writer.cc
 	map_dat.cc
@@ -37,7 +37,7 @@ add_library(convert_common STATIC
 	${GAME_SOURCE}/housesdata.cc
 	${GAME_SOURCE}/magicdata.cc
 	${GAME_SOURCE}/mapdata.cc
-	${GAME_SOURCE}/moveusedata.cc
+	${GAME_SOURCE}/triggersdata.cc
 	${GAME_SOURCE}/objects.cc
 	${GAME_SOURCE}/strings.cc
 	${GAME_SOURCE}/tomlfile.cc
@@ -127,22 +127,22 @@ add_test(NAME convert_commands COMMAND convert_test_commands)
 add_test(NAME convert_commands_original COMMAND convert_test_commands --original
 	${PROJECT_SOURCE_DIR}/data/spells.toml ${PROJECT_SOURCE_DIR}/data/commands.toml)
 
-# The round trip of the move and use rules: the rules the game ends up with
-# from a moveuse.dat (through the old reader, ReadMoveUseDat) and from its
-# moveuse.toml (through LoadMoveUseRules) are the same, entry by entry and in
-# the same order. convert_moveuse uses made-up files; convert_moveuse_original
+# The round trip of the trigger rules: the rules the game ends up with from a
+# moveuse.dat (through the old reader, ReadMoveUseDat) and from its
+# triggers.toml (through LoadTriggerRules) are the same, entry by entry and in
+# the same order. convert_triggers uses made-up files; convert_triggers_original
 # the original moveuse.dat, PATELLA_ORIGINAL_MOVEUSE, with the committed
-# data/items.toml for the object types, and the committed data/moveuse.toml,
+# data/items.toml for the object types, and the committed data/triggers.toml,
 # which must also be exactly what patella-convert makes of it. It is skipped
 # when that moveuse.dat is not there.
 set(PATELLA_ORIGINAL_MOVEUSE "/mnt/c/Tibia/Patella-Gameserver/dat/moveuse.dat" CACHE FILEPATH
-	"The original installation's moveuse.dat, for the test convert_moveuse_original")
-add_executable(convert_test_moveuse tests/test_moveuse.cc)
-target_link_libraries(convert_test_moveuse PRIVATE convert_common)
-add_test(NAME convert_moveuse COMMAND convert_test_moveuse)
-add_test(NAME convert_moveuse_original COMMAND convert_test_moveuse --original ${PROJECT_SOURCE_DIR}/data/items.toml
-	${PATELLA_ORIGINAL_MOVEUSE} ${PROJECT_SOURCE_DIR}/data/moveuse.toml)
-set_tests_properties(convert_moveuse_original PROPERTIES SKIP_RETURN_CODE 77)
+	"The original installation's moveuse.dat, for the test convert_triggers_original")
+add_executable(convert_test_triggers tests/test_triggers.cc)
+target_link_libraries(convert_test_triggers PRIVATE convert_common)
+add_test(NAME convert_triggers COMMAND convert_test_triggers)
+add_test(NAME convert_triggers_original COMMAND convert_test_triggers --original ${PROJECT_SOURCE_DIR}/data/items.toml
+	${PATELLA_ORIGINAL_MOVEUSE} ${PROJECT_SOURCE_DIR}/data/triggers.toml)
+set_tests_properties(convert_triggers_original PROPERTIES SKIP_RETURN_CODE 77)
 
 # The round trip of the houses: the areas, houses and house fields the game
 # ends up with from a houseareas.dat and a houses.dat (through the old
