@@ -112,6 +112,23 @@ TSpellList SpellList[256];
 // has no dynamic exception specifications, so an exception of another type
 // now propagates instead of ending in std::unexpected().
 
+// The field types of CreateField, the magic fields its switch creates (the
+// harmless kind of the first three on a non-PvP world for a peaceful
+// caster). Fire, poison and energy fields block the caster's logout.
+const int FIELD_FIRE = 1;
+const int FIELD_POISON = 2;
+const int FIELD_ENERGY = 3;
+const int FIELD_MAGICWALL = 4;
+const int FIELD_RUSHWOOD = 5;
+
+// The ammunition CreateArrows conjures, named after the spells that use them
+// (Conjure Arrow, Poisoned Arrow, Explosive Arrow, Conjure Bolt, Power Bolt).
+const int CONJURE_ARROW = 0;
+const int CONJURE_POISONED_ARROW = 1;
+const int CONJURE_EXPLOSIVE_ARROW = 2;
+const int CONJURE_BOLT = 3;
+const int CONJURE_POWER_BOLT = 4;
+
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
 int Direction(int dx, int dy) {
@@ -987,9 +1004,9 @@ void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) 
 	}
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
-	Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? ANIMATION_FIRE : ANIMATION_ENERGY));
+	Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	CreateField(x, y, z, Type, cr->ID, (WorldType == NON_PVP && cr->IsPeaceful()));
-	if (in(Type, 1, 3)) {
+	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
 		cr->BlockLogout(60, true);
 	}
 }
@@ -1037,7 +1054,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? ANIMATION_FIRE : ANIMATION_ENERGY));
+		Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
 
 	// The outer bound is "<", not "<=" as in the other circle spells.
@@ -1051,7 +1068,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		}
 	}
 
-	if (in(Type, 1, 3)) {
+	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
 		cr->BlockLogout(60, true);
 	}
 }
@@ -1076,7 +1093,7 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? ANIMATION_FIRE : ANIMATION_ENERGY));
+		Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
 
 	int StepX, StepY;
@@ -1154,7 +1171,7 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		}
 	}
 
-	if (in(Type, 1, 3)) {
+	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
 		cr->BlockLogout(60, true);
 	}
 }
@@ -1727,11 +1744,11 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	ObjectType Type;
 	switch (Ammo) {
-		case 0: Type = GetNewObjectType(94, 1); break;
-		case 1: Type = GetNewObjectType(94, 2); break;
-		case 2: Type = GetNewObjectType(94, 3); break;
-		case 3: Type = GetNewObjectType(94, 0); break;
-		case 4: Type = GetNewObjectType(94, 4); break;
+		case CONJURE_ARROW: Type = GetNewObjectType(94, 1); break;
+		case CONJURE_POISONED_ARROW: Type = GetNewObjectType(94, 2); break;
+		case CONJURE_EXPLOSIVE_ARROW: Type = GetNewObjectType(94, 3); break;
+		case CONJURE_BOLT: Type = GetNewObjectType(94, 0); break;
+		case CONJURE_POWER_BOLT: Type = GetNewObjectType(94, 4); break;
 		default: {
 			error("CreateArrows: Ung\xfcltiger Pfeiltyp %d.\n", Ammo);
 			throw ERROR;
@@ -3375,13 +3392,13 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 			Invisibility(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 200);
 			break;
 		case 48:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 1, 5);
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POISONED_ARROW, 5);
 			break;
 		case 49:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 2, 3);
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_EXPLOSIVE_ARROW, 3);
 			break;
 		case 51:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 0, 10);
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_ARROW, 10);
 			break;
 		case 56:
 			Damage = ComputeDamage(cr, SpellNr, 200, 50);
@@ -3394,7 +3411,7 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 			MagicRope(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints);
 			break;
 		case 79:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 3, 5);
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_BOLT, 5);
 			break;
 		case 80:
 			Damage = ComputeDamage(cr, SpellNr, 80, 20);
@@ -3436,10 +3453,10 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 			Challenge(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 2);
 			break;
 		case 94:
-			CreateField(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 5);
+			CreateField(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, FIELD_RUSHWOOD);
 			break;
 		case 95:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4, 1);
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POWER_BOLT, 1);
 			break;
 	}
 
@@ -3888,7 +3905,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 4, DAMAGE_FIRE, ANIMATION_FIRE);
 				break;
 			case 17:
-				MassCreateField(pl, Dest, 0, 0, 1, 3);
+				MassCreateField(pl, Dest, 0, 0, FIELD_FIRE, 3);
 				break;
 			case 18:
 				Damage = ComputeDamage(pl, SpellNr, 60, 40);
@@ -3899,16 +3916,16 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				Combat(pl, Dest, 0, 0, Damage, EFFECT_DEATH, ANIMATION_DEATH, DAMAGE_PHYSICAL);
 				break;
 			case 25:
-				CreateField(pl, Dest, 0, 0, 1);
+				CreateField(pl, Dest, 0, 0, FIELD_FIRE);
 				break;
 			case 26:
-				CreateField(pl, Dest, 0, 0, 2);
+				CreateField(pl, Dest, 0, 0, FIELD_POISON);
 				break;
 			case 27:
-				CreateField(pl, Dest, 0, 0, 3);
+				CreateField(pl, Dest, 0, 0, FIELD_ENERGY);
 				break;
 			case 28:
-				CreateFieldWall(pl, Dest, 0, 0, 1, 2);
+				CreateFieldWall(pl, Dest, 0, 0, FIELD_FIRE, 2);
 				break;
 			case 30:
 				DeleteField(pl, Dest, 0, 0);
@@ -3920,10 +3937,10 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				NegatePoison(pl, 0, 0, dest);
 				break;
 			case 32:
-				CreateFieldWall(pl, Dest, 0, 0, 2, 2);
+				CreateFieldWall(pl, Dest, 0, 0, FIELD_POISON, 2);
 				break;
 			case 33:
-				CreateFieldWall(pl, Dest, 0, 0, 3, 3);
+				CreateFieldWall(pl, Dest, 0, 0, FIELD_ENERGY, 3);
 				break;
 			case 50:
 				Damage = ComputeDamage(pl, SpellNr, 120, 20);
@@ -3939,7 +3956,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				MagicGoStrength(pl, dest, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, -101, 1);
 				break;
 			case 55:
-				MassCreateField(pl, Dest, 0, 0, 3, 3);
+				MassCreateField(pl, Dest, 0, 0, FIELD_ENERGY, 3);
 				break;
 			case 77:
 				Damage = ComputeDamage(pl, SpellNr, 70, 20);
@@ -3952,10 +3969,10 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				RaiseDead(pl, Dest, 0, 0);
 				break;
 			case 86:
-				CreateField(pl, Dest, 0, 0, 4);
+				CreateField(pl, Dest, 0, 0, FIELD_MAGICWALL);
 				break;
 			case 91:
-				MassCreateField(pl, Dest, 0, 0, 2, 3);
+				MassCreateField(pl, Dest, 0, 0, FIELD_POISON, 3);
 				break;
 			default:
 				error("UseMagicItem: Spell %d noch nicht implementiert.\n", SpellNr);
@@ -4741,19 +4758,19 @@ void ExitMagic() {
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful) {
 	ObjectType ObjectType;
 	switch (FieldType) {
-		case 1:
+		case FIELD_FIRE:
 			ObjectType = GetSpecialObject(Peaceful ? MAGICFIELD_FIRE_HARMLESS : MAGICFIELD_FIRE_DANGEROUS);
 			break;
-		case 2:
+		case FIELD_POISON:
 			ObjectType = GetSpecialObject(Peaceful ? MAGICFIELD_POISON_HARMLESS : MAGICFIELD_POISON_DANGEROUS);
 			break;
-		case 3:
+		case FIELD_ENERGY:
 			ObjectType = GetSpecialObject(Peaceful ? MAGICFIELD_ENERGY_HARMLESS : MAGICFIELD_ENERGY_DANGEROUS);
 			break;
-		case 4:
+		case FIELD_MAGICWALL:
 			ObjectType = GetSpecialObject(MAGICFIELD_MAGICWALL);
 			break;
-		case 5:
+		case FIELD_RUSHWOOD:
 			ObjectType = GetSpecialObject(MAGICFIELD_RUSHWOOD);
 			break;
 		default:
