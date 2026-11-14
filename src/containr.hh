@@ -147,7 +147,7 @@ struct fifo {
 	T *append();
 	void remove();
 private:
-	// fifoIterator calls getEntry in the binary, so the original grants it access.
+	// fifoIterator calls getEntry, so it is a friend.
 	friend struct fifoIterator<T>;
 	T *Entry;
 	int Size;

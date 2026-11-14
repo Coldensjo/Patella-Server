@@ -478,7 +478,7 @@ void MergeObjects(Object Obj, Object Dest) {
 	}
 
 	if (!Obj.getFlag(CUMULATIVE)) {
-		// The original passes one argument for two %d.
+		// Quirk: the text has two %d and only one argument.
 		error("MergeObjects: Objekttyp %d/%d ist nicht kumulierbar.\n",
 				Obj.getObjectType().getTypeID());
 		return;
@@ -612,8 +612,8 @@ TObject *GetFreeObjectSlot() {
 		return nullptr;
 	}
 
-	// The original keeps the pointer to the next free slot in the 32-bit
-	// NextObject; here it lies over NextObject and Container.
+	// A free slot keeps the pointer to the next free slot in its NextObject and
+	// Container, which the pointer covers.
 	memcpy(&FirstFreeObject, &Help->NextObject, sizeof(TObject *));
 	memset((void *)Help, 0, sizeof(TObject));
 	return Help;
@@ -834,8 +834,9 @@ Object CopyObject(Object Con, Object Source) {
 
 	Object Obj = SetObject(Con, Source.getObjectType(), 0);
 	for (int i = 0; i < 4; i++) {
-		// The original looks up the copy before the source; C++17 would
-		// evaluate the right side of a plain assignment first.
+		// The copy is looked up before the source (AccessObject may swap a
+		// sector in); in one plain assignment C++17 would evaluate the right
+		// side first.
 		uint32_t *Attributes = AccessObject(Obj).Attributes;
 		Attributes[i] = AccessObject(Source).Attributes[i];
 	}
@@ -1112,8 +1113,7 @@ void SetHouseID(int x, int y, int z, unsigned short ID) {
 	}
 
 	if (GetHouseID(x, y, z) != 0) {
-		// The original passes no arguments; what its three stack slots still
-		// hold at this point is y, z and z, so that is what it always logs.
+		// Quirk: the field is logged as y, z and z, not x, y and z.
 		error("SetHouseID: Feld [%d,%d,%d] geh\xf6rt schon zu einem Haus.\n", y, z, z);
 		return;
 	}
@@ -1146,8 +1146,9 @@ char *GetDepotName(int DepotNumber) {
 		return "unknown";
 	}
 
-	// The original tests Town, the first member, against NULL; written with
-	// the entry's address because g++ warns about the array form.
+	// Quirk: Town, the entry's first member, is tested against NULL, which it
+	// never is; written with the entry's address because g++ warns about the
+	// array form.
 	if (&DepotInfo(DepotNumber) == nullptr) {
 		error("GetDepotName: Ung\xfcltiger Name f\xfcr Depot %d.\n", DepotNumber);
 		return "unknown";
@@ -1642,7 +1643,7 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 
 				Obj = LastObj.getNextObject();
 			} else {
-				// The original repeats the test although it cannot hold here.
+				// Quirk: a repeated test, which cannot hold here.
 				if (Obj == NONE) {
 					error("Obj ist NONE (1)\n");
 				}

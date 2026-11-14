@@ -144,8 +144,8 @@ void TConnection::Assign() {
 	}
 
 	State = CONNECTION_ASSIGNED;
-	// The original stores getpid(), which under LinuxThreads is the ID of the
-	// calling communication thread.
+	// PID is the thread ID of the calling communication thread, which serves
+	// this connection; Disconnect signals that thread.
 	PID = gettid();
 }
 
@@ -308,8 +308,8 @@ void TConnection::Disconnect() {
 	ClearKnownCreatureTable(true);
 	ConnectionIsOk = false;
 	State = CONNECTION_DISCONNECTED;
-	// The original calls kill(PID, SIGHUP); under LinuxThreads that reaches
-	// exactly the communication thread that serves this connection.
+	// SIGHUP goes to the communication thread that serves this connection
+	// (PID), and to that thread alone.
 	tgkill(getpid(), PID, SIGHUP);
 }
 
@@ -414,8 +414,8 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 				continue;
 			}
 
-			// The binary asks IsVisible a second time for a creature that the
-			// first call reported as out of view.
+			// Quirk: a creature that the first call reported as out of view is
+			// asked IsVisible a second time.
 			if (cr == nullptr || !IsVisible(cr->posx, cr->posy, cr->posz)) {
 				FreeEntry = i;
 				OldID = KnownCreatureTable[i].CreatureID;
