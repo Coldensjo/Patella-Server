@@ -214,8 +214,8 @@ uint32_t Dispatcher::requireWorld(const Session &session) const {
 //   request:  byte ApplicationType, string Password,
 //             string LoginData (only if ApplicationType is 1)
 //   response: status only
-// connect() treats every status other than 0 as "Anmeldung fehlgeschlagen"
-// and reads nothing else. The password is the one from the QueryManager
+// connect() treats every status other than 0 as "Login failed" and reads
+// nothing else. The password is the one from the QueryManager
 // entry in config.toml after DisguisePassword (src/config.cc); for the game
 // server LoginData is its world name (InitAll).
 void Dispatcher::handleLogin(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -565,8 +565,8 @@ void Dispatcher::handleDecrementIsOnline(Session &session, ReadBuffer &in, Write
 // InitWriter calls at start.
 //   request:  nothing
 //   response: word NumberOfAffectedPlayers
-// The game logs an error if the number is not zero ("%d Spieler waren als
-// eingeloggt markiert").
+// The game logs an error if the number is not zero ("%d players were marked
+// as logged in").
 void Dispatcher::handleClearIsOnline(Session &session, ReadBuffer &, WriteBuffer &out) {
 	uint32_t affected = Store.clearIsOnline(requireWorld(session));
 	out.writeByte(STATUS_OK);
@@ -758,8 +758,8 @@ void Dispatcher::handleInsertHouseOwner(Session &session, ReadBuffer &in, WriteB
 // deleteHouseOwner and then updateHouseOwner with OwnerID 0. The entry is
 // gone by then, so an update that finds no entry has to succeed without
 // doing anything, like an SQL UPDATE that matches no row. Answering it with
-// a failure makes the game log "Kann Daten des vermieteten Hauses %d nicht
-// aktualisieren" for every evicted house (seen in a run of the game server).
+// a failure makes the game log "Cannot update data of rented house %d" for
+// every evicted house (seen in a run of the game server).
 void Dispatcher::handleUpdateHouseOwner(Session &session, ReadBuffer &in, WriteBuffer &out) {
 	uint16_t houseId = in.readWord();
 	uint32_t ownerId = in.readQuad();
@@ -819,7 +819,7 @@ void Dispatcher::handleStartAuction(Session &session, ReadBuffer &in, WriteBuffe
 //   response: word NumberOfAuctions, then per auction word HouseID,
 //             quad CharacterID, string CharacterName, quad Bid
 // The game gives each house to the named character and takes the bid and
-// the first rent from the depot. It logs "bei Reset: INSERT INTO
+// the first rent from the depot. It logs "on reset: INSERT INTO
 // HouseAssignments ..." for each entry, i.e. after a reset of the game state
 // the entry would have to be put back: the query manager hands out a
 // finished auction once.
@@ -908,7 +908,7 @@ void Dispatcher::handleEvictFreeAccounts(Session &session, ReadBuffer &, WriteBu
 // Query 37, evictDeletedCharacters, called by CollectRents at start.
 //   request:  nothing
 //   response: word NumberOfEvictions, then that many word HouseID
-// The game empties each listed house ("Besitzer von Haus %d ist geloescht").
+// The game empties each listed house ("Owner of house %d is deleted").
 void Dispatcher::handleEvictDeletedCharacters(Session &session, ReadBuffer &, WriteBuffer &out) {
 	std::vector<uint16_t> houses = Store.listHousesOfDeletedCharacters(requireWorld(session));
 	out.writeByte(STATUS_OK);
@@ -924,8 +924,8 @@ void Dispatcher::handleEvictDeletedCharacters(Session &session, ReadBuffer &, Wr
 //   request:  word NumberOfGuildhouses, then per guildhouse word HouseID,
 //             quad Guildleader (the owner of the house)
 //   response: word NumberOfEvictions, then that many word HouseID
-// The game empties each listed house ("Mieter von Gildenhaus %d ist kein
-// Gildenfuehrer mehr"). A house is listed if its owner is recorded as a
+// The game empties each listed house ("Tenant of guildhouse %d is no longer
+// a guild leader"). A house is listed if its owner is recorded as a
 // member of a guild without being its leader. An owner with no guild
 // recorded is not listed: the installation has no guild data, so that says
 // nothing about the character.

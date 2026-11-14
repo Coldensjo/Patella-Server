@@ -46,7 +46,7 @@ namespace qm {
 
 // Status byte at the start of every response.
 // executeQuery returns it to the caller; 3 is also logged by executeQuery
-// itself ("Anfrage fehlgeschlagen"). Status 1 is followed by a u8 error code
+// itself ("Request failed"). Status 1 is followed by a u8 error code
 // in the requests that define error codes. No caller in the game server
 // handles 2.
 enum Status : uint8_t {
