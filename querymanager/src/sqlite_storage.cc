@@ -1,3 +1,6 @@
+// sqlite_storage.cc: the SQLite storage: the schema and the statements of
+// every storage method.
+
 #include "sqlite_storage.hh"
 
 #include "text.hh"

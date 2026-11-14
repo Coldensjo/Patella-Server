@@ -1,3 +1,5 @@
+// script.hh: the tokens and the file classes of script.cc.
+
 #ifndef PATELLA_SCRIPT_HH
 #define PATELLA_SCRIPT_HH
 

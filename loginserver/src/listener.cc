@@ -1,3 +1,6 @@
+// listener.cc: the login server's TCP side: accepting clients, reading their
+// login packet and sending the answer (listener.hh).
+
 #include "listener.hh"
 
 #include "log.hh"

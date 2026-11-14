@@ -1,3 +1,5 @@
+// script.cc: the tokenizer for the game's text data files (script.hh).
+
 #include "script.hh"
 
 #include <stdexcept>

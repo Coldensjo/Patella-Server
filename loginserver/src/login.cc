@@ -1,3 +1,6 @@
+// login.cc: the packets of the login protocol, the RSA decryption of the login
+// packet, and the framing and encryption of the answers (login.hh).
+
 #include "login.hh"
 
 #include "RSA_PrivateKey.hh"

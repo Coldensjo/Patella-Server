@@ -1,3 +1,5 @@
+// seed.cc: seeding a database from a game server installation (seed.hh).
+
 #include "seed.hh"
 
 #include "protocol.hh"

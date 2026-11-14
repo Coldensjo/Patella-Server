@@ -1,3 +1,10 @@
+// script.cc: the readers and writers of the data files. TReadScriptFile splits
+// a text file into tokens (identifiers, numbers, strings, byte sequences,
+// coordinates, special characters) and follows the files it includes;
+// TWriteScriptFile writes such a file. TReadBinaryFile and TWriteBinaryFile
+// read and write binary files. SaveFile keeps a copy of a file that could not
+// be read.
+
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>

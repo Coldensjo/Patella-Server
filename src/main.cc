@@ -1,3 +1,11 @@
+// main.cc: the game server's start and its main loop. main reads the command
+// line, makes the server a daemon if asked and runs InitAll, LaunchGame and
+// ExitAll; when the game ends for a reboot it starts BINPATH/reboot-daily.
+// LaunchGame waits for SIGUSR1 (data from the connections) and SIGALRM (the
+// beat) and advances the game with AdvanceGame. Here too: the signal
+// handlers, the beat's timer, the PID file (LockGame, UnlockGame) and the
+// world config from the query manager (LoadWorldConfig).
+
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>

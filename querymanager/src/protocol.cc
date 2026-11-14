@@ -1,3 +1,6 @@
+// protocol.cc: the query catalogue, the right names, and the readers, writers
+// and framing of the wire protocol (protocol.hh).
+
 #include "protocol.hh"
 
 #include <cstring>

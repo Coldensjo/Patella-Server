@@ -1,3 +1,6 @@
+// main.hh: the start, the main loop and the signal handlers of main.cc, and the
+// flags they share.
+
 #ifndef PATELLA_MAIN_HH
 #define PATELLA_MAIN_HH
 

@@ -1,3 +1,7 @@
+// TRSAPrivateKey.cc: the server's RSA private key, made from its two primes,
+// and the decryption of a 128-byte block with it (by the Chinese remainder
+// theorem).
+
 #include <string>
 
 #include "vlong.hh"

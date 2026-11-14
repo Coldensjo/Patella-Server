@@ -1,3 +1,9 @@
+// utils.cc: the helpers every part of the server uses: print and error, which
+// call the handlers set with SetPrintFunction and SetErrorFunction; the byte
+// streams (TReadStream, TWriteStream) and their buffers (TReadBuffer,
+// TWriteBuffer, TDynamicWriteBuffer); random; FileExists; and the packing of
+// coordinates into one number.
+
 #include <cerrno>
 #include <cstdarg>
 #include <cstdint>

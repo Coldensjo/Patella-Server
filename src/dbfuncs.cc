@@ -1,3 +1,6 @@
+// dbfuncs.cc: the player files, usr/NN/<id>.usr: their path, and the loading
+// and saving of a player's data (TPlayerData) and outfit (TOutfit).
+
 #include <climits>
 #include <cstdint>
 #include <cstdio>

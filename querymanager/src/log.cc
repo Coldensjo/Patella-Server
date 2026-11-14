@@ -1,3 +1,5 @@
+// log.cc: the query manager's log (log.hh).
+
 #include "log.hh"
 
 #include <atomic>

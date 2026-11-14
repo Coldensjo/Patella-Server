@@ -1,3 +1,8 @@
+// strings.cc: the string tables (AddStaticString for texts that stay,
+// AddDynamicString and its kin for texts that change, kept by number), and the
+// game's text functions: plurals, word and number search, pattern matching,
+// AddSlashes, Trim and Capitals.
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>

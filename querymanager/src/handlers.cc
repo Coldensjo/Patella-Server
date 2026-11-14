@@ -1,3 +1,6 @@
+// handlers.cc: the dispatcher and the request handlers; each handler's comment
+// gives the layout of its request and its response.
+
 #include "handlers.hh"
 
 #include "log.hh"

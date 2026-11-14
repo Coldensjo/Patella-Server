@@ -1,3 +1,6 @@
+// utils.hh: print and error, the byte streams and buffers, random, FileExists,
+// the coordinate packing (utils.cc) and RandomShuffle.
+
 #ifndef PATELLA_UTILS_HH
 #define PATELLA_UTILS_HH
 

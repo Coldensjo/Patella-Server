@@ -1,3 +1,9 @@
+// shm.cc: the shared memory segment the operator tools read and write: the
+// game's state (starting, running, closing), the counters of objects, players
+// and newbies, the round number, the command an operator leaves and the game
+// thread's process ID. ErrorHandler and PrintHandler, the targets of utils.cc's
+// error and print, write to the console and to the log files.
+
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>

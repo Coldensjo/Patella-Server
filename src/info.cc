@@ -1,3 +1,9 @@
+// info.cc: what the rest of the game asks about objects and fields: names,
+// weights, positions and distances of objects, the search for objects and the
+// counting of objects and money, liquids, free fields for a login, a spawn, a
+// flight or a summon, the path of a throw, a creature's light, and the checks
+// of a player's rights.
+
 #include <algorithm>
 #include <climits>
 #include <cstdint>

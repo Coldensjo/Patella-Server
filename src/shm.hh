@@ -1,3 +1,6 @@
+// shm.hh: the shared memory segment, the game's state and the error and print
+// handlers (shm.cc).
+
 #ifndef PATELLA_SHM_HH
 #define PATELLA_SHM_HH
 

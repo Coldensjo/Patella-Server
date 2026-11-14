@@ -1,3 +1,6 @@
+// TXTEASymmetricKey.cc: the XTEA cipher of a connection: the key the client
+// sends, and the encryption and decryption of 8-byte blocks with it.
+
 #include <cstdint>
 #include <cstring>
 

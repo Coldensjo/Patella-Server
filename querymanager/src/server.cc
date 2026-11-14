@@ -1,3 +1,5 @@
+// server.cc: the query manager's TCP server (server.hh).
+
 #include "server.hh"
 
 #include "log.hh"
