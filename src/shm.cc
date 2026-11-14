@@ -53,7 +53,6 @@ struct TSharedMemory {
 static_assert(sizeof(TSharedMemory) == 25892, "TSharedMemory is mapped by the operator tools; keep the 32-bit layout");
 static_assert(offsetof(TSharedMemory, RoundNr) == 260, "TSharedMemory is mapped by the operator tools; keep the 32-bit layout");
 
-bool IsGameServer = false;
 bool VerboseOutput = false;
 TSharedMemory *SHM = nullptr;
 Semaphore LogfileMutex(1);
@@ -330,7 +329,6 @@ void DetachSHM() {
 }
 
 void InitSHM(bool Verbose) {
-	IsGameServer = true;
 	VerboseOutput = Verbose;
 	CreateSHM();
 	AttachSHM();

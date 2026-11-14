@@ -77,7 +77,6 @@ struct TOutfitImpact : public TImpact {
 	TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration);
 	virtual void handleCreature(TCreature *Victim);
 private:
-	TCreature *Actor;
 	TOutfit Outfit;
 	int Duration;
 };

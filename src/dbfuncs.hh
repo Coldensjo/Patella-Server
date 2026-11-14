@@ -83,8 +83,6 @@ struct TPlayerData {
 	uint32_t EarliestMultiuseTime;
 	uint32_t TalkBufferFullTime;
 	uint32_t MutingEndRound;
-	uint32_t Addressees[20];
-	uint32_t AddresseesTimes[20];
 	int NumberOfMutings;
 };
 

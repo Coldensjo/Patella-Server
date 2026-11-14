@@ -81,8 +81,6 @@ struct TQueryManagerSettings {
 	char Password[30];
 };
 
-const int MAX_NUMBER_OF_QUERYMANAGERS = 10;
-
 extern int NumberOfQueryManagers;
 extern TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 

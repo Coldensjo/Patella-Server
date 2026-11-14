@@ -40,7 +40,6 @@ void DetachSHM();
 void InitSHM(bool Verbose);
 void ExitSHM();
 
-extern bool IsGameServer;
 extern bool VerboseOutput;
 extern TSharedMemory *SHM;
 extern Semaphore LogfileMutex;

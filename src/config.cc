@@ -4,7 +4,6 @@
 
 #include "script.hh"
 #include "threads.hh"
-#include "database.hh"
 #include "query.hh"
 #include "config.hh"
 #include "utils.hh"
@@ -21,15 +20,8 @@ char ORIGMAPPATH[4096];
 char SAVEPATH[4096];
 char USERPATH[4096];
 int SHMKey;
-int AdminPort;
 int GamePort;
-int QueryManagerPort;
-char AdminAddress[16];
 char GameAddress[16];
-char QueryManagerAddress[16];
-char QueryManagerAdminPW[9];
-char QueryManagerGamePW[9];
-char QueryManagerWebPW[9];
 int DebugLevel;
 bool PrivateWorld;
 TWorldType WorldType;
@@ -40,11 +32,6 @@ int PremiumPlayerBuffer;
 int PremiumNewbieBuffer;
 int Beat;
 int RebootTime;
-TDatabaseSettings ADMIN_DATABASE;
-TDatabaseSettings VOLATILE_DATABASE;
-TDatabaseSettings WEB_DATABASE;
-TDatabaseSettings FORUM_DATABASE;
-TDatabaseSettings MANAGER_DATABASE;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -68,6 +55,29 @@ void DisguisePassword(char *Password, const char *Key) {
 	}
 }
 
+// A database entry of the config (admindatabase, volatiledatabase,
+// webdatabase, forumdatabase, managerdatabase): (product, database, login,
+// password, host, port). The game connects to none of them, so the entry is
+// read and dropped; the password still goes through DisguisePassword, which
+// throws for a password longer than its key.
+static void SkipDatabaseSettings(TReadScriptFile &Script) {
+	Script.readSymbol('(');
+	Script.readIdentifier();
+	Script.readSymbol(',');
+	Script.readString();
+	Script.readSymbol(',');
+	Script.readString();
+	Script.readSymbol(',');
+	char Password[30];
+	strcpy(Password, Script.readString());
+	DisguisePassword(Password, PasswordKey);
+	Script.readSymbol(',');
+	Script.readString();
+	Script.readSymbol(',');
+	Script.readString();
+	Script.readSymbol(')');
+}
+
 void ReadConfig() {
 	BINPATH[0] = 0;
 	DATAPATH[0] = 0;
@@ -79,15 +89,8 @@ void ReadConfig() {
 	SAVEPATH[0] = 0;
 	USERPATH[0] = 0;
 	SHMKey = 0;
-	AdminPort = 0;
 	GamePort = 0;
-	QueryManagerPort = 0;
-	strcpy(AdminAddress, "0.0.0.0");
 	strcpy(GameAddress, "0.0.0.0");
-	strcpy(QueryManagerAddress, "0.0.0.0");
-	QueryManagerAdminPW[0] = 0;
-	QueryManagerGamePW[0] = 0;
-	QueryManagerWebPW[0] = 0;
 	DebugLevel = 1;
 	PrivateWorld = false;
 	WorldType = NORMAL;
@@ -97,11 +100,6 @@ void ReadConfig() {
 	PremiumNewbieBuffer = 0;
 	Beat = 200;
 	RebootTime = 540;
-	ADMIN_DATABASE.Database[0] = 0;
-	VOLATILE_DATABASE.Database[0] = 0;
-	WEB_DATABASE.Database[0] = 0;
-	FORUM_DATABASE.Database[0] = 0;
-	MANAGER_DATABASE.Database[0] = 0;
 	NumberOfQueryManagers = 0;
 
 	TReadScriptFile Script;
@@ -174,32 +172,16 @@ void ReadConfig() {
 			SHMKey = Script.readNumber();
 		}
 
-		if (strcmp(Ident, "adminport") == 0) {
-			AdminPort = Script.readNumber();
+		// These entries are read and dropped: the game uses none of them. The
+		// query managers it connects to are those of "querymanager".
+		if (strcmp(Ident, "adminport") == 0 || strcmp(Ident, "querymanagerport") == 0) {
+			Script.readNumber();
 		}
 
-		if (strcmp(Ident, "adminaddress") == 0) {
-			strcpy(AdminAddress, Script.readString());
-		}
-
-		if (strcmp(Ident, "querymanagerport") == 0) {
-			QueryManagerPort = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "querymanageraddress") == 0) {
-			strcpy(QueryManagerAddress, Script.readString());
-		}
-
-		if (strcmp(Ident, "querymanageradminpw") == 0) {
-			strcpy(QueryManagerAdminPW, Script.readString());
-		}
-
-		if (strcmp(Ident, "querymanagergamepw") == 0) {
-			strcpy(QueryManagerGamePW, Script.readString());
-		}
-
-		if (strcmp(Ident, "querymanagerwebpw") == 0) {
-			strcpy(QueryManagerWebPW, Script.readString());
+		if (strcmp(Ident, "adminaddress") == 0 || strcmp(Ident, "querymanageraddress") == 0
+				|| strcmp(Ident, "querymanageradminpw") == 0 || strcmp(Ident, "querymanagergamepw") == 0
+				|| strcmp(Ident, "querymanagerwebpw") == 0) {
+			Script.readString();
 		}
 
 		if (strcmp(Ident, "debuglevel") == 0) {
@@ -218,89 +200,10 @@ void ReadConfig() {
 			Beat = Script.readNumber();
 		}
 
-		if (strcmp(Ident, "admindatabase") == 0) {
-			Script.readSymbol('(');
-			strcpy(ADMIN_DATABASE.Product, Script.readIdentifier());
-			Script.readSymbol(',');
-			strcpy(ADMIN_DATABASE.Database, Script.readString());
-			Script.readSymbol(',');
-			strcpy(ADMIN_DATABASE.Login, Script.readString());
-			Script.readSymbol(',');
-			strcpy(ADMIN_DATABASE.Password, Script.readString());
-			DisguisePassword(ADMIN_DATABASE.Password, PasswordKey);
-			Script.readSymbol(',');
-			strcpy(ADMIN_DATABASE.Host, Script.readString());
-			Script.readSymbol(',');
-			strcpy(ADMIN_DATABASE.Port, Script.readString());
-			Script.readSymbol(')');
-		}
-
-		if (strcmp(Ident, "volatiledatabase") == 0) {
-			Script.readSymbol('(');
-			strcpy(VOLATILE_DATABASE.Product, Script.readIdentifier());
-			Script.readSymbol(',');
-			strcpy(VOLATILE_DATABASE.Database, Script.readString());
-			Script.readSymbol(',');
-			strcpy(VOLATILE_DATABASE.Login, Script.readString());
-			Script.readSymbol(',');
-			strcpy(VOLATILE_DATABASE.Password, Script.readString());
-			DisguisePassword(VOLATILE_DATABASE.Password, PasswordKey);
-			Script.readSymbol(',');
-			strcpy(VOLATILE_DATABASE.Host, Script.readString());
-			Script.readSymbol(',');
-			strcpy(VOLATILE_DATABASE.Port, Script.readString());
-			Script.readSymbol(')');
-		}
-
-		if (strcmp(Ident, "webdatabase") == 0) {
-			Script.readSymbol('(');
-			strcpy(WEB_DATABASE.Product, Script.readIdentifier());
-			Script.readSymbol(',');
-			strcpy(WEB_DATABASE.Database, Script.readString());
-			Script.readSymbol(',');
-			strcpy(WEB_DATABASE.Login, Script.readString());
-			Script.readSymbol(',');
-			strcpy(WEB_DATABASE.Password, Script.readString());
-			DisguisePassword(WEB_DATABASE.Password, PasswordKey);
-			Script.readSymbol(',');
-			strcpy(WEB_DATABASE.Host, Script.readString());
-			Script.readSymbol(',');
-			strcpy(WEB_DATABASE.Port, Script.readString());
-			Script.readSymbol(')');
-		}
-
-		if (strcmp(Ident, "forumdatabase") == 0) {
-			Script.readSymbol('(');
-			strcpy(FORUM_DATABASE.Product, Script.readIdentifier());
-			Script.readSymbol(',');
-			strcpy(FORUM_DATABASE.Database, Script.readString());
-			Script.readSymbol(',');
-			strcpy(FORUM_DATABASE.Login, Script.readString());
-			Script.readSymbol(',');
-			strcpy(FORUM_DATABASE.Password, Script.readString());
-			DisguisePassword(FORUM_DATABASE.Password, PasswordKey);
-			Script.readSymbol(',');
-			strcpy(FORUM_DATABASE.Host, Script.readString());
-			Script.readSymbol(',');
-			strcpy(FORUM_DATABASE.Port, Script.readString());
-			Script.readSymbol(')');
-		}
-
-		if (strcmp(Ident, "managerdatabase") == 0) {
-			Script.readSymbol('(');
-			strcpy(MANAGER_DATABASE.Product, Script.readIdentifier());
-			Script.readSymbol(',');
-			strcpy(MANAGER_DATABASE.Database, Script.readString());
-			Script.readSymbol(',');
-			strcpy(MANAGER_DATABASE.Login, Script.readString());
-			Script.readSymbol(',');
-			strcpy(MANAGER_DATABASE.Password, Script.readString());
-			DisguisePassword(MANAGER_DATABASE.Password, PasswordKey);
-			Script.readSymbol(',');
-			strcpy(MANAGER_DATABASE.Host, Script.readString());
-			Script.readSymbol(',');
-			strcpy(MANAGER_DATABASE.Port, Script.readString());
-			Script.readSymbol(')');
+		if (strcmp(Ident, "admindatabase") == 0 || strcmp(Ident, "volatiledatabase") == 0
+				|| strcmp(Ident, "webdatabase") == 0 || strcmp(Ident, "forumdatabase") == 0
+				|| strcmp(Ident, "managerdatabase") == 0) {
+			SkipDatabaseSettings(Script);
 		}
 
 		if (strcmp(Ident, "querymanager") == 0) {

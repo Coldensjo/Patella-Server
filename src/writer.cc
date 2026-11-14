@@ -74,20 +74,6 @@ struct TKillStatisticsOrderData {
 	int *KilledCreatures;
 };
 
-struct TNotationOrderData {
-	uint32_t GamemasterID;
-	char GamemasterName[30];
-	char CharacterName[30];
-	char Comment[200];
-};
-
-struct TNameLockOrderData {
-	uint32_t GamemasterID;
-	char GamemasterName[30];
-	char CharacterName[30];
-	bool OldNameVisible;
-};
-
 struct TPunishmentOrderData {
 	uint32_t GamemasterID;
 	char GamemasterName[30];

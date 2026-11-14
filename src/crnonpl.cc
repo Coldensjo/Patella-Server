@@ -291,7 +291,6 @@ private:
 
 vector<TNonplayer *> NonplayerList(0, 10000, 1000, nullptr);
 int FirstFreeNonplayer;
-int CurrentNonplayer;
 vector<TMonsterhome> Monsterhome(1, 5000, 1000);
 int Monsterhomes;
 store<TNode, 256> *NodeTable;
@@ -3078,7 +3077,6 @@ void InitNPCs() {
 void InitNonplayer() {
 	print(1, "Initializing Nonplayers ...\n");
 	FirstFreeNonplayer = 0;
-	CurrentNonplayer = 0;
 	NodeTable = new store<TNode, 256>;
 	InitNPCs();
 	LoadMonsterhomes();

@@ -719,7 +719,6 @@ TOutfitImpact::TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration) 
 		error("TOutfitImpact::TOutfitImpact: Actor ist NULL.\n");
 	}
 
-	Actor = _Actor;
 	Outfit = _Outfit;
 	Duration = _Duration;
 }
