@@ -1,3 +1,7 @@
+// query.cc: the game server's client of the query manager. TQueryManagerConnection, one connection with a request
+// for each query the game sends and the reading of its answer; TQueryManagerConnectionPool, the connections the
+// communication threads share; and the login data each connection sends first (SetQueryManagerLoginData).
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>

@@ -1,3 +1,7 @@
+// houses.cc: the houses. Their areas, owners, subowners, guests and name doors and who may enter; the auctions,
+// transfers, evictions and rents settled with the query manager at start-up; the clean-up that moves the items in a
+// house to its owner's depot; and the house data files (houseareas.dat, houses.dat, owners.dat).
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>

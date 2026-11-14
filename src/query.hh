@@ -1,3 +1,6 @@
+// query.hh: the game server's client of the query manager (query.cc), with the query types, status bytes and login
+// error codes of its protocol.
+
 #ifndef PATELLA_QUERY_HH
 #define PATELLA_QUERY_HH
 

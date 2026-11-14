@@ -1,3 +1,7 @@
+// cract.cc: the actions of creatures. TShortway, the path search of ToDoGo; TCreature's actions (Go, Move, Trade,
+// Use, Turn, Attack) and the notifications that follow them; and the to-do list (ToDoAdd, ToDoGo, ToDoMove, ...) that
+// Execute works through, one entry at a time.
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>

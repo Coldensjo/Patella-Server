@@ -1,3 +1,8 @@
+// communication.cc: the game server's side of the network. The acceptor thread takes the clients' connections and
+// starts a communication thread for each, which reads the login (RSA) and the client's packets (XTEA), sends the data
+// the game queued for it, and acts on the signals the game and the socket send it. With them: the threads' own stacks,
+// the network load statistics, the waiting list, and the pool of query manager connections the threads use.
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdint>
