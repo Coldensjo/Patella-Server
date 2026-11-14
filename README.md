@@ -21,8 +21,34 @@ cmake --build build -j
 ctest --test-dir build
 ```
 
-The first build makes a new RSA key and prints the modulus clients need
-(`RsaModulus=...`).
+## RSA key
+
+The game server and the login server read their RSA private key from a PEM
+file when they start; no key is built into the programs. The game reads the
+file `rsa_key` in `config.toml` names (relative to the folder of
+`config.toml`, by default `key.pem` there), the login server the file
+`--key FILE` names (by default `key.pem` in its working folder). Give both
+the same file: the client encrypts its logins for both with one modulus, the
+`RsaModulus=` of its config. Without a usable key either server stops at once
+with an error that names the file.
+
+The key must be an unencrypted RSA key, PKCS#1 (`-----BEGIN RSA PRIVATE
+KEY-----`) or PKCS#8 (`-----BEGIN PRIVATE KEY-----`), with a modulus of 1024
+bits and the public exponent 65537, which the 7.x client requires. `rsakeygen`
+(`build/keygen/rsakeygen`) makes and reads such files and prints the modulus,
+never the primes:
+
+```
+rsakeygen key.pem                                # a new key
+rsakeygen --modulus key.pem                      # the RsaModulus= of a key file
+rsakeygen --from-header RSA_PrivateKey.hh key.pem  # a key in the old header format
+```
+
+`--from-header` turns a header with the primes as `RSA_PRIME_P` and
+`RSA_PRIME_Q` (the format the original server's key came in) into a key
+file. `rsakeygen` creates the file with mode 0600 and never overwrites one.
+Keep the key file private: whoever has it can read the passwords clients
+send. It does not belong in git (`.gitignore` leaves out `*.pem`).
 
 ## Config
 
