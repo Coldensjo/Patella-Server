@@ -1,3 +1,5 @@
+# The login server (loginserver) and its test.
+
 find_package(Threads REQUIRED)
 
 # The game server's own crypto units, built with the game's flags (see
