@@ -57,12 +57,12 @@ bool PlayerDataExists(uint32_t CharacterID) {
 
 bool LoadPlayerData(TPlayerData *Slot) {
 	if (Slot == nullptr) {
-		error("LoadPlayerData: Slot ist NULL.\n");
+		error("LoadPlayerData: Slot is NULL.\n");
 		return false;
 	}
 
 	if (Slot->CharacterID == 0) {
-		error("LoadPlayerData: Slot enth\xe4lt keinen Charakter.\n");
+		error("LoadPlayerData: Slot holds no character.\n");
 		return false;
 	}
 
@@ -312,10 +312,10 @@ bool LoadPlayerData(TPlayerData *Slot) {
 		Script.close();
 		FileOk = true;
 	} catch (const char *s) {
-		error("LoadPlayerData: Kann Gegenst\xe4nde des Spielers %ld nicht laden.\n", (long)(int32_t)Slot->CharacterID);
-		error("# Fehler: %s\n", s);
+		error("LoadPlayerData: Cannot load objects of player %ld.\n", (long)(int32_t)Slot->CharacterID);
+		error("# Error: %s\n", s);
 	} catch (const std::bad_alloc &) {
-		error("LoadPlayerData: Kein Speicher frei beim Laden von Spieler %ld.\n", (long)(int32_t)Slot->CharacterID);
+		error("LoadPlayerData: No free memory while loading player %ld.\n", (long)(int32_t)Slot->CharacterID);
 	}
 
 	if (!FileOk) {
@@ -340,12 +340,12 @@ bool LoadPlayerData(TPlayerData *Slot) {
 
 void SavePlayerData(TPlayerData *Slot) {
 	if (Slot == nullptr) {
-		error("SavePlayerData: Slot ist NULL.\n");
+		error("SavePlayerData: Slot is NULL.\n");
 		return;
 	}
 
 	if (Slot->CharacterID == 0) {
-		error("SavePlayerData: Slot enth\xe4lt keinen Charakter.\n");
+		error("SavePlayerData: Slot holds no character.\n");
 		return;
 	}
 
@@ -536,8 +536,8 @@ void SavePlayerData(TPlayerData *Slot) {
 
 		Script.close();
 	} catch (const char *s) {
-		error("SavePlayerData: Kann Gegenst\xe4nde des Spielers %ld nicht schreiben.\n", (long)(int32_t)Slot->CharacterID);
-		error("# Fehler: %s\n", s);
+		error("SavePlayerData: Cannot write objects of player %ld.\n", (long)(int32_t)Slot->CharacterID);
+		error("# Error: %s\n", s);
 		unlink(FileName);
 	}
 }
