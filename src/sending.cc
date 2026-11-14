@@ -28,6 +28,23 @@
 #include "communication.hh"
 #include "sending.hh"
 
+// SendRights sends a byte for each banishment reason: bit N set allows action
+// N (0 to 6, CheckBanishmentRight), and this bit an IP banishment besides.
+const int RIGHTS_IP_BANISHMENT = 0x80;
+
+// The INFORMATIONTYPE of the spellbook: SendEditText shows the player's spells
+// (GetSpellbook) instead of a text.
+const int INFORMATION_SPELLBOOK = 4;
+
+// The channel number of the "Private Chat Channel" entry SendChannels lists for
+// a player who may open his own channel (MayOpenChannel); no CHANNEL has it.
+const int PRIVATE_CHAT_CHANNEL = 0xFFFF;
+
+// The last outfit of each sex a player without a premium account may wear
+// (SendOutfit; receiving.cc's CSetOutfit checks the same).
+const int LAST_FREE_MALE_OUTFIT = 131;
+const int LAST_FREE_FEMALE_OUTFIT = 139;
+
 const int OBJECTS_PER_POINT = 10;
 
 static const int OBJECTS_PER_CONTAINER = 36;
@@ -206,7 +223,7 @@ void SendMapObject(TConnection *Connection, Object Obj) {
 		int HelpBrightness, HelpColor;
 		switch (Connection->KnownCreature(cr->ID, true)) {
 			case KNOWNCREATURE_FREE: {
-				SendByte(Connection, 0x61);
+				SendByte(Connection, UNKNOWNCREATURE);
 				SendByte(Connection, 0x00);
 				SendQuad(Connection, Connection->NewKnownCreature(cr->ID));
 				SendQuad(Connection, cr->ID);
@@ -225,14 +242,14 @@ void SendMapObject(TConnection *Connection, Object Obj) {
 			}
 
 			case KNOWNCREATURE_OUTDATED: {
-				SendByte(Connection, 0x62);
+				SendByte(Connection, OUTDATEDCREATURE);
 				SendByte(Connection, 0x00);
 				SendQuad(Connection, cr->ID);
 				break;
 			}
 
 			case KNOWNCREATURE_UPTODATE: {
-				SendByte(Connection, 0x63);
+				SendByte(Connection, TYPEID_CREATURE);
 				SendByte(Connection, 0x00);
 				SendQuad(Connection, cr->ID);
 				SendByte(Connection, (unsigned char)cr->Direction);
@@ -259,12 +276,12 @@ void SendMapObject(TConnection *Connection, Object Obj) {
 		if (cr->Type == PLAYER) {
 			SendByte(Connection, (unsigned char)((TPlayer *)cr)->GetPlayerkillingMark(Connection->GetPlayer()));
 		} else {
-			SendByte(Connection, 0);
+			SendByte(Connection, SKULL_NONE);
 		}
 		if (cr->Type == PLAYER) {
 			SendByte(Connection, (unsigned char)((TPlayer *)cr)->GetPartyMark(Connection->GetPlayer()));
 		} else {
-			SendByte(Connection, 0);
+			SendByte(Connection, PARTY_SHIELD_NONE);
 		}
 	} else {
 		SendObjectType(Connection, Obj);
@@ -392,7 +409,7 @@ void SendInitGame(TConnection *Connection, uint32_t id) {
 		return;
 	}
 
-	SendByte(Connection, 0x0A);
+	SendByte(Connection, SV_INIT_GAME);
 	SendQuad(Connection, id);
 	SendWord(Connection, (unsigned short)Beat);
 	SendByte(Connection, CheckRight(id, SEND_BUGREPORTS) ? 1 : 0);
@@ -404,7 +421,7 @@ void SendRights(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0x0B);
+	SendByte(Connection, SV_RIGHTS);
 	TPlayer *pl = Connection->GetPlayer();
 	bool SendIt = false;
 	for (int Right = FIRST_BANISHMENT_RIGHT; Right <= LAST_BANISHMENT_RIGHT; Right++) {
@@ -418,7 +435,7 @@ void SendRights(TConnection *Connection) {
 			}
 
 			if (Actions != 0 && CheckRight(pl->ID, IP_BANISHMENT)) {
-				Actions |= 0x80;
+				Actions |= RIGHTS_IP_BANISHMENT;
 			}
 		}
 
@@ -438,7 +455,7 @@ void SendPing(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0x1E);
+	SendByte(Connection, SV_PING);
 	FinishSendData(Connection);
 }
 
@@ -447,7 +464,7 @@ void SendFullScreen(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0x64);
+	SendByte(Connection, SV_FULL_SCREEN);
 
 	int posx, posy, posz;
 	Connection->GetPosition(posx, posy, posz);
@@ -486,10 +503,10 @@ void SendRow(TConnection *Connection, int Direction) {
 	}
 
 	switch (Direction) {
-		case 0: SendByte(Connection, 0x65); break;
-		case 1: SendByte(Connection, 0x66); break;
-		case 2: SendByte(Connection, 0x67); break;
-		case 3: SendByte(Connection, 0x68); break;
+		case DIRECTION_NORTH: SendByte(Connection, SV_ROW_NORTH); break;
+		case DIRECTION_EAST: SendByte(Connection, SV_ROW_EAST); break;
+		case DIRECTION_SOUTH: SendByte(Connection, SV_ROW_SOUTH); break;
+		case DIRECTION_WEST: SendByte(Connection, SV_ROW_WEST); break;
 		default: {
 			error("SendRow: Ung\xfcltige Richtungsangabe %d.\n", Direction);
 			return;
@@ -519,28 +536,28 @@ void SendRow(TConnection *Connection, int Direction) {
 
 	while (z != end) {
 		switch (Direction) {
-			case 0: {
+			case DIRECTION_NORTH: {
 				for (int x = 0; x < Connection->GetTerminalWidth(); x++) {
 					SendMapPoint(Connection, sx + x + (posz - z), sy + (posz - z), z);
 				}
 				break;
 			}
 
-			case 1: {
+			case DIRECTION_EAST: {
 				for (int y = 0; y < Connection->GetTerminalHeight(); y++) {
 					SendMapPoint(Connection, sx + Connection->GetTerminalWidth() - 1 + (posz - z), sy + y + (posz - z), z);
 				}
 				break;
 			}
 
-			case 2: {
+			case DIRECTION_SOUTH: {
 				for (int x = 0; x < Connection->GetTerminalWidth(); x++) {
 					SendMapPoint(Connection, sx + x + (posz - z), sy + Connection->GetTerminalHeight() - 1 + (posz - z), z);
 				}
 				break;
 			}
 
-			case 3: {
+			case DIRECTION_WEST: {
 				for (int y = 0; y < Connection->GetTerminalHeight(); y++) {
 					SendMapPoint(Connection, sx + (posz - z), sy + y + (posz - z), z);
 				}
@@ -559,7 +576,7 @@ void SendFloors(TConnection *Connection, bool Up) {
 		return;
 	}
 
-	SendByte(Connection, Up ? 0xBE : 0xBF);
+	SendByte(Connection, Up ? SV_FLOORS_UP : SV_FLOORS_DOWN);
 
 	int posx, posy, posz;
 	Connection->GetPosition(posx, posy, posz);
@@ -622,7 +639,7 @@ void SendFieldData(TConnection *Connection, int x, int y, int z) {
 		return;
 	}
 
-	SendByte(Connection, 0x69);
+	SendByte(Connection, SV_FIELD_DATA);
 	SendWord(Connection, (unsigned short)x);
 	SendWord(Connection, (unsigned short)y);
 	SendByte(Connection, (unsigned char)z);
@@ -637,7 +654,7 @@ void SendCloseContainer(TConnection *Connection, int ContNr) {
 		return;
 	}
 
-	SendByte(Connection, 0x6F);
+	SendByte(Connection, SV_CLOSE_CONTAINER);
 	SendByte(Connection, (unsigned char)ContNr);
 	FinishSendData(Connection);
 }
@@ -647,7 +664,7 @@ void SendContainer(TConnection *Connection, int ContNr) {
 		return;
 	}
 
-	SendByte(Connection, 0x6E);
+	SendByte(Connection, SV_CONTAINER);
 	SendByte(Connection, (unsigned char)ContNr);
 
 	TPlayer *pl = Connection->GetPlayer();
@@ -698,7 +715,7 @@ void SendCreateInContainer(TConnection *Connection, int ContNr, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x70);
+	SendByte(Connection, SV_CREATE_IN_CONTAINER);
 	SendByte(Connection, (unsigned char)ContNr);
 	SendObjectType(Connection, Obj);
 	if (Obj.getFlag(LIQUIDCONTAINER)) {
@@ -728,7 +745,7 @@ void SendChangeInContainer(TConnection *Connection, int ContNr, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x71);
+	SendByte(Connection, SV_CHANGE_IN_CONTAINER);
 	SendByte(Connection, (unsigned char)ContNr);
 	SendByte(Connection, (unsigned char)RNum);
 	SendObjectType(Connection, Obj);
@@ -759,14 +776,14 @@ void SendDeleteInContainer(TConnection *Connection, int ContNr, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x72);
+	SendByte(Connection, SV_DELETE_IN_CONTAINER);
 	SendByte(Connection, (unsigned char)ContNr);
 	SendByte(Connection, (unsigned char)RNum);
 	FinishSendData(Connection);
 }
 
 void SendBodyInventory(TConnection *Connection, uint32_t CreatureID) {
-	for (int Position = 1; Position <= 10; Position++) {
+	for (int Position = FIRST_BODY_POSITION; Position <= LAST_BODY_POSITION; Position++) {
 		Object Obj = GetBodyObject(CreatureID, Position);
 		if (Obj != NONE) {
 			SendSetInventory(Connection, Position, Obj);
@@ -779,7 +796,7 @@ void SendSetInventory(TConnection *Connection, int Position, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x78);
+	SendByte(Connection, SV_SET_INVENTORY);
 	SendByte(Connection, (unsigned char)Position);
 	if (!Obj.exists()) {
 		error("SendSetInventory: Objekt existiert nicht.\n");
@@ -804,7 +821,7 @@ void SendDeleteInventory(TConnection *Connection, int Position) {
 		return;
 	}
 
-	SendByte(Connection, 0x79);
+	SendByte(Connection, SV_DELETE_INVENTORY);
 	SendByte(Connection, (unsigned char)Position);
 	FinishSendData(Connection);
 }
@@ -839,7 +856,7 @@ void SendTradeOffer(TConnection *Connection, char *Name, bool OwnOffer, Object O
 		return;
 	}
 
-	SendByte(Connection, OwnOffer ? 0x7D : 0x7E);
+	SendByte(Connection, OwnOffer ? SV_TRADE_OFFER_OWN : SV_TRADE_OFFER_PARTNER);
 	if (Name == nullptr) {
 		error("SendTradeOffer: Name ist NULL.\n");
 		return;
@@ -861,7 +878,7 @@ void SendCloseTrade(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0x7F);
+	SendByte(Connection, SV_CLOSE_TRADE);
 	FinishSendData(Connection);
 }
 
@@ -870,7 +887,7 @@ void SendAddField(TConnection *Connection, int x, int y, int z, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x6A);
+	SendByte(Connection, SV_ADD_FIELD);
 	SendWord(Connection, (unsigned short)x);
 	SendWord(Connection, (unsigned short)y);
 	SendByte(Connection, (unsigned char)z);
@@ -888,7 +905,7 @@ void SendDeleteField(TConnection *Connection, int x, int y, int z, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x6C);
+	SendByte(Connection, SV_DELETE_FIELD);
 	SendWord(Connection, (unsigned short)x);
 	SendWord(Connection, (unsigned short)y);
 	SendByte(Connection, (unsigned char)z);
@@ -912,7 +929,7 @@ void SendChangeField(TConnection *Connection, int x, int y, int z, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x6B);
+	SendByte(Connection, SV_CHANGE_FIELD);
 	SendWord(Connection, (unsigned short)x);
 	SendWord(Connection, (unsigned short)y);
 	SendByte(Connection, (unsigned char)z);
@@ -951,7 +968,7 @@ void SendMoveCreature(TConnection *Connection, uint32_t CreatureID, int x, int y
 			return;
 		}
 
-		SendByte(Connection, 0x6D);
+		SendByte(Connection, SV_MOVE_CREATURE);
 		SendWord(Connection, (unsigned short)cr->posx);
 		SendWord(Connection, (unsigned short)cr->posy);
 		SendByte(Connection, (unsigned char)cr->posz);
@@ -976,7 +993,7 @@ void SendGraphicalEffect(TConnection *Connection, int x, int y, int z, int Type)
 		return;
 	}
 
-	SendByte(Connection, 0x83);
+	SendByte(Connection, SV_GRAPHICAL_EFFECT);
 	SendWord(Connection, (unsigned short)x);
 	SendWord(Connection, (unsigned short)y);
 	SendByte(Connection, (unsigned char)z);
@@ -999,7 +1016,7 @@ void SendTextualEffect(TConnection *Connection, int x, int y, int z, int Color, 
 		return;
 	}
 
-	SendByte(Connection, 0x84);
+	SendByte(Connection, SV_TEXTUAL_EFFECT);
 	SendWord(Connection, (unsigned short)x);
 	SendWord(Connection, (unsigned short)y);
 	SendByte(Connection, (unsigned char)z);
@@ -1013,7 +1030,7 @@ void SendMissileEffect(TConnection *Connection, int sx, int sy, int sz, int zx, 
 		return;
 	}
 
-	SendByte(Connection, 0x85);
+	SendByte(Connection, SV_MISSILE_EFFECT);
 	SendWord(Connection, (unsigned short)sx);
 	SendWord(Connection, (unsigned short)sy);
 	SendByte(Connection, (unsigned char)sz);
@@ -1029,7 +1046,7 @@ void SendMarkCreature(TConnection *Connection, uint32_t CreatureID, int Color) {
 		return;
 	}
 
-	SendByte(Connection, 0x86);
+	SendByte(Connection, SV_MARK_CREATURE);
 	SendQuad(Connection, CreatureID);
 	SendByte(Connection, (unsigned char)Color);
 	FinishSendData(Connection);
@@ -1040,7 +1057,7 @@ void SendEditText(TConnection *Connection, Object Obj) {
 		return;
 	}
 
-	SendByte(Connection, 0x96);
+	SendByte(Connection, SV_EDIT_TEXT);
 	if (!Obj.exists()) {
 		error("SendEditText: \xdc" "bergebenes Objekt existiert nicht.\n");
 		return;
@@ -1057,7 +1074,7 @@ void SendEditText(TConnection *Connection, Object Obj) {
 		MaxLen = (unsigned short)(Obj.getAttribute(Obj.getFlag(WRITE) ? MAXLENGTH : MAXLENGTHONCE) - 1);
 		Text = GetDynamicString(Obj.getAttribute(TEXTSTRING));
 		Editor = GetDynamicString(Obj.getAttribute(EDITOR));
-	} else if (Obj.getFlag(INFORMATION) && Obj.getAttribute(INFORMATIONTYPE) == 4) {
+	} else if (Obj.getFlag(INFORMATION) && Obj.getAttribute(INFORMATIONTYPE) == INFORMATION_SPELLBOOK) {
 		TPlayer *pl = Connection->GetPlayer();
 		if (pl == nullptr) {
 			error("SendEditText: Zu dieser Verbindung geh\xf6rt kein Spieler.\n");
@@ -1098,7 +1115,7 @@ void SendEditList(TConnection *Connection, unsigned char Type, uint32_t ID, char
 		return;
 	}
 
-	SendByte(Connection, 0x97);
+	SendByte(Connection, SV_EDIT_LIST);
 	SendByte(Connection, Type);
 	SendQuad(Connection, ID);
 	if (strlen(Text) > 4000) {
@@ -1115,7 +1132,7 @@ void SendAmbiente(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0x82);
+	SendByte(Connection, SV_AMBIENTE);
 
 	int Brightness, Color;
 	GetAmbiente(Brightness, Color);
@@ -1129,7 +1146,7 @@ void SendCreatureHealth(TConnection *Connection, uint32_t CreatureID) {
 		return;
 	}
 
-	SendByte(Connection, 0x8C);
+	SendByte(Connection, SV_CREATURE_HEALTH);
 	SendQuad(Connection, CreatureID);
 
 	TCreature *cr = GetCreature(CreatureID);
@@ -1147,7 +1164,7 @@ void SendCreatureLight(TConnection *Connection, uint32_t CreatureID) {
 		return;
 	}
 
-	SendByte(Connection, 0x8D);
+	SendByte(Connection, SV_CREATURE_LIGHT);
 	SendQuad(Connection, CreatureID);
 
 	TCreature *cr = GetCreature(CreatureID);
@@ -1168,7 +1185,7 @@ void SendCreatureOutfit(TConnection *Connection, uint32_t CreatureID) {
 		return;
 	}
 
-	SendByte(Connection, 0x8E);
+	SendByte(Connection, SV_CREATURE_OUTFIT);
 	SendQuad(Connection, CreatureID);
 
 	TCreature *cr = GetCreature(CreatureID);
@@ -1191,7 +1208,7 @@ void SendCreatureSpeed(TConnection *Connection, uint32_t CreatureID) {
 		return;
 	}
 
-	SendByte(Connection, 0x8F);
+	SendByte(Connection, SV_CREATURE_SPEED);
 	SendQuad(Connection, CreatureID);
 
 	TCreature *cr = GetCreature(CreatureID);
@@ -1209,7 +1226,7 @@ void SendCreatureSkull(TConnection *Connection, uint32_t CreatureID) {
 		return;
 	}
 
-	SendByte(Connection, 0x90);
+	SendByte(Connection, SV_CREATURE_SKULL);
 	SendQuad(Connection, CreatureID);
 
 	TPlayer *pl = GetPlayer(CreatureID);
@@ -1227,7 +1244,7 @@ void SendCreatureParty(TConnection *Connection, uint32_t CreatureID) {
 		return;
 	}
 
-	SendByte(Connection, 0x91);
+	SendByte(Connection, SV_CREATURE_PARTY);
 	SendQuad(Connection, CreatureID);
 
 	TPlayer *pl = GetPlayer(CreatureID);
@@ -1245,7 +1262,7 @@ void SendClearTarget(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xA3);
+	SendByte(Connection, SV_CLEAR_TARGET);
 	FinishSendData(Connection);
 }
 
@@ -1254,7 +1271,7 @@ void SendPlayerData(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xA0);
+	SendByte(Connection, SV_PLAYER_DATA);
 
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
@@ -1262,7 +1279,7 @@ void SendPlayerData(TConnection *Connection) {
 		return;
 	}
 
-	TSkill *sk = pl->Skills[2];
+	TSkill *sk = pl->Skills[SKILL_HITPOINTS];
 	if (sk != nullptr) {
 		SendWord(Connection, (unsigned short)sk->Get());
 	} else {
@@ -1275,7 +1292,7 @@ void SendPlayerData(TConnection *Connection) {
 	}
 
 	int Capacity = 0;
-	sk = pl->Skills[5];
+	sk = pl->Skills[SKILL_CARRYSTRENGTH];
 	if (sk != nullptr) {
 		Capacity = sk->Get() * 100 - GetInventoryWeight(pl->ID);
 	}
@@ -1287,7 +1304,7 @@ void SendPlayerData(TConnection *Connection) {
 	}
 	SendWord(Connection, (unsigned short)(Capacity / 100));
 
-	sk = pl->Skills[0];
+	sk = pl->Skills[SKILL_LEVEL];
 	if (sk != nullptr) {
 		SendQuad(Connection, (uint32_t)sk->GetExp());
 	} else {
@@ -1304,7 +1321,7 @@ void SendPlayerData(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[3];
+	sk = pl->Skills[SKILL_MANA];
 	if (sk != nullptr) {
 		SendWord(Connection, (unsigned short)sk->Get());
 	} else {
@@ -1316,7 +1333,7 @@ void SendPlayerData(TConnection *Connection) {
 		SendWord(Connection, 0);
 	}
 
-	sk = pl->Skills[1];
+	sk = pl->Skills[SKILL_MAGICLEVEL];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1328,7 +1345,7 @@ void SendPlayerData(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[22];
+	sk = pl->Skills[SKILL_SOULPOINTS];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1343,7 +1360,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xA1);
+	SendByte(Connection, SV_PLAYER_SKILLS);
 
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
@@ -1351,7 +1368,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		return;
 	}
 
-	TSkill *sk = pl->Skills[11];
+	TSkill *sk = pl->Skills[SKILL_FISTFIGHTING];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1363,7 +1380,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[9];
+	sk = pl->Skills[SKILL_CLUBFIGHTING];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1375,7 +1392,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[8];
+	sk = pl->Skills[SKILL_SWORDFIGHTING];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1387,7 +1404,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[10];
+	sk = pl->Skills[SKILL_AXEFIGHTING];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1399,7 +1416,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[7];
+	sk = pl->Skills[SKILL_DISTANCEFIGHTING];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1411,7 +1428,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[6];
+	sk = pl->Skills[SKILL_SHIELDING];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1423,7 +1440,7 @@ void SendPlayerSkills(TConnection *Connection) {
 		SendByte(Connection, 0);
 	}
 
-	sk = pl->Skills[13];
+	sk = pl->Skills[SKILL_FISHING];
 	if (sk != nullptr) {
 		SendByte(Connection, (unsigned char)sk->Get());
 	} else {
@@ -1443,7 +1460,7 @@ void SendPlayerState(TConnection *Connection, unsigned char State) {
 		return;
 	}
 
-	SendByte(Connection, 0xA2);
+	SendByte(Connection, SV_PLAYER_STATE);
 	SendByte(Connection, State);
 	FinishSendData(Connection);
 }
@@ -1465,7 +1482,7 @@ void SendMessage(TConnection *Connection, int Mode, char *Text, ...) {
 	vsnprintf(Buffer, sizeof(Buffer), Text, args);
 	va_end(args);
 
-	SendByte(Connection, 0xB4);
+	SendByte(Connection, SV_MESSAGE);
 	SendByte(Connection, (unsigned char)Mode);
 	SendString(Connection, Buffer);
 	FinishSendData(Connection);
@@ -1476,7 +1493,7 @@ void SendSnapback(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xB5);
+	SendByte(Connection, SV_SNAPBACK);
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
 		return;
@@ -1507,7 +1524,7 @@ void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int M
 		return;
 	}
 
-	SendByte(Connection, 0xAA);
+	SendByte(Connection, SV_TALK);
 	SendQuad(Connection, StatementID);
 	SendString(Connection, Sender);
 	SendByte(Connection, (unsigned char)Mode);
@@ -1539,7 +1556,7 @@ void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int M
 		return;
 	}
 
-	SendByte(Connection, 0xAA);
+	SendByte(Connection, SV_TALK);
 	SendQuad(Connection, StatementID);
 	if (Mode == TALK_ANONYMOUS_CHANNELCALL) {
 		SendString(Connection, "");
@@ -1573,7 +1590,7 @@ void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int M
 		return;
 	}
 
-	SendByte(Connection, 0xAA);
+	SendByte(Connection, SV_TALK);
 	SendQuad(Connection, StatementID);
 	SendString(Connection, Sender);
 	SendByte(Connection, (unsigned char)Mode);
@@ -1589,7 +1606,7 @@ void SendChannels(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xAB);
+	SendByte(Connection, SV_CHANNELS);
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
 		return;
@@ -1612,7 +1629,7 @@ void SendChannels(TConnection *Connection) {
 
 	SendByte(Connection, (unsigned char)Count);
 	if (OwnChannel) {
-		SendWord(Connection, 0xFFFF);
+		SendWord(Connection, PRIVATE_CHAT_CHANNEL);
 		SendString(Connection, "Private Chat Channel");
 	}
 
@@ -1636,7 +1653,7 @@ void SendOpenChannel(TConnection *Connection, int Channel) {
 		return;
 	}
 
-	SendByte(Connection, 0xAC);
+	SendByte(Connection, SV_OPEN_CHANNEL);
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
 		return;
@@ -1657,7 +1674,7 @@ void SendPrivateChannel(TConnection *Connection, char *Name) {
 		return;
 	}
 
-	SendByte(Connection, 0xAD);
+	SendByte(Connection, SV_PRIVATE_CHANNEL);
 	if (Name == nullptr) {
 		error("SendPrivateChannel: Name ist NULL.\n");
 		return;
@@ -1672,7 +1689,7 @@ void SendOpenRequestQueue(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xAE);
+	SendByte(Connection, SV_OPEN_REQUEST_QUEUE);
 	SendWord(Connection, REQUEST_QUEUE);
 	FinishSendData(Connection);
 }
@@ -1682,7 +1699,7 @@ void SendDeleteRequest(TConnection *Connection, char *Name) {
 		return;
 	}
 
-	SendByte(Connection, 0xAF);
+	SendByte(Connection, SV_DELETE_REQUEST);
 	if (Name == nullptr) {
 		error("SendDeleteRequest: Name ist NULL.\n");
 		return;
@@ -1697,7 +1714,7 @@ void SendFinishRequest(TConnection *Connection, char *Name) {
 		return;
 	}
 
-	SendByte(Connection, 0xB0);
+	SendByte(Connection, SV_FINISH_REQUEST);
 	if (Name == nullptr) {
 		error("SendFinishRequest: Name ist NULL.\n");
 		return;
@@ -1712,7 +1729,7 @@ void SendCloseRequest(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xB1);
+	SendByte(Connection, SV_CLOSE_REQUEST);
 	FinishSendData(Connection);
 }
 
@@ -1721,7 +1738,7 @@ void SendOpenOwnChannel(TConnection *Connection, int Channel) {
 		return;
 	}
 
-	SendByte(Connection, 0xB2);
+	SendByte(Connection, SV_OPEN_OWN_CHANNEL);
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
 		return;
@@ -1742,7 +1759,7 @@ void SendCloseChannel(TConnection *Connection, int Channel) {
 		return;
 	}
 
-	SendByte(Connection, 0xB3);
+	SendByte(Connection, SV_CLOSE_CHANNEL);
 	SendWord(Connection, (unsigned short)Channel);
 	FinishSendData(Connection);
 }
@@ -1752,7 +1769,7 @@ void SendOutfit(TConnection *Connection) {
 		return;
 	}
 
-	SendByte(Connection, 0xC8);
+	SendByte(Connection, SV_OUTFIT);
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
 		return;
@@ -1760,12 +1777,12 @@ void SendOutfit(TConnection *Connection) {
 
 	SendWord(Connection, (unsigned short)pl->OrgOutfit.OutfitID);
 	SendText(Connection, (const char *)pl->OrgOutfit.Colors, 4);
-	if (pl->Sex == 1) {
-		SendWord(Connection, 128);
-		SendWord(Connection, CheckRight(pl->ID, PREMIUM_ACCOUNT) ? 134 : 131);
+	if (pl->Sex == SEX_MALE) {
+		SendWord(Connection, FIRST_MALE_OUTFIT);
+		SendWord(Connection, CheckRight(pl->ID, PREMIUM_ACCOUNT) ? LAST_MALE_OUTFIT : LAST_FREE_MALE_OUTFIT);
 	} else {
-		SendWord(Connection, 136);
-		SendWord(Connection, CheckRight(pl->ID, PREMIUM_ACCOUNT) ? 142 : 139);
+		SendWord(Connection, FIRST_FEMALE_OUTFIT);
+		SendWord(Connection, CheckRight(pl->ID, PREMIUM_ACCOUNT) ? LAST_FEMALE_OUTFIT : LAST_FREE_FEMALE_OUTFIT);
 	}
 	FinishSendData(Connection);
 }
@@ -1775,7 +1792,7 @@ void SendBuddyData(TConnection *Connection, uint32_t CharacterID, char *Name, bo
 		return;
 	}
 
-	SendByte(Connection, 0xD2);
+	SendByte(Connection, SV_BUDDY_DATA);
 	SendQuad(Connection, CharacterID);
 	if (Name == nullptr) {
 		return;
@@ -1791,7 +1808,7 @@ void SendBuddyStatus(TConnection *Connection, uint32_t CharacterID, bool Online)
 		return;
 	}
 
-	SendByte(Connection, Online ? 0xD3 : 0xD4);
+	SendByte(Connection, Online ? SV_BUDDY_ONLINE : SV_BUDDY_OFFLINE);
 	SendQuad(Connection, CharacterID);
 	FinishSendData(Connection);
 }
