@@ -37,8 +37,20 @@ struct TCircle {
 	int Count;
 };
 
+// The words a spell can have, its class syllable included (TSpellList's
+// Syllable, CheckForSpell); a shorter spell ends with syllable 0.
+const int MAX_SPELL_SYLLABLES = 10;
+
+// TSpellList's Flags. A spell's damage or healing is multiplied by a factor
+// of 2 * level + 3 * magic level percent (ComputeDamage), which two flags
+// bound.
+const int SPELLFLAG_AGGRESSIVE = 1;
+const int SPELLFLAG_PREMIUM = 2;
+const int SPELLFLAG_FACTOR_MAX_100 = 4;
+const int SPELLFLAG_FACTOR_MIN_100 = 8;
+
 struct TSpellList {
-	unsigned char Syllable[10];
+	unsigned char Syllable[MAX_SPELL_SYLLABLES];
 	unsigned char RuneGr;
 	unsigned char RuneNr;
 	const char *Comment;
@@ -50,7 +62,21 @@ struct TSpellList {
 	int Amount;
 };
 
-char SpellSyllable[51][6] = {
+// The size of SpellSyllable: the syllables 1 to 50 (0 is the empty one).
+const int MAX_SYLLABLES = 51;
+
+// The syllables CheckForSpell and FindSpell look at by number: the first
+// syllable of a spell is its class (al: character rights, ad: runes, ex and
+// ut: spells cast at once, om: account rights), and "para" stands for a word
+// the caster chooses (a name, a number).
+const int SYLLABLE_AL = 1;
+const int SYLLABLE_AD = 2;
+const int SYLLABLE_EX = 3;
+const int SYLLABLE_UT = 4;
+const int SYLLABLE_OM = 5;
+const int SYLLABLE_PARA = 6;
+
+char SpellSyllable[MAX_SYLLABLES][6] = {
 	"",
 	"al",
 	"ad",
@@ -104,7 +130,7 @@ char SpellSyllable[51][6] = {
 	"",
 };
 TCircle Circle[10];
-TSpellList SpellList[256];
+TSpellList SpellList[MAX_SPELLS];
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckMagicItem,
 // CheckRing, CheckAffectedPlayers, CheckMana and every spell function from
@@ -202,12 +228,12 @@ void CheckAccount(TCreature *cr, int SpellNr) {
 		throw ERROR;
 	}
 
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("CheckAccount: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
 		throw ERROR;
 	}
 
-	if (cr->Type == PLAYER && (SpellList[SpellNr].Flags & 2) != 0
+	if (cr->Type == PLAYER && (SpellList[SpellNr].Flags & SPELLFLAG_PREMIUM) != 0
 			&& !CheckRight(cr->ID, PREMIUM_ACCOUNT)) {
 		throw NOPREMIUMACCOUNT;
 	}
@@ -368,10 +394,10 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 	int proz = cr->Skills[SKILL_LEVEL]->Get() * 2;
 	proz += cr->Skills[SKILL_MAGICLEVEL]->Get() * 3;
 	if (SpellNr != 0) {
-		if ((SpellList[SpellNr].Flags & 4) != 0 && proz > 100) {
+		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MAX_100) != 0 && proz > 100) {
 			proz = 100;
 		}
-		if ((SpellList[SpellNr].Flags & 8) != 0 && proz < 100) {
+		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MIN_100) != 0 && proz < 100) {
 			proz = 100;
 		}
 	}
@@ -381,12 +407,12 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 }
 
 bool IsAggressiveSpell(int SpellNr) {
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("IsAggressiveSpell: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
 		return false;
 	}
 
-	return (SpellList[SpellNr].Flags & 1) != 0;
+	return (SpellList[SpellNr].Flags & SPELLFLAG_AGGRESSIVE) != 0;
 }
 
 TDamageImpact::TDamageImpact(TCreature *_Actor, int _DamageType, int _Power, bool _AllowDefense) {
@@ -3532,7 +3558,7 @@ void RuneSpell(uint32_t CreatureID, int SpellNr) {
 
 int TypeOfSpell(char *Text) {
 	if (Text != nullptr) {
-		for (int i = 1; i <= 5; i++) {
+		for (int i = SYLLABLE_AL; i <= SYLLABLE_OM; i++) {
 			if (stricmp(Text, SpellSyllable[i], 2) == 0) {
 				return i;
 			}
@@ -3545,10 +3571,10 @@ int TypeOfSpell(char *Text) {
 int FindSpell(unsigned char *Syllable) {
 	int Spell = 0;
 	int MinParams = 100;
-	for (int i = 1; i < 256; i++) {
+	for (int i = 1; i < MAX_SPELLS; i++) {
 		int Params = 0;
-		for (int j = 0; j < 10; j++) {
-			if (SpellList[i].Syllable[j] == 6) {
+		for (int j = 0; j < MAX_SPELL_SYLLABLES; j++) {
+			if (SpellList[i].Syllable[j] == SYLLABLE_PARA) {
 				if (Syllable[j] == 0) {
 					break;
 				}
@@ -3556,7 +3582,7 @@ int FindSpell(unsigned char *Syllable) {
 				break;
 			}
 
-			if (SpellList[i].Syllable[j] == 6) {
+			if (SpellList[i].Syllable[j] == SYLLABLE_PARA) {
 				Params++;
 			}
 
@@ -3584,7 +3610,7 @@ int FindSpell(Object Obj) {
 		return 0;
 	}
 
-	for (int i = 1; i < 256; i++) {
+	for (int i = 1; i < MAX_SPELLS; i++) {
 		if (Obj.getObjectType() == GetNewObjectType(SpellList[i].RuneGr, SpellList[i].RuneNr)) {
 			return i;
 		}
@@ -3595,12 +3621,12 @@ int FindSpell(Object Obj) {
 
 void GetSpellString(int SpellNr, char *Text) {
 	Text[0] = 0;
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("GetSpellString: Ung\xfcltige Zauberspruchnummer %d.\n", SpellNr);
 		return;
 	}
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < MAX_SPELL_SYLLABLES; i++) {
 		if (SpellSyllable[SpellList[SpellNr].Syllable[i]][0] == 0) {
 			break;
 		}
@@ -3655,7 +3681,7 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 	for (int Level = 1; Level <= 60; Level++) {
 		bool first = true;
 		char Help[100];
-		for (int i = 1; i < 256; i++) {
+		for (int i = 1; i < MAX_SPELLS; i++) {
 			if (SpellList[i].Level != Level || !pl->SpellKnown(i)) {
 				continue;
 			}
@@ -3696,7 +3722,7 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 }
 
 int GetSpellLevel(int SpellNr) {
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("GetSpellLevel: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
 		return 1;
 	}
@@ -3711,8 +3737,8 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 	}
 
 	std::istringstream IS(Text);
-	unsigned char Syllable[11];
-	char SpellStr[11][512];
+	unsigned char Syllable[MAX_SPELL_SYLLABLES + 1];
+	char SpellStr[MAX_SPELL_SYLLABLES + 1][512];
 	Syllable[0] = (unsigned char)SpellType;
 	strcpy(SpellStr[0], SpellSyllable[SpellType]);
 	IS.get();
@@ -3720,7 +3746,7 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 	int syl = 1;
 	Syllable[syl] = 0;
 	SpellStr[syl][0] = 0;
-	while (syl < 10 && !IS.eof()) {
+	while (syl < MAX_SPELL_SYLLABLES && !IS.eof()) {
 		int Next;
 		while (isSpace(Next = IS.peek())) {
 			IS.get();
@@ -3744,14 +3770,14 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 		// The original also compares against SpellSyllable[51], one entry past
 		// the array; in the binary that is an empty string, which never matches
 		// a word that is not empty.
-		for (int i = 1; i <= 50; i++) {
+		for (int i = 1; i <= MAX_SYLLABLES - 1; i++) {
 			if (stricmp(SpellStr[syl], SpellSyllable[i], -1) == 0) {
 				Syllable[syl] = (unsigned char)i;
 			}
 		}
 
 		if (Syllable[syl] == 0) {
-			Syllable[syl] = 6;
+			Syllable[syl] = SYLLABLE_PARA;
 		}
 
 		syl++;
@@ -3766,17 +3792,17 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 
 	try {
 		switch (SpellType) {
-			case 1:
+			case SYLLABLE_AL:
 				CharacterRightSpell(CreatureID, SpellNr, SpellStr);
 				break;
-			case 2:
+			case SYLLABLE_AD:
 				RuneSpell(CreatureID, SpellNr);
 				break;
-			case 3:
-			case 4:
+			case SYLLABLE_EX:
+			case SYLLABLE_UT:
 				CastSpell(CreatureID, SpellNr, SpellStr);
 				break;
-			case 5:
+			case SYLLABLE_OM:
 				AccountRightSpell(CreatureID, SpellNr, SpellStr);
 				break;
 			default:
@@ -4101,13 +4127,13 @@ TSpellList *CreateSpell(int SpellNr, ...) {
 
 		// As in CheckForSpell, the original also compares against the empty
 		// string one entry past the end of SpellSyllable.
-		for (int i = 1; i <= 50; i++) {
+		for (int i = 1; i <= MAX_SYLLABLES - 1; i++) {
 			if (strcmp(Syl, SpellSyllable[i]) == 0) {
 				// With an eleventh syllable this writes Syllable[10], which is
 				// RuneGr, before the error below, as in the original.
 				SpellList[SpellNr].Syllable[syl] = (unsigned char)i;
 				syl++;
-				if (syl > 10) {
+				if (syl > MAX_SPELL_SYLLABLES) {
 					error("CreateSpell: Silbenzahl \xfc" "berschritten bei Spell %d.\n", SpellNr);
 					throw "Spell has too many syllables";
 				}
@@ -4120,7 +4146,7 @@ TSpellList *CreateSpell(int SpellNr, ...) {
 }
 
 void InitSpells() {
-	for (int i = 1; i < 256; i++) {
+	for (int i = 1; i < MAX_SPELLS; i++) {
 		memset(&SpellList[i], 0, sizeof(TSpellList));
 	}
 
@@ -4128,24 +4154,24 @@ void InitSpells() {
 	S = CreateSpell(1, "ex", "ura", "");
 	S->Mana = 25;
 	S->Level = 9;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Light Healing";
 	S = CreateSpell(2, "ex", "ura", "gran", "");
 	S->Mana = 40;
 	S->Level = 11;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Intense Healing";
 	S = CreateSpell(3, "ex", "ura", "vita", "");
 	S->Mana = 160;
 	S->Level = 20;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Ultimate Healing";
 	S = CreateSpell(4, "ad", "ura", "gran", "");
 	S->Mana = 240;
 	S->Level = 15;
 	S->RuneGr = 79;
 	S->RuneNr = 5;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 1;
 	S->RuneLevel = 1;
 	S->SoulPoints = 2;
@@ -4155,7 +4181,7 @@ void InitSpells() {
 	S->Level = 24;
 	S->RuneGr = 79;
 	S->RuneNr = 13;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 1;
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
@@ -4163,14 +4189,14 @@ void InitSpells() {
 	S = CreateSpell(6, "ut", "ani", "hur", "");
 	S->Mana = 60;
 	S->Level = 14;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Haste";
 	S = CreateSpell(7, "ad", "ori", "");
 	S->Mana = 120;
 	S->Level = 15;
 	S->RuneGr = 79;
 	S->RuneNr = 27;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 5;
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
@@ -4180,7 +4206,7 @@ void InitSpells() {
 	S->Level = 25;
 	S->RuneGr = 79;
 	S->RuneNr = 51;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 5;
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
@@ -4188,7 +4214,7 @@ void InitSpells() {
 	S = CreateSpell(9, "ut", "evo", "res", "para", "");
 	S->Mana = 0;
 	S->Level = 25;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Summon Creature";
 	S = CreateSpell(10, "ut", "evo", "lux", "");
 	S->Mana = 20;
@@ -4205,7 +4231,7 @@ void InitSpells() {
 	S->Level = 16;
 	S->RuneGr = 79;
 	S->RuneNr = 30;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 1;
 	S->RuneLevel = 5;
 	S->SoulPoints = 3;
@@ -4213,7 +4239,7 @@ void InitSpells() {
 	S = CreateSpell(13, "ex", "evo", "mort", "hur", "");
 	S->Mana = 250;
 	S->Level = 38;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Energy Wave";
 	S = CreateSpell(14, "ad", "evo", "ina", "");
 	S->Mana = 600;
@@ -4230,7 +4256,7 @@ void InitSpells() {
 	S->Level = 17;
 	S->RuneGr = 79;
 	S->RuneNr = 42;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 2;
 	S->RuneLevel = 2;
 	S->SoulPoints = 2;
@@ -4240,7 +4266,7 @@ void InitSpells() {
 	S->Level = 23;
 	S->RuneGr = 79;
 	S->RuneNr = 44;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 2;
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
@@ -4250,7 +4276,7 @@ void InitSpells() {
 	S->Level = 27;
 	S->RuneGr = 79;
 	S->RuneNr = 45;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 2;
 	S->RuneLevel = 5;
 	S->SoulPoints = 4;
@@ -4260,7 +4286,7 @@ void InitSpells() {
 	S->Level = 31;
 	S->RuneGr = 79;
 	S->RuneNr = 53;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 6;
 	S->SoulPoints = 4;
@@ -4268,7 +4294,7 @@ void InitSpells() {
 	S = CreateSpell(19, "ex", "evo", "flam", "hur", "");
 	S->Mana = 80;
 	S->Level = 18;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Fire Wave";
 	S = CreateSpell(20, "ex", "iva", "para", "");
 	S->Mana = 20;
@@ -4280,7 +4306,7 @@ void InitSpells() {
 	S->Level = 45;
 	S->RuneGr = 79;
 	S->RuneNr = 8;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 1;
 	S->RuneLevel = 15;
 	S->SoulPoints = 5;
@@ -4288,24 +4314,24 @@ void InitSpells() {
 	S = CreateSpell(22, "ex", "evo", "vis", "lux", "");
 	S->Mana = 100;
 	S->Level = 23;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Energy Beam";
 	S = CreateSpell(23, "ex", "evo", "gran", "vis", "lux", "");
 	S->Mana = 200;
 	S->Level = 29;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Great Energy Beam";
 	S = CreateSpell(24, "ex", "evo", "gran", "mas", "vis", "");
 	S->Mana = 1200;
 	S->Level = 60;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Ultimate Explosion";
 	S = CreateSpell(25, "ad", "evo", "grav", "flam", "");
 	S->Mana = 240;
 	S->Level = 15;
 	S->RuneGr = 79;
 	S->RuneNr = 41;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 1;
 	S->SoulPoints = 1;
@@ -4315,7 +4341,7 @@ void InitSpells() {
 	S->Level = 14;
 	S->RuneGr = 79;
 	S->RuneNr = 25;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
@@ -4325,7 +4351,7 @@ void InitSpells() {
 	S->Level = 18;
 	S->RuneGr = 79;
 	S->RuneNr = 17;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 3;
 	S->SoulPoints = 2;
@@ -4335,7 +4361,7 @@ void InitSpells() {
 	S->Level = 33;
 	S->RuneGr = 79;
 	S->RuneNr = 43;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 4;
 	S->RuneLevel = 6;
 	S->SoulPoints = 4;
@@ -4370,7 +4396,7 @@ void InitSpells() {
 	S->Level = 29;
 	S->RuneGr = 79;
 	S->RuneNr = 29;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 4;
 	S->RuneLevel = 5;
 	S->SoulPoints = 3;
@@ -4380,7 +4406,7 @@ void InitSpells() {
 	S->Level = 41;
 	S->RuneGr = 79;
 	S->RuneNr = 19;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 4;
 	S->RuneLevel = 9;
 	S->SoulPoints = 5;
@@ -4408,7 +4434,7 @@ void InitSpells() {
 	S = CreateSpell(39, "ut", "ani", "gran", "hur", "");
 	S->Mana = 100;
 	S->Level = 20;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Strong Haste";
 	S = CreateSpell(40, "al", "evo", "cogni", "para", "");
 	S->Mana = 0;
@@ -4463,7 +4489,7 @@ void InitSpells() {
 	S->Level = 27;
 	S->RuneGr = 79;
 	S->RuneNr = 48;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 2;
 	S->RuneLevel = 7;
 	S->SoulPoints = 3;
@@ -4489,7 +4515,7 @@ void InitSpells() {
 	S->Level = 54;
 	S->RuneGr = 79;
 	S->RuneNr = 18;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 1;
 	S->RuneLevel = 18;
 	S->SoulPoints = 3;
@@ -4499,7 +4525,7 @@ void InitSpells() {
 	S->Level = 37;
 	S->RuneGr = 79;
 	S->RuneNr = 2;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 2;
 	S->RuneLevel = 10;
 	S->SoulPoints = 5;
@@ -4507,7 +4533,7 @@ void InitSpells() {
 	S = CreateSpell(56, "ex", "evo", "gran", "mas", "pox", "");
 	S->Mana = 600;
 	S->Level = 50;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Poison Storm";
 	S = CreateSpell(57, "om", "ana", "liber", "para", "para", "para", "");
 	S->Mana = 0;
@@ -4597,19 +4623,19 @@ void InitSpells() {
 	S = CreateSpell(75, "ut", "evo", "vis", "lux", "");
 	S->Mana = 140;
 	S->Level = 26;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Ultimate Light";
 	S = CreateSpell(76, "ex", "ani", "tera", "");
 	S->Mana = 20;
 	S->Level = 9;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Magic Rope";
 	S = CreateSpell(77, "ad", "evo", "res", "pox", "");
 	S->Mana = 400;
 	S->Level = 21;
 	S->RuneGr = 79;
 	S->RuneNr = 32;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 1;
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
@@ -4622,28 +4648,28 @@ void InitSpells() {
 	S->Amount = 3;
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Desintegrate";
 	S = CreateSpell(79, "ex", "evo", "con", "mort", "");
 	S->Mana = 140;
 	S->Level = 17;
 	S->SoulPoints = 2;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Conjure Bolt";
 	S = CreateSpell(80, "ex", "ori", "");
 	S->Mana = 0;
 	S->Level = 35;
-	S->Flags = 7;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MAX_100;
 	S->Comment = "Berserk";
 	S = CreateSpell(81, "ex", "ani", "hur", "para", "");
 	S->Mana = 50;
 	S->Level = 12;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Levitate";
 	S = CreateSpell(82, "ex", "ura", "gran", "mas", "res", "");
 	S->Mana = 150;
 	S->Level = 36;
-	S->Flags = 10;
+	S->Flags = SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Mass Healing";
 	S = CreateSpell(83, "ad", "ana", "mort", "");
 	S->Mana = 600;
@@ -4653,17 +4679,17 @@ void InitSpells() {
 	S->Amount = 1;
 	S->RuneLevel = 4;
 	S->SoulPoints = 5;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Animate Dead";
 	S = CreateSpell(84, "ex", "ura", "sio", "para", "");
 	S->Mana = 70;
 	S->Level = 18;
-	S->Flags = 10;
+	S->Flags = SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Heal Friend";
 	S = CreateSpell(85, "ex", "ana", "mas", "mort", "");
 	S->Mana = 500;
 	S->Level = 30;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Undead Legion";
 	S = CreateSpell(86, "ad", "evo", "grav", "tera", "");
 	S->Mana = 750;
@@ -4673,34 +4699,34 @@ void InitSpells() {
 	S->Amount = 3;
 	S->RuneLevel = 9;
 	S->SoulPoints = 5;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Magic Wall";
 	S = CreateSpell(87, "ex", "ori", "mort", "");
 	S->Mana = 20;
 	S->Level = 11;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Force Strike";
 	S = CreateSpell(88, "ex", "ori", "vis", "");
 	S->Mana = 20;
 	S->Level = 12;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Energy Strike";
 	S = CreateSpell(89, "ex", "ori", "flam", "");
 	S->Mana = 20;
 	S->Level = 12;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Flame Strike";
 	S = CreateSpell(90, "ex", "ana", "ina", "");
 	S->Mana = 200;
 	S->Level = 26;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Cancel Invisibility";
 	S = CreateSpell(91, "ad", "evo", "mas", "pox", "");
 	S->Mana = 520;
 	S->Level = 25;
 	S->RuneGr = 79;
 	S->RuneNr = 26;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 2;
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
@@ -4708,23 +4734,23 @@ void InitSpells() {
 	S = CreateSpell(92, "ex", "eta", "vis", "");
 	S->Mana = 80;
 	S->Level = 41;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Enchant Staff";
 	S = CreateSpell(93, "ex", "eta", "res", "");
 	S->Mana = 30;
 	S->Level = 20;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Challenge";
 	S = CreateSpell(94, "ex", "evo", "grav", "vita", "");
 	S->Mana = 220;
 	S->Level = 27;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Wild Growth";
 	S = CreateSpell(95, "ex", "evo", "con", "vis", "");
 	S->Mana = 800;
 	S->Level = 59;
 	S->SoulPoints = 3;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Power Bolt";
 	S = CreateSpell(96, "al", "iva", "cogni", "para", "");
 	S->Mana = 0;
