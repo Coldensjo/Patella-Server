@@ -1085,7 +1085,7 @@ void TBehaviourDatabase::react(TNPC *npc, char *Text, SITUATION Situation) {
 					if (Pos == nullptr) {
 						fulfilled = false;
 					} else {
-						// The original strtol() saturated at the 32-bit LONG_MAX.
+						// strtol() is capped at INT32_MAX, where a 32-bit long saturates.
 						Numbers[C.Number - 1] = (int)std::min(strtol(Pos, nullptr, 10), (long)INT32_MAX);
 						if (Numbers[C.Number - 1] > MAX_TEXT_NUMBER) {
 							Numbers[C.Number - 1] = MAX_TEXT_NUMBER;
@@ -1792,7 +1792,7 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	for (int i = 0; i < this->QueueLength; i++) {
 		if (CreatureID == this->QueuedPlayers(i) || CreatureID == this->ID) {
 			TCreature *cr = GetCreature(this->QueuedPlayers(i));
-			// cr is not checked for NULL, as in the original.
+			// Quirk: cr is not checked for NULL.
 			if (Type == OBJECT_DELETED
 					|| abs(cr->posx - this->posx) >= 5
 					|| abs(cr->posy - this->posy) >= 4
@@ -1867,8 +1867,9 @@ void TNPC::GiveTo(ObjectType Type, int Amount) {
 	Log("npc", "%s -> %ld: %d %s\n", this->Name, (long)this->Interlocutor, Amount, Type.getName(1));
 	try {
 		if (Type.getFlag(CUMULATIVE)) {
-			// 100 is MAX_AMOUNT. std::min takes its arguments by reference,
-			// and with the name the compiler made other code for GiveTo.
+			// 100 is MAX_AMOUNT, written as a number: std::min takes its
+			// arguments by reference, and with the name the compiler makes other
+			// code for GiveTo.
 			while (Amount > 0) {
 				CreateAtCreature(this->Interlocutor, Type, std::min(Amount, 100));
 				Amount -= std::min(Amount, 100);
@@ -2013,8 +2014,8 @@ TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 	while (this->Master != 0) {
 		TCreature *master = GetCreature(this->Master);
 		if (master == nullptr) {
-			// The constructor ends here and leaves the monster off the lists
-			// and off the map, as in the original.
+			// Quirk: the constructor ends here and leaves the monster off the
+			// lists and off the map.
 			error("TMonster::TMonster: Master existiert nicht.\n");
 			return;
 		}
@@ -2449,7 +2450,7 @@ void TMonster::IdleStimulus() {
 			}
 
 			// TImpact has no virtual destructor and all impacts have trivial
-			// ones: the original only frees the memory, as this does.
+			// ones, so only the memory is freed.
 			::operator delete(Impact);
 		}
 	}
@@ -3085,7 +3086,7 @@ void InitNonplayer() {
 }
 
 void ExitNonplayer() {
-	// A NULL entry at position 0 would loop forever, as in the original.
+	// Quirk: a NULL entry at position 0 loops forever.
 	while (FirstFreeNonplayer > 0) {
 		TNonplayer *np = NonplayerList(0);
 		if (np != nullptr) {
