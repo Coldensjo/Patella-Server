@@ -20,7 +20,7 @@
 #include "time.hh"
 #include "crcombat.hh"
 
-// CanToDoAttack, Attack, SetAttackDest, CloseAttack and RangeAttack are
+// CheckTargetAndChase, Attack, SetAttackDest, CloseAttack and RangeAttack are
 // declared throw(RESULT) in the original. C++17 has no dynamic exception
 // specifications, so an exception of another type now propagates instead of
 // ending in std::unexpected().
@@ -65,7 +65,7 @@ TCombat::TCombat() {
 	SecureMode = SECURE_MODE_ON;
 }
 
-void TCombat::CanToDoAttack() {
+void TCombat::CheckTargetAndChase() {
 	if (AttackDest == 0) {
 		return;
 	}
@@ -567,8 +567,8 @@ void TCombat::GetAmmo() {
 }
 
 void TCombat::CloseAttack(TCreature *dfd) {
-	int Attack = GetAttackDamage();
-	int Defend = dfd->Combat.GetDefendDamage();
+	int Attack = RollAttack();
+	int Defend = dfd->Combat.RollDefense();
 	int Damage = Attack - Defend;
 	if (Damage < 0) {
 		Damage = 0;
@@ -694,11 +694,11 @@ void TCombat::RangeAttack(TCreature *dfd) {
 	} else if (Hit) {
 		Drop = GetMapContainer(dfd->GetCreatureObject());
 		GetObjectCoordinates(Drop, x, y, z);
-		Attack = GetAttackDamage();
+		Attack = RollAttack();
 		// The original tests the attacker's own shield here and discards the
-		// defend value; only the side effects of GetDefendDamage remain.
+		// defend value; only the side effects of RollDefense remain.
 		if (Shield != NONE) {
-			dfd->Combat.GetDefendDamage();
+			dfd->Combat.RollDefense();
 		}
 
 		Damage = dfd->Damage(Master, Attack, DamageType);
@@ -799,7 +799,7 @@ void TCombat::GetDefendValue(short &Value, unsigned short &Skill) {
 	Skill = TypeToSkill(Type);
 }
 
-short TCombat::GetAttackDamage() {
+short TCombat::RollAttack() {
 	TSkill *sk;
 	short Value;
 	unsigned short Type;
@@ -819,7 +819,7 @@ short TCombat::GetAttackDamage() {
 	return Value;
 }
 
-short TCombat::GetDefendDamage() {
+short TCombat::RollDefense() {
 	TSkill *sk;
 	short Value;
 	unsigned short Type;

@@ -519,7 +519,7 @@ void TDamageImpact::handleCreature(TCreature *Victim) {
 
 	int Help = Power;
 	if (DamageType == DAMAGE_PHYSICAL && AllowDefense) {
-		Help -= Victim->Combat.GetDefendDamage();
+		Help -= Victim->Combat.RollDefense();
 	}
 
 	Victim->Damage(Actor, Help, DamageType);

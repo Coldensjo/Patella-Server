@@ -1472,7 +1472,7 @@ void TCreature::ToDoTurn(int x, int y, int z, ObjectType Type, unsigned char RNu
 }
 
 void TCreature::ToDoAttack() {
-	Combat.CanToDoAttack();
+	Combat.CheckTargetAndChase();
 	if (Combat.GetDistance() != 1) {
 		ToDoWait(100);
 	}
