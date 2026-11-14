@@ -99,7 +99,7 @@ void CheckLevel(TCreature *cr, int SpellNr);
 void CheckRuneLevel(TCreature *cr, int SpellNr);
 void CheckRing(TCreature *cr, int);
 void CheckAffectedPlayers(TCreature *cr, int x, int y, int z);
-void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay);
+void SpendManaAndSoulPoints(TCreature *cr, int Mana, int SoulPoints, int Delay);
 int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation);
 bool IsAggressiveSpell(int SpellNr);
 void ActorShapeSpell(TCreature *Actor, TImpact *Impact, int Effect);

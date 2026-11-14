@@ -80,7 +80,7 @@ void TCombat::CheckTargetAndChase() {
 	}
 
 	if (Master == nullptr) {
-		error("TCombat::CanAttack: No Master set!\n");
+		error("TCombat::CheckTargetAndChase: No Master set!\n");
 		throw ERROR;
 	}
 
@@ -117,7 +117,7 @@ void TCombat::CheckTargetAndChase() {
 			}
 			break;
 
-		case 2:
+		case CHASE_MODE_KEEP_DISTANCE:
 			if (Distance <= 3) {
 				int x, y, z;
 				if (SearchFlightField(Master->ID, AttackDest, x, y, z)) {
@@ -154,7 +154,7 @@ void TCombat::Attack() {
 	}
 
 	if (Master == nullptr) {
-		error("TCombat::CanAttack: No Master set!\n");
+		error("TCombat::Attack: No Master set!\n");
 		throw ERROR;
 	}
 
@@ -371,8 +371,8 @@ void TCombat::CheckCombatValues() {
 	Object OldAmmo = Ammo;
 	bool OldFist = Fist;
 
-	GetWeapon();
-	GetAmmo();
+	FindWeapons();
+	FindAmmo();
 
 	if (OldMissile != Missile || OldWand != Wand || OldClose != Close
 			|| OldShield != Shield || OldThrow != Throw || OldAmmo != Ammo
@@ -499,7 +499,7 @@ int TCombat::TypeToSkill(int type) {
 	}
 }
 
-void TCombat::GetWeapon() {
+void TCombat::FindWeapons() {
 	Missile = NONE;
 	Wand = NONE;
 	Close = NONE;
@@ -509,7 +509,7 @@ void TCombat::GetWeapon() {
 	Fist = true;
 
 	if (!Master->GetCreatureObject().exists()) {
-		error("TCombat::GetWeapon: Creature object does not exist.\n");
+		error("TCombat::FindWeapons: Creature object does not exist.\n");
 		return;
 	}
 
@@ -555,7 +555,7 @@ void TCombat::GetWeapon() {
 	}
 }
 
-void TCombat::GetAmmo() {
+void TCombat::FindAmmo() {
 	if (Missile != NONE) {
 		Ammo = GetBodyObject(Master->ID, BODY_AMMO);
 		if (Ammo != NONE && (!Ammo.getFlag(AMMO)
@@ -666,7 +666,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 
 	if (Wand != NONE) {
 		try {
-			CheckMana(Master, Wand.getAttribute(WANDMANACONSUMPTION), 0, 0);
+			SpendManaAndSoulPoints(Master, Wand.getAttribute(WANDMANACONSUMPTION), 0, 0);
 		} catch (RESULT r) {
 			if (r == NOTENOUGHMANA) {
 				throw OUTOFAMMO;
