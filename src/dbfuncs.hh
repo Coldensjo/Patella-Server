@@ -5,8 +5,18 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "crskill.hh"
+
 struct TReadScriptFile;
 struct TWriteScriptFile;
+
+// The sizes of TPlayerData's tables: the spells (SpellList, also in TPlayer;
+// the spells are 1 to 255, 0 is none), the quest values (QuestValues, also in
+// TPlayer; 0 to 499), the depots (0 to 8) and the buddies.
+const int MAX_SPELLS = 256;
+const int MAX_QUESTS = 500;
+const int MAX_DEPOTS = 9;
+const int MAX_BUDDIES = 100;
 
 struct TOutfit {
 	int OutfitID;

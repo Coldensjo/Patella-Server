@@ -7,6 +7,7 @@
 #include "objects.hh"
 #include "dbfuncs.hh"
 #include "containr.hh"
+#include "crmain.hh"
 
 enum BloodType {
 	BT_BLOOD = 0,

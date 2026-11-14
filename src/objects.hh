@@ -201,6 +201,46 @@ enum SPECIALMEANING {
 
 const int SPECIALMEANINGS = 49;
 
+// The body positions: the inventory slots, the y of an inventory object's
+// coordinates (x is POSITION_NOT_ON_MAP), the value of the BODYPOSITION
+// attribute of CLOTHES, and the type numbers of the body containers
+// (isBodyContainer). BODY_BOTHHANDS is the BODYPOSITION of CLOTHES that take
+// both hands (two-handed weapons); it is no slot.
+const int BODY_BOTHHANDS = 0;
+const int BODY_HEAD = 1;
+const int BODY_NECK = 2;
+const int BODY_CONTAINER = 3;
+const int BODY_TORSO = 4;
+const int BODY_RIGHTHAND = 5;
+const int BODY_LEFTHAND = 6;
+const int BODY_LEGS = 7;
+const int BODY_FEET = 8;
+const int BODY_FINGER = 9;
+const int BODY_AMMO = 10;
+const int FIRST_BODY_POSITION = 1;
+const int LAST_BODY_POSITION = 10;
+
+// The liquids: the values of CONTAINERLIQUIDTYPE, POOLLIQUIDTYPE and
+// SOURCELIQUIDTYPE, named as GetLiquidName names them.
+const int LIQUID_NONE = 0;
+const int LIQUID_WATER = 1;
+const int LIQUID_WINE = 2;
+const int LIQUID_BEER = 3;
+const int LIQUID_MUD = 4;
+const int LIQUID_BLOOD = 5;
+const int LIQUID_SLIME = 6;
+const int LIQUID_OIL = 7;
+const int LIQUID_URINE = 8;
+const int LIQUID_MILK = 9;
+const int LIQUID_MANAFLUID = 10;
+const int LIQUID_LIFEFLUID = 11;
+const int LIQUID_LEMONADE = 12;
+
+// The type number of every creature object (isCreature). On the wire it is
+// also the word that introduces a known creature (SendMapObject), beside
+// sending.hh's UNKNOWNCREATURE and OUTDATEDCREATURE.
+const int TYPEID_CREATURE = 99;
+
 struct ObjectType {
 	ObjectType(const ObjectType &Other) { setTypeID(Other.TypeID); }
 	ObjectType(int TypeID = 0) { setTypeID(TypeID); }

@@ -47,6 +47,24 @@ private:
 
 static const Object NONE;
 
+// Coordinates of an object that is not on the map, as the client sends them
+// and GetObject and GetBodyContainer read them: x is POSITION_NOT_ON_MAP, y is
+// a body position (objects.hh's BODY_*) or POSITION_CONTAINER_BASE plus the
+// number of an open container window (0 to MAX_OPEN_CONTAINERS - 1, cr.hh),
+// and z the place in that container.
+const int POSITION_NOT_ON_MAP = 0xFFFF;
+const int POSITION_CONTAINER_BASE = 0x40;
+
+// The width and height of a map sector in fields (the XXXX-YYYY-ZZ.sec files).
+const int SECTOR_SIZE = 32;
+
+// The flags of a map field (GetMapContainerFlags, TSector::MapFlags), named as
+// the sector files name them: Refresh, NoLogout, ProtectionZone. In the map
+// container's Attributes[3] they are shifted left by 8.
+const int MAPFLAG_REFRESH = 1;
+const int MAPFLAG_NOLOGOUT = 2;
+const int MAPFLAG_PROTECTIONZONE = 4;
+
 extern int SectorXMin;
 extern int SectorXMax;
 extern int SectorYMin;

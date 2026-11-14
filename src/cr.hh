@@ -20,6 +20,112 @@ enum CreatureType {
 	NPC = 2,
 };
 
+// The kinds of creature a TFindCreatures search returns (its Mask, bits that
+// can be combined).
+const int FIND_PLAYERS = 1;
+const int FIND_NPCS = 2;
+const int FIND_MONSTERS = 4;
+const int FIND_ALL = 7;
+
+// The directions a creature faces (TCreature::Direction, Rotate, SendRow).
+const int DIRECTION_NORTH = 0;
+const int DIRECTION_EAST = 1;
+const int DIRECTION_SOUTH = 2;
+const int DIRECTION_WEST = 3;
+
+// TCreature::Sex.
+const int SEX_MALE = 1;
+const int SEX_FEMALE = 2;
+
+// The damage types of TCreature::Damage, bits as in the PROTECTIONDAMAGETYPES
+// and AVOIDDAMAGETYPES attributes. The *_CONDITION types do no damage at once:
+// they start the timer of SKILL_POISON, SKILL_BURNING or SKILL_ENERGY, whose
+// rounds then do DAMAGE_POISON, DAMAGE_FIRE or DAMAGE_ENERGY.
+const int DAMAGE_PHYSICAL = 0x001;
+const int DAMAGE_POISON = 0x002;
+const int DAMAGE_FIRE = 0x004;
+const int DAMAGE_ENERGY = 0x008;
+const int DAMAGE_POISON_CONDITION = 0x020;
+const int DAMAGE_FIRE_CONDITION = 0x040;
+const int DAMAGE_ENERGY_CONDITION = 0x080;
+const int DAMAGE_LIFEDRAIN = 0x100;
+const int DAMAGE_MANADRAIN = 0x200;
+
+// TCombat's attack mode: offensive raises the attack and lowers the defense,
+// defensive the other way round. The client sends it in CSetTactics.
+const int ATTACK_MODE_OFFENSIVE = 1;
+const int ATTACK_MODE_BALANCED = 2;
+const int ATTACK_MODE_DEFENSIVE = 3;
+
+// TCombat's chase mode: stand while fighting, or follow the target.
+const int CHASE_MODE_STAND = 0;
+const int CHASE_MODE_FOLLOW = 1;
+
+// TCombat's secure mode: on, a player does not attack unmarked players.
+const int SECURE_MODE_OFF = 0;
+const int SECURE_MODE_ON = 1;
+
+// The fighting types of TCombat (TypeToSkill turns them into the skill that
+// is used). 1 to 3 are also the values of the WEAPONTYPE attribute; a wand
+// and no weapon at all fight as WEAPON_NONE (fist fighting).
+const int WEAPON_NONE = 0;
+const int WEAPON_SWORD = 1;
+const int WEAPON_CLUB = 2;
+const int WEAPON_AXE = 3;
+const int WEAPON_SHIELD = 4;
+const int WEAPON_BOW = 5;
+const int WEAPON_THROW = 6;
+
+// The professions (TCreature::Profession, TPlayerData::Profession), named as
+// GetProfessionName names them. A promoted profession is the profession plus
+// PROFESSION_PROMOTION, which SetProfession also takes to promote.
+const int PROFESSION_NONE = 0;
+const int PROFESSION_KNIGHT = 1;
+const int PROFESSION_PALADIN = 2;
+const int PROFESSION_SORCERER = 3;
+const int PROFESSION_DRUID = 4;
+const int PROFESSION_PROMOTION = 10;
+const int PROFESSION_ELITE_KNIGHT = 11;
+const int PROFESSION_ROYAL_PALADIN = 12;
+const int PROFESSION_MASTER_SORCERER = 13;
+const int PROFESSION_ELDER_DRUID = 14;
+
+// The skull a player shows to an observer (GetPlayerkillingMark, sent by
+// SendCreatureSkull): yellow to the one he attacked, green to his party, white
+// for an aggressor, red for a playerkiller.
+const int SKULL_NONE = 0;
+const int SKULL_YELLOW = 1;
+const int SKULL_GREEN = 2;
+const int SKULL_WHITE = 3;
+const int SKULL_RED = 4;
+
+// The party shield a player shows to an observer (GetPartyMark, sent by
+// SendCreatureParty): the leader who invited the observer, a guest the
+// observer (a leader) invited, a member and the leader of the observer's party.
+const int PARTY_SHIELD_NONE = 0;
+const int PARTY_SHIELD_HOST = 1;
+const int PARTY_SHIELD_GUEST = 2;
+const int PARTY_SHIELD_MEMBER = 3;
+const int PARTY_SHIELD_LEADER = 4;
+
+// The outfits CheckOutfit allows: the gamemaster's (right GAMEMASTER_OUTFIT)
+// and the player outfits of each sex, with the first one as the default.
+const int OUTFIT_GAMEMASTER = 75;
+const int FIRST_MALE_OUTFIT = 128;
+const int LAST_MALE_OUTFIT = 134;
+const int FIRST_FEMALE_OUTFIT = 136;
+const int LAST_FEMALE_OUTFIT = 142;
+
+// The quest values that TPlayer::Death counts and clears: each one set lowers
+// the share of experience and skills a player loses by one percent point (the
+// blessings).
+const int FIRST_BLESSING_QUEST = 101;
+const int LAST_BLESSING_QUEST = 105;
+
+// The container windows a player can have open (TPlayer::OpenContainer; the
+// ContNr of the Send functions).
+const int MAX_OPEN_CONTAINERS = 16;
+
 enum ToDoType {
 	TDWait = 0,
 	TDGo = 1,

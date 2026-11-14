@@ -182,6 +182,19 @@ int GetObjectBodyPosition(Object Obj);
 int GetObjectRNum(Object Obj);
 bool ObjectInRange(uint32_t CreatureID, Object Obj, int Range);
 bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range);
+// The colours the client draws a liquid in, which GetLiquidColor gives for
+// each liquid (objects.hh's LIQUID_*): water blue, wine and manafluid purple,
+// blood and lifefluid red, slime green, urine and lemonade yellow, milk white;
+// beer, mud and oil brown. 0 is no liquid.
+const int LIQUID_COLOR_NONE = 0;
+const int LIQUID_COLOR_BLUE = 1;
+const int LIQUID_COLOR_RED = 2;
+const int LIQUID_COLOR_BROWN = 3;
+const int LIQUID_COLOR_GREEN = 4;
+const int LIQUID_COLOR_YELLOW = 5;
+const int LIQUID_COLOR_WHITE = 6;
+const int LIQUID_COLOR_PURPLE = 7;
+
 const char *GetLiquidName(uint32_t nr);
 unsigned char GetLiquidColor(uint32_t nr);
 int ObjectDistance(Object Obj1, Object Obj2);

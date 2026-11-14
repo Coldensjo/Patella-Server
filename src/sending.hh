@@ -8,6 +8,79 @@
 struct Object;
 struct TConnection;
 
+// The first byte of each packet the game server sends, named after the
+// function that sends it (SendInitGame is SV_INIT_GAME). SV_LOGIN_ERROR,
+// SV_LOGIN_MESSAGE and SV_LOGIN_WAITINGLIST are the Type of SendLoginMessage
+// (communication.cc).
+const int SV_INIT_GAME = 0x0A;
+const int SV_RIGHTS = 0x0B;
+const int SV_LOGIN_ERROR = 0x14;
+const int SV_LOGIN_MESSAGE = 0x15;
+const int SV_LOGIN_WAITINGLIST = 0x16;
+const int SV_PING = 0x1E;
+const int SV_FULL_SCREEN = 0x64;
+const int SV_ROW_NORTH = 0x65;
+const int SV_ROW_EAST = 0x66;
+const int SV_ROW_SOUTH = 0x67;
+const int SV_ROW_WEST = 0x68;
+const int SV_FIELD_DATA = 0x69;
+const int SV_ADD_FIELD = 0x6A;
+const int SV_CHANGE_FIELD = 0x6B;
+const int SV_DELETE_FIELD = 0x6C;
+const int SV_MOVE_CREATURE = 0x6D;
+const int SV_CONTAINER = 0x6E;
+const int SV_CLOSE_CONTAINER = 0x6F;
+const int SV_CREATE_IN_CONTAINER = 0x70;
+const int SV_CHANGE_IN_CONTAINER = 0x71;
+const int SV_DELETE_IN_CONTAINER = 0x72;
+const int SV_SET_INVENTORY = 0x78;
+const int SV_DELETE_INVENTORY = 0x79;
+const int SV_TRADE_OFFER_OWN = 0x7D;
+const int SV_TRADE_OFFER_PARTNER = 0x7E;
+const int SV_CLOSE_TRADE = 0x7F;
+const int SV_AMBIENTE = 0x82;
+const int SV_GRAPHICAL_EFFECT = 0x83;
+const int SV_TEXTUAL_EFFECT = 0x84;
+const int SV_MISSILE_EFFECT = 0x85;
+const int SV_MARK_CREATURE = 0x86;
+const int SV_CREATURE_HEALTH = 0x8C;
+const int SV_CREATURE_LIGHT = 0x8D;
+const int SV_CREATURE_OUTFIT = 0x8E;
+const int SV_CREATURE_SPEED = 0x8F;
+const int SV_CREATURE_SKULL = 0x90;
+const int SV_CREATURE_PARTY = 0x91;
+const int SV_EDIT_TEXT = 0x96;
+const int SV_EDIT_LIST = 0x97;
+const int SV_PLAYER_DATA = 0xA0;
+const int SV_PLAYER_SKILLS = 0xA1;
+const int SV_PLAYER_STATE = 0xA2;
+const int SV_CLEAR_TARGET = 0xA3;
+const int SV_TALK = 0xAA;
+const int SV_CHANNELS = 0xAB;
+const int SV_OPEN_CHANNEL = 0xAC;
+const int SV_PRIVATE_CHANNEL = 0xAD;
+const int SV_OPEN_REQUEST_QUEUE = 0xAE;
+const int SV_DELETE_REQUEST = 0xAF;
+const int SV_FINISH_REQUEST = 0xB0;
+const int SV_CLOSE_REQUEST = 0xB1;
+const int SV_OPEN_OWN_CHANNEL = 0xB2;
+const int SV_CLOSE_CHANNEL = 0xB3;
+const int SV_MESSAGE = 0xB4;
+const int SV_SNAPBACK = 0xB5;
+const int SV_FLOORS_UP = 0xBE;
+const int SV_FLOORS_DOWN = 0xBF;
+const int SV_OUTFIT = 0xC8;
+const int SV_BUDDY_DATA = 0xD2;
+const int SV_BUDDY_ONLINE = 0xD3;
+const int SV_BUDDY_OFFLINE = 0xD4;
+
+// The word SendMapObject sends in place of a creature's object type: a
+// creature the client does not know yet (with all its data), one whose data
+// is outdated, or objects.hh's TYPEID_CREATURE (0x63), one it knows. The names
+// are the client's.
+const int UNKNOWNCREATURE = 0x61;
+const int OUTDATEDCREATURE = 0x62;
+
 bool BeginSendData(TConnection *Connection);
 void FinishSendData(TConnection *Connection);
 void SendAll();

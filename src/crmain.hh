@@ -10,6 +10,17 @@ struct TAttackWave;
 struct TCreature;
 struct TOutfit;
 
+// The size of the race tables (RaceData, KilledCreatures, KilledPlayers):
+// races are 1 to 511, 0 is none.
+const int MAX_RACES = 512;
+
+// The race RaiseDead and MassRaiseDead create (skeleton.mon).
+const int RACE_SKELETON = 33;
+
+// Players have their character ID as creature ID, below this number; monsters
+// and NPCs get IDs from here on (NextCreatureID, IsCreaturePlayer).
+const int FIRST_NONPLAYER_CREATURE_ID = 0x40000000;
+
 TCreature *GetCreature(uint32_t id);
 TCreature *GetCreature(Object Obj);
 bool IsCreaturePlayer(uint32_t CreatureID);
