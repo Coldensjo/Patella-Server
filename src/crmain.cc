@@ -30,29 +30,33 @@
 #include "TXTEASymmetricKey.hh"
 #include "crmain.hh"
 
+// The width and height in fields of a block of FirstChainCreature, which
+// chains the creatures in each block (two blocks per sector side, see InitCr).
+const int CHAIN_BLOCK_SIZE = 16;
+
 // TCreature::MovePossible is declared throw(RESULT) in the original, and
 // LoadRace, LoadRaces, LoadMonsterRaid, LoadMonsterRaids and InitCr are
 // declared throw(const char *). C++17 has no dynamic exception specifications,
 // so an exception of another type now propagates instead of ending in
 // std::unexpected().
 
-TCreature *HashList[1000];
+TCreature *HashList[HASH_LIST_SIZE];
 vector<TCreature *> CreatureList(0, 10000, 1000, nullptr);
 int FirstFreeCreature;
-TRaceData RaceData[512];
+TRaceData RaceData[MAX_RACES];
 uint32_t NextCreatureID;
 priority_queue<uint32_t, uint32_t> ToDoQueue(5000, 1000);
 priority_queue<uint32_t, TAttackWave *> AttackWaveQueue(100, 100);
 matrix<uint32_t> *FirstChainCreature;
-int KilledCreatures[512];
-int KilledPlayers[512];
+int KilledCreatures[MAX_RACES];
+int KilledPlayers[MAX_RACES];
 
 TCreature *GetCreature(uint32_t id) {
 	if (id == 0) {
 		return nullptr;
 	}
 
-	uint32_t m = id % 1000;
+	uint32_t m = id % HASH_LIST_SIZE;
 	TCreature *cr = HashList[m];
 	while (cr != nullptr && cr->ID != id) {
 		cr = cr->NextHashEntry;
@@ -66,7 +70,7 @@ TCreature *GetCreature(Object Obj) {
 }
 
 bool IsCreaturePlayer(uint32_t CreatureID) {
-	return CreatureID < 0x40000000;
+	return CreatureID < FIRST_NONPLAYER_CREATURE_ID;
 }
 
 void ProcessSkills() {
@@ -91,12 +95,12 @@ void ProcessCreatures() {
 			continue;
 		}
 
-		if (cr->Skills[14]->Get() > 0
-				&& RoundNr % cr->Skills[14]->Get() == 0
+		if (cr->Skills[SKILL_EATING]->Get() > 0
+				&& RoundNr % cr->Skills[SKILL_EATING]->Get() == 0
 				&& !cr->IsDead
 				&& !IsProtectionZone(cr->posx, cr->posy, cr->posz)) {
-			cr->Skills[2]->Change(1);
-			cr->Skills[3]->Change(4);
+			cr->Skills[SKILL_HITPOINTS]->Change(1);
+			cr->Skills[SKILL_MANA]->Change(4);
 			if (cr->Type == PLAYER) {
 				SendPlayerData(cr->GetConnection());
 			}
@@ -111,15 +115,15 @@ void ProcessCreatures() {
 			cr->EarliestLogoutRound = 0;
 		}
 
-		if (!cr->IsDead && cr->Skills[2]->Get() <= 0) {
+		if (!cr->IsDead && cr->Skills[SKILL_HITPOINTS]->Get() <= 0) {
 			error("ProcessCreatures: Kreatur %s ist nicht tot, obwohl sie keine HP mehr hat.\n", cr->Name);
 			cr->Death();
 		}
 
-		if (cr->LoggingOut && cr->LogoutPossible() == 0) {
-			if (cr->IsDead && cr->Skills[2]->Get() > 0) {
+		if (cr->LoggingOut && cr->LogoutPossible() == LOGOUT_POSSIBLE) {
+			if (cr->IsDead && cr->Skills[SKILL_HITPOINTS]->Get() > 0) {
 				error("ProcessCreatures: Kreatur %s hat HP, obwohl sie tot ist.\n", cr->Name);
-				cr->Skills[2]->Set(0);
+				cr->Skills[SKILL_HITPOINTS]->Set(0);
 			}
 
 			// The destructor moves the last entry of CreatureList to this
@@ -155,8 +159,8 @@ void DeleteChainCreature(TCreature *cr) {
 		return;
 	}
 
-	int blockx = cr->posx / 16;
-	int blocky = cr->posy / 16;
+	int blockx = cr->posx / CHAIN_BLOCK_SIZE;
+	int blocky = cr->posy / CHAIN_BLOCK_SIZE;
 	uint32_t ID = (*FirstChainCreature)(blockx, blocky);
 	if (ID == cr->ID) {
 		(*FirstChainCreature)(blockx, blocky) = cr->NextChainCreature;
@@ -197,8 +201,8 @@ void InsertChainCreature(TCreature *cr, int newx, int newy) {
 		newy = cr->posy;
 	}
 
-	int blockx = newx / 16;
-	int blocky = newy / 16;
+	int blockx = newx / CHAIN_BLOCK_SIZE;
+	int blocky = newy / CHAIN_BLOCK_SIZE;
 	cr->NextChainCreature = (*FirstChainCreature)(blockx, blocky);
 	(*FirstChainCreature)(blockx, blocky) = cr->ID;
 }
@@ -210,7 +214,7 @@ void MoveChainCreature(TCreature *cr, int newx, int newy) {
 		return;
 	}
 
-	if (cr->posx / 16 == newx / 16 && cr->posy / 16 == newy / 16) {
+	if (cr->posx / CHAIN_BLOCK_SIZE == newx / CHAIN_BLOCK_SIZE && cr->posy / CHAIN_BLOCK_SIZE == newy / CHAIN_BLOCK_SIZE) {
 		return;
 	}
 
@@ -253,8 +257,8 @@ void TFindCreatures::initSearch(int radx, int rady, int x, int y, int mask) {
 	starty = y - rady;
 	endx = x + radx;
 	endy = y + rady;
-	blockx = startx / 16 - 1;
-	blocky = starty / 16;
+	blockx = startx / CHAIN_BLOCK_SIZE - 1;
+	blocky = starty / CHAIN_BLOCK_SIZE;
 	ActID = 0;
 	SkipID = 0;
 	Mask = mask;
@@ -269,10 +273,10 @@ uint32_t TFindCreatures::getNext() {
 again:
 	while (ActID == 0) {
 		blockx++;
-		if (blockx > endx / 16) {
-			blockx = startx / 16;
+		if (blockx > endx / CHAIN_BLOCK_SIZE) {
+			blockx = startx / CHAIN_BLOCK_SIZE;
 			blocky++;
-			if (blocky > endy / 16) {
+			if (blocky > endy / CHAIN_BLOCK_SIZE) {
 				finished = true;
 				return 0;
 			}
@@ -303,13 +307,13 @@ again:
 	if (!in(cr->posy, starty, endy)) {
 		goto again;
 	}
-	if (cr->Type == PLAYER && (Mask & 1) == 0) {
+	if (cr->Type == PLAYER && (Mask & FIND_PLAYERS) == 0) {
 		goto again;
 	}
-	if (cr->Type == NPC && (Mask & 2) == 0) {
+	if (cr->Type == NPC && (Mask & FIND_NPCS) == 0) {
 		goto again;
 	}
-	if (cr->Type == MONSTER && (Mask & 4) == 0) {
+	if (cr->Type == MONSTER && (Mask & FIND_MONSTERS) == 0) {
 		goto again;
 	}
 
@@ -317,7 +321,7 @@ again:
 }
 
 void InitKillStatistics() {
-	for (int i = 0; i < 512; i++) {
+	for (int i = 0; i < MAX_RACES; i++) {
 		KilledCreatures[i] = 0;
 		KilledPlayers[i] = 0;
 	}
@@ -325,11 +329,11 @@ void InitKillStatistics() {
 
 void WriteKillStatistics() {
 	int NumberOfRaces = 0;
-	char *Names = new char[512 * 30];
-	int *Players = new int[512];
-	int *Creatures = new int[512];
+	char *Names = new char[MAX_RACES * 30];
+	int *Players = new int[MAX_RACES];
+	int *Creatures = new int[MAX_RACES];
 
-	for (int i = 0; i < 512; i++) {
+	for (int i = 0; i < MAX_RACES; i++) {
 		if (KilledCreatures[i] == 0 && KilledPlayers[i] == 0) {
 			continue;
 		}
@@ -379,10 +383,10 @@ TCreature::TCreature() : ToDoList(0, 20, 10) {
 	posx = 0;
 	posy = 0;
 	posz = 0;
-	Direction = 0;
+	Direction = DIRECTION_NORTH;
 	Radius = 0x7fffffff;
 	IsDead = false;
-	LoseInventory = 2;
+	LoseInventory = LOSE_INVENTORY_ALL;
 	LoggingOut = false;
 	LogoutAllowed = false;
 	EarliestLogoutRound = 0;
@@ -400,7 +404,7 @@ TCreature::TCreature() : ToDoList(0, 20, 10) {
 	LockToDo = false;
 	Connection = nullptr;
 
-	for (int i = 0; i < 25; i++) {
+	for (int i = 0; i < MAX_SKILLS; i++) {
 		NewSkill(i, this);
 	}
 
@@ -416,11 +420,11 @@ TCreature::~TCreature() noexcept(false) {
 	if (IsDead) {
 		try {
 			if (RaceData[Race].Blood == BT_BLOOD) {
-				CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_POOL), 5);
+				CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_POOL), LIQUID_BLOOD);
 			}
 
 			if (RaceData[Race].Blood == BT_SLIME) {
-				CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_POOL), 6);
+				CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_POOL), LIQUID_SLIME);
 			}
 		} catch (RESULT r) {
 			if (r != NOROOM && r != DESTROYED) {
@@ -429,7 +433,7 @@ TCreature::~TCreature() noexcept(false) {
 		}
 
 		try {
-			ObjectType CorpseType = (Sex == 1) ? RaceData[Race].MaleCorpse : RaceData[Race].FemaleCorpse;
+			ObjectType CorpseType = (Sex == SEX_MALE) ? RaceData[Race].MaleCorpse : RaceData[Race].FemaleCorpse;
 			if (CorpseType.getFlag(MAGICFIELD)) {
 				Object Obj = GetFirstObject(posx, posy, posz);
 				while (Obj != NONE) {
@@ -452,7 +456,7 @@ TCreature::~TCreature() noexcept(false) {
 				char s[128];
 				sprintf(s, "You recognize %s", Name);
 				if (Murderer[0] != 0) {
-					if (Sex == 1) {
+					if (Sex == SEX_MALE) {
 						strcat(s, ". He ");
 					} else {
 						strcat(s, ". She ");
@@ -463,20 +467,20 @@ TCreature::~TCreature() noexcept(false) {
 				Change(Corpse, TEXTSTRING, AddDynamicString(s));
 			}
 
-			if (LoseInventory != 0) {
-				for (int i = 1; i <= 10; i++) {
+			if (LoseInventory != LOSE_INVENTORY_NONE) {
+				for (int i = FIRST_BODY_POSITION; i <= LAST_BODY_POSITION; i++) {
 					Object Obj = GetBodyObject(ID, i);
 					if (Obj == NONE) {
 						continue;
 					}
 
-					if (LoseInventory == 2 || Obj.getFlag(CONTAINER) || random(0, 9) == 0) {
+					if (LoseInventory == LOSE_INVENTORY_ALL || Obj.getFlag(CONTAINER) || random(0, 9) == 0) {
 						::Move(0, Obj, Corpse, -1, false, NONE);
 					}
 				}
 			}
 
-			if (Type == PLAYER && LoseInventory != 2) {
+			if (Type == PLAYER && LoseInventory != LOSE_INVENTORY_ALL) {
 				TPlayer *pl = (TPlayer *)this;
 				pl->SaveInventory();
 			}
@@ -538,7 +542,7 @@ void TCreature::SetID(uint32_t CharacterID) {
 		}
 	}
 
-	uint32_t m = ID % 1000;
+	uint32_t m = ID % HASH_LIST_SIZE;
 	NextHashEntry = HashList[m];
 	HashList[m] = this;
 }
@@ -546,7 +550,7 @@ void TCreature::SetID(uint32_t CharacterID) {
 // The entry is found by its ID, and the successor of the found entry is
 // linked in, as in the original.
 void TCreature::DelID() {
-	uint32_t m = ID % 1000;
+	uint32_t m = ID % HASH_LIST_SIZE;
 	TCreature *cr = HashList[m];
 	TCreature *ocr = nullptr;
 	if (cr == nullptr) {
@@ -605,19 +609,19 @@ void TCreature::StartLogout(bool Force, bool StopFight) {
 
 int TCreature::LogoutPossible() {
 	if (LogoutAllowed || GameEnding() || IsDead) {
-		return 0;
+		return LOGOUT_POSSIBLE;
 	}
 
 	if (EarliestLogoutRound > RoundNr && !LagDetected()) {
-		return 1;
+		return LOGOUT_AFTER_FIGHT;
 	}
 
 	if (IsNoLogoutField(posx, posy, posz)) {
-		return 2;
+		return LOGOUT_NO_LOGOUT_FIELD;
 	}
 
 	LogoutAllowed = true;
-	return 0;
+	return LOGOUT_POSSIBLE;
 }
 
 void TCreature::BlockLogout(int Delay, bool BlockProtectionZone) {
@@ -647,7 +651,7 @@ void TCreature::BlockLogout(int Delay, bool BlockProtectionZone) {
 }
 
 int TCreature::GetHealth() {
-	TSkill *sk = Skills[2];
+	TSkill *sk = Skills[SKILL_HITPOINTS];
 	int MaxHitpoints = sk->GetMax();
 	if (MaxHitpoints <= 0) {
 		if (!IsDead) {
@@ -665,7 +669,7 @@ int TCreature::GetHealth() {
 }
 
 int TCreature::GetSpeed() {
-	TSkill *sk = Skills[4];
+	TSkill *sk = Skills[SKILL_GOSTRENGTH];
 	if (sk == nullptr) {
 		error("TCreature::GetSpeed: Kein Skill GOSTRENGTH vorhanden.\n");
 		return 0;
@@ -685,11 +689,12 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	}
 
 	if (Type == PLAYER && GetConnection() != nullptr && atk != nullptr) {
-		SendMarkCreature(GetConnection(), atk->ID, 0);
+		SendMarkCreature(GetConnection(), atk->ID, COLOR_BLACK);
 	}
 
 	if (Type == PLAYER && atk != nullptr && atk->Type == PLAYER
-			&& DamageType != 0x20 && DamageType != 0x40 && DamageType != 0x80) {
+			&& DamageType != DAMAGE_POISON_CONDITION && DamageType != DAMAGE_FIRE_CONDITION
+			&& DamageType != DAMAGE_ENERGY_CONDITION) {
 		Damage = (Damage + 1) / 2;
 	}
 
@@ -715,12 +720,12 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	}
 
 	if (Damage <= 0 || (Type == PLAYER && CheckRight(ID, INVULNERABLE))) {
-		GraphicalEffect(GetCreatureObject(), 3);
+		GraphicalEffect(GetCreatureObject(), EFFECT_POFF);
 		return 0;
 	}
 
 	if (Type == PLAYER) {
-		for (int b = 1; b <= 10 && Damage > 0; b++) {
+		for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION && Damage > 0; b++) {
 			Object Obj = GetBodyObject(ID, b);
 			if (Obj == NONE || !Obj.getFlag(PROTECTION)) {
 				continue;
@@ -760,74 +765,74 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	}
 
 	if (Damage <= 0) {
-		GraphicalEffect(GetCreatureObject(), 3);
+		GraphicalEffect(GetCreatureObject(), EFFECT_POFF);
 		return 0;
 	}
 
-	if (DamageType == 0x20) {
+	if (DamageType == DAMAGE_POISON_CONDITION) {
 		if (RaceData[Race].NoPoison) {
 			return 0;
 		}
 
-		if (Damage > Skills[17]->TimerValue()) {
+		if (Damage > Skills[SKILL_POISON]->TimerValue()) {
 			PoisonDamageOrigin = atkID;
-			SetTimer(17, Damage, 3, 3, -1);
+			SetTimer(SKILL_POISON, Damage, 3, 3, -1);
 		}
 
 		DamageStimulus(atkID, Damage, DamageType);
 		return Damage;
 	}
 
-	if (DamageType == 0x40) {
+	if (DamageType == DAMAGE_FIRE_CONDITION) {
 		if (RaceData[Race].NoBurning) {
 			return 0;
 		}
 
 		FireDamageOrigin = atkID;
-		SetTimer(18, Damage / 10, 8, 8, -1);
+		SetTimer(SKILL_BURNING, Damage / 10, 8, 8, -1);
 		DamageStimulus(atkID, Damage, DamageType);
 		return Damage;
 	}
 
-	if (DamageType == 0x80) {
+	if (DamageType == DAMAGE_ENERGY_CONDITION) {
 		if (RaceData[Race].NoEnergy) {
 			return 0;
 		}
 
 		EnergyDamageOrigin = atkID;
-		SetTimer(19, Damage / 20, 10, 10, -1);
+		SetTimer(SKILL_ENERGY, Damage / 20, 10, 10, -1);
 		DamageStimulus(atkID, Damage, DamageType);
 		return Damage;
 	}
 
-	if (DamageType == 1) {
+	if (DamageType == DAMAGE_PHYSICAL) {
 		Damage -= Combat.GetArmorStrength();
 		if (Damage <= 0) {
-			GraphicalEffect(GetCreatureObject(), 4);
+			GraphicalEffect(GetCreatureObject(), EFFECT_BLOCK_HIT);
 			return 0;
 		}
 	}
 
-	if ((DamageType == 2 && RaceData[Race].NoPoison)
-			|| (DamageType == 4 && RaceData[Race].NoBurning)
-			|| (DamageType == 8 && RaceData[Race].NoEnergy)
-			|| (DamageType == 1 && RaceData[Race].NoHit)
-			|| (DamageType == 0x100 && RaceData[Race].NoLifeDrain)) {
-		GraphicalEffect(GetCreatureObject(), 4);
+	if ((DamageType == DAMAGE_POISON && RaceData[Race].NoPoison)
+			|| (DamageType == DAMAGE_FIRE && RaceData[Race].NoBurning)
+			|| (DamageType == DAMAGE_ENERGY && RaceData[Race].NoEnergy)
+			|| (DamageType == DAMAGE_PHYSICAL && RaceData[Race].NoHit)
+			|| (DamageType == DAMAGE_LIFEDRAIN && RaceData[Race].NoLifeDrain)) {
+		GraphicalEffect(GetCreatureObject(), EFFECT_BLOCK_HIT);
 		return 0;
 	}
 
 	DamageStimulus(atkID, Damage, DamageType);
 
 	if (IsInvisible() && Type != PLAYER) {
-		SetTimer(16, 0, 0, 0, -1);
+		SetTimer(SKILL_ILLUSION, 0, 0, 0, -1);
 		Outfit = OrgOutfit;
-		AnnounceChangedCreature(ID, 3);
-		NotifyAllCreatures(GetCreatureObject(), 2, NONE);
+		AnnounceChangedCreature(ID, CREATURE_OUTFIT);
+		NotifyAllCreatures(GetCreatureObject(), OBJECT_CHANGED, NONE);
 	}
 
-	if (DamageType == 0x200) {
-		TSkill *sk = Skills[3];
+	if (DamageType == DAMAGE_MANADRAIN) {
+		TSkill *sk = Skills[SKILL_MANA];
 		if (Damage > sk->Get()) {
 			Damage = sk->Get();
 		}
@@ -838,25 +843,25 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 
 		sk->Change(-Damage);
 		if (Type == PLAYER && GetConnection() != nullptr) {
-			SendMessage(GetConnection(), 0x15, "You lose %d mana.", Damage);
+			SendMessage(GetConnection(), TALK_STATUS_MESSAGE, "You lose %d mana.", Damage);
 		}
 
-		GraphicalEffect(GetCreatureObject(), 14);
-		TextualEffect(GetCreatureObject(), 5, "%d", Damage);
+		GraphicalEffect(GetCreatureObject(), EFFECT_MAGIC_RED);
+		TextualEffect(GetCreatureObject(), COLOR_BLUE, "%d", Damage);
 		return Damage;
 	}
 
-	if (Skills[21]->TimerValue() > 0 || Skills[21]->Get() > 0) {
-		TSkill *sk = Skills[3];
+	if (Skills[SKILL_MANASHIELD]->TimerValue() > 0 || Skills[SKILL_MANASHIELD]->Get() > 0) {
+		TSkill *sk = Skills[SKILL_MANA];
 		if (sk->Get() >= Damage) {
 			sk->Change(-Damage);
-			GraphicalEffect(GetCreatureObject(), 2);
-			TextualEffect(GetCreatureObject(), 5, "%d", Damage);
+			GraphicalEffect(GetCreatureObject(), EFFECT_MANA_HIT);
+			TextualEffect(GetCreatureObject(), COLOR_BLUE, "%d", Damage);
 			if (Type == PLAYER && GetConnection() != nullptr) {
 				if (atk != nullptr) {
-					SendMessage(GetConnection(), 0x15, "You lose %d mana blocking an attack by %s.", Damage, atk->Name);
+					SendMessage(GetConnection(), TALK_STATUS_MESSAGE, "You lose %d mana blocking an attack by %s.", Damage, atk->Name);
 				} else {
-					SendMessage(GetConnection(), 0x15, "You lose %d mana.", Damage);
+					SendMessage(GetConnection(), TALK_STATUS_MESSAGE, "You lose %d mana.", Damage);
 				}
 				SendPlayerData(GetConnection());
 			}
@@ -867,7 +872,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		sk->Set(0);
 	}
 
-	TSkill *sk = Skills[2];
+	TSkill *sk = Skills[SKILL_HITPOINTS];
 	if (Damage > sk->Get()) {
 		Damage = sk->Get();
 	}
@@ -888,43 +893,43 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	}
 
 	switch (DamageType) {
-		case 1: {
+		case DAMAGE_PHYSICAL: {
 			switch (RaceData[Race].Blood) {
 				case BT_BLOOD: {
-					GraphicalEffect(GetCreatureObject(), 1);
-					TextualEffect(GetCreatureObject(), 0xb4, "%d", Damage);
+					GraphicalEffect(GetCreatureObject(), EFFECT_BLOOD_HIT);
+					TextualEffect(GetCreatureObject(), COLOR_RED, "%d", Damage);
 					try {
-						CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_SPLASH), 5);
+						CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_SPLASH), LIQUID_BLOOD);
 					} catch (RESULT) {
 					}
 					break;
 				}
 
 				case BT_SLIME: {
-					GraphicalEffect(GetCreatureObject(), 17);
-					TextualEffect(GetCreatureObject(), 0x1e, "%d", Damage);
+					GraphicalEffect(GetCreatureObject(), EFFECT_POISON_HIT);
+					TextualEffect(GetCreatureObject(), COLOR_GREEN, "%d", Damage);
 					try {
-						CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_SPLASH), 6);
+						CreatePool(GetMapContainer(GetCreatureObject()), GetSpecialObject(BLOOD_SPLASH), LIQUID_SLIME);
 					} catch (RESULT) {
 					}
 					break;
 				}
 
 				case BT_BONES: {
-					GraphicalEffect(GetCreatureObject(), 10);
-					TextualEffect(GetCreatureObject(), 0x81, "%d", Damage);
+					GraphicalEffect(GetCreatureObject(), EFFECT_HIT_AREA);
+					TextualEffect(GetCreatureObject(), COLOR_LIGHTGRAY, "%d", Damage);
 					break;
 				}
 
 				case BT_FIRE: {
-					GraphicalEffect(GetCreatureObject(), 1);
-					TextualEffect(GetCreatureObject(), 0xc6, "%d", Damage);
+					GraphicalEffect(GetCreatureObject(), EFFECT_BLOOD_HIT);
+					TextualEffect(GetCreatureObject(), COLOR_ORANGE, "%d", Damage);
 					break;
 				}
 
 				case BT_ENERGY: {
-					GraphicalEffect(GetCreatureObject(), 12);
-					TextualEffect(GetCreatureObject(), 0x23, "%d", Damage);
+					GraphicalEffect(GetCreatureObject(), EFFECT_ENERGY_HIT);
+					TextualEffect(GetCreatureObject(), COLOR_LIGHTBLUE, "%d", Damage);
 					break;
 				}
 
@@ -936,27 +941,27 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 			break;
 		}
 
-		case 2: {
-			GraphicalEffect(GetCreatureObject(), 9);
-			TextualEffect(GetCreatureObject(), 0x1e, "%d", Damage);
+		case DAMAGE_POISON: {
+			GraphicalEffect(GetCreatureObject(), EFFECT_POISON);
+			TextualEffect(GetCreatureObject(), COLOR_GREEN, "%d", Damage);
 			break;
 		}
 
-		case 4: {
-			GraphicalEffect(GetCreatureObject(), 16);
-			TextualEffect(GetCreatureObject(), 0xc6, "%d", Damage);
+		case DAMAGE_FIRE: {
+			GraphicalEffect(GetCreatureObject(), EFFECT_FIRE_HIT);
+			TextualEffect(GetCreatureObject(), COLOR_ORANGE, "%d", Damage);
 			break;
 		}
 
-		case 8: {
-			GraphicalEffect(GetCreatureObject(), 12);
-			TextualEffect(GetCreatureObject(), 0x23, "%d", Damage);
+		case DAMAGE_ENERGY: {
+			GraphicalEffect(GetCreatureObject(), EFFECT_ENERGY_HIT);
+			TextualEffect(GetCreatureObject(), COLOR_LIGHTBLUE, "%d", Damage);
 			break;
 		}
 
-		case 0x100: {
-			GraphicalEffect(GetCreatureObject(), 14);
-			TextualEffect(GetCreatureObject(), 0xb4, "%d", Damage);
+		case DAMAGE_LIFEDRAIN: {
+			GraphicalEffect(GetCreatureObject(), EFFECT_MAGIC_RED);
+			TextualEffect(GetCreatureObject(), COLOR_RED, "%d", Damage);
 			break;
 		}
 
@@ -970,10 +975,10 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 
 	if (Type == PLAYER && GetConnection() != nullptr) {
 		if (atk != nullptr) {
-			SendMessage(GetConnection(), 0x15, "You lose %d hitpoint%s due to an attack by %s.",
+			SendMessage(GetConnection(), TALK_STATUS_MESSAGE, "You lose %d hitpoint%s due to an attack by %s.",
 					Damage, (Damage != 1) ? "s" : "", atk->Name);
 		} else {
-			SendMessage(GetConnection(), 0x15, "You lose %d hitpoint%s.",
+			SendMessage(GetConnection(), TALK_STATUS_MESSAGE, "You lose %d hitpoint%s.",
 					Damage, (Damage != 1) ? "s" : "");
 		}
 		SendPlayerData(GetConnection());
@@ -981,7 +986,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 
 	if (sk->Get() <= 0) {
 		if (Type == PLAYER) {
-			for (int b = 1; b <= 10; b++) {
+			for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION; b++) {
 				Object Obj = GetBodyObject(ID, b);
 				if (Obj == NONE) {
 					continue;
@@ -994,7 +999,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 				bool DeleteObject = false;
 				if (Obj.getObjectType() == GetNewObjectType(77, 12)) {
 					Log("game", "%s stirbt mit Amulett of Loss.\n", Name);
-					LoseInventory = 0;
+					LoseInventory = LOSE_INVENTORY_NONE;
 					DeleteObject = true;
 				}
 
@@ -1008,7 +1013,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 			}
 		}
 
-		int OldLevel = Skills[0]->Get();
+		int OldLevel = Skills[SKILL_LEVEL]->Get();
 		Death();
 
 		if (atk != nullptr && Type == PLAYER) {
@@ -1036,10 +1041,10 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		} else {
 			AddKillStatistics(0, Race);
 			switch (DamageType) {
-				case 1: strcpy(Remark, "a hit"); break;
-				case 2: strcpy(Remark, "poison"); break;
-				case 4: strcpy(Remark, "fire"); break;
-				case 8: strcpy(Remark, "energy"); break;
+				case DAMAGE_PHYSICAL: strcpy(Remark, "a hit"); break;
+				case DAMAGE_POISON: strcpy(Remark, "poison"); break;
+				case DAMAGE_FIRE: strcpy(Remark, "fire"); break;
+				case DAMAGE_ENERGY: strcpy(Remark, "energy"); break;
 				default: {
 					error("TCreature::Damage: Ung\xfcltiger Schadenstyp %d als Todesursache.\n", DamageType);
 					break;
@@ -1056,12 +1061,12 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 					Offender = Combat.GetMostDangerousAttacker();
 				}
 
-				if (i == 2 && (Offender == 0 || Offender == MurdererID || Offender >= 0x40000000)) {
+				if (i == 2 && (Offender == 0 || Offender == MurdererID || Offender >= FIRST_NONPLAYER_CREATURE_ID)) {
 					continue;
 				}
 
 				int Unjustified = 0;
-				if (Offender != 0 && Offender < 0x40000000) {
+				if (Offender != 0 && Offender < FIRST_NONPLAYER_CREATURE_ID) {
 					TPlayer *pl = GetPlayer(Offender);
 					if (pl == nullptr) {
 						continue;
@@ -1079,7 +1084,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		}
 	}
 
-	AnnounceChangedCreature(ID, 1);
+	AnnounceChangedCreature(ID, CREATURE_HEALTH);
 	return Damage;
 }
 
@@ -1140,7 +1145,7 @@ TRaceData::TRaceData() : Skill(1, 5, 5), Talk(1, 5, 5, 0), Item(1, 5, 5), Spell(
 }
 
 char *GetRaceName(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceName: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return nullptr;
 	}
@@ -1149,7 +1154,7 @@ char *GetRaceName(int Race) {
 }
 
 TOutfit GetRaceOutfit(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceOutfit: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return RaceData[1].Outfit;
 	}
@@ -1158,7 +1163,7 @@ TOutfit GetRaceOutfit(int Race) {
 }
 
 bool GetRaceNoSummon(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceNoSummon: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return true;
 	}
@@ -1167,7 +1172,7 @@ bool GetRaceNoSummon(int Race) {
 }
 
 bool GetRaceNoConvince(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceNoConvince: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return true;
 	}
@@ -1176,7 +1181,7 @@ bool GetRaceNoConvince(int Race) {
 }
 
 bool GetRaceNoIllusion(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceNoIllusion: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return true;
 	}
@@ -1185,7 +1190,7 @@ bool GetRaceNoIllusion(int Race) {
 }
 
 bool GetRaceNoParalyze(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceNoParalyze: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return true;
 	}
@@ -1194,7 +1199,7 @@ bool GetRaceNoParalyze(int Race) {
 }
 
 int GetRaceSummonCost(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceSummonCost: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return 0;
 	}
@@ -1203,7 +1208,7 @@ int GetRaceSummonCost(int Race) {
 }
 
 int GetRacePoison(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRacePoison: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return 0;
 	}
@@ -1212,7 +1217,7 @@ int GetRacePoison(int Race) {
 }
 
 bool GetRaceUnpushable(int Race) {
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		error("GetRaceUnpushable: Ung\xfcltige Rassen-Nummer %d.\n", Race);
 		return true;
 	}
@@ -1234,7 +1239,7 @@ void LoadRace(char *FileName) {
 
 	Script.readSymbol('=');
 	int Race = Script.readNumber();
-	if (Race < 1 || Race >= 512) {
+	if (Race < 1 || Race >= MAX_RACES) {
 		Script.error("illegal race number");
 	}
 
@@ -1725,7 +1730,7 @@ void LoadMonsterRaid(char *FileName, int Start, bool *Type, int *Date, int *Inte
 
 			if (strcmp(Ident, "race") == 0) {
 				AttackWave->Race = Script.readNumber();
-				if (!in(AttackWave->Race, 1, 511)) {
+				if (!in(AttackWave->Race, 1, MAX_RACES - 1)) {
 					Script.error("illegal race number");
 				}
 			}
@@ -1876,7 +1881,7 @@ void ProcessMonsterRaids() {
 		print(2, "Angriff von Monstern der Rasse %d.\n", AttackWave->Race);
 		if (AttackWave->Message != 0) {
 			// The format ends with a single '%', as in the original.
-			BroadcastMessage(0x13, "%s%", GetDynamicString(AttackWave->Message));
+			BroadcastMessage(TALK_EVENT_MESSAGE, "%s%", GetDynamicString(AttackWave->Message));
 		}
 
 		int Count = random(AttackWave->MinCount, AttackWave->MaxCount);
@@ -1909,10 +1914,10 @@ void ProcessMonsterRaids() {
 			}
 
 			TCreature *cr = Monster[random(0, Monsters - 1)];
-			Object Bag = GetBodyObject(cr->ID, 3);
+			Object Bag = GetBodyObject(cr->ID, BODY_CONTAINER);
 			if (Bag == NONE) {
 				try {
-					Bag = Create(GetBodyContainer(cr->ID, 3), GetSpecialObject(INVENTORY_CONTAINER), 0);
+					Bag = Create(GetBodyContainer(cr->ID, BODY_CONTAINER), GetSpecialObject(INVENTORY_CONTAINER), 0);
 				} catch (RESULT r) {
 					error("ProcessMonsterRaids: Exception %d bei Rasse %d beim Erstellen des Rucksacks.\n", r, cr->Race);
 					continue;
@@ -1959,7 +1964,7 @@ void ProcessMonsterRaids() {
 
 void InitCr() {
 	FirstChainCreature = new matrix<uint32_t>(SectorXMin * 2, SectorXMax * 2 + 1, SectorYMin * 2, SectorYMax * 2 + 1, 0);
-	NextCreatureID = 0x40000000;
+	NextCreatureID = FIRST_NONPLAYER_CREATURE_ID;
 	LoadRaces();
 	LoadMonsterRaids();
 	FirstFreeCreature = 0;

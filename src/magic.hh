@@ -193,8 +193,11 @@ void InitSpells();
 void InitMagic();
 void ExitMagic();
 
-extern char SpellSyllable[51][6];
+// The size of SpellSyllable: the syllables 1 to 50 (0 is the empty one).
+const int MAX_SYLLABLES = 51;
+
+extern char SpellSyllable[MAX_SYLLABLES][6];
 extern TCircle Circle[10];
-extern TSpellList SpellList[256];
+extern TSpellList SpellList[MAX_SPELLS];
 
 #endif

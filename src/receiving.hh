@@ -5,6 +5,76 @@ struct ObjectType;
 struct TConnection;
 struct TReadBuffer;
 
+// The first byte of each packet the client sends, named after the function
+// that handles it (CQuitGame is CL_QUIT_GAME). CL_LOGIN is the first packet of
+// a connection (communication.cc); CL_PING does nothing but keep the
+// connection alive (TConnection::ResetTimer).
+const int CL_LOGIN = 0x0A;
+// Not a client packet: HandleLogin (communication.cc) puts it in place of the
+// client's CL_LOGIN for the game thread, with the terminal type, the terminal
+// version and the character ID, and ReceiveData passes it to
+// TConnection::JoinGame.
+const int CL_JOIN_GAME = 0x0B;
+const int CL_QUIT_GAME = 0x14;
+const int CL_PING = 0x1E;
+const int CL_GO_PATH = 0x64;
+const int CL_GO_NORTH = 0x65;
+const int CL_GO_EAST = 0x66;
+const int CL_GO_SOUTH = 0x67;
+const int CL_GO_WEST = 0x68;
+const int CL_STOP = 0x69;
+const int CL_GO_NORTHEAST = 0x6A;
+const int CL_GO_SOUTHEAST = 0x6B;
+const int CL_GO_SOUTHWEST = 0x6C;
+const int CL_GO_NORTHWEST = 0x6D;
+const int CL_ROTATE_NORTH = 0x6F;
+const int CL_ROTATE_EAST = 0x70;
+const int CL_ROTATE_SOUTH = 0x71;
+const int CL_ROTATE_WEST = 0x72;
+const int CL_MOVE_OBJECT = 0x78;
+const int CL_TRADE_OBJECT = 0x7D;
+const int CL_INSPECT_TRADE = 0x7E;
+const int CL_ACCEPT_TRADE = 0x7F;
+const int CL_REJECT_TRADE = 0x80;
+const int CL_USE_OBJECT = 0x82;
+const int CL_USE_TWO_OBJECTS = 0x83;
+const int CL_USE_ON_CREATURE = 0x84;
+const int CL_TURN_OBJECT = 0x85;
+const int CL_CLOSE_CONTAINER = 0x87;
+const int CL_UP_CONTAINER = 0x88;
+const int CL_EDIT_TEXT = 0x89;
+const int CL_EDIT_LIST = 0x8A;
+const int CL_LOOK_AT_POINT = 0x8C;
+const int CL_TALK = 0x96;
+const int CL_GET_CHANNELS = 0x97;
+const int CL_JOIN_CHANNEL = 0x98;
+const int CL_LEAVE_CHANNEL = 0x99;
+const int CL_PRIVATE_CHANNEL = 0x9A;
+const int CL_PROCESS_REQUEST = 0x9B;
+const int CL_REMOVE_REQUEST = 0x9C;
+const int CL_CANCEL_REQUEST = 0x9D;
+const int CL_SET_TACTICS = 0xA0;
+const int CL_ATTACK = 0xA1;
+const int CL_FOLLOW = 0xA2;
+const int CL_INVITE_TO_PARTY = 0xA3;
+const int CL_JOIN_PARTY = 0xA4;
+const int CL_REVOKE_INVITATION = 0xA5;
+const int CL_PASS_LEADERSHIP = 0xA6;
+const int CL_LEAVE_PARTY = 0xA7;
+const int CL_OPEN_CHANNEL = 0xAA;
+const int CL_INVITE_TO_CHANNEL = 0xAB;
+const int CL_EXCLUDE_FROM_CHANNEL = 0xAC;
+const int CL_CANCEL = 0xBE;
+const int CL_REFRESH_FIELD = 0xC9;
+const int CL_REFRESH_CONTAINER = 0xCA;
+const int CL_GET_OUTFIT = 0xD2;
+const int CL_SET_OUTFIT = 0xD3;
+const int CL_ADD_BUDDY = 0xDC;
+const int CL_REMOVE_BUDDY = 0xDD;
+const int CL_BUG_REPORT = 0xE6;
+const int CL_RULE_VIOLATION = 0xE7;
+const int CL_ERROR_FILE_ENTRY = 0xE8;
+
 bool CommandAllowed(TConnection *Connection, unsigned short Command);
 bool CheckSpecialCoordinates(int Command, int x, int y, int z, bool AnyAllowed);
 bool CheckVisibility(int Command, TConnection *Connection, int x, int y, int z);

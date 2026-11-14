@@ -76,7 +76,7 @@ struct TParty {
 	}
 };
 
-int Channels = 8;
+int Channels = PUBLIC_CHANNELS;
 int StatementID = 0;
 int Parties = 0;
 vector<TChannel> Channel(0, 18, 10);
@@ -101,7 +101,7 @@ void AnnounceMovingCreature(uint32_t CreatureID, Object Con) {
 
 	int x, y, z;
 	GetObjectCoordinates(Con, x, y, z);
-	TFindCreatures Search(std::abs(x - cr->posx) / 2 + 17, std::abs(y - cr->posy) / 2 + 15, (x + cr->posx) / 2, (y + cr->posy) / 2, 1);
+	TFindCreatures Search(std::abs(x - cr->posx) / 2 + 17, std::abs(y - cr->posy) / 2 + 15, (x + cr->posx) / 2, (y + cr->posy) / 2, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -130,22 +130,22 @@ void AnnounceChangedCreature(uint32_t CreatureID, int Type) {
 
 		if (Connection->IsVisible(cr->posx, cr->posy, cr->posz)) {
 			switch (Type) {
-				case 1:
+				case CREATURE_HEALTH:
 					SendCreatureHealth(Connection, CreatureID);
 					break;
-				case 2:
+				case CREATURE_LIGHT:
 					SendCreatureLight(Connection, CreatureID);
 					break;
-				case 3:
+				case CREATURE_OUTFIT:
 					SendCreatureOutfit(Connection, CreatureID);
 					break;
-				case 4:
+				case CREATURE_SPEED:
 					SendCreatureSpeed(Connection, CreatureID);
 					break;
-				case 5:
+				case CREATURE_SKULL:
 					SendCreatureSkull(Connection, CreatureID);
 					break;
-				case 6:
+				case CREATURE_PARTY:
 					SendCreatureParty(Connection, CreatureID);
 					break;
 			}
@@ -163,7 +163,7 @@ void AnnounceChangedField(Object Obj, int Type) {
 
 	int x, y, z;
 	GetObjectCoordinates(Obj, x, y, z);
-	TFindCreatures Search(16, 14, x, y, 1);
+	TFindCreatures Search(16, 14, x, y, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -180,13 +180,13 @@ void AnnounceChangedField(Object Obj, int Type) {
 		}
 
 		switch (Type) {
-			case 0:
+			case OBJECT_DELETED:
 				SendDeleteField(pl->GetConnection(), x, y, z, Obj);
 				break;
-			case 1:
+			case OBJECT_CREATED:
 				SendAddField(pl->GetConnection(), x, y, z, Obj);
 				break;
-			case 2:
+			case OBJECT_CHANGED:
 				SendChangeField(pl->GetConnection(), x, y, z, Obj);
 				break;
 			default:
@@ -202,7 +202,7 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 		return;
 	}
 
-	TFindCreatures Search(1, 1, Obj, 1);
+	TFindCreatures Search(1, 1, Obj, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -214,19 +214,19 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 			continue;
 		}
 
-		for (int con = 0; con < 16; con++) {
+		for (int con = 0; con < MAX_OPEN_CONTAINERS; con++) {
 			if (pl->GetOpenContainer(con) != Obj.getContainer()) {
 				continue;
 			}
 
 			switch (Type) {
-				case 0:
+				case OBJECT_DELETED:
 					SendDeleteInContainer(pl->GetConnection(), con, Obj);
 					break;
-				case 1:
+				case OBJECT_CREATED:
 					SendCreateInContainer(pl->GetConnection(), con, Obj);
 					break;
-				case 2:
+				case OBJECT_CHANGED:
 					SendChangeInContainer(pl->GetConnection(), con, Obj);
 					break;
 				default:
@@ -254,11 +254,11 @@ void AnnounceChangedInventory(Object Obj, int Type) {
 	}
 
 	switch (Type) {
-		case 0:
+		case OBJECT_DELETED:
 			SendDeleteInventory(cr->GetConnection(), GetObjectBodyPosition(Obj));
 			break;
-		case 1:
-		case 2:
+		case OBJECT_CREATED:
+		case OBJECT_CHANGED:
 			SendSetInventory(cr->GetConnection(), GetObjectBodyPosition(Obj), Obj);
 			break;
 		default:
@@ -287,7 +287,7 @@ void AnnounceGraphicalEffect(int x, int y, int z, int Type) {
 		return;
 	}
 
-	TFindCreatures Search(16, 14, x, y, 1);
+	TFindCreatures Search(16, 14, x, y, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -306,7 +306,7 @@ void AnnounceTextualEffect(int x, int y, int z, int Color, char *Text) {
 		return;
 	}
 
-	TFindCreatures Search(16, 14, x, y, 1);
+	TFindCreatures Search(16, 14, x, y, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -325,7 +325,7 @@ void AnnounceMissile(int sx, int sy, int sz, int zx, int zy, int zz, int Type) {
 		return;
 	}
 
-	TFindCreatures Search(std::abs(sx - zx) / 2 + 17, std::abs(sy - zy) / 2 + 15, (sx + zx) / 2, (sy + zy) / 2, 1);
+	TFindCreatures Search(std::abs(sx - zx) / 2 + 17, std::abs(sy - zy) / 2 + 15, (sx + zx) / 2, (sy + zy) / 2, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -687,13 +687,13 @@ void CheckDepotSpace(uint32_t CreatureID, Object Source, Object Destination, int
 
 void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 	int Position = GetObjectBodyPosition(Con);
-	if (Position != 5 && Position != 6 && Position != 10) {
+	if (Position != BODY_RIGHTHAND && Position != BODY_LEFTHAND && Position != BODY_AMMO) {
 		if (!Obj.getFlag(CLOTHES)) {
 			throw WRONGPOSITION;
 		}
 
 		int ClothesType = Obj.getAttribute(BODYPOSITION);
-		if (ClothesType == 0) {
+		if (ClothesType == BODY_BOTHHANDS) {
 			throw WRONGPOSITION2;
 		}
 
@@ -703,13 +703,13 @@ void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 	}
 
 	uint32_t CreatureID = GetObjectCreatureID(Con);
-	if (Obj.getFlag(CLOTHES) && Obj.getAttribute(BODYPOSITION) == 0 && (Position == 5 || Position == 6)) {
-		Object Help = GetBodyObject(CreatureID, 5);
+	if (Obj.getFlag(CLOTHES) && Obj.getAttribute(BODYPOSITION) == BODY_BOTHHANDS && (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND)) {
+		Object Help = GetBodyObject(CreatureID, BODY_RIGHTHAND);
 		if (Help != NONE && Help != Obj) {
 			throw HANDSNOTFREE;
 		}
 
-		Help = GetBodyObject(CreatureID, 6);
+		Help = GetBodyObject(CreatureID, BODY_LEFTHAND);
 		if (Help != NONE && Help != Obj) {
 			throw HANDSNOTFREE;
 		}
@@ -721,14 +721,14 @@ void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 		throw NOROOM;
 	}
 
-	if (Position == 5 || Position == 6) {
-		for (int Hand = 5; Hand <= 6; Hand++) {
+	if (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND) {
+		for (int Hand = BODY_RIGHTHAND; Hand <= BODY_LEFTHAND; Hand++) {
 			Object Help = GetBodyObject(CreatureID, Hand);
 			if (Help == NONE) {
 				continue;
 			}
 
-			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == 0) {
+			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == BODY_BOTHHANDS) {
 				throw HANDBLOCKED;
 			}
 
@@ -744,13 +744,13 @@ void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 
 void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 	int Position = GetObjectBodyPosition(Con);
-	if (Position != 5 && Position != 6 && Position != 10) {
+	if (Position != BODY_RIGHTHAND && Position != BODY_LEFTHAND && Position != BODY_AMMO) {
 		if (!Type.getFlag(CLOTHES)) {
 			throw WRONGPOSITION;
 		}
 
 		int ClothesType = Type.getAttribute(BODYPOSITION);
-		if (ClothesType == 0) {
+		if (ClothesType == BODY_BOTHHANDS) {
 			throw WRONGPOSITION2;
 		}
 
@@ -760,9 +760,9 @@ void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 	}
 
 	uint32_t CreatureID = GetObjectCreatureID(Con);
-	if (Type.getFlag(CLOTHES) && Type.getAttribute(BODYPOSITION) == 0 && (Position == 5 || Position == 6)) {
-		if ((GetBodyObject(CreatureID, 5) != NONE && GetBodyObject(CreatureID, 5) != OldObj)
-				|| (GetBodyObject(CreatureID, 6) != NONE && GetBodyObject(CreatureID, 6) != OldObj)) {
+	if (Type.getFlag(CLOTHES) && Type.getAttribute(BODYPOSITION) == BODY_BOTHHANDS && (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND)) {
+		if ((GetBodyObject(CreatureID, BODY_RIGHTHAND) != NONE && GetBodyObject(CreatureID, BODY_RIGHTHAND) != OldObj)
+				|| (GetBodyObject(CreatureID, BODY_LEFTHAND) != NONE && GetBodyObject(CreatureID, BODY_LEFTHAND) != OldObj)) {
 			throw HANDSNOTFREE;
 		}
 		return;
@@ -772,14 +772,14 @@ void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 		throw NOROOM;
 	}
 
-	if (Position == 5 || Position == 6) {
-		for (int Hand = 5; Hand <= 6; Hand++) {
+	if (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND) {
+		for (int Hand = BODY_RIGHTHAND; Hand <= BODY_LEFTHAND; Hand++) {
 			Object Help = GetBodyObject(CreatureID, Hand);
 			if (Help == NONE || Help == OldObj) {
 				continue;
 			}
 
-			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == 0) {
+			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == BODY_BOTHHANDS) {
 				throw HANDBLOCKED;
 			}
 
@@ -814,7 +814,7 @@ void CheckWeight(uint32_t CreatureID, Object Obj, int Count) {
 		throw TOOHEAVY;
 	}
 
-	TSkill *sk = cr->Skills[5];
+	TSkill *sk = cr->Skills[SKILL_CARRYSTRENGTH];
 	if (sk == nullptr) {
 		error("CheckWeight: Skill CARRYSTRENGTH existiert nicht.\n");
 		throw ERROR;
@@ -851,7 +851,7 @@ void CheckWeight(uint32_t CreatureID, ObjectType Type, uint32_t Data, int oldWei
 		throw TOOHEAVY;
 	}
 
-	TSkill *sk = cr->Skills[5];
+	TSkill *sk = cr->Skills[SKILL_CARRYSTRENGTH];
 	if (sk == nullptr) {
 		error("CheckWeight: Skill CARRYSTRENGTH existiert nicht.\n");
 		throw ERROR;
@@ -887,7 +887,7 @@ void NotifyCreature(uint32_t CreatureID, Object Obj, bool Inventory) {
 	}
 
 	if (Obj.getFlag(LIGHT) && Inventory) {
-		AnnounceChangedCreature(CreatureID, 2);
+		AnnounceChangedCreature(CreatureID, CREATURE_LIGHT);
 	}
 
 	cr->NotifyChangeInventory();
@@ -905,7 +905,7 @@ void NotifyCreature(uint32_t CreatureID, ObjectType Type, bool Inventory) {
 	}
 
 	if (Type.getFlag(LIGHT) && Inventory) {
-		AnnounceChangedCreature(CreatureID, 2);
+		AnnounceChangedCreature(CreatureID, CREATURE_LIGHT);
 	}
 
 	cr->NotifyChangeInventory();
@@ -921,7 +921,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 		return;
 	}
 
-	if (Type == 3) {
+	if (Type == OBJECT_MOVED) {
 		if (!OldCon.exists()) {
 			error("NotifyAllCreatures: \xdc" "bergebener alter Container existiert nicht.\n");
 			return;
@@ -931,35 +931,35 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 		GetObjectCoordinates(Obj, x, y, z);
 		GetObjectCoordinates(OldCon, oldx, oldy, oldz);
 		if (std::abs(x - oldx) > 20 || std::abs(y - oldy) > 20) {
-			TFindCreatures Search1(10, 10, oldx, oldy, 7);
+			TFindCreatures Search1(10, 10, oldx, oldy, FIND_ALL);
 			while (true) {
 				uint32_t ID = Search1.getNext();
 				if (ID == 0) {
 					break;
 				}
-				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), 2);
+				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 
-			TFindCreatures Search2(10, 10, x, y, 7);
+			TFindCreatures Search2(10, 10, x, y, FIND_ALL);
 			while (true) {
 				uint32_t ID = Search2.getNext();
 				if (ID == 0) {
 					break;
 				}
-				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), 2);
+				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 		} else {
-			TFindCreatures Search((std::abs(x - oldx) + 1) / 2 + 10, (std::abs(y - oldy) + 1) / 2 + 10, (x + oldx) / 2, (y + oldy) / 2, 7);
+			TFindCreatures Search((std::abs(x - oldx) + 1) / 2 + 10, (std::abs(y - oldy) + 1) / 2 + 10, (x + oldx) / 2, (y + oldy) / 2, FIND_ALL);
 			while (true) {
 				uint32_t ID = Search.getNext();
 				if (ID == 0) {
 					break;
 				}
-				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), 2);
+				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 		}
 	} else {
-		TFindCreatures Search(10, 10, Obj, 7);
+		TFindCreatures Search(10, 10, Obj, FIND_ALL);
 		while (true) {
 			uint32_t ID = Search.getNext();
 			if (ID == 0) {
@@ -980,7 +980,7 @@ void NotifyTrades(Object Obj) {
 		return;
 	}
 
-	TFindCreatures Search(12, 10, Obj, 1);
+	TFindCreatures Search(12, 10, Obj, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -1072,7 +1072,7 @@ void CloseContainer(Object Con, bool Force) {
 		return;
 	}
 
-	TFindCreatures Search(12, 10, Con, 1);
+	TFindCreatures Search(12, 10, Con, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -1085,7 +1085,7 @@ void CloseContainer(Object Con, bool Force) {
 			continue;
 		}
 
-		for (int con = 0; con < 16; con++) {
+		for (int con = 0; con < MAX_OPEN_CONTAINERS; con++) {
 			bool Affected = false;
 			Object Obj = pl->GetOpenContainer(con);
 			while (Obj != NONE && !Obj.isMapContainer()) {
@@ -1146,7 +1146,7 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 		int x, y, z;
 		GetObjectCoordinates(Con, x, y, z);
 		Object Top = GetTopObject(x, y, z, true);
-		if (Top != NONE && Top.getObjectType() == Type && Top.getAttribute(AMOUNT) + Value <= 100) {
+		if (Top != NONE && Top.getObjectType() == Type && Top.getAttribute(AMOUNT) + Value <= MAX_AMOUNT) {
 			Change(Top, AMOUNT, Top.getAttribute(AMOUNT) + Value);
 			return Top;
 		}
@@ -1185,7 +1185,7 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 			throw ERROR;
 		}
 
-		for (int i = 10; i > 0; i--) {
+		for (int i = LAST_BODY_POSITION; i > 0; i--) {
 			SetObject(Obj, ObjectType(i), 0);
 		}
 
@@ -1193,12 +1193,12 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 		cr->NotifyCreate();
 	}
 
-	AnnounceChangedObject(Obj, 1);
+	AnnounceChangedObject(Obj, OBJECT_CREATED);
 	NotifyTrades(Obj);
 	NotifyCreature(GetObjectCreatureID(Obj), Obj, Obj.getContainer().isBodyContainer());
 	MovementEvent(Obj, Obj.getContainer(), Obj.getContainer());
 	CollisionEvent(Obj, Obj.getContainer());
-	NotifyAllCreatures(Obj, 1, NONE);
+	NotifyAllCreatures(Obj, OBJECT_CREATED, NONE);
 	return Obj;
 }
 
@@ -1245,12 +1245,12 @@ Object Copy(Object Con, Object Source) {
 		}
 	}
 
-	AnnounceChangedObject(Obj, 1);
+	AnnounceChangedObject(Obj, OBJECT_CREATED);
 	NotifyTrades(Obj);
 	NotifyCreature(GetObjectCreatureID(Obj), Obj, Obj.getContainer().isBodyContainer());
 	MovementEvent(Obj, Obj.getContainer(), Obj.getContainer());
 	CollisionEvent(Obj, Obj.getContainer());
-	NotifyAllCreatures(Obj, 1, NONE);
+	NotifyAllCreatures(Obj, OBJECT_CREATED, NONE);
 	return Obj;
 }
 
@@ -1340,7 +1340,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 	}
 
 	if (!Obj.isCreature() && Rest == NONE) {
-		AnnounceChangedObject(Obj, 0);
+		AnnounceChangedObject(Obj, OBJECT_DELETED);
 		NotifyTrades(Obj);
 		NotifyDepot(CreatureID, Obj, CountObjects(Obj));
 	}
@@ -1361,13 +1361,13 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 
 	MoveObject(Obj, Con);
 	if (!Obj.isCreature()) {
-		AnnounceChangedObject(Obj, 1);
+		AnnounceChangedObject(Obj, OBJECT_CREATED);
 		NotifyTrades(Obj);
 		NotifyDepot(CreatureID, Obj, -CountObjects(Obj));
 	}
 
 	if (Rest != NONE) {
-		AnnounceChangedObject(Rest, 2);
+		AnnounceChangedObject(Rest, OBJECT_CHANGED);
 		NotifyTrades(Rest);
 	}
 
@@ -1388,7 +1388,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 
 	MovementEvent(Obj, oldCon, Con);
 	CollisionEvent(Obj, Obj.getContainer());
-	NotifyAllCreatures(Obj, 3, oldCon);
+	NotifyAllCreatures(Obj, OBJECT_MOVED, oldCon);
 }
 
 void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignore) {
@@ -1423,7 +1423,7 @@ void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignor
 		Count = Obj.getAttribute(AMOUNT);
 	}
 
-	if (Dest.getAttribute(AMOUNT) + Count > 100) {
+	if (Dest.getAttribute(AMOUNT) + Count > MAX_AMOUNT) {
 		throw TOOMANYPARTS;
 	}
 
@@ -1452,22 +1452,22 @@ void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignor
 
 	if (Count < (int)Obj.getAttribute(AMOUNT)) {
 		ChangeObject(Obj, AMOUNT, Obj.getAttribute(AMOUNT) - Count);
-		AnnounceChangedObject(Obj, 2);
+		AnnounceChangedObject(Obj, OBJECT_CHANGED);
 		NotifyTrades(Obj);
 		ChangeObject(Dest, AMOUNT, Dest.getAttribute(AMOUNT) + Count);
 	} else {
-		AnnounceChangedObject(Obj, 0);
+		AnnounceChangedObject(Obj, OBJECT_DELETED);
 		NotifyTrades(Obj);
 		NotifyDepot(CreatureID, Obj, 1);
 		MergeObjects(Obj, Dest);
 	}
 
-	AnnounceChangedObject(Dest, 2);
+	AnnounceChangedObject(Dest, OBJECT_CHANGED);
 	NotifyTrades(Dest);
 	NotifyCreature(oldCreature, Dest, oldCon.isBodyContainer());
 	NotifyCreature(GetObjectCreatureID(Dest), Dest, Dest.getContainer().isBodyContainer());
 	CollisionEvent(Dest, Dest.getContainer());
-	NotifyAllCreatures(Dest, 2, NONE);
+	NotifyAllCreatures(Dest, OBJECT_CHANGED, NONE);
 }
 
 void Change(Object Obj, ObjectType NewType, uint32_t Value) {
@@ -1548,10 +1548,10 @@ void Change(Object Obj, ObjectType NewType, uint32_t Value) {
 		ChangeObject(Obj, CHARGES, Value);
 	}
 
-	AnnounceChangedObject(Obj, 2);
+	AnnounceChangedObject(Obj, OBJECT_CHANGED);
 	NotifyTrades(Obj);
 	NotifyCreature(GetObjectCreatureID(Obj), Obj, Obj.getContainer().isBodyContainer());
-	NotifyAllCreatures(Obj, 2, NONE);
+	NotifyAllCreatures(Obj, OBJECT_CHANGED, NONE);
 }
 
 void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
@@ -1573,7 +1573,7 @@ void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 
 	ChangeObject(Obj, Attribute, Value);
 	if (Attribute == AMOUNT || Attribute == CONTAINERLIQUIDTYPE || Attribute == POOLLIQUIDTYPE) {
-		AnnounceChangedObject(Obj, 2);
+		AnnounceChangedObject(Obj, OBJECT_CHANGED);
 	}
 
 	NotifyTrades(Obj);
@@ -1622,10 +1622,10 @@ void Delete(Object Obj, int Count) {
 	}
 
 	if (Rest == NONE) {
-		AnnounceChangedObject(Obj, 0);
+		AnnounceChangedObject(Obj, OBJECT_DELETED);
 	}
 
-	NotifyAllCreatures(Obj, 0, NONE);
+	NotifyAllCreatures(Obj, OBJECT_DELETED, NONE);
 	if (oldType.isCreature()) {
 		TCreature *cr = GetCreature(oldCreature);
 		if (cr == nullptr) {
@@ -1637,7 +1637,7 @@ void Delete(Object Obj, int Count) {
 
 	DeleteObject(Obj);
 	if (Rest != NONE) {
-		AnnounceChangedObject(Rest, 2);
+		AnnounceChangedObject(Rest, OBJECT_CHANGED);
 		NotifyTrades(Rest);
 	}
 
@@ -1755,11 +1755,11 @@ void Look(uint32_t CreatureID, Object Obj) {
 		if (Yourself) {
 			strcpy(Player, "yourself");
 		} else {
-			TSkill *sk = Opp->Skills[0];
+			TSkill *sk = Opp->Skills[SKILL_LEVEL];
 			snprintf(Player, sizeof(Player), "%s (Level %d)", Opp->Name, (sk != nullptr ? sk->Get() : 1));
 		}
 
-		if (Opp->Sex == 2) {
+		if (Opp->Sex == SEX_FEMALE) {
 			strcpy(Pronoun, "She");
 		} else {
 			strcpy(Pronoun, "He");
@@ -1767,7 +1767,7 @@ void Look(uint32_t CreatureID, Object Obj) {
 
 		int Profession = Opp->GetActiveProfession();
 		if (Yourself) {
-			if (Profession != 0) {
+			if (Profession != PROFESSION_NONE) {
 				char HelpProfession[30];
 				GetProfessionName(HelpProfession, Profession, true, false);
 				snprintf(Vocation, sizeof(Vocation), "You are %s", HelpProfession);
@@ -1775,7 +1775,7 @@ void Look(uint32_t CreatureID, Object Obj) {
 				strcpy(Vocation, "You have no vocation");
 			}
 		} else {
-			if (Profession != 0) {
+			if (Profession != PROFESSION_NONE) {
 				char HelpProfession[30];
 				GetProfessionName(HelpProfession, Profession, true, false);
 				snprintf(Vocation, sizeof(Vocation), "%s is %s", Pronoun, HelpProfession);
@@ -1900,16 +1900,16 @@ void Look(uint32_t CreatureID, Object Obj) {
 				}
 
 				switch (i) {
-					case 1:
+					case PROFESSION_KNIGHT:
 						strcpy(s2, "knights");
 						break;
-					case 2:
+					case PROFESSION_PALADIN:
 						strcpy(s2, "paladins");
 						break;
-					case 3:
+					case PROFESSION_SORCERER:
 						strcpy(s2, "sorcerers");
 						break;
-					case 4:
+					case PROFESSION_DRUID:
 						strcpy(s2, "druids");
 						break;
 					case 5:
@@ -1973,8 +1973,8 @@ void Look(uint32_t CreatureID, Object Obj) {
 	}
 
 	strcat(s, ".");
-	if ((Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) == 0)
-			|| (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) == 0)) {
+	if ((Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE)
+			|| (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) == LIQUID_NONE)) {
 		strcat(s, " It is empty.");
 	}
 
@@ -2168,7 +2168,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 		}
 
 		int Radius = (Mode == TALK_YELL || Mode == TALK_ANIMAL_LOUD) ? 30 : 7;
-		TFindCreatures Search(Radius, Radius, x, y, 1);
+		TFindCreatures Search(Radius, Radius, x, y, FIND_PLAYERS);
 		while (true) {
 			uint32_t ID = Search.getNext();
 			if (ID == 0) {
@@ -2266,7 +2266,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 	}
 
 	if (Mode == TALK_SAY && cr->Type == PLAYER) {
-		TFindCreatures Search(3, 3, CreatureID, 2);
+		TFindCreatures Search(3, 3, CreatureID, FIND_NPCS);
 		while (true) {
 			uint32_t ID = Search.getNext();
 			if (ID == 0) {
@@ -2352,7 +2352,7 @@ void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 		UseLevelDoor(CreatureID, Obj1);
 	} else if (Obj1.getFlag(QUESTDOOR)) {
 		UseQuestDoor(CreatureID, Obj1);
-	} else if (Obj1.getFlag(WEAPON) && in(Obj1.getAttribute(WEAPONTYPE), 1, 3) && Obj2 != NONE && Obj2.getFlag(DESTROY)) {
+	} else if (Obj1.getFlag(WEAPON) && in(Obj1.getAttribute(WEAPONTYPE), WEAPON_SWORD, WEAPON_AXE) && Obj2 != NONE && Obj2.getFlag(DESTROY)) {
 		UseWeapon(CreatureID, Obj1, Obj2);
 	} else if (Obj1.getFlag(CHANGEUSE)) {
 		UseChangeObject(CreatureID, Obj1);
@@ -2485,11 +2485,11 @@ again:
 	} catch (RESULT r) {
 		if (r == TOOHEAVY) {
 			first = false;
-			pos = 10;
+			pos = LAST_BODY_POSITION;
 		}
 	}
 
-	if (pos <= 9) {
+	if (pos <= LAST_BODY_POSITION - 1) {
 		goto again;
 	}
 
@@ -2548,7 +2548,7 @@ void ProcessCronSystem() {
 }
 
 bool SectorRefreshable(int SectorX, int SectorY, int SectorZ) {
-	TFindCreatures SearchPlayers(31, 31, SectorX * 32 + 16, SectorY * 32 + 16, 1);
+	TFindCreatures SearchPlayers(31, 31, SectorX * SECTOR_SIZE + SECTOR_SIZE / 2, SectorY * SECTOR_SIZE + SECTOR_SIZE / 2, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = SearchPlayers.getNext();
 		if (ID == 0) {
@@ -2581,7 +2581,7 @@ void RefreshSector(int SectorX, int SectorY, int SectorZ, unsigned char *Data, i
 	TReadBuffer Buffer(Data, Size);
 	RefreshSector(SectorX, SectorY, SectorZ, Buffer);
 
-	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, 7);
+	TFindCreatures SearchMonsters(16, 16, SectorX * SECTOR_SIZE + SECTOR_SIZE / 2, SectorY * SECTOR_SIZE + SECTOR_SIZE / 2, FIND_ALL);
 	while (true) {
 		uint32_t CreatureID = SearchMonsters.getNext();
 		if (CreatureID == 0) {
@@ -2732,7 +2732,7 @@ void ApplyPatch(int SectorX, int SectorY, int SectorZ, bool FullSector, TReadScr
 	PatchSector(SectorX, SectorY, SectorZ, FullSector, Script, SaveHouses);
 	FinishHouseCleanup();
 
-	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, 7);
+	TFindCreatures SearchMonsters(16, 16, SectorX * SECTOR_SIZE + SECTOR_SIZE / 2, SectorY * SECTOR_SIZE + SECTOR_SIZE / 2, FIND_ALL);
 	while (true) {
 		uint32_t CreatureID = SearchMonsters.getNext();
 		if (CreatureID == 0) {
@@ -3125,7 +3125,7 @@ void InviteToChannel(uint32_t CharacterID, char *Name) {
 	C.InvitedPlayers++;
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s has been invited.", Name);
 	if (Opp != nullptr) {
-		SendMessage(Opp->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s private chat channel.", pl->Name, (pl->Sex == 1 ? "his" : "her"));
+		SendMessage(Opp->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s private chat channel.", pl->Name, (pl->Sex == SEX_MALE ? "his" : "her"));
 	}
 }
 
@@ -3506,7 +3506,7 @@ void InviteToParty(uint32_t Host, uint32_t Guest) {
 		P->InvitedPlayers = 1;
 		host->JoinParty(Host);
 		SendMessage(host->GetConnection(), TALK_INFO_MESSAGE, "%s has been invited.", guest->Name);
-		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == 1 ? "his" : "her"));
+		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == SEX_MALE ? "his" : "her"));
 		SendCreatureParty(host->GetConnection(), Host);
 		SendCreatureSkull(host->GetConnection(), Host);
 		SendCreatureParty(host->GetConnection(), Guest);
@@ -3533,7 +3533,7 @@ void InviteToParty(uint32_t Host, uint32_t Guest) {
 		P->InvitedPlayer(P->InvitedPlayers) = Guest;
 		P->InvitedPlayers++;
 		SendMessage(host->GetConnection(), TALK_INFO_MESSAGE, "%s has been invited.", guest->Name);
-		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == 1 ? "his" : "her"));
+		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == SEX_MALE ? "his" : "her"));
 		SendCreatureParty(host->GetConnection(), Guest);
 		SendCreatureParty(guest->GetConnection(), Host);
 	} else {
@@ -3587,7 +3587,7 @@ void RevokeInvitation(uint32_t Host, uint32_t Guest) {
 
 	if (guest != nullptr) {
 		SendMessage(host->GetConnection(), TALK_INFO_MESSAGE, "Invitation for %s has been revoked.", guest->Name);
-		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s has revoked %s invitation.", host->Name, (host->Sex == 1 ? "his" : "her"));
+		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s has revoked %s invitation.", host->Name, (host->Sex == SEX_MALE ? "his" : "her"));
 		SendCreatureParty(host->GetConnection(), Guest);
 		SendCreatureParty(guest->GetConnection(), Host);
 	} else {

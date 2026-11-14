@@ -5,8 +5,18 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "crskill.hh"
+
 struct TReadScriptFile;
 struct TWriteScriptFile;
+
+// The sizes of TPlayerData's tables: the spells (SpellList, also in TPlayer;
+// the spells are 1 to 255, 0 is none), the quest values (QuestValues, also in
+// TPlayer; 0 to 499), the depots (0 to 8) and the buddies.
+const int MAX_SPELLS = 256;
+const int MAX_QUESTS = 500;
+const int MAX_DEPOTS = 9;
+const int MAX_BUDDIES = 100;
 
 struct TOutfit {
 	int OutfitID;
@@ -36,27 +46,27 @@ struct TPlayerData {
 	int posz;
 	int Profession;
 	int PlayerkillerEnd;
-	int Actual[25];
-	int Maximum[25];
-	int Minimum[25];
-	int DeltaAct[25];
-	int MagicDeltaAct[25];
-	int Cycle[25];
-	int MaxCycle[25];
-	int Count[25];
-	int MaxCount[25];
-	int AddLevel[25];
-	int Experience[25];
-	int FactorPercent[25];
-	int NextLevel[25];
-	int Delta[25];
-	unsigned char SpellList[256];
-	int QuestValues[500];
+	int Actual[MAX_SKILLS];
+	int Maximum[MAX_SKILLS];
+	int Minimum[MAX_SKILLS];
+	int DeltaAct[MAX_SKILLS];
+	int MagicDeltaAct[MAX_SKILLS];
+	int Cycle[MAX_SKILLS];
+	int MaxCycle[MAX_SKILLS];
+	int Count[MAX_SKILLS];
+	int MaxCount[MAX_SKILLS];
+	int AddLevel[MAX_SKILLS];
+	int Experience[MAX_SKILLS];
+	int FactorPercent[MAX_SKILLS];
+	int NextLevel[MAX_SKILLS];
+	int Delta[MAX_SKILLS];
+	unsigned char SpellList[MAX_SPELLS];
+	int QuestValues[MAX_QUESTS];
 	int MurderTimestamps[20];
 	unsigned char *Inventory;
 	int InventorySize;
-	unsigned char *Depot[9];
-	int DepotSize[9];
+	unsigned char *Depot[MAX_DEPOTS];
+	int DepotSize[MAX_DEPOTS];
 	uint32_t AccountID;
 	int Sex;
 	char Name[30];
@@ -65,8 +75,8 @@ struct TPlayerData {
 	char Rank[31];
 	char Title[31];
 	int Buddies;
-	uint32_t Buddy[100];
-	char BuddyName[100][30];
+	uint32_t Buddy[MAX_BUDDIES];
+	char BuddyName[MAX_BUDDIES][30];
 	uint32_t EarliestYellRound;
 	uint32_t EarliestTradeChannelRound;
 	uint32_t EarliestSpellTime;

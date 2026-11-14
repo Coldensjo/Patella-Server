@@ -10,6 +10,7 @@
 #include "utils.hh"
 
 static const char PasswordKey[9] = "Pm-,o%yD";
+
 char BINPATH[4096];
 char DATAPATH[4096];
 char LOGPATH[4096];
@@ -45,7 +46,7 @@ TDatabaseSettings WEB_DATABASE;
 TDatabaseSettings FORUM_DATABASE;
 TDatabaseSettings MANAGER_DATABASE;
 int NumberOfQueryManagers;
-TQueryManagerSettings QUERY_MANAGER[10];
+TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
 void DisguisePassword(char *Password, const char *Key) {
 	if (Password == nullptr) {
@@ -305,7 +306,7 @@ void ReadConfig() {
 		if (strcmp(Ident, "querymanager") == 0) {
 			Script.readSymbol('{');
 			do {
-				if (NumberOfQueryManagers >= 10) {
+				if (NumberOfQueryManagers >= MAX_QUERY_MANAGERS) {
 					Script.error("Cannot handle more query managers");
 				}
 

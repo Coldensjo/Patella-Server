@@ -38,12 +38,12 @@ const char *GetName(Object Obj) {
 			strcpy(ObjectName, Help);
 		}
 
-		if (Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) != 0) {
+		if (Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) != LIQUID_NONE) {
 			strcat(ObjectName, " of ");
 			strcat(ObjectName, GetLiquidName(Obj.getAttribute(CONTAINERLIQUIDTYPE)));
 		}
 
-		if (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) != 0) {
+		if (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) != LIQUID_NONE) {
 			strcat(ObjectName, " of ");
 			strcat(ObjectName, GetLiquidName(Obj.getAttribute(POOLLIQUIDTYPE)));
 		}
@@ -238,19 +238,19 @@ bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range) {
 
 const char *GetLiquidName(uint32_t nr) {
 	switch (nr) {
-		case 0: return "nothing";
-		case 1: return "water";
-		case 2: return "wine";
-		case 3: return "beer";
-		case 4: return "mud";
-		case 5: return "blood";
-		case 6: return "slime";
-		case 7: return "oil";
-		case 8: return "urine";
-		case 9: return "milk";
-		case 10: return "manafluid";
-		case 11: return "lifefluid";
-		case 12: return "lemonade";
+		case LIQUID_NONE: return "nothing";
+		case LIQUID_WATER: return "water";
+		case LIQUID_WINE: return "wine";
+		case LIQUID_BEER: return "beer";
+		case LIQUID_MUD: return "mud";
+		case LIQUID_BLOOD: return "blood";
+		case LIQUID_SLIME: return "slime";
+		case LIQUID_OIL: return "oil";
+		case LIQUID_URINE: return "urine";
+		case LIQUID_MILK: return "milk";
+		case LIQUID_MANAFLUID: return "manafluid";
+		case LIQUID_LIFEFLUID: return "lifefluid";
+		case LIQUID_LEMONADE: return "lemonade";
 		default: {
 			error("GetLiquidName: Ung\xfcltiger Fl\xfcssigkeitstyp %d\n", nr);
 			return "unknown";
@@ -260,22 +260,22 @@ const char *GetLiquidName(uint32_t nr) {
 
 unsigned char GetLiquidColor(uint32_t nr) {
 	switch (nr) {
-		case 0: return 0;
-		case 1: return 1;
-		case 2: return 7;
-		case 3: return 3;
-		case 4: return 3;
-		case 5: return 2;
-		case 6: return 4;
-		case 7: return 3;
-		case 8: return 5;
-		case 9: return 6;
-		case 10: return 7;
-		case 11: return 2;
-		case 12: return 5;
+		case LIQUID_NONE: return LIQUID_COLOR_NONE;
+		case LIQUID_WATER: return LIQUID_COLOR_BLUE;
+		case LIQUID_WINE: return LIQUID_COLOR_PURPLE;
+		case LIQUID_BEER: return LIQUID_COLOR_BROWN;
+		case LIQUID_MUD: return LIQUID_COLOR_BROWN;
+		case LIQUID_BLOOD: return LIQUID_COLOR_RED;
+		case LIQUID_SLIME: return LIQUID_COLOR_GREEN;
+		case LIQUID_OIL: return LIQUID_COLOR_BROWN;
+		case LIQUID_URINE: return LIQUID_COLOR_YELLOW;
+		case LIQUID_MILK: return LIQUID_COLOR_WHITE;
+		case LIQUID_MANAFLUID: return LIQUID_COLOR_PURPLE;
+		case LIQUID_LIFEFLUID: return LIQUID_COLOR_RED;
+		case LIQUID_LEMONADE: return LIQUID_COLOR_YELLOW;
 		default: {
 			error("GetLiquidColor: Ung\xfcltiger Fl\xfcssigkeitstyp %d\n", nr);
-			return 0;
+			return LIQUID_COLOR_NONE;
 		}
 	}
 }
@@ -297,7 +297,8 @@ int ObjectDistance(Object Obj1, Object Obj2) {
 }
 
 Object GetBodyContainer(uint32_t CreatureID, int Position) {
-	if ((Position < 1 || Position > 10) && (Position < 64 || Position > 79)) {
+	if ((Position < FIRST_BODY_POSITION || Position > LAST_BODY_POSITION)
+			&& (Position < POSITION_CONTAINER_BASE || Position > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1)) {
 		error("GetBodyContainer: ung\xfcltige Position: %d\n", Position);
 		return NONE;
 	}
@@ -312,13 +313,13 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 		return NONE;
 	}
 
-	if (Position >= 64) {
+	if (Position >= POSITION_CONTAINER_BASE) {
 		if (cr->Type != PLAYER) {
 			error("GetBodyContainer: Nur Spieler haben offene Container.\n");
 			return NONE;
 		}
 
-		return static_cast<TPlayer *>(cr)->GetOpenContainer(Position - 64);
+		return static_cast<TPlayer *>(cr)->GetOpenContainer(Position - POSITION_CONTAINER_BASE);
 	}
 
 	// As in the original, the error does not end the function.
@@ -326,11 +327,11 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 		error("GetBodyContainer: Kreatur-Objekt von %s existiert nicht (Pos %d).\n", cr->Name, Position);
 	}
 
-	return GetContainerObject(cr->GetCreatureObject(), Position - 1);
+	return GetContainerObject(cr->GetCreatureObject(), Position - FIRST_BODY_POSITION);
 }
 
 Object GetBodyObject(uint32_t CreatureID, int Position) {
-	if (Position < 1 || Position > 10) {
+	if (Position < FIRST_BODY_POSITION || Position > LAST_BODY_POSITION) {
 		error("GetBodyObject: ung\xfcltige Position %d\n", Position);
 		return NONE;
 	}
@@ -362,7 +363,7 @@ Object GetTopObject(int x, int y, int z, bool Move) {
 }
 
 Object GetContainer(uint32_t CreatureID, int x, int y, int z) {
-	if (x == 0xFFFF) {
+	if (x == POSITION_NOT_ON_MAP) {
 		return GetBodyContainer(CreatureID, y);
 	}
 
@@ -371,18 +372,18 @@ Object GetContainer(uint32_t CreatureID, int x, int y, int z) {
 
 Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType Type) {
 	Object Obj;
-	if (x == 0xFFFF) {
+	if (x == POSITION_NOT_ON_MAP) {
 		if (y == 0) {
 			return NONE;
 		}
 
-		if ((y > 10 && y < 64) || y > 79) {
+		if ((y > LAST_BODY_POSITION && y < POSITION_CONTAINER_BASE) || y > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1) {
 			error("GetObject: Ung\xfcltiger ContainerCode x=%d,y=%d,z=%d,RNum=%d,Type=%d.\n",
 					x, y, z, RNum, Type.getTypeID());
 			return NONE;
 		}
 
-		if (y >= 64) {
+		if (y >= POSITION_CONTAINER_BASE) {
 			TCreature *cr = GetCreature(CreatureID);
 			if (cr == nullptr) {
 				error("GetObject: Kreatur %d existiert nicht.\n", CreatureID);
@@ -394,7 +395,7 @@ Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType 
 				return NONE;
 			}
 
-			Object Con = static_cast<TPlayer *>(cr)->GetOpenContainer(y - 64);
+			Object Con = static_cast<TPlayer *>(cr)->GetOpenContainer(y - POSITION_CONTAINER_BASE);
 			if (Con == NONE) {
 				return NONE;
 			}
@@ -708,7 +709,7 @@ bool FieldPossible(int x, int y, int z, int Type) {
 			return false;
 		}
 
-		if ((Type == 4 || Type == 5) && Obj.getFlag(UNPASS)) {
+		if ((Type == FIELD_MAGICWALL || Type == FIELD_RUSHWOOD) && Obj.getFlag(UNPASS)) {
 			return false;
 		}
 
@@ -1166,9 +1167,8 @@ void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 	}
 
 	Brightness = 0;
-	// Skill 15 is the light skill.
-	if (cr->Skills[15] != nullptr) {
-		Brightness = cr->Skills[15]->TimerValue();
+	if (cr->Skills[SKILL_SHINING] != nullptr) {
+		Brightness = cr->Skills[SKILL_SHINING]->TimerValue();
 	}
 
 	if (cr->Type == PLAYER && CheckRight(CreatureID, ILLUMINATE)) {
@@ -1178,7 +1178,7 @@ void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 	int Red = Brightness * 5;
 	int Green = Brightness * 5;
 	int Blue = Brightness * 5;
-	for (int i = 1; i <= 10; i++) {
+	for (int i = FIRST_BODY_POSITION; i <= LAST_BODY_POSITION; i++) {
 		Object Obj = GetBodyObject(CreatureID, i);
 		if (Obj != NONE && Obj.getFlag(LIGHT)) {
 			int B = Obj.getAttribute(BRIGHTNESS);
@@ -1241,7 +1241,7 @@ bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 		return false;
 	}
 
-	if (!in(Action, 0, 6)) {
+	if (!in(Action, BANISHMENT_ACTION_NOTATION, BANISHMENT_ACTION_STATEMENT_REPORT)) {
 		error("CheckBanishmentRight: Ung\xfcltige Aktion %d von Spieler %ld.\n",
 				Action, static_cast<long>(static_cast<int32_t>(CharacterID)));
 		return false;
@@ -1252,34 +1252,34 @@ bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 	}
 
 	switch (Action) {
-		case 0: {
+		case BANISHMENT_ACTION_NOTATION: {
 			return CheckRight(CharacterID, NOTATION);
 		}
-		case 1: {
+		case BANISHMENT_ACTION_NAMELOCK: {
 			return in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, NAMELOCK);
 		}
-		case 2: {
+		case BANISHMENT_ACTION_BANISHMENT: {
 			return !in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, BANISHMENT);
 		}
-		case 3: {
+		case BANISHMENT_ACTION_NAMELOCK_BANISHMENT: {
 			return in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, NAMELOCK)
 					&& CheckRight(CharacterID, BANISHMENT);
 		}
-		case 4: {
+		case BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING: {
 			return !in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, BANISHMENT)
 					&& CheckRight(CharacterID, FINAL_WARNING);
 		}
-		case 5: {
+		case BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING: {
 			return in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, NAMELOCK)
 					&& CheckRight(CharacterID, BANISHMENT)
 					&& CheckRight(CharacterID, FINAL_WARNING);
 		}
-		case 6: {
+		case BANISHMENT_ACTION_STATEMENT_REPORT: {
 			return (in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_REPORT_RIGHT, LAST_REPORT_RIGHT)
 						|| Reason + FIRST_BANISHMENT_RIGHT == DESTRUCTIVE_BEHAVIOUR)
 					&& CheckRight(CharacterID, STATEMENT_REPORT);

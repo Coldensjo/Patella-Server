@@ -37,8 +37,20 @@ struct TCircle {
 	int Count;
 };
 
+// The words a spell can have, its class syllable included (TSpellList's
+// Syllable, CheckForSpell); a shorter spell ends with syllable 0.
+const int MAX_SPELL_SYLLABLES = 10;
+
+// TSpellList's Flags. A spell's damage or healing is multiplied by a factor
+// of 2 * level + 3 * magic level percent (ComputeDamage), which two flags
+// bound.
+const int SPELLFLAG_AGGRESSIVE = 1;
+const int SPELLFLAG_PREMIUM = 2;
+const int SPELLFLAG_FACTOR_MAX_100 = 4;
+const int SPELLFLAG_FACTOR_MIN_100 = 8;
+
 struct TSpellList {
-	unsigned char Syllable[10];
+	unsigned char Syllable[MAX_SPELL_SYLLABLES];
 	unsigned char RuneGr;
 	unsigned char RuneNr;
 	const char *Comment;
@@ -50,7 +62,18 @@ struct TSpellList {
 	int Amount;
 };
 
-char SpellSyllable[51][6] = {
+// The syllables CheckForSpell and FindSpell look at by number: the first
+// syllable of a spell is its class (al: character rights, ad: runes, ex and
+// ut: spells cast at once, om: account rights), and "para" stands for a word
+// the caster chooses (a name, a number).
+const int SYLLABLE_AL = 1;
+const int SYLLABLE_AD = 2;
+const int SYLLABLE_EX = 3;
+const int SYLLABLE_UT = 4;
+const int SYLLABLE_OM = 5;
+const int SYLLABLE_PARA = 6;
+
+char SpellSyllable[MAX_SYLLABLES][6] = {
 	"",
 	"al",
 	"ad",
@@ -104,7 +127,109 @@ char SpellSyllable[51][6] = {
 	"",
 };
 TCircle Circle[10];
-TSpellList SpellList[256];
+TSpellList SpellList[MAX_SPELLS];
+
+// The spell numbers (SpellList), named after the spell names InitSpells
+// gives them.
+const int SPELL_LIGHT_HEALING = 1;
+const int SPELL_INTENSE_HEALING = 2;
+const int SPELL_ULTIMATE_HEALING = 3;
+const int SPELL_INTENSE_HEALING_RUNE = 4;
+const int SPELL_ULTIMATE_HEALING_RUNE = 5;
+const int SPELL_HASTE = 6;
+const int SPELL_LIGHT_MAGIC_MISSILE = 7;
+const int SPELL_HEAVY_MAGIC_MISSILE = 8;
+const int SPELL_SUMMON_CREATURE = 9;
+const int SPELL_LIGHT = 10;
+const int SPELL_GREAT_LIGHT = 11;
+const int SPELL_CONVINCE_CREATURE = 12;
+const int SPELL_ENERGY_WAVE = 13;
+const int SPELL_CHAMELEON = 14;
+const int SPELL_FIREBALL = 15;
+const int SPELL_GREAT_FIREBALL = 16;
+const int SPELL_FIREBOMB = 17;
+const int SPELL_EXPLOSION = 18;
+const int SPELL_FIRE_WAVE = 19;
+const int SPELL_FIND_PERSON = 20;
+const int SPELL_SUDDEN_DEATH = 21;
+const int SPELL_ENERGY_BEAM = 22;
+const int SPELL_GREAT_ENERGY_BEAM = 23;
+const int SPELL_ULTIMATE_EXPLOSION = 24;
+const int SPELL_FIRE_FIELD = 25;
+const int SPELL_POISON_FIELD = 26;
+const int SPELL_ENERGY_FIELD = 27;
+const int SPELL_FIRE_WALL = 28;
+const int SPELL_ANTIDOTE = 29;
+const int SPELL_DESTROY_FIELD = 30;
+const int SPELL_ANTIDOTE_RUNE = 31;
+const int SPELL_POISON_WALL = 32;
+const int SPELL_ENERGY_WALL = 33;
+const int SPELL_GET_ITEM_COUNT = 34;
+const int SPELL_GET_ITEM = 35;
+const int SPELL_MOVE = 37;
+const int SPELL_CREATURE_ILLUSION = 38;
+const int SPELL_STRONG_HASTE = 39;
+const int SPELL_GET_EXPERIENCE = 40;
+const int SPELL_CHANGE_DATA = 41;
+const int SPELL_FOOD = 42;
+const int SPELL_MAGIC_SHIELD = 44;
+const int SPELL_INVISIBLE = 45;
+const int SPELL_GET_SKILL_EXPERIENCE = 46;
+const int SPELL_TELEPORT_TO_FRIEND = 47;
+const int SPELL_POISONED_ARROW = 48;
+const int SPELL_EXPLOSIVE_ARROW = 49;
+const int SPELL_SOULFIRE = 50;
+const int SPELL_CONJURE_ARROW = 51;
+const int SPELL_RETRIEVE_FRIEND = 52;
+const int SPELL_SUMMON_WILD_CREATURE = 53;
+const int SPELL_PARALYZE = 54;
+const int SPELL_ENERGYBOMB = 55;
+const int SPELL_POISON_STORM = 56;
+const int SPELL_BANISH_ACCOUNT = 57;
+const int SPELL_GET_POSITION = 58;
+const int SPELL_TEMPLE_TELEPORT = 60;
+const int SPELL_DELETE_ACCOUNT = 61;
+const int SPELL_SET_NAMERULE = 62;
+const int SPELL_CREATE_GOLD = 63;
+const int SPELL_CHANGE_PROFESSION_OR_SEX = 64;
+const int SPELL_ENTRY_IN_CRIMINAL_RECORD = 65;
+const int SPELL_NAMELOCK = 66;
+const int SPELL_KICK_PLAYER = 67;
+const int SPELL_DELETE_CHARACTER = 68;
+const int SPELL_BANISH_IP_ADDRESS = 69;
+const int SPELL_BANISH_CHARACTER = 70;
+const int SPELL_INVITE_GUESTS = 71;
+const int SPELL_INVITE_SUBOWNERS = 72;
+const int SPELL_KICK_GUEST = 73;
+const int SPELL_EDIT_DOOR = 74;
+const int SPELL_ULTIMATE_LIGHT = 75;
+const int SPELL_MAGIC_ROPE = 76;
+const int SPELL_ENVENOM = 77;
+const int SPELL_DESINTEGRATE = 78;
+const int SPELL_CONJURE_BOLT = 79;
+const int SPELL_BERSERK = 80;
+const int SPELL_LEVITATE = 81;
+const int SPELL_MASS_HEALING = 82;
+const int SPELL_ANIMATE_DEAD = 83;
+const int SPELL_HEAL_FRIEND = 84;
+const int SPELL_UNDEAD_LEGION = 85;
+const int SPELL_MAGIC_WALL = 86;
+const int SPELL_FORCE_STRIKE = 87;
+const int SPELL_ENERGY_STRIKE = 88;
+const int SPELL_FLAME_STRIKE = 89;
+const int SPELL_CANCEL_INVISIBILITY = 90;
+const int SPELL_POISONBOMB = 91;
+const int SPELL_ENCHANT_STAFF = 92;
+const int SPELL_CHALLENGE = 93;
+const int SPELL_WILD_GROWTH = 94;
+const int SPELL_POWER_BOLT = 95;
+const int SPELL_GET_QUEST_VALUE = 96;
+const int SPELL_SET_QUEST_VALUE = 97;
+const int SPELL_DESINTEGRATE_SPELL = 98;
+const int SPELL_LEVITATE_GAMEMASTER = 99;
+const int SPELL_CLEAR_QUEST_VALUES = 100;
+const int SPELL_KILL_ALL_CREATURES = 101;
+const int SPELL_START_MONSTERRAID = 102;
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckMagicItem,
 // CheckRing, CheckAffectedPlayers, CheckMana and every spell function from
@@ -112,31 +237,43 @@ TSpellList SpellList[256];
 // has no dynamic exception specifications, so an exception of another type
 // now propagates instead of ending in std::unexpected().
 
+// The ammunition CreateArrows conjures, named after the spells that use them
+// (Conjure Arrow, Poisoned Arrow, Explosive Arrow, Conjure Bolt, Power Bolt).
+const int CONJURE_ARROW = 0;
+const int CONJURE_POISONED_ARROW = 1;
+const int CONJURE_EXPLOSIVE_ARROW = 2;
+const int CONJURE_BOLT = 3;
+const int CONJURE_POWER_BOLT = 4;
+
+// The creatures a player can have summoned or convinced at once
+// (SummonCreature, Convince).
+const int MAX_SUMMONS = 2;
+
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
 int Direction(int dx, int dy) {
 	if (dx == 0) {
 		if (dy == 0) {
-			return 0;
+			return COMPASS_NONE;
 		}
 		if (dy > 0) {
-			return 7;
+			return COMPASS_SOUTH;
 		}
-		return 3;
+		return COMPASS_NORTH;
 	}
 
 	int s = (dy << 8) / dx;
 	int r;
 	if (s < -618) {
-		r = 3;
+		r = COMPASS_NORTH;
 	} else if (s < -106) {
-		r = 2;
+		r = COMPASS_NORTHEAST;
 	} else if (s < 106) {
-		r = 1;
+		r = COMPASS_EAST;
 	} else if (s < 618) {
-		r = 8;
+		r = COMPASS_SOUTHEAST;
 	} else {
-		r = 7;
+		r = COMPASS_SOUTH;
 	}
 
 	if (dx < 0) {
@@ -168,12 +305,12 @@ void CheckAccount(TCreature *cr, int SpellNr) {
 		throw ERROR;
 	}
 
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("CheckAccount: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
 		throw ERROR;
 	}
 
-	if (cr->Type == PLAYER && (SpellList[SpellNr].Flags & 2) != 0
+	if (cr->Type == PLAYER && (SpellList[SpellNr].Flags & SPELLFLAG_PREMIUM) != 0
 			&& !CheckRight(cr->ID, PREMIUM_ACCOUNT)) {
 		throw NOPREMIUMACCOUNT;
 	}
@@ -194,7 +331,7 @@ void CheckLevel(TCreature *cr, int SpellNr) {
 	}
 
 	int Level = SpellList[SpellNr].Level;
-	TSkill *sk = cr->Skills[0];
+	TSkill *sk = cr->Skills[SKILL_LEVEL];
 	if (sk == nullptr) {
 		error("CheckLevel: Kein Skill LEVEL.\n");
 		throw ERROR;
@@ -220,7 +357,7 @@ void CheckRuneLevel(TCreature *cr, int SpellNr) {
 	}
 
 	int Level = SpellList[SpellNr].RuneLevel;
-	TSkill *sk = cr->Skills[1];
+	TSkill *sk = cr->Skills[SKILL_MAGICLEVEL];
 	if (sk == nullptr) {
 		error("CheckLevel: Kein Skill MAGLEVEL.\n");
 		throw ERROR;
@@ -264,7 +401,7 @@ void CheckAffectedPlayers(TCreature *cr, int x, int y, int z) {
 		throw ERROR;
 	}
 
-	if (cr->Type != PLAYER || cr->Combat.GetSecureMode() == 0 || WorldType != NORMAL) {
+	if (cr->Type != PLAYER || cr->Combat.GetSecureMode() == SECURE_MODE_OFF || WorldType != NORMAL) {
 		return;
 	}
 
@@ -290,8 +427,8 @@ void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 		return;
 	}
 
-	TSkill *mana = cr->Skills[3];
-	TSkill *soulpoints = cr->Skills[22];
+	TSkill *mana = cr->Skills[SKILL_MANA];
+	TSkill *soulpoints = cr->Skills[SKILL_SOULPOINTS];
 	if (mana == nullptr) {
 		error("CheckMana: Kein Skill MANA!\n");
 		throw ERROR;
@@ -316,7 +453,7 @@ void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	}
 
 	if (Mana > 0) {
-		cr->Skills[1]->Increase(Mana);
+		cr->Skills[SKILL_MAGICLEVEL]->Increase(Mana);
 	}
 
 	cr->EarliestSpellTime = std::max<uint32_t>(cr->EarliestSpellTime, ServerMilliseconds + Delay);
@@ -331,13 +468,13 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 		return Damage;
 	}
 
-	int proz = cr->Skills[0]->Get() * 2;
-	proz += cr->Skills[1]->Get() * 3;
+	int proz = cr->Skills[SKILL_LEVEL]->Get() * 2;
+	proz += cr->Skills[SKILL_MAGICLEVEL]->Get() * 3;
 	if (SpellNr != 0) {
-		if ((SpellList[SpellNr].Flags & 4) != 0 && proz > 100) {
+		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MAX_100) != 0 && proz > 100) {
 			proz = 100;
 		}
-		if ((SpellList[SpellNr].Flags & 8) != 0 && proz < 100) {
+		if ((SpellList[SpellNr].Flags & SPELLFLAG_FACTOR_MIN_100) != 0 && proz < 100) {
 			proz = 100;
 		}
 	}
@@ -347,12 +484,12 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 }
 
 bool IsAggressiveSpell(int SpellNr) {
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("IsAggressiveSpell: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
 		return false;
 	}
 
-	return (SpellList[SpellNr].Flags & 1) != 0;
+	return (SpellList[SpellNr].Flags & SPELLFLAG_AGGRESSIVE) != 0;
 }
 
 TDamageImpact::TDamageImpact(TCreature *_Actor, int _DamageType, int _Power, bool _AllowDefense) {
@@ -381,7 +518,7 @@ void TDamageImpact::handleCreature(TCreature *Victim) {
 	}
 
 	int Help = Power;
-	if (DamageType == 1 && AllowDefense) {
+	if (DamageType == DAMAGE_PHYSICAL && AllowDefense) {
 		Help -= Victim->Combat.GetDefendDamage();
 	}
 
@@ -432,10 +569,10 @@ void THealingImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	if (Victim->Skills[2]->Get() > 0) {
-		Victim->Skills[2]->Change(Power);
-		if (Victim->Skills[4]->GetMDAct() < 0) {
-			Victim->SetTimer(4, 0, 0, 0, -1);
+	if (Victim->Skills[SKILL_HITPOINTS]->Get() > 0) {
+		Victim->Skills[SKILL_HITPOINTS]->Change(Power);
+		if (Victim->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+			Victim->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 		}
 	}
 }
@@ -476,7 +613,7 @@ void TSpeedImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	TSkill *sk = Victim->Skills[4];
+	TSkill *sk = Victim->Skills[SKILL_GOSTRENGTH];
 	int Modification;
 	if (Percent < -100) {
 		Modification = -20 - sk->GetAct();
@@ -484,7 +621,7 @@ void TSpeedImpact::handleCreature(TCreature *Victim) {
 		Modification = Percent * sk->GetAct() / 100;
 	}
 	sk->SetMDAct(Modification);
-	Victim->SetTimer(4, Duration, 1, 1, -1);
+	Victim->SetTimer(SKILL_GOSTRENGTH, Duration, 1, 1, -1);
 }
 
 TDrunkenImpact::TDrunkenImpact(TCreature *_Actor, int _Power, int _Duration) {
@@ -524,8 +661,8 @@ void TDrunkenImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	if (Victim->Skills[20]->TimerValue() <= Power) {
-		Victim->SetTimer(20, Power, Duration, Duration, -1);
+	if (Victim->Skills[SKILL_DRUNKEN]->TimerValue() <= Power) {
+		Victim->SetTimer(SKILL_DRUNKEN, Power, Duration, Duration, -1);
 	}
 }
 
@@ -566,14 +703,14 @@ void TStrengthImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	for (int Skill = 6; Skill <= 11; Skill++) {
-		if ((Skills & 1) == 0 && in(Skill, 8, 11)) {
+	for (int Skill = SKILL_SHIELDING; Skill <= SKILL_FISTFIGHTING; Skill++) {
+		if ((Skills & 1) == 0 && in(Skill, SKILL_SWORDFIGHTING, SKILL_FISTFIGHTING)) {
 			continue;
 		}
-		if ((Skills & 2) == 0 && Skill == 7) {
+		if ((Skills & 2) == 0 && Skill == SKILL_DISTANCEFIGHTING) {
 			continue;
 		}
-		if ((Skills & 4) == 0 && Skill == 6) {
+		if ((Skills & 4) == 0 && Skill == SKILL_SHIELDING) {
 			continue;
 		}
 
@@ -606,7 +743,7 @@ void TOutfitImpact::handleCreature(TCreature *Victim) {
 	}
 
 	Victim->Outfit = Outfit;
-	Victim->SetTimer(16, 1, Duration, Duration, -1);
+	Victim->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 }
 
 TSummonImpact::TSummonImpact(TCreature *_Actor, int _Race, int _Maximum) {
@@ -614,7 +751,7 @@ TSummonImpact::TSummonImpact(TCreature *_Actor, int _Race, int _Maximum) {
 		error("TSummonImpact::TSummonImpact: Actor ist NULL.\n");
 	}
 
-	if (!in(_Race, 1, 511)) {
+	if (!in(_Race, 1, MAX_RACES - 1)) {
 		error("TSummonImpact::TSummonImpact: Ung\xfcltige Rassennummer %d.\n", _Race);
 	}
 
@@ -628,7 +765,7 @@ void TSummonImpact::handleField(int x, int y, int z) {
 		return;
 	}
 
-	if (in(Race, 1, 511) && Actor->SummonedCreatures < Maximum
+	if (in(Race, 1, MAX_RACES - 1) && Actor->SummonedCreatures < Maximum
 			&& SearchSummonField(x, y, z, 2)) {
 		CreateMonster(Race, x, y, z, 0, Actor->ID, true);
 	}
@@ -801,25 +938,25 @@ void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, in
 			int y;
 			int z = Actor->posz;
 			switch (Actor->Direction) {
-				case 0: {
+				case DIRECTION_NORTH: {
 					x = Actor->posx + j;
 					y = Actor->posy - i;
 					break;
 				}
 
-				case 1: {
+				case DIRECTION_EAST: {
 					x = Actor->posx + i;
 					y = Actor->posy + j;
 					break;
 				}
 
-				case 2: {
+				case DIRECTION_SOUTH: {
 					x = Actor->posx + j;
 					y = Actor->posy + i;
 					break;
 				}
 
-				case 3: {
+				case DIRECTION_WEST: {
 					x = Actor->posx - i;
 					y = Actor->posy + j;
 					break;
@@ -907,7 +1044,7 @@ void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, 
 	int x, y, z;
 	GetObjectCoordinates(Target, x, y, z);
 	if (!Target.isCreature()) {
-		Target = GetFirstSpecObject(x, y, z, ObjectType(99));
+		Target = GetFirstSpecObject(x, y, z, ObjectType(TYPEID_CREATURE));
 	}
 
 	if (Target == NONE) {
@@ -953,7 +1090,7 @@ void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 						error("KillAllMonsters: Ung\xfcltige Kreatur.\n");
 					} else if (dest != cr && dest->Type == MONSTER) {
 						print(3, "T\xf6te %s...\n", dest->Name);
-						dest->Skills[2]->Set(0);
+						dest->Skills[SKILL_HITPOINTS]->Set(0);
 						dest->Death();
 					}
 				}
@@ -987,9 +1124,9 @@ void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) 
 	}
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
-	Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? 4 : 5));
+	Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	CreateField(x, y, z, Type, cr->ID, (WorldType == NON_PVP && cr->IsPeaceful()));
-	if (in(Type, 1, 3)) {
+	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
 		cr->BlockLogout(60, true);
 	}
 }
@@ -1004,10 +1141,10 @@ void CreateField(TCreature *cr, int Mana, int SoulPoints, int Type) {
 	int y = cr->posy;
 	int z = cr->posz;
 	switch (cr->Direction) {
-		case 0: y -= 1; break;
-		case 1: x += 1; break;
-		case 2: y += 1; break;
-		case 3: x -= 1; break;
+		case DIRECTION_NORTH: y -= 1; break;
+		case DIRECTION_EAST: x += 1; break;
+		case DIRECTION_SOUTH: y += 1; break;
+		case DIRECTION_WEST: x -= 1; break;
 	}
 
 	if (cr->Type == PLAYER && !CheckRight(cr->ID, ATTACK_EVERYWHERE) && IsProtectionZone(x, y, z)) {
@@ -1037,7 +1174,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? 4 : 5));
+		Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
 
 	// The outer bound is "<", not "<=" as in the other circle spells.
@@ -1051,7 +1188,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		}
 	}
 
-	if (in(Type, 1, 3)) {
+	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
 		cr->BlockLogout(60, true);
 	}
 }
@@ -1076,39 +1213,39 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), Obj, (Type == 1 ? 4 : 5));
+		Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
 
 	int StepX, StepY;
 	int Dir = Direction(x - cr->posx, y - cr->posy);
 	switch (Dir) {
-		case 0: {
+		case COMPASS_NONE: {
 			throw NOROOM;
 		}
 
-		case 1:
-		case 5: {
+		case COMPASS_EAST:
+		case COMPASS_WEST: {
 			StepX = 0;
 			StepY = 1;
 			break;
 		}
 
-		case 2:
-		case 6: {
+		case COMPASS_NORTHEAST:
+		case COMPASS_SOUTHWEST: {
 			StepX = 1;
 			StepY = 1;
 			break;
 		}
 
-		case 3:
-		case 7: {
+		case COMPASS_NORTH:
+		case COMPASS_SOUTH: {
 			StepX = 1;
 			StepY = 0;
 			break;
 		}
 
-		case 4:
-		case 8: {
+		case COMPASS_NORTHWEST:
+		case COMPASS_SOUTHEAST: {
 			StepX = -1;
 			StepY = 1;
 			break;
@@ -1154,7 +1291,7 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		}
 	}
 
-	if (in(Type, 1, 3)) {
+	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
 		cr->BlockLogout(60, true);
 	}
 }
@@ -1186,7 +1323,7 @@ void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 		}
 	}
 
-	GraphicalEffect(x, y, z, 3);
+	GraphicalEffect(x, y, z, EFFECT_POFF);
 }
 
 void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
@@ -1218,7 +1355,7 @@ void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 		}
 	}
 
-	GraphicalEffect(x, y, z, 3);
+	GraphicalEffect(x, y, z, EFFECT_POFF);
 	cr->BlockLogout(60, true);
 }
 
@@ -1238,22 +1375,22 @@ void CleanupField(TCreature *cr) {
 	}
 
 	switch (cr->Direction) {
-		case 0: {
+		case DIRECTION_NORTH: {
 			CleanupField(cr, GetMapContainer(cr->posx, cr->posy - 1, cr->posz), 0, 0);
 			break;
 		}
 
-		case 1: {
+		case DIRECTION_EAST: {
 			CleanupField(cr, GetMapContainer(cr->posx + 1, cr->posy, cr->posz), 0, 0);
 			break;
 		}
 
-		case 2: {
+		case DIRECTION_SOUTH: {
 			CleanupField(cr, GetMapContainer(cr->posx, cr->posy + 1, cr->posz), 0, 0);
 			break;
 		}
 
-		case 3: {
+		case DIRECTION_WEST: {
 			CleanupField(cr, GetMapContainer(cr->posx - 1, cr->posy, cr->posz), 0, 0);
 			break;
 		}
@@ -1291,7 +1428,7 @@ void Teleport(TCreature *cr, char *Param) {
 		}
 
 		Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-		GraphicalEffect(x, y, z, 11);
+		GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	} else if (stricmp(Param, "down", -1) == 0) {
 		if (!CheckRight(cr->ID, TELEPORT_VERTICAL)) {
 			return;
@@ -1303,31 +1440,31 @@ void Teleport(TCreature *cr, char *Param) {
 		}
 
 		Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-		GraphicalEffect(x, y, z, 11);
+		GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	} else if (stricmp(Param, "fast", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
 			return;
 		}
 
-		cr->Skills[4]->SetMDAct(100);
-		AnnounceChangedCreature(cr->ID, 4);
-		GraphicalEffect(Obj, 13);
+		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(100);
+		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
+		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "fastest", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
 			return;
 		}
 
-		cr->Skills[4]->SetMDAct(200);
-		AnnounceChangedCreature(cr->ID, 4);
-		GraphicalEffect(Obj, 13);
+		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(200);
+		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
+		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "slow", -1) == 0 || stricmp(Param, "normal", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
 			return;
 		}
 
-		cr->Skills[4]->SetMDAct(0);
-		AnnounceChangedCreature(cr->ID, 4);
-		GraphicalEffect(Obj, 13);
+		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(0);
+		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
+		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else {
 		if (sscanf(Param, "%d,%d,%d", &x, &y, &z) == 3 || sscanf(Param, "[%d,%d,%d]", &x, &y, &z) == 3) {
 			if (!CheckRight(cr->ID, TELEPORT_TO_COORDINATE)) {
@@ -1350,7 +1487,7 @@ void Teleport(TCreature *cr, char *Param) {
 			}
 
 			Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-			GraphicalEffect(x, y, z, 11);
+			GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 		} else {
 			if (!CheckRight(cr->ID, TELEPORT_TO_MARK)) {
 				return;
@@ -1366,7 +1503,7 @@ void Teleport(TCreature *cr, char *Param) {
 			}
 
 			Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-			GraphicalEffect(x, y, z, 11);
+			GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 		}
 	}
 }
@@ -1417,11 +1554,11 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 
 	Obj = cr->GetCreatureObject();
 	if (dest == pl) {
-		GraphicalEffect(Obj, 11);
+		GraphicalEffect(Obj, EFFECT_TELEPORT);
 		return;
 	}
 
-	GraphicalEffect(Obj, 3);
+	GraphicalEffect(Obj, EFFECT_POFF);
 	x = dest->posx;
 	y = dest->posy;
 	z = dest->posz;
@@ -1430,7 +1567,7 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 	}
 
 	Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	Log("banish", "%s teleportiert sich zu %s.\n", cr->Name, dest->Name);
 }
 
@@ -1479,7 +1616,7 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	}
 
 	Obj = dest->GetCreatureObject();
-	GraphicalEffect(Obj, 3);
+	GraphicalEffect(Obj, EFFECT_POFF);
 	x = cr->posx;
 	y = cr->posy;
 	z = cr->posz;
@@ -1488,7 +1625,7 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	}
 
 	Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
 
 void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
@@ -1506,7 +1643,7 @@ void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	Move(0, Obj, GetMapContainer(x, y + 1, z - 1), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
 
 void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
@@ -1528,10 +1665,10 @@ void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 	int dy = y;
 	int dz = z;
 	switch (cr->Direction) {
-		case 0: dy -= 1; break;
-		case 1: dx += 1; break;
-		case 2: dy += 1; break;
-		case 3: dx -= 1; break;
+		case DIRECTION_NORTH: dy -= 1; break;
+		case DIRECTION_EAST: dx += 1; break;
+		case DIRECTION_SOUTH: dy += 1; break;
+		case DIRECTION_WEST: dx -= 1; break;
 	}
 
 	if (z > 0 && stricmp(Direction, "up", -1) == 0) {
@@ -1558,7 +1695,7 @@ void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	Move(0, Obj, GetMapContainer(dx, dy, dz), -1, false, NONE);
-	GraphicalEffect(x, y, z, 11);
+	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
 
 void MagicClimbing(TCreature *cr, char *Direction) {
@@ -1609,7 +1746,7 @@ void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 		Type = GetObjectTypeByName(Param1, true);
 	} else {
 		int TypeID = atoi(Param1);
-		if (TypeID > ObjectType(99).getTypeID() && ObjectTypeExists(TypeID)) {
+		if (TypeID > ObjectType(TYPEID_CREATURE).getTypeID() && ObjectTypeExists(TypeID)) {
 			Type = TypeID;
 		}
 
@@ -1646,7 +1783,7 @@ void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 		}
 	}
 
-	GraphicalEffect(Con, 15);
+	GraphicalEffect(Con, EFFECT_MAGIC_GREEN);
 }
 
 void CreateMoney(TCreature *cr, char *Param) {
@@ -1689,7 +1826,7 @@ void CreateMoney(TCreature *cr, char *Param) {
 		CreateAtCreature(cr->ID, GetSpecialObject(MONEY_ONE), Count % 100);
 	}
 
-	GraphicalEffect(Con, 15);
+	GraphicalEffect(Con, EFFECT_MAGIC_GREEN);
 }
 
 void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
@@ -1715,7 +1852,7 @@ void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
 		CreateAtCreature(cr->ID, Type, 1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount) {
@@ -1727,11 +1864,11 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	ObjectType Type;
 	switch (Ammo) {
-		case 0: Type = GetNewObjectType(94, 1); break;
-		case 1: Type = GetNewObjectType(94, 2); break;
-		case 2: Type = GetNewObjectType(94, 3); break;
-		case 3: Type = GetNewObjectType(94, 0); break;
-		case 4: Type = GetNewObjectType(94, 4); break;
+		case CONJURE_ARROW: Type = GetNewObjectType(94, 1); break;
+		case CONJURE_POISONED_ARROW: Type = GetNewObjectType(94, 2); break;
+		case CONJURE_EXPLOSIVE_ARROW: Type = GetNewObjectType(94, 3); break;
+		case CONJURE_BOLT: Type = GetNewObjectType(94, 0); break;
+		case CONJURE_POWER_BOLT: Type = GetNewObjectType(94, 4); break;
 		default: {
 			error("CreateArrows: Ung\xfcltiger Pfeiltyp %d.\n", Ammo);
 			throw ERROR;
@@ -1739,7 +1876,7 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 	}
 
 	CreateAtCreature(cr->ID, Type, Amount);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
@@ -1748,7 +1885,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 		throw ERROR;
 	}
 
-	if (Race < 1 || Race > 511) {
+	if (Race < 1 || Race > MAX_RACES - 1) {
 		error("SummonCreature: Ung\xfcltige Rassennummer %d \xfc" "bergeben.\n", Race);
 		throw ERROR;
 	}
@@ -1762,7 +1899,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 			throw NOTACCESSIBLE;
 		}
 
-		if (cr->Type == PLAYER && cr->SummonedCreatures >= 2) {
+		if (cr->Type == PLAYER && cr->SummonedCreatures >= MAX_SUMMONS) {
 			throw TOOMANYSLAVES;
 		}
 	}
@@ -1779,7 +1916,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 	}
 
 	CreateMonster(Race, posx, posy, posz, 0, (God ? 0 : cr->ID), true);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
@@ -1794,7 +1931,7 @@ void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
 	}
 
 	int Race = 0;
-	for (int i = 1; i < 512; i++) {
+	for (int i = 1; i < MAX_RACES; i++) {
 		if (stricmp(RaceName, GetRaceName(i), -1) == 0) {
 			Race = i;
 			break;
@@ -1827,15 +1964,15 @@ void StartMonsterraid(TCreature *cr, char *RaidName) {
 	char FileName[4096];
 	snprintf(FileName, sizeof(FileName), "%s/%s.evt", MONSTERPATH, RaidName);
 	if (!FileExists(FileName)) {
-		GraphicalEffect(cr->GetCreatureObject(), 3);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 		return;
 	}
 
 	try {
 		LoadMonsterRaid(FileName, (int)RoundNr,nullptr, nullptr, nullptr, nullptr);
-		GraphicalEffect(cr->GetCreatureObject(), 13);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 	} catch (const char *) {
-		GraphicalEffect(cr->GetCreatureObject(), 3);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 	}
 }
 
@@ -1874,7 +2011,7 @@ void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	Delete(Obj, -1);
-	CreateMonster(33, x, y, z, 0, cr->ID, true);
+	CreateMonster(RACE_SKELETON, x, y, z, 0, cr->ID, true);
 }
 
 void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
@@ -1896,7 +2033,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), 5);
+		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
 
 	for (int i = 0; i <= Radius; i++) {
@@ -1907,7 +2044,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 				continue;
 			}
 
-			GraphicalEffect(dx, dy, z, 13);
+			GraphicalEffect(dx, dy, z, EFFECT_MAGIC_BLUE);
 			Object Obj = GetFirstObject(dx, dy, z);
 			while (Obj != NONE) {
 				Object Help = Obj;
@@ -1918,7 +2055,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 					int sz = z;
 					if (SearchFreeField(sx, sy, sz, 1, 0, false) && !IsProtectionZone(sx, sy, sz)) {
 						Delete(Help, -1);
-						CreateMonster(33, sx, sy, sz, 0, cr->ID, false);
+						CreateMonster(RACE_SKELETON, sx, sy, sz, 0, cr->ID, false);
 					}
 				}
 			}
@@ -1937,7 +2074,7 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	TSkill *sk = cr->Skills[2];
+	TSkill *sk = cr->Skills[SKILL_HITPOINTS];
 	if (sk == nullptr) {
 		error("Heal: Skill HITPOINTS existiert nicht.\n");
 		throw ERROR;
@@ -1945,10 +2082,10 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 
 	if (sk->Get() > 0) {
 		sk->Change(Healing);
-		if (cr->Skills[4]->GetMDAct() < 0) {
-			cr->SetTimer(4, 0, 0, 0, -1);
+		if (cr->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+			cr->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 		}
-		GraphicalEffect(cr->GetCreatureObject(), 13);
+		GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 	}
 }
 
@@ -1971,7 +2108,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), 5);
+		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
 
 	for (int i = 0; i <= Radius; i++) {
@@ -1982,7 +2119,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 				continue;
 			}
 
-			GraphicalEffect(dx, dy, z, 13);
+			GraphicalEffect(dx, dy, z, EFFECT_MAGIC_BLUE);
 			Object Obj = GetFirstObject(dx, dy, z);
 			while (Obj != NONE) {
 				Object Help = Obj;
@@ -2001,7 +2138,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 					continue;
 				}
 
-				TSkill *sk = dest->Skills[2];
+				TSkill *sk = dest->Skills[SKILL_HITPOINTS];
 				if (sk == nullptr) {
 					error("MassHeal: Skill HITPOINTS existiert nicht.\n");
 					throw ERROR;
@@ -2009,8 +2146,8 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 
 				if (sk->Get() > 0) {
 					sk->Change(Healing);
-					if (dest->Skills[4]->GetMDAct() < 0) {
-						dest->SetTimer(4, 0, 0, 0, -1);
+					if (dest->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+						dest->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 					}
 				}
 			}
@@ -2043,7 +2180,7 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 		throw OUTOFRANGE;
 	}
 
-	TSkill *sk = pl->Skills[2];
+	TSkill *sk = pl->Skills[SKILL_HITPOINTS];
 	if (sk == nullptr) {
 		error("HealFriend: Skill HITPOINTS existiert nicht.\n");
 		throw ERROR;
@@ -2055,12 +2192,12 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	sk->Change(Healing);
-	if (pl->Skills[4]->GetMDAct() < 0) {
-		pl->SetTimer(4, 0, 0, 0, -1);
+	if (pl->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+		pl->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
-	GraphicalEffect(pl->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
+	GraphicalEffect(pl->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
@@ -2070,14 +2207,14 @@ void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	TSkill *sk = cr->Skills[3];
+	TSkill *sk = cr->Skills[SKILL_MANA];
 	if (sk == nullptr) {
 		error("RefreshMana: Skill MANA existiert nicht.\n");
 		throw ERROR;
 	}
 
 	sk->Change(AddMana);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, int percent, int duration) {
@@ -2102,7 +2239,7 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	TSkill *sk = dest->Skills[4];
+	TSkill *sk = dest->Skills[SKILL_GOSTRENGTH];
 	int mdact;
 	if (percent < -100) {
 		mdact = -20 - sk->GetAct();
@@ -2110,13 +2247,13 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 		mdact = sk->GetAct() * percent / 100;
 	}
 	sk->SetMDAct(mdact);
-	dest->SetTimer(4, duration, 10, 10, -1);
+	dest->SetTimer(SKILL_GOSTRENGTH, duration, 10, 10, -1);
 	if (percent < 0) {
 		cr->BlockLogout(60, dest->Type == PLAYER);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 15);
-	GraphicalEffect(dest->GetCreatureObject(), 14);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
+	GraphicalEffect(dest->GetCreatureObject(), EFFECT_MAGIC_RED);
 }
 
 void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
@@ -2126,8 +2263,8 @@ void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	cr->SetTimer(21, 1, Duration, Duration, -1);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	cr->SetTimer(SKILL_MANASHIELD, 1, Duration, Duration, -1);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
@@ -2142,8 +2279,8 @@ void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	dest->SetTimer(17, 0, 0, 0, -1);
-	GraphicalEffect(dest->GetCreatureObject(), 13);
+	dest->SetTimer(SKILL_POISON, 0, 0, 0, -1);
+	GraphicalEffect(dest->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) {
@@ -2153,11 +2290,11 @@ void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) 
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	if (cr->Skills[15]->TimerValue() <= Radius) {
-		cr->SetTimer(15, Radius, Duration / Radius, Duration / Radius, -1);
+	if (cr->Skills[SKILL_SHINING]->TimerValue() <= Radius) {
+		cr->SetTimer(SKILL_SHINING, Radius, Duration / Radius, Duration / Radius, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
@@ -2169,8 +2306,8 @@ void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	cr->Outfit.OutfitID = 0;
 	cr->Outfit.ObjectType = 0;
-	cr->SetTimer(16, 1, Duration, Duration, -1);
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
@@ -2192,7 +2329,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
-		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), 5);
+		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
 
 	// The circles start at radius 1; the center field is not affected.
@@ -2227,21 +2364,21 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 					continue;
 				}
 
-				dest->SetTimer(16, 0, 0, 0, -1);
-				if (dest->Skills[16]->Get() == 0) {
+				dest->SetTimer(SKILL_ILLUSION, 0, 0, 0, -1);
+				if (dest->Skills[SKILL_ILLUSION]->Get() == 0) {
 					dest->Outfit = dest->OrgOutfit;
-					AnnounceChangedCreature(dest->ID, 3);
-					NotifyAllCreatures(dest->GetCreatureObject(), 2, NONE);
+					AnnounceChangedCreature(dest->ID, CREATURE_OUTFIT);
+					NotifyAllCreatures(dest->GetCreatureObject(), OBJECT_CHANGED, NONE);
 				} else {
-					GraphicalEffect(dx, dy, z, 4);
+					GraphicalEffect(dx, dy, z, EFFECT_BLOCK_HIT);
 					EffectShown = true;
 					if (WorldType == PVP_ENFORCED) {
-						for (int b = 1; b <= 10; b++) {
+						for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION; b++) {
 							Object Item = GetBodyObject(dest->ID, b);
 							if (Item != NONE
 									&& Item.getFlag(SKILLBOOST)
 									&& (int)Item.getAttribute(BODYPOSITION) == b
-									&& Item.getAttribute(SKILLNUMBER) == 16) {
+									&& Item.getAttribute(SKILLNUMBER) == SKILL_ILLUSION) {
 								if (random(1, 5) == 1) {
 									Delete(Item, -1);
 								}
@@ -2253,7 +2390,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 			}
 
 			if (!EffectShown) {
-				GraphicalEffect(dx, dy, z, 13);
+				GraphicalEffect(dx, dy, z, EFFECT_MAGIC_BLUE);
 			}
 		}
 	}
@@ -2271,7 +2408,7 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 	}
 
 	int Race = 0;
-	for (int i = 1; i < 512; i++) {
+	for (int i = 1; i < MAX_RACES; i++) {
 		if (stricmp(RaceName, GetRaceName(i), -1) == 0) {
 			Race = i;
 			break;
@@ -2287,12 +2424,12 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	if (cr->Skills[16]->Get() == 0) {
+	if (cr->Skills[SKILL_ILLUSION]->Get() == 0) {
 		cr->Outfit = GetRaceOutfit(Race);
-		cr->SetTimer(16, 1, Duration, Duration, -1);
+		cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Duration) {
@@ -2311,17 +2448,17 @@ void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Dur
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	if (cr->Skills[16]->Get() == 0) {
+	if (cr->Skills[SKILL_ILLUSION]->Get() == 0) {
 		cr->Outfit.OutfitID = 0;
 		if (Obj.getFlag(DISGUISE)) {
 			cr->Outfit.ObjectType = (unsigned short)Obj.getAttribute(DISGUISETARGET);
 		} else {
 			cr->Outfit.ObjectType = (unsigned short)Obj.getObjectType().getTypeID();
 		}
-		cr->SetTimer(16, 1, Duration, Duration, -1);
+		cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void ChangeData(TCreature *cr, char *Param) {
@@ -2345,8 +2482,8 @@ void ChangeData(TCreature *cr, char *Param) {
 		return;
 	}
 
-	Object Obj = GetBodyObject(cr->ID, 5);
-	Object Obj2 = GetBodyObject(cr->ID, 6);
+	Object Obj = GetBodyObject(cr->ID, BODY_RIGHTHAND);
+	Object Obj2 = GetBodyObject(cr->ID, BODY_LEFTHAND);
 	if (Obj != NONE && Obj2 != NONE) {
 		SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "First drop one object.");
 		return;
@@ -2378,7 +2515,7 @@ void ChangeData(TCreature *cr, char *Param) {
 		Attribute = KEYNUMBER;
 	} else if (Obj.getFlag(KEYDOOR) && newValue != 0) {
 		Attribute = KEYHOLENUMBER;
-	} else if (Obj.getFlag(CUMULATIVE) && newValue != 0 && newValue <= 100) {
+	} else if (Obj.getFlag(CUMULATIVE) && newValue != 0 && newValue <= MAX_AMOUNT) {
 		Attribute = AMOUNT;
 	} else if (Obj.getFlag(RUNE) && newValue != 0 && newValue <= 99) {
 		Attribute = CHARGES;
@@ -2388,7 +2525,7 @@ void ChangeData(TCreature *cr, char *Param) {
 	}
 
 	Change(Obj, Attribute, newValue);
-	GraphicalEffect(cr->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, ObjectType Target) {
@@ -2397,9 +2534,9 @@ void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, O
 		throw ERROR;
 	}
 
-	Object Obj = GetBodyObject(cr->ID, 5);
+	Object Obj = GetBodyObject(cr->ID, BODY_RIGHTHAND);
 	if (Obj == NONE || Obj.getObjectType() != Origin) {
-		Obj = GetBodyObject(cr->ID, 6);
+		Obj = GetBodyObject(cr->ID, BODY_LEFTHAND);
 		if (Obj == NONE || Obj.getObjectType() != Origin) {
 			throw MAGICITEM;
 		}
@@ -2407,7 +2544,7 @@ void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, O
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	Change(Obj, Target, 0);
-	GraphicalEffect(cr->GetCreatureObject(), 15);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void Convince(TCreature *master, TCreature *slave) {
@@ -2415,7 +2552,7 @@ void Convince(TCreature *master, TCreature *slave) {
 		throw ATTACKNOTALLOWED;
 	}
 
-	if (master->Type == PLAYER && master->SummonedCreatures > 1) {
+	if (master->Type == PLAYER && master->SummonedCreatures > MAX_SUMMONS - 1) {
 		throw TOOMANYSLAVES;
 	}
 
@@ -2430,8 +2567,8 @@ void Convince(TCreature *master, TCreature *slave) {
 	int Mana = GetRaceSummonCost(slave->Race);
 	CheckMana(master, Mana, 0, (WorldType == PVP_ENFORCED) ? 1000 : 2000);
 	ConvinceMonster(master, slave);
-	GraphicalEffect(master->GetCreatureObject(), 13);
-	GraphicalEffect(slave->GetCreatureObject(), 10);
+	GraphicalEffect(master->GetCreatureObject(), EFFECT_MAGIC_BLUE);
+	GraphicalEffect(slave->GetCreatureObject(), EFFECT_HIT_AREA);
 }
 
 void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
@@ -2444,8 +2581,8 @@ void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
 				continue;
 			}
 
-			GraphicalEffect(dx, dy, cr->posz, 13);
-			Object Obj = GetFirstSpecObject(dx, dy, cr->posz, ObjectType(99));
+			GraphicalEffect(dx, dy, cr->posz, EFFECT_MAGIC_BLUE);
+			Object Obj = GetFirstSpecObject(dx, dy, cr->posz, ObjectType(TYPEID_CREATURE));
 			if (Obj != NONE) {
 				TCreature *dest = GetCreature(Obj);
 				if (dest == nullptr) {
@@ -2502,28 +2639,28 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 	} else {
 		char *Dir;
 		switch (Direction(Opp->posx - cr->posx, Opp->posy - cr->posy)) {
-			case 1:
+			case COMPASS_EAST:
 				Dir = "east";
 				break;
-			case 2:
+			case COMPASS_NORTHEAST:
 				Dir = "north-east";
 				break;
-			case 3:
+			case COMPASS_NORTH:
 				Dir = "north";
 				break;
-			case 4:
+			case COMPASS_NORTHWEST:
 				Dir = "north-west";
 				break;
-			case 5:
+			case COMPASS_WEST:
 				Dir = "west";
 				break;
-			case 6:
+			case COMPASS_SOUTHWEST:
 				Dir = "south-west";
 				break;
-			case 7:
+			case COMPASS_SOUTH:
 				Dir = "south";
 				break;
-			case 8:
+			case COMPASS_SOUTHEAST:
 				Dir = "south-east";
 				break;
 			default:
@@ -2544,7 +2681,7 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 		}
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 13);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void GetPosition(TCreature *cr) {
@@ -2587,7 +2724,7 @@ void GetQuestValue(TCreature *cr, char *Param) {
 
 	// The original's 32-bit strtol saturates at the int range.
 	int Number = (int)std::clamp(strtol(Param, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
-	if (in(Number, 0, 499)) {
+	if (in(Number, 0, MAX_QUESTS - 1)) {
 		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Quest value %d is %d.", Number, pl->GetQuestValue(Number));
 	} else {
 		SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Invalid quest number.");
@@ -2622,7 +2759,7 @@ void SetQuestValue(TCreature *cr, char *Param1, char *Param2) {
 
 	int Number = (int)std::clamp(strtol(Param1, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
 	int Value = (int)std::clamp(strtol(Param2, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
-	if (!in(Number, 0, 499)) {
+	if (!in(Number, 0, MAX_QUESTS - 1)) {
 		SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Invalid quest number.");
 		return;
 	}
@@ -2647,7 +2784,7 @@ void ClearQuestValues(TCreature *cr) {
 		return;
 	}
 
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < MAX_QUESTS; i++) {
 		pl->SetQuestValue(i, 0);
 	}
 
@@ -2678,9 +2815,9 @@ void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 	int32_t i = (int)std::clamp(strtol(Param1, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
 	int32_t k = (Param2 != nullptr) ? (int)std::clamp(strtol(Param2, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX) : 0;
 	if (i > 0 && Param2 == nullptr) {
-		pl->Skills[0]->Increase(i);
+		pl->Skills[SKILL_LEVEL]->Increase(i);
 	} else {
-		if (i < 0 || i > 24) {
+		if (i < 0 || i > MAX_SKILLS - 1) {
 			return;
 		}
 
@@ -2691,7 +2828,7 @@ void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 		pl->Skills[i]->Increase(k);
 	}
 
-	GraphicalEffect(pl->GetCreatureObject(), 15);
+	GraphicalEffect(pl->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
 
 void ChangeProfession(TCreature *cr, char *Param) {
@@ -2716,34 +2853,34 @@ void ChangeProfession(TCreature *cr, char *Param) {
 	}
 
 	if (stricmp(Param, "male", -1) == 0) {
-		pl->Sex = 1;
+		pl->Sex = SEX_MALE;
 	} else if (stricmp(Param, "female", -1) == 0) {
-		pl->Sex = 2;
+		pl->Sex = SEX_FEMALE;
 	} else if (stricmp(Param, "none", -1) == 0) {
 		pl->ClearProfession();
 	} else if (stricmp(Param, "knight", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(1);
+		pl->SetProfession(PROFESSION_KNIGHT);
 	} else if (stricmp(Param, "paladin", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(2);
+		pl->SetProfession(PROFESSION_PALADIN);
 	} else if (stricmp(Param, "sorcerer", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(3);
+		pl->SetProfession(PROFESSION_SORCERER);
 	} else if (stricmp(Param, "druid", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(4);
+		pl->SetProfession(PROFESSION_DRUID);
 	} else if (stricmp(Param, "promote", -1) == 0) {
-		if (pl->GetRealProfession() == 0 || pl->GetRealProfession() >= 10) {
+		if (pl->GetRealProfession() == PROFESSION_NONE || pl->GetRealProfession() >= PROFESSION_PROMOTION) {
 			return;
 		}
 
-		pl->SetProfession(10);
+		pl->SetProfession(PROFESSION_PROMOTION);
 	} else {
 		return;
 	}
 
-	GraphicalEffect(pl->GetCreatureObject(), 13);
+	GraphicalEffect(pl->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void EditGuests(TCreature *cr) {
@@ -2765,7 +2902,7 @@ void EditGuests(TCreature *cr) {
 
 	char Buffer[4096];
 	ShowGuestList(HouseID, pl, Buffer);
-	SendEditList(pl->GetConnection(), 1, HouseID, Buffer);
+	SendEditList(pl->GetConnection(), EDIT_LIST_HOUSE_GUESTS, HouseID, Buffer);
 }
 
 void EditSubowners(TCreature *cr) {
@@ -2787,7 +2924,7 @@ void EditSubowners(TCreature *cr) {
 
 	char Buffer[4096];
 	ShowSubownerList(HouseID, pl, Buffer);
-	SendEditList(pl->GetConnection(), 2, HouseID, Buffer);
+	SendEditList(pl->GetConnection(), EDIT_LIST_HOUSE_SUBOWNERS, HouseID, Buffer);
 }
 
 void KickGuest(TCreature *cr, char *Name) {
@@ -2850,16 +2987,16 @@ void EditNameDoor(TCreature *cr) {
 
 	if (Door == NONE) {
 		switch (pl->Direction) {
-			case 0:
+			case DIRECTION_NORTH:
 				y--;
 				break;
-			case 1:
+			case DIRECTION_EAST:
 				x++;
 				break;
-			case 2:
+			case DIRECTION_SOUTH:
 				y++;
 				break;
-			case 3:
+			case DIRECTION_WEST:
 				x--;
 				break;
 		}
@@ -2880,7 +3017,7 @@ void EditNameDoor(TCreature *cr) {
 
 	char Buffer[4096];
 	ShowNameDoor(Door, pl, Buffer);
-	SendEditList(pl->GetConnection(), 3, Door.getObjectID(), Buffer);
+	SendEditList(pl->GetConnection(), EDIT_LIST_NAME_DOOR, Door.getObjectID(), Buffer);
 }
 
 void Notation(TCreature *cr, char *Name, char *Comment) {
@@ -3104,7 +3241,7 @@ void KickPlayer(TCreature *cr, char *Name) {
 		throw NAMEAMBIGUOUS;
 	}
 
-	GraphicalEffect(Opp->GetCreatureObject(), 15);
+	GraphicalEffect(Opp->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 	Opp->StartLogout(true, true);
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Player %s kicked out of the game.", Opp->Name);
 	Log("banish", "%s kickt %s.\n", pl->Name, Opp->Name);
@@ -3142,9 +3279,9 @@ void HomeTeleport(TCreature *cr, char *Name) {
 	}
 
 	Object Obj = Opp->GetCreatureObject();
-	GraphicalEffect(Obj, 3);
+	GraphicalEffect(Obj, EFFECT_POFF);
 	Move(0, Obj, GetMapContainer(Opp->startx, Opp->starty, Opp->startz), -1, false, NONE);
-	GraphicalEffect(Obj, 13);
+	GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Player %s has been moved to the temple.", Opp->Name);
 	Log("banish", "%s teleportiert %s zum Tempel.\n", pl->Name, Opp->Name);
 }
@@ -3156,7 +3293,7 @@ void SpellFailed(uint32_t CreatureID) {
 		return;
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 3);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 }
 
 void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
@@ -3171,73 +3308,73 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 	}
 
 	switch (SpellNr) {
-		case 34:
+		case SPELL_GET_ITEM_COUNT:
 			CreateThing(cr, SpellStr[2], SpellStr[3]);
 			break;
-		case 35:
+		case SPELL_GET_ITEM:
 			CreateThing(cr, SpellStr[2], nullptr);
 			break;
-		case 37:
+		case SPELL_MOVE:
 			Teleport(cr, SpellStr[2]);
 			break;
-		case 40:
+		case SPELL_GET_EXPERIENCE:
 			CreateKnowledge(cr, SpellStr[3], nullptr);
 			break;
-		case 41:
+		case SPELL_CHANGE_DATA:
 			ChangeData(cr, SpellStr[2]);
 			break;
-		case 46:
+		case SPELL_GET_SKILL_EXPERIENCE:
 			CreateKnowledge(cr, SpellStr[3], SpellStr[4]);
 			break;
-		case 47:
+		case SPELL_TELEPORT_TO_FRIEND:
 			TeleportToCreature(cr, SpellStr[3]);
 			break;
-		case 52:
+		case SPELL_RETRIEVE_FRIEND:
 			TeleportPlayerToMe(cr, SpellStr[3]);
 			break;
-		case 53:
+		case SPELL_SUMMON_WILD_CREATURE:
 			SummonCreature(cr, 0, SpellStr[3], true);
 			break;
-		case 58:
+		case SPELL_GET_POSITION:
 			GetPosition(cr);
 			break;
-		case 63:
+		case SPELL_CREATE_GOLD:
 			CreateMoney(cr, SpellStr[3]);
 			break;
-		case 64:
+		case SPELL_CHANGE_PROFESSION_OR_SEX:
 			ChangeProfession(cr, SpellStr[3]);
 			break;
-		case 71:
+		case SPELL_INVITE_GUESTS:
 			EditGuests(cr);
 			break;
-		case 72:
+		case SPELL_INVITE_SUBOWNERS:
 			EditSubowners(cr);
 			break;
-		case 73:
+		case SPELL_KICK_GUEST:
 			KickGuest(cr, SpellStr[3]);
 			break;
-		case 74:
+		case SPELL_EDIT_DOOR:
 			EditNameDoor(cr);
 			break;
-		case 96:
+		case SPELL_GET_QUEST_VALUE:
 			GetQuestValue(cr, SpellStr[3]);
 			break;
-		case 97:
+		case SPELL_SET_QUEST_VALUE:
 			SetQuestValue(cr, SpellStr[3], SpellStr[4]);
 			break;
-		case 98:
+		case SPELL_DESINTEGRATE_SPELL:
 			CleanupField(cr);
 			break;
-		case 99:
+		case SPELL_LEVITATE_GAMEMASTER:
 			MagicClimbing(cr, SpellStr[3]);
 			break;
-		case 100:
+		case SPELL_CLEAR_QUEST_VALUES:
 			ClearQuestValues(cr);
 			break;
-		case 101:
-			KillAllMonsters(cr, 18, 2);
+		case SPELL_KILL_ALL_CREATURES:
+			KillAllMonsters(cr, EFFECT_DEATH, 2);
 			break;
-		case 102:
+		case SPELL_START_MONSTERRAID:
 			StartMonsterraid(cr, SpellStr[4]);
 			break;
 	}
@@ -3255,34 +3392,34 @@ void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) 
 	}
 
 	switch (SpellNr) {
-		case 57:
+		case SPELL_BANISH_ACCOUNT:
 			BanishAccount(cr, SpellStr[3], (int)std::clamp(strtol(SpellStr[4], nullptr, 10), (long)INT32_MIN, (long)INT32_MAX), SpellStr[5]);
 			break;
-		case 60:
+		case SPELL_TEMPLE_TELEPORT:
 			HomeTeleport(cr, SpellStr[2]);
 			break;
-		case 61:
+		case SPELL_DELETE_ACCOUNT:
 			DeleteAccount(cr, SpellStr[4], SpellStr[5]);
 			break;
-		case 62:
+		case SPELL_SET_NAMERULE:
 			SetNameRule(cr, SpellStr[2]);
 			break;
-		case 65:
+		case SPELL_ENTRY_IN_CRIMINAL_RECORD:
 			Notation(cr, SpellStr[2], SpellStr[3]);
 			break;
-		case 66:
+		case SPELL_NAMELOCK:
 			NameLock(cr, SpellStr[3]);
 			break;
-		case 67:
+		case SPELL_KICK_PLAYER:
 			KickPlayer(cr, SpellStr[2]);
 			break;
-		case 68:
+		case SPELL_DELETE_CHARACTER:
 			DeleteCharacter(cr, SpellStr[4], SpellStr[5]);
 			break;
-		case 69:
+		case SPELL_BANISH_IP_ADDRESS:
 			IPBanishment(cr, SpellStr[3], SpellStr[4]);
 			break;
-		case 70:
+		case SPELL_BANISH_CHARACTER:
 			BanishCharacter(cr, SpellStr[3], (int)std::clamp(strtol(SpellStr[4], nullptr, 10), (long)INT32_MIN, (long)INT32_MAX), SpellStr[5]);
 			break;
 	}
@@ -3312,134 +3449,134 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 
 	int Damage;
 	switch (SpellNr) {
-		case 1:
+		case SPELL_LIGHT_HEALING:
 			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 20, 10));
 			break;
-		case 2:
+		case SPELL_INTENSE_HEALING:
 			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 40, 20));
 			break;
-		case 3:
+		case SPELL_ULTIMATE_HEALING:
 			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 250, 50));
 			break;
-		case 6:
+		case SPELL_HASTE:
 			MagicGoStrength(cr, cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 30, 3);
 			break;
-		case 9:
+		case SPELL_SUMMON_CREATURE:
 			SummonCreature(cr, SpellList[SpellNr].Mana, SpellStr[3], false);
 			break;
-		case 10:
+		case SPELL_LIGHT:
 			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 6, 500);
 			break;
-		case 11:
+		case SPELL_GREAT_LIGHT:
 			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 8, 1000);
 			break;
-		case 13:
+		case SPELL_ENERGY_WAVE:
 			Damage = ComputeDamage(cr, SpellNr, 150, 50);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 11, 5, 30, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 5, 30, DAMAGE_ENERGY);
 			break;
-		case 19:
+		case SPELL_FIRE_WAVE:
 			Damage = ComputeDamage(cr, SpellNr, 30, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 7, 4, 45, 4);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 4, 45, DAMAGE_FIRE);
 			break;
-		case 20:
+		case SPELL_FIND_PERSON:
 			FindPerson(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[2]);
 			break;
-		case 22:
+		case SPELL_ENERGY_BEAM:
 			Damage = ComputeDamage(cr, SpellNr, 60, 20);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 6, 5, 0, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 5, 0, DAMAGE_ENERGY);
 			break;
-		case 23:
+		case SPELL_GREAT_ENERGY_BEAM:
 			Damage = ComputeDamage(cr, SpellNr, 120, 80);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 6, 8, 0, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 8, 0, DAMAGE_ENERGY);
 			break;
-		case 24:
+		case SPELL_ULTIMATE_EXPLOSION:
 			Damage = ComputeDamage(cr, SpellNr, 250, 50);
-			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 5, 6, 1, 4);
+			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION_AREA, 6, DAMAGE_PHYSICAL, ANIMATION_FIRE);
 			break;
-		case 29:
+		case SPELL_ANTIDOTE:
 			NegatePoison(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, cr);
 			break;
-		case 38:
+		case SPELL_CREATURE_ILLUSION:
 			CreatureIllusion(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[4], 200);
 			break;
-		case 39:
+		case SPELL_STRONG_HASTE:
 			MagicGoStrength(cr, cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 70, 2);
 			break;
-		case 42:
+		case SPELL_FOOD:
 			CreateFood(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints);
 			break;
-		case 44:
+		case SPELL_MAGIC_SHIELD:
 			Shielding(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 200);
 			break;
-		case 45:
+		case SPELL_INVISIBLE:
 			Invisibility(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 200);
 			break;
-		case 48:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 1, 5);
+		case SPELL_POISONED_ARROW:
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POISONED_ARROW, 5);
 			break;
-		case 49:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 2, 3);
+		case SPELL_EXPLOSIVE_ARROW:
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_EXPLOSIVE_ARROW, 3);
 			break;
-		case 51:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 0, 10);
+		case SPELL_CONJURE_ARROW:
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_ARROW, 10);
 			break;
-		case 56:
+		case SPELL_POISON_STORM:
 			Damage = ComputeDamage(cr, SpellNr, 200, 50);
-			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 9, 8, 32, 0);
+			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_POISON, 8, DAMAGE_POISON_CONDITION, ANIMATION_NONE);
 			break;
-		case 75:
+		case SPELL_ULTIMATE_LIGHT:
 			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 9, 2000);
 			break;
-		case 76:
+		case SPELL_MAGIC_ROPE:
 			MagicRope(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints);
 			break;
-		case 79:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 3, 5);
+		case SPELL_CONJURE_BOLT:
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_BOLT, 5);
 			break;
-		case 80:
+		case SPELL_BERSERK:
 			Damage = ComputeDamage(cr, SpellNr, 80, 20);
-			Damage = cr->Skills[0]->Get() * Damage / 25;
-			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[0]->Get() * 4, 0, Damage, 10, 2, 1, 0);
+			Damage = cr->Skills[SKILL_LEVEL]->Get() * Damage / 25;
+			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[SKILL_LEVEL]->Get() * 4, 0, Damage, EFFECT_HIT_AREA, 2, DAMAGE_PHYSICAL, ANIMATION_NONE);
 			break;
-		case 81:
+		case SPELL_LEVITATE:
 			MagicClimbing(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[3]);
 			break;
-		case 82:
+		case SPELL_MASS_HEALING:
 			Damage = ComputeDamage(cr, SpellNr, 200, 40);
 			MassHeal(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 4);
 			break;
-		case 84:
+		case SPELL_HEAL_FRIEND:
 			HealFriend(cr, SpellStr[3], SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 120, 40));
 			break;
-		case 85:
+		case SPELL_UNDEAD_LEGION:
 			MassRaiseDead(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4);
 			break;
-		case 87:
+		case SPELL_FORCE_STRIKE:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 18, 1, 0, 1);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_DEATH, 1, 0, DAMAGE_PHYSICAL);
 			break;
-		case 88:
+		case SPELL_ENERGY_STRIKE:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 11, 1, 0, 8);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 1, 0, DAMAGE_ENERGY);
 			break;
-		case 89:
+		case SPELL_FLAME_STRIKE:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 7, 1, 0, 4);
+			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 1, 0, DAMAGE_FIRE);
 			break;
-		case 90:
+		case SPELL_CANCEL_INVISIBILITY:
 			CancelInvisibility(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4);
 			break;
-		case 92:
+		case SPELL_ENCHANT_STAFF:
 			EnchantObject(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, GetNewObjectType(90, 25), GetNewObjectType(90, 57));
 			break;
-		case 93:
+		case SPELL_CHALLENGE:
 			Challenge(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 2);
 			break;
-		case 94:
-			CreateField(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 5);
+		case SPELL_WILD_GROWTH:
+			CreateField(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, FIELD_RUSHWOOD);
 			break;
-		case 95:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4, 1);
+		case SPELL_POWER_BOLT:
+			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POWER_BOLT, 1);
 			break;
 	}
 
@@ -3460,8 +3597,8 @@ void RuneSpell(uint32_t CreatureID, int SpellNr) {
 		throw ERROR;
 	}
 
-	Object Obj1 = GetBodyObject(CreatureID, 5);
-	Object Obj2 = GetBodyObject(CreatureID, 6);
+	Object Obj1 = GetBodyObject(CreatureID, BODY_RIGHTHAND);
+	Object Obj2 = GetBodyObject(CreatureID, BODY_LEFTHAND);
 	CheckSpellbook(cr, SpellNr);
 	CheckAccount(cr, SpellNr);
 	CheckLevel(cr, SpellNr);
@@ -3493,12 +3630,12 @@ void RuneSpell(uint32_t CreatureID, int SpellNr) {
 		throw MAGICITEM;
 	}
 
-	GraphicalEffect(cr->GetCreatureObject(), 14);
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_RED);
 }
 
 int TypeOfSpell(char *Text) {
 	if (Text != nullptr) {
-		for (int i = 1; i <= 5; i++) {
+		for (int i = SYLLABLE_AL; i <= SYLLABLE_OM; i++) {
 			if (stricmp(Text, SpellSyllable[i], 2) == 0) {
 				return i;
 			}
@@ -3511,10 +3648,10 @@ int TypeOfSpell(char *Text) {
 int FindSpell(unsigned char *Syllable) {
 	int Spell = 0;
 	int MinParams = 100;
-	for (int i = 1; i < 256; i++) {
+	for (int i = 1; i < MAX_SPELLS; i++) {
 		int Params = 0;
-		for (int j = 0; j < 10; j++) {
-			if (SpellList[i].Syllable[j] == 6) {
+		for (int j = 0; j < MAX_SPELL_SYLLABLES; j++) {
+			if (SpellList[i].Syllable[j] == SYLLABLE_PARA) {
 				if (Syllable[j] == 0) {
 					break;
 				}
@@ -3522,7 +3659,7 @@ int FindSpell(unsigned char *Syllable) {
 				break;
 			}
 
-			if (SpellList[i].Syllable[j] == 6) {
+			if (SpellList[i].Syllable[j] == SYLLABLE_PARA) {
 				Params++;
 			}
 
@@ -3550,7 +3687,7 @@ int FindSpell(Object Obj) {
 		return 0;
 	}
 
-	for (int i = 1; i < 256; i++) {
+	for (int i = 1; i < MAX_SPELLS; i++) {
 		if (Obj.getObjectType() == GetNewObjectType(SpellList[i].RuneGr, SpellList[i].RuneNr)) {
 			return i;
 		}
@@ -3561,12 +3698,12 @@ int FindSpell(Object Obj) {
 
 void GetSpellString(int SpellNr, char *Text) {
 	Text[0] = 0;
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("GetSpellString: Ung\xfcltige Zauberspruchnummer %d.\n", SpellNr);
 		return;
 	}
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < MAX_SPELL_SYLLABLES; i++) {
 		if (SpellSyllable[SpellList[SpellNr].Syllable[i]][0] == 0) {
 			break;
 		}
@@ -3621,7 +3758,7 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 	for (int Level = 1; Level <= 60; Level++) {
 		bool first = true;
 		char Help[100];
-		for (int i = 1; i < 256; i++) {
+		for (int i = 1; i < MAX_SPELLS; i++) {
 			if (SpellList[i].Level != Level || !pl->SpellKnown(i)) {
 				continue;
 			}
@@ -3643,9 +3780,9 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 			if (SpellList[i].Comment[0] != 0) {
 				strcat(Buffer, " - ");
 				strcat(Buffer, SpellList[i].Comment);
-				if (i == 80) {
+				if (i == SPELL_BERSERK) {
 					strcpy(Help, " : 4*Level");
-				} else if (i == 9 || i == 12) {
+				} else if (i == SPELL_SUMMON_CREATURE || i == SPELL_CONVINCE_CREATURE) {
 					strcpy(Help, " : var");
 				} else {
 					sprintf(Help, " : %d", SpellList[i].Mana);
@@ -3662,7 +3799,7 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 }
 
 int GetSpellLevel(int SpellNr) {
-	if (SpellNr < 1 || SpellNr > 255) {
+	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
 		error("GetSpellLevel: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
 		return 1;
 	}
@@ -3677,8 +3814,8 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 	}
 
 	std::istringstream IS(Text);
-	unsigned char Syllable[11];
-	char SpellStr[11][512];
+	unsigned char Syllable[MAX_SPELL_SYLLABLES + 1];
+	char SpellStr[MAX_SPELL_SYLLABLES + 1][512];
 	Syllable[0] = (unsigned char)SpellType;
 	strcpy(SpellStr[0], SpellSyllable[SpellType]);
 	IS.get();
@@ -3686,7 +3823,7 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 	int syl = 1;
 	Syllable[syl] = 0;
 	SpellStr[syl][0] = 0;
-	while (syl < 10 && !IS.eof()) {
+	while (syl < MAX_SPELL_SYLLABLES && !IS.eof()) {
 		int Next;
 		while (isSpace(Next = IS.peek())) {
 			IS.get();
@@ -3710,14 +3847,14 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 		// The original also compares against SpellSyllable[51], one entry past
 		// the array; in the binary that is an empty string, which never matches
 		// a word that is not empty.
-		for (int i = 1; i <= 50; i++) {
+		for (int i = 1; i <= MAX_SYLLABLES - 1; i++) {
 			if (stricmp(SpellStr[syl], SpellSyllable[i], -1) == 0) {
 				Syllable[syl] = (unsigned char)i;
 			}
 		}
 
 		if (Syllable[syl] == 0) {
-			Syllable[syl] = 6;
+			Syllable[syl] = SYLLABLE_PARA;
 		}
 
 		syl++;
@@ -3732,17 +3869,17 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 
 	try {
 		switch (SpellType) {
-			case 1:
+			case SYLLABLE_AL:
 				CharacterRightSpell(CreatureID, SpellNr, SpellStr);
 				break;
-			case 2:
+			case SYLLABLE_AD:
 				RuneSpell(CreatureID, SpellNr);
 				break;
-			case 3:
-			case 4:
+			case SYLLABLE_EX:
+			case SYLLABLE_UT:
 				CastSpell(CreatureID, SpellNr, SpellStr);
 				break;
-			case 5:
+			case SYLLABLE_OM:
 				AccountRightSpell(CreatureID, SpellNr, SpellStr);
 				break;
 			default:
@@ -3848,114 +3985,114 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 	int Damage;
 	try {
 		switch (SpellNr) {
-			case 4:
+			case SPELL_INTENSE_HEALING_RUNE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				Damage = ComputeDamage(pl, SpellNr, 70, 30);
 				Heal(dest, -1, 0, Damage);
 				break;
-			case 5:
+			case SPELL_ULTIMATE_HEALING_RUNE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				Damage = ComputeDamage(pl, SpellNr, 250, 0);
 				Heal(dest, -1, 0, Damage);
 				break;
-			case 7:
+			case SPELL_LIGHT_MAGIC_MISSILE:
 				Damage = ComputeDamage(pl, SpellNr, 15, 5);
-				Combat(pl, Dest, 0, 0, Damage, 6, 4, 8);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
 				break;
-			case 8:
+			case SPELL_HEAVY_MAGIC_MISSILE:
 				Damage = ComputeDamage(pl, SpellNr, 30, 10);
-				Combat(pl, Dest, 0, 0, Damage, 6, 4, 8);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
 				break;
-			case 12:
+			case SPELL_CONVINCE_CREATURE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				Convince(pl, dest);
 				break;
-			case 14:
+			case SPELL_CHAMELEON:
 				ObjectIllusion(pl, 0, 0, Dest, 200);
 				break;
-			case 15:
+			case SPELL_FIREBALL:
 				Damage = ComputeDamage(pl, SpellNr, 20, 5);
-				MassCombat(pl, Dest, 0, 0, Damage, 7, 3, 4, 4);
+				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 3, DAMAGE_FIRE, ANIMATION_FIRE);
 				break;
-			case 16:
+			case SPELL_GREAT_FIREBALL:
 				Damage = ComputeDamage(pl, SpellNr, 50, 15);
-				MassCombat(pl, Dest, 0, 0, Damage, 7, 4, 4, 4);
+				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 4, DAMAGE_FIRE, ANIMATION_FIRE);
 				break;
-			case 17:
-				MassCreateField(pl, Dest, 0, 0, 1, 3);
+			case SPELL_FIREBOMB:
+				MassCreateField(pl, Dest, 0, 0, FIELD_FIRE, 3);
 				break;
-			case 18:
+			case SPELL_EXPLOSION:
 				Damage = ComputeDamage(pl, SpellNr, 60, 40);
-				MassCombat(pl, Dest, 0, 0, Damage, 5, 1, 1, 4);
+				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION_AREA, 1, DAMAGE_PHYSICAL, ANIMATION_FIRE);
 				break;
-			case 21:
+			case SPELL_SUDDEN_DEATH:
 				Damage = ComputeDamage(pl, SpellNr, 150, 20);
-				Combat(pl, Dest, 0, 0, Damage, 18, 11, 1);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_DEATH, ANIMATION_DEATH, DAMAGE_PHYSICAL);
 				break;
-			case 25:
-				CreateField(pl, Dest, 0, 0, 1);
+			case SPELL_FIRE_FIELD:
+				CreateField(pl, Dest, 0, 0, FIELD_FIRE);
 				break;
-			case 26:
-				CreateField(pl, Dest, 0, 0, 2);
+			case SPELL_POISON_FIELD:
+				CreateField(pl, Dest, 0, 0, FIELD_POISON);
 				break;
-			case 27:
-				CreateField(pl, Dest, 0, 0, 3);
+			case SPELL_ENERGY_FIELD:
+				CreateField(pl, Dest, 0, 0, FIELD_ENERGY);
 				break;
-			case 28:
-				CreateFieldWall(pl, Dest, 0, 0, 1, 2);
+			case SPELL_FIRE_WALL:
+				CreateFieldWall(pl, Dest, 0, 0, FIELD_FIRE, 2);
 				break;
-			case 30:
+			case SPELL_DESTROY_FIELD:
 				DeleteField(pl, Dest, 0, 0);
 				break;
-			case 31:
+			case SPELL_ANTIDOTE_RUNE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				NegatePoison(pl, 0, 0, dest);
 				break;
-			case 32:
-				CreateFieldWall(pl, Dest, 0, 0, 2, 2);
+			case SPELL_POISON_WALL:
+				CreateFieldWall(pl, Dest, 0, 0, FIELD_POISON, 2);
 				break;
-			case 33:
-				CreateFieldWall(pl, Dest, 0, 0, 3, 3);
+			case SPELL_ENERGY_WALL:
+				CreateFieldWall(pl, Dest, 0, 0, FIELD_ENERGY, 3);
 				break;
-			case 50:
+			case SPELL_SOULFIRE:
 				Damage = ComputeDamage(pl, SpellNr, 120, 20);
-				Combat(pl, Dest, 0, 0, Damage, 16, 4, 64);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_HIT, ANIMATION_FIRE, DAMAGE_FIRE_CONDITION);
 				break;
-			case 54:
+			case SPELL_PARALYZE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
-				if (pl->GetEffectiveProfession() != 4) {
+				if (pl->GetEffectiveProfession() != PROFESSION_DRUID) {
 					throw NOTUSABLE;
 				}
 				MagicGoStrength(pl, dest, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, -101, 1);
 				break;
-			case 55:
-				MassCreateField(pl, Dest, 0, 0, 3, 3);
+			case SPELL_ENERGYBOMB:
+				MassCreateField(pl, Dest, 0, 0, FIELD_ENERGY, 3);
 				break;
-			case 77:
+			case SPELL_ENVENOM:
 				Damage = ComputeDamage(pl, SpellNr, 70, 20);
-				Combat(pl, Dest, 0, 0, Damage, 17, 5, 32);
+				Combat(pl, Dest, 0, 0, Damage, EFFECT_POISON_HIT, ANIMATION_ENERGY, DAMAGE_POISON_CONDITION);
 				break;
-			case 78:
+			case SPELL_DESINTEGRATE:
 				CleanupField(pl, Dest, 0, 0);
 				break;
-			case 83:
+			case SPELL_ANIMATE_DEAD:
 				RaiseDead(pl, Dest, 0, 0);
 				break;
-			case 86:
-				CreateField(pl, Dest, 0, 0, 4);
+			case SPELL_MAGIC_WALL:
+				CreateField(pl, Dest, 0, 0, FIELD_MAGICWALL);
 				break;
-			case 91:
-				MassCreateField(pl, Dest, 0, 0, 2, 3);
+			case SPELL_POISONBOMB:
+				MassCreateField(pl, Dest, 0, 0, FIELD_POISON, 3);
 				break;
 			default:
 				error("UseMagicItem: Spell %d noch nicht implementiert.\n", SpellNr);
@@ -3997,11 +4134,11 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 
 	int Refresh;
 	switch (Obj.getAttribute(CONTAINERLIQUIDTYPE)) {
-		case 10:
+		case LIQUID_MANAFLUID:
 			Refresh = ComputeDamage(nullptr, 0, 100, 50);
 			RefreshMana(pl, 0, 0, Refresh);
 			break;
-		case 11:
+		case LIQUID_LIFEFLUID:
 			Refresh = ComputeDamage(nullptr, 0, 50, 25);
 			Heal(pl, 0, 0, Refresh);
 			break;
@@ -4010,7 +4147,7 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 			throw ERROR;
 	}
 
-	Change(Obj, CONTAINERLIQUIDTYPE, 0);
+	Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 }
 
 void InitCircles() {
@@ -4067,13 +4204,13 @@ TSpellList *CreateSpell(int SpellNr, ...) {
 
 		// As in CheckForSpell, the original also compares against the empty
 		// string one entry past the end of SpellSyllable.
-		for (int i = 1; i <= 50; i++) {
+		for (int i = 1; i <= MAX_SYLLABLES - 1; i++) {
 			if (strcmp(Syl, SpellSyllable[i]) == 0) {
 				// With an eleventh syllable this writes Syllable[10], which is
 				// RuneGr, before the error below, as in the original.
 				SpellList[SpellNr].Syllable[syl] = (unsigned char)i;
 				syl++;
-				if (syl > 10) {
+				if (syl > MAX_SPELL_SYLLABLES) {
 					error("CreateSpell: Silbenzahl \xfc" "berschritten bei Spell %d.\n", SpellNr);
 					throw "Spell has too many syllables";
 				}
@@ -4086,102 +4223,102 @@ TSpellList *CreateSpell(int SpellNr, ...) {
 }
 
 void InitSpells() {
-	for (int i = 1; i < 256; i++) {
+	for (int i = 1; i < MAX_SPELLS; i++) {
 		memset(&SpellList[i], 0, sizeof(TSpellList));
 	}
 
 	TSpellList *S;
-	S = CreateSpell(1, "ex", "ura", "");
+	S = CreateSpell(SPELL_LIGHT_HEALING, "ex", "ura", "");
 	S->Mana = 25;
 	S->Level = 9;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Light Healing";
-	S = CreateSpell(2, "ex", "ura", "gran", "");
+	S = CreateSpell(SPELL_INTENSE_HEALING, "ex", "ura", "gran", "");
 	S->Mana = 40;
 	S->Level = 11;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Intense Healing";
-	S = CreateSpell(3, "ex", "ura", "vita", "");
+	S = CreateSpell(SPELL_ULTIMATE_HEALING, "ex", "ura", "vita", "");
 	S->Mana = 160;
 	S->Level = 20;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Ultimate Healing";
-	S = CreateSpell(4, "ad", "ura", "gran", "");
+	S = CreateSpell(SPELL_INTENSE_HEALING_RUNE, "ad", "ura", "gran", "");
 	S->Mana = 240;
 	S->Level = 15;
 	S->RuneGr = 79;
 	S->RuneNr = 5;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 1;
 	S->RuneLevel = 1;
 	S->SoulPoints = 2;
 	S->Comment = "Intense Healing Rune";
-	S = CreateSpell(5, "ad", "ura", "vita", "");
+	S = CreateSpell(SPELL_ULTIMATE_HEALING_RUNE, "ad", "ura", "vita", "");
 	S->Mana = 400;
 	S->Level = 24;
 	S->RuneGr = 79;
 	S->RuneNr = 13;
-	S->Flags = 8;
+	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 1;
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
 	S->Comment = "Ultimate Healing Rune";
-	S = CreateSpell(6, "ut", "ani", "hur", "");
+	S = CreateSpell(SPELL_HASTE, "ut", "ani", "hur", "");
 	S->Mana = 60;
 	S->Level = 14;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Haste";
-	S = CreateSpell(7, "ad", "ori", "");
+	S = CreateSpell(SPELL_LIGHT_MAGIC_MISSILE, "ad", "ori", "");
 	S->Mana = 120;
 	S->Level = 15;
 	S->RuneGr = 79;
 	S->RuneNr = 27;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 5;
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
 	S->Comment = "Light Magic Missile";
-	S = CreateSpell(8, "ad", "ori", "gran", "");
+	S = CreateSpell(SPELL_HEAVY_MAGIC_MISSILE, "ad", "ori", "gran", "");
 	S->Mana = 280;
 	S->Level = 25;
 	S->RuneGr = 79;
 	S->RuneNr = 51;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 5;
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Heavy Magic Missile";
-	S = CreateSpell(9, "ut", "evo", "res", "para", "");
+	S = CreateSpell(SPELL_SUMMON_CREATURE, "ut", "evo", "res", "para", "");
 	S->Mana = 0;
 	S->Level = 25;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Summon Creature";
-	S = CreateSpell(10, "ut", "evo", "lux", "");
+	S = CreateSpell(SPELL_LIGHT, "ut", "evo", "lux", "");
 	S->Mana = 20;
 	S->Level = 8;
 	S->Flags = 0;
 	S->Comment = "Light";
-	S = CreateSpell(11, "ut", "evo", "gran", "lux", "");
+	S = CreateSpell(SPELL_GREAT_LIGHT, "ut", "evo", "gran", "lux", "");
 	S->Mana = 60;
 	S->Level = 13;
 	S->Flags = 0;
 	S->Comment = "Great Light";
-	S = CreateSpell(12, "ad", "eta", "sio", "");
+	S = CreateSpell(SPELL_CONVINCE_CREATURE, "ad", "eta", "sio", "");
 	S->Mana = 200;
 	S->Level = 16;
 	S->RuneGr = 79;
 	S->RuneNr = 30;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 1;
 	S->RuneLevel = 5;
 	S->SoulPoints = 3;
 	S->Comment = "Convince Creature";
-	S = CreateSpell(13, "ex", "evo", "mort", "hur", "");
+	S = CreateSpell(SPELL_ENERGY_WAVE, "ex", "evo", "mort", "hur", "");
 	S->Mana = 250;
 	S->Level = 38;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Energy Wave";
-	S = CreateSpell(14, "ad", "evo", "ina", "");
+	S = CreateSpell(SPELL_CHAMELEON, "ad", "evo", "ina", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
@@ -4191,127 +4328,127 @@ void InitSpells() {
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Chameleon";
-	S = CreateSpell(15, "ad", "ori", "flam", "");
+	S = CreateSpell(SPELL_FIREBALL, "ad", "ori", "flam", "");
 	S->Mana = 160;
 	S->Level = 17;
 	S->RuneGr = 79;
 	S->RuneNr = 42;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 2;
 	S->RuneLevel = 2;
 	S->SoulPoints = 2;
 	S->Comment = "Fireball";
-	S = CreateSpell(16, "ad", "ori", "gran", "flam", "");
+	S = CreateSpell(SPELL_GREAT_FIREBALL, "ad", "ori", "gran", "flam", "");
 	S->Mana = 480;
 	S->Level = 23;
 	S->RuneGr = 79;
 	S->RuneNr = 44;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Amount = 2;
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
 	S->Comment = "Great Fireball";
-	S = CreateSpell(17, "ad", "evo", "mas", "flam", "");
+	S = CreateSpell(SPELL_FIREBOMB, "ad", "evo", "mas", "flam", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
 	S->RuneNr = 45;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 2;
 	S->RuneLevel = 5;
 	S->SoulPoints = 4;
 	S->Comment = "Firebomb";
-	S = CreateSpell(18, "ad", "evo", "mas", "hur", "");
+	S = CreateSpell(SPELL_EXPLOSION, "ad", "evo", "mas", "hur", "");
 	S->Mana = 720;
 	S->Level = 31;
 	S->RuneGr = 79;
 	S->RuneNr = 53;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 6;
 	S->SoulPoints = 4;
 	S->Comment = "Explosion";
-	S = CreateSpell(19, "ex", "evo", "flam", "hur", "");
+	S = CreateSpell(SPELL_FIRE_WAVE, "ex", "evo", "flam", "hur", "");
 	S->Mana = 80;
 	S->Level = 18;
-	S->Flags = 9;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Fire Wave";
-	S = CreateSpell(20, "ex", "iva", "para", "");
+	S = CreateSpell(SPELL_FIND_PERSON, "ex", "iva", "para", "");
 	S->Mana = 20;
 	S->Level = 8;
 	S->Flags = 0;
 	S->Comment = "Find Person";
-	S = CreateSpell(21, "ad", "ori", "vita", "vis", "");
+	S = CreateSpell(SPELL_SUDDEN_DEATH, "ad", "ori", "vita", "vis", "");
 	S->Mana = 880;
 	S->Level = 45;
 	S->RuneGr = 79;
 	S->RuneNr = 8;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 1;
 	S->RuneLevel = 15;
 	S->SoulPoints = 5;
 	S->Comment = "Sudden Death";
-	S = CreateSpell(22, "ex", "evo", "vis", "lux", "");
+	S = CreateSpell(SPELL_ENERGY_BEAM, "ex", "evo", "vis", "lux", "");
 	S->Mana = 100;
 	S->Level = 23;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Energy Beam";
-	S = CreateSpell(23, "ex", "evo", "gran", "vis", "lux", "");
+	S = CreateSpell(SPELL_GREAT_ENERGY_BEAM, "ex", "evo", "gran", "vis", "lux", "");
 	S->Mana = 200;
 	S->Level = 29;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Great Energy Beam";
-	S = CreateSpell(24, "ex", "evo", "gran", "mas", "vis", "");
+	S = CreateSpell(SPELL_ULTIMATE_EXPLOSION, "ex", "evo", "gran", "mas", "vis", "");
 	S->Mana = 1200;
 	S->Level = 60;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Ultimate Explosion";
-	S = CreateSpell(25, "ad", "evo", "grav", "flam", "");
+	S = CreateSpell(SPELL_FIRE_FIELD, "ad", "evo", "grav", "flam", "");
 	S->Mana = 240;
 	S->Level = 15;
 	S->RuneGr = 79;
 	S->RuneNr = 41;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 1;
 	S->SoulPoints = 1;
 	S->Comment = "Fire Field";
-	S = CreateSpell(26, "ad", "evo", "grav", "pox", "");
+	S = CreateSpell(SPELL_POISON_FIELD, "ad", "evo", "grav", "pox", "");
 	S->Mana = 200;
 	S->Level = 14;
 	S->RuneGr = 79;
 	S->RuneNr = 25;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
 	S->Comment = "Poison Field";
-	S = CreateSpell(27, "ad", "evo", "grav", "vis", "");
+	S = CreateSpell(SPELL_ENERGY_FIELD, "ad", "evo", "grav", "vis", "");
 	S->Mana = 320;
 	S->Level = 18;
 	S->RuneGr = 79;
 	S->RuneNr = 17;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 3;
 	S->RuneLevel = 3;
 	S->SoulPoints = 2;
 	S->Comment = "Energy Field";
-	S = CreateSpell(28, "ad", "evo", "mas", "grav", "flam", "");
+	S = CreateSpell(SPELL_FIRE_WALL, "ad", "evo", "mas", "grav", "flam", "");
 	S->Mana = 780;
 	S->Level = 33;
 	S->RuneGr = 79;
 	S->RuneNr = 43;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 4;
 	S->RuneLevel = 6;
 	S->SoulPoints = 4;
 	S->Comment = "Fire Wall";
-	S = CreateSpell(29, "ex", "ana", "pox", "");
+	S = CreateSpell(SPELL_ANTIDOTE, "ex", "ana", "pox", "");
 	S->Mana = 30;
 	S->Level = 10;
 	S->Flags = 0;
 	S->Comment = "Antidote";
-	S = CreateSpell(30, "ad", "ito", "grav", "");
+	S = CreateSpell(SPELL_DESTROY_FIELD, "ad", "ito", "grav", "");
 	S->Mana = 120;
 	S->Level = 17;
 	S->RuneGr = 79;
@@ -4321,7 +4458,7 @@ void InitSpells() {
 	S->RuneLevel = 3;
 	S->SoulPoints = 2;
 	S->Comment = "Destroy Field";
-	S = CreateSpell(31, "ad", "ana", "pox", "");
+	S = CreateSpell(SPELL_ANTIDOTE_RUNE, "ad", "ana", "pox", "");
 	S->Mana = 200;
 	S->Level = 15;
 	S->RuneGr = 79;
@@ -4331,256 +4468,256 @@ void InitSpells() {
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
 	S->Comment = "Antidote Rune";
-	S = CreateSpell(32, "ad", "evo", "mas", "grav", "pox", "");
+	S = CreateSpell(SPELL_POISON_WALL, "ad", "evo", "mas", "grav", "pox", "");
 	S->Mana = 640;
 	S->Level = 29;
 	S->RuneGr = 79;
 	S->RuneNr = 29;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 4;
 	S->RuneLevel = 5;
 	S->SoulPoints = 3;
 	S->Comment = "Poison Wall";
-	S = CreateSpell(33, "ad", "evo", "mas", "grav", "vis", "");
+	S = CreateSpell(SPELL_ENERGY_WALL, "ad", "evo", "mas", "grav", "vis", "");
 	S->Mana = 1000;
 	S->Level = 41;
 	S->RuneGr = 79;
 	S->RuneNr = 19;
-	S->Flags = 1;
+	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Amount = 4;
 	S->RuneLevel = 9;
 	S->SoulPoints = 5;
 	S->Comment = "Energy Wall";
-	S = CreateSpell(34, "al", "evo", "para", "para", "");
+	S = CreateSpell(SPELL_GET_ITEM_COUNT, "al", "evo", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Item";
-	S = CreateSpell(35, "al", "evo", "para", "");
+	S = CreateSpell(SPELL_GET_ITEM, "al", "evo", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Item";
-	S = CreateSpell(37, "al", "ani", "para", "");
+	S = CreateSpell(SPELL_MOVE, "al", "ani", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Move";
-	S = CreateSpell(38, "ut", "evo", "res", "ina", "para", "");
+	S = CreateSpell(SPELL_CREATURE_ILLUSION, "ut", "evo", "res", "ina", "para", "");
 	S->Mana = 100;
 	S->Level = 23;
 	S->Flags = 0;
 	S->Comment = "Creature Illusion";
-	S = CreateSpell(39, "ut", "ani", "gran", "hur", "");
+	S = CreateSpell(SPELL_STRONG_HASTE, "ut", "ani", "gran", "hur", "");
 	S->Mana = 100;
 	S->Level = 20;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Strong Haste";
-	S = CreateSpell(40, "al", "evo", "cogni", "para", "");
+	S = CreateSpell(SPELL_GET_EXPERIENCE, "al", "evo", "cogni", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Experience";
-	S = CreateSpell(41, "al", "eta", "para", "");
+	S = CreateSpell(SPELL_CHANGE_DATA, "al", "eta", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Change Data";
-	S = CreateSpell(42, "ex", "evo", "pan", "");
+	S = CreateSpell(SPELL_FOOD, "ex", "evo", "pan", "");
 	S->Mana = 120;
 	S->Level = 14;
 	S->SoulPoints = 1;
 	S->Flags = 0;
 	S->Comment = "Food";
-	S = CreateSpell(44, "ut", "amo", "vita", "");
+	S = CreateSpell(SPELL_MAGIC_SHIELD, "ut", "amo", "vita", "");
 	S->Mana = 50;
 	S->Level = 14;
 	S->Flags = 0;
 	S->Comment = "Magic Shield";
-	S = CreateSpell(45, "ut", "ana", "vid", "");
+	S = CreateSpell(SPELL_INVISIBLE, "ut", "ana", "vid", "");
 	S->Mana = 440;
 	S->Level = 35;
 	S->Flags = 0;
 	S->Comment = "Invisible";
-	S = CreateSpell(46, "al", "evo", "cogni", "para", "para", "");
+	S = CreateSpell(SPELL_GET_SKILL_EXPERIENCE, "al", "evo", "cogni", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Skill Experience";
-	S = CreateSpell(47, "al", "ani", "sio", "para", "");
+	S = CreateSpell(SPELL_TELEPORT_TO_FRIEND, "al", "ani", "sio", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Teleport to Friend";
-	S = CreateSpell(48, "ex", "evo", "con", "pox", "");
+	S = CreateSpell(SPELL_POISONED_ARROW, "ex", "evo", "con", "pox", "");
 	S->Mana = 130;
 	S->Level = 16;
 	S->SoulPoints = 2;
 	S->Flags = 0;
 	S->Comment = "Poisoned Arrow";
-	S = CreateSpell(49, "ex", "evo", "con", "flam", "");
+	S = CreateSpell(SPELL_EXPLOSIVE_ARROW, "ex", "evo", "con", "flam", "");
 	S->Mana = 290;
 	S->Level = 25;
 	S->SoulPoints = 3;
 	S->Flags = 0;
 	S->Comment = "Explosive Arrow";
-	S = CreateSpell(50, "ad", "evo", "res", "flam", "");
+	S = CreateSpell(SPELL_SOULFIRE, "ad", "evo", "res", "flam", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
 	S->RuneNr = 48;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 2;
 	S->RuneLevel = 7;
 	S->SoulPoints = 3;
 	S->Comment = "Soulfire";
-	S = CreateSpell(51, "ex", "evo", "con", "");
+	S = CreateSpell(SPELL_CONJURE_ARROW, "ex", "evo", "con", "");
 	S->Mana = 100;
 	S->Level = 13;
 	S->SoulPoints = 1;
 	S->Flags = 0;
 	S->Comment = "Conjure Arrow";
-	S = CreateSpell(52, "al", "liber", "sio", "para", "");
+	S = CreateSpell(SPELL_RETRIEVE_FRIEND, "al", "liber", "sio", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Retrieve Friend";
-	S = CreateSpell(53, "al", "evo", "res", "para", "");
+	S = CreateSpell(SPELL_SUMMON_WILD_CREATURE, "al", "evo", "res", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Summon Wild Creature";
-	S = CreateSpell(54, "ad", "ana", "ani", "");
+	S = CreateSpell(SPELL_PARALYZE, "ad", "ana", "ani", "");
 	S->Mana = 1400;
 	S->Level = 54;
 	S->RuneGr = 79;
 	S->RuneNr = 18;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 1;
 	S->RuneLevel = 18;
 	S->SoulPoints = 3;
 	S->Comment = "Paralyze";
-	S = CreateSpell(55, "ad", "evo", "mas", "vis", "");
+	S = CreateSpell(SPELL_ENERGYBOMB, "ad", "evo", "mas", "vis", "");
 	S->Mana = 880;
 	S->Level = 37;
 	S->RuneGr = 79;
 	S->RuneNr = 2;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 2;
 	S->RuneLevel = 10;
 	S->SoulPoints = 5;
 	S->Comment = "Energybomb";
-	S = CreateSpell(56, "ex", "evo", "gran", "mas", "pox", "");
+	S = CreateSpell(SPELL_POISON_STORM, "ex", "evo", "gran", "mas", "pox", "");
 	S->Mana = 600;
 	S->Level = 50;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Poison Storm";
-	S = CreateSpell(57, "om", "ana", "liber", "para", "para", "para", "");
+	S = CreateSpell(SPELL_BANISH_ACCOUNT, "om", "ana", "liber", "para", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Banish Account";
-	S = CreateSpell(58, "al", "iva", "tera", "");
+	S = CreateSpell(SPELL_GET_POSITION, "al", "iva", "tera", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Position";
-	S = CreateSpell(60, "om", "ani", "para", "");
+	S = CreateSpell(SPELL_TEMPLE_TELEPORT, "om", "ani", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Temple Teleport";
-	S = CreateSpell(61, "om", "ana", "gran", "liber", "para", "para", "");
+	S = CreateSpell(SPELL_DELETE_ACCOUNT, "om", "ana", "gran", "liber", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Delete Account";
-	S = CreateSpell(62, "om", "amo", "para", "");
+	S = CreateSpell(SPELL_SET_NAMERULE, "om", "amo", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Set Namerule";
-	S = CreateSpell(63, "al", "evo", "vis", "para", "");
+	S = CreateSpell(SPELL_CREATE_GOLD, "al", "evo", "vis", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Create Gold";
-	S = CreateSpell(64, "al", "eta", "vita", "para", "");
+	S = CreateSpell(SPELL_CHANGE_PROFESSION_OR_SEX, "al", "eta", "vita", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Change Profession or Sex";
-	S = CreateSpell(65, "om", "isa", "para", "para", "");
+	S = CreateSpell(SPELL_ENTRY_IN_CRIMINAL_RECORD, "om", "isa", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Entry in Criminal Record";
-	S = CreateSpell(66, "om", "ana", "hora", "para", "");
+	S = CreateSpell(SPELL_NAMELOCK, "om", "ana", "hora", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Namelock";
-	S = CreateSpell(67, "om", "ana", "para", "");
+	S = CreateSpell(SPELL_KICK_PLAYER, "om", "ana", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Kick Player";
-	S = CreateSpell(68, "om", "ana", "gran", "res", "para", "para", "");
+	S = CreateSpell(SPELL_DELETE_CHARACTER, "om", "ana", "gran", "res", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Delete Character";
-	S = CreateSpell(69, "om", "ana", "vis", "para", "para", "");
+	S = CreateSpell(SPELL_BANISH_IP_ADDRESS, "om", "ana", "vis", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Banish IP Address";
-	S = CreateSpell(70, "om", "ana", "res", "para", "para", "para", "");
+	S = CreateSpell(SPELL_BANISH_CHARACTER, "om", "ana", "res", "para", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Banish Character";
-	S = CreateSpell(71, "al", "eta", "sio", "");
+	S = CreateSpell(SPELL_INVITE_GUESTS, "al", "eta", "sio", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Invite Guests";
-	S = CreateSpell(72, "al", "eta", "som", "");
+	S = CreateSpell(SPELL_INVITE_SUBOWNERS, "al", "eta", "som", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Invite Subowners";
-	S = CreateSpell(73, "al", "ana", "sio", "para", "");
+	S = CreateSpell(SPELL_KICK_GUEST, "al", "ana", "sio", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Kick Guest";
-	S = CreateSpell(74, "al", "eta", "grav", "");
+	S = CreateSpell(SPELL_EDIT_DOOR, "al", "eta", "grav", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Edit Door";
-	S = CreateSpell(75, "ut", "evo", "vis", "lux", "");
+	S = CreateSpell(SPELL_ULTIMATE_LIGHT, "ut", "evo", "vis", "lux", "");
 	S->Mana = 140;
 	S->Level = 26;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Ultimate Light";
-	S = CreateSpell(76, "ex", "ani", "tera", "");
+	S = CreateSpell(SPELL_MAGIC_ROPE, "ex", "ani", "tera", "");
 	S->Mana = 20;
 	S->Level = 9;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Magic Rope";
-	S = CreateSpell(77, "ad", "evo", "res", "pox", "");
+	S = CreateSpell(SPELL_ENVENOM, "ad", "evo", "res", "pox", "");
 	S->Mana = 400;
 	S->Level = 21;
 	S->RuneGr = 79;
 	S->RuneNr = 32;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 1;
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Envenom";
-	S = CreateSpell(78, "ad", "ito", "tera", "");
+	S = CreateSpell(SPELL_DESINTEGRATE, "ad", "ito", "tera", "");
 	S->Mana = 200;
 	S->Level = 21;
 	S->RuneGr = 79;
@@ -4588,30 +4725,30 @@ void InitSpells() {
 	S->Amount = 3;
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Desintegrate";
-	S = CreateSpell(79, "ex", "evo", "con", "mort", "");
+	S = CreateSpell(SPELL_CONJURE_BOLT, "ex", "evo", "con", "mort", "");
 	S->Mana = 140;
 	S->Level = 17;
 	S->SoulPoints = 2;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Conjure Bolt";
-	S = CreateSpell(80, "ex", "ori", "");
+	S = CreateSpell(SPELL_BERSERK, "ex", "ori", "");
 	S->Mana = 0;
 	S->Level = 35;
-	S->Flags = 7;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MAX_100;
 	S->Comment = "Berserk";
-	S = CreateSpell(81, "ex", "ani", "hur", "para", "");
+	S = CreateSpell(SPELL_LEVITATE, "ex", "ani", "hur", "para", "");
 	S->Mana = 50;
 	S->Level = 12;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Levitate";
-	S = CreateSpell(82, "ex", "ura", "gran", "mas", "res", "");
+	S = CreateSpell(SPELL_MASS_HEALING, "ex", "ura", "gran", "mas", "res", "");
 	S->Mana = 150;
 	S->Level = 36;
-	S->Flags = 10;
+	S->Flags = SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Mass Healing";
-	S = CreateSpell(83, "ad", "ana", "mort", "");
+	S = CreateSpell(SPELL_ANIMATE_DEAD, "ad", "ana", "mort", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
@@ -4619,19 +4756,19 @@ void InitSpells() {
 	S->Amount = 1;
 	S->RuneLevel = 4;
 	S->SoulPoints = 5;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Animate Dead";
-	S = CreateSpell(84, "ex", "ura", "sio", "para", "");
+	S = CreateSpell(SPELL_HEAL_FRIEND, "ex", "ura", "sio", "para", "");
 	S->Mana = 70;
 	S->Level = 18;
-	S->Flags = 10;
+	S->Flags = SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Heal Friend";
-	S = CreateSpell(85, "ex", "ana", "mas", "mort", "");
+	S = CreateSpell(SPELL_UNDEAD_LEGION, "ex", "ana", "mas", "mort", "");
 	S->Mana = 500;
 	S->Level = 30;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Undead Legion";
-	S = CreateSpell(86, "ad", "evo", "grav", "tera", "");
+	S = CreateSpell(SPELL_MAGIC_WALL, "ad", "evo", "grav", "tera", "");
 	S->Mana = 750;
 	S->Level = 32;
 	S->RuneGr = 79;
@@ -4639,90 +4776,90 @@ void InitSpells() {
 	S->Amount = 3;
 	S->RuneLevel = 9;
 	S->SoulPoints = 5;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Magic Wall";
-	S = CreateSpell(87, "ex", "ori", "mort", "");
+	S = CreateSpell(SPELL_FORCE_STRIKE, "ex", "ori", "mort", "");
 	S->Mana = 20;
 	S->Level = 11;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Force Strike";
-	S = CreateSpell(88, "ex", "ori", "vis", "");
+	S = CreateSpell(SPELL_ENERGY_STRIKE, "ex", "ori", "vis", "");
 	S->Mana = 20;
 	S->Level = 12;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Energy Strike";
-	S = CreateSpell(89, "ex", "ori", "flam", "");
+	S = CreateSpell(SPELL_FLAME_STRIKE, "ex", "ori", "flam", "");
 	S->Mana = 20;
 	S->Level = 12;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Flame Strike";
-	S = CreateSpell(90, "ex", "ana", "ina", "");
+	S = CreateSpell(SPELL_CANCEL_INVISIBILITY, "ex", "ana", "ina", "");
 	S->Mana = 200;
 	S->Level = 26;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Cancel Invisibility";
-	S = CreateSpell(91, "ad", "evo", "mas", "pox", "");
+	S = CreateSpell(SPELL_POISONBOMB, "ad", "evo", "mas", "pox", "");
 	S->Mana = 520;
 	S->Level = 25;
 	S->RuneGr = 79;
 	S->RuneNr = 26;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Amount = 2;
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Poisonbomb";
-	S = CreateSpell(92, "ex", "eta", "vis", "");
+	S = CreateSpell(SPELL_ENCHANT_STAFF, "ex", "eta", "vis", "");
 	S->Mana = 80;
 	S->Level = 41;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Enchant Staff";
-	S = CreateSpell(93, "ex", "eta", "res", "");
+	S = CreateSpell(SPELL_CHALLENGE, "ex", "eta", "res", "");
 	S->Mana = 30;
 	S->Level = 20;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Challenge";
-	S = CreateSpell(94, "ex", "evo", "grav", "vita", "");
+	S = CreateSpell(SPELL_WILD_GROWTH, "ex", "evo", "grav", "vita", "");
 	S->Mana = 220;
 	S->Level = 27;
-	S->Flags = 3;
+	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Wild Growth";
-	S = CreateSpell(95, "ex", "evo", "con", "vis", "");
+	S = CreateSpell(SPELL_POWER_BOLT, "ex", "evo", "con", "vis", "");
 	S->Mana = 800;
 	S->Level = 59;
 	S->SoulPoints = 3;
-	S->Flags = 2;
+	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Power Bolt";
-	S = CreateSpell(96, "al", "iva", "cogni", "para", "");
+	S = CreateSpell(SPELL_GET_QUEST_VALUE, "al", "iva", "cogni", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Quest Value";
-	S = CreateSpell(97, "al", "eta", "cogni", "para", "para", "");
+	S = CreateSpell(SPELL_SET_QUEST_VALUE, "al", "eta", "cogni", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Set Quest Value";
-	S = CreateSpell(98, "al", "ito", "tera", "");
+	S = CreateSpell(SPELL_DESINTEGRATE_SPELL, "al", "ito", "tera", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Desintegrate Spell";
-	S = CreateSpell(99, "al", "ani", "hur", "para", "");
+	S = CreateSpell(SPELL_LEVITATE_GAMEMASTER, "al", "ani", "hur", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Levitate Gamemaster";
-	S = CreateSpell(100, "al", "ana", "cogni", "");
+	S = CreateSpell(SPELL_CLEAR_QUEST_VALUES, "al", "ana", "cogni", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Clear Quest Values";
-	S = CreateSpell(101, "al", "ito", "mas", "res", "");
+	S = CreateSpell(SPELL_KILL_ALL_CREATURES, "al", "ito", "mas", "res", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Kill All Creatures";
-	S = CreateSpell(102, "al", "evo", "mas", "res", "para", "");
+	S = CreateSpell(SPELL_START_MONSTERRAID, "al", "evo", "mas", "res", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
@@ -4741,19 +4878,19 @@ void ExitMagic() {
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful) {
 	ObjectType ObjectType;
 	switch (FieldType) {
-		case 1:
+		case FIELD_FIRE:
 			ObjectType = GetSpecialObject(Peaceful ? MAGICFIELD_FIRE_HARMLESS : MAGICFIELD_FIRE_DANGEROUS);
 			break;
-		case 2:
+		case FIELD_POISON:
 			ObjectType = GetSpecialObject(Peaceful ? MAGICFIELD_POISON_HARMLESS : MAGICFIELD_POISON_DANGEROUS);
 			break;
-		case 3:
+		case FIELD_ENERGY:
 			ObjectType = GetSpecialObject(Peaceful ? MAGICFIELD_ENERGY_HARMLESS : MAGICFIELD_ENERGY_DANGEROUS);
 			break;
-		case 4:
+		case FIELD_MAGICWALL:
 			ObjectType = GetSpecialObject(MAGICFIELD_MAGICWALL);
 			break;
-		case 5:
+		case FIELD_RUSHWOOD:
 			ObjectType = GetSpecialObject(MAGICFIELD_RUSHWOOD);
 			break;
 		default:

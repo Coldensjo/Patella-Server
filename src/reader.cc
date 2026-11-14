@@ -57,13 +57,13 @@ void InsertReply(TReaderThreadReplyType ReplyType, int SectorX, int SectorY, int
 bool GetReply(TReaderThreadReplyType &ReplyType, int &SectorX, int &SectorY, int &SectorZ, unsigned char *&Data, int &Size);
 
 static Thread ReaderThread = 0;
-static TReaderThreadOrder OrderBuffer[200];
-static TReaderThreadReply ReplyBuffer[200];
+static TReaderThreadOrder OrderBuffer[ORDER_BUFFER_SIZE];
+static TReaderThreadReply ReplyBuffer[REPLY_BUFFER_SIZE];
 static int OrderPointerWrite;
 static int OrderPointerRead;
 static int ReplyPointerWrite;
 static int ReplyPointerRead;
-static Semaphore OrderBufferEmpty(200);
+static Semaphore OrderBufferEmpty(ORDER_BUFFER_SIZE);
 static Semaphore OrderBufferFull(0);
 static TDynamicWriteBuffer HelpBuffer(65536);
 

@@ -36,6 +36,13 @@ enum CONNECTIONSTATE {
 	CONNECTION_DISCONNECTED = 7,
 };
 
+// The size of the connection table (Connections), of a connection's
+// KnownCreatureTable and of its OutData, the ring buffer SendData
+// (communication.cc) sends from.
+const int MAX_CONNECTIONS = 1100;
+const int MAX_KNOWN_CREATURES = 150;
+const int OUT_DATA_SIZE = 16384;
+
 struct TConnection {
 	TConnection();
 	void Process();
@@ -70,7 +77,7 @@ struct TConnection {
 	int InDataSize;
 	bool SigIOPending;
 	bool WaitingForACK;
-	unsigned char OutData[16384];
+	unsigned char OutData[OUT_DATA_SIZE];
 	int NextToSend;
 	int NextToCommit;
 	int NextToWrite;
@@ -104,7 +111,7 @@ private:
 	int TerminalHeight;
 	uint32_t CharacterID;
 	char Name[31];
-	TKnownCreature KnownCreatureTable[150];
+	TKnownCreature KnownCreatureTable[MAX_KNOWN_CREATURES];
 };
 
 extern TConnection *FirstSendingConnection;
@@ -116,7 +123,7 @@ void ProcessConnections();
 void InitConnections();
 void ExitConnections();
 
-extern TConnection Connections[1100];
+extern TConnection Connections[MAX_CONNECTIONS];
 extern Semaphore ConnectionMutex;
 extern int ConnectionIterator;
 

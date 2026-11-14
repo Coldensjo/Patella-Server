@@ -53,6 +53,65 @@ enum CHANNEL {
 
 const int PUBLIC_CHANNELS = 8;
 
+// What happened to an object: the Type of AnnounceChangedObject (and of
+// AnnounceChangedField, AnnounceChangedContainer, AnnounceChangedInventory),
+// of NotifyAllCreatures and of CreatureMoveStimulus. OBJECT_MOVED is only
+// NotifyAllCreatures': it tells the creatures near the old and the new place
+// with OBJECT_CHANGED.
+const int OBJECT_DELETED = 0;
+const int OBJECT_CREATED = 1;
+const int OBJECT_CHANGED = 2;
+const int OBJECT_MOVED = 3;
+
+// What changed about a creature: the Type of AnnounceChangedCreature, each
+// sent by the Send function of the same name (SendCreatureHealth, ...).
+const int CREATURE_HEALTH = 1;
+const int CREATURE_LIGHT = 2;
+const int CREATURE_OUTFIT = 3;
+const int CREATURE_SPEED = 4;
+const int CREATURE_SKULL = 5;
+const int CREATURE_PARTY = 6;
+
+// The client's magic effects (GraphicalEffect), named by what they show and
+// where the server uses them. Teleports and the energy area are one effect.
+const int EFFECT_BLOOD_HIT = 1;
+const int EFFECT_MANA_HIT = 2;
+const int EFFECT_POFF = 3;
+const int EFFECT_BLOCK_HIT = 4;
+const int EFFECT_EXPLOSION_AREA = 5;
+const int EFFECT_EXPLOSION = 6;
+const int EFFECT_FIRE_AREA = 7;
+const int EFFECT_POISON = 9;
+const int EFFECT_HIT_AREA = 10;
+const int EFFECT_TELEPORT = 11;
+const int EFFECT_ENERGY_HIT = 12;
+const int EFFECT_MAGIC_BLUE = 13;
+const int EFFECT_MAGIC_RED = 14;
+const int EFFECT_MAGIC_GREEN = 15;
+const int EFFECT_FIRE_HIT = 16;
+const int EFFECT_POISON_HIT = 17;
+const int EFFECT_DEATH = 18;
+
+// The client's missiles (Missile) that the code names itself; the others come
+// from the data (THROWMISSILE, AMMOMISSILE, WANDMISSILE, the spells of the
+// monsters).
+const int ANIMATION_NONE = 0;
+const int ANIMATION_FIRE = 4;
+const int ANIMATION_ENERGY = 5;
+const int ANIMATION_DEATH = 11;
+
+// Colours of the client's 216-colour palette (36 * red + 6 * green + blue,
+// each 0 to 5): the Color of TextualEffect and SendMarkCreature, and of the
+// world light (GetAmbiente).
+const int COLOR_BLACK = 0;
+const int COLOR_BLUE = 5;
+const int COLOR_GREEN = 30;
+const int COLOR_LIGHTBLUE = 35;
+const int COLOR_LIGHTGRAY = 129;
+const int COLOR_RED = 180;
+const int COLOR_ORANGE = 198;
+const int COLOR_WHITE = 215;
+
 struct TReportedStatement {
 	uint32_t StatementID;
 	uint32_t TimeStamp;

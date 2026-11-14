@@ -47,6 +47,36 @@ private:
 
 static const Object NONE;
 
+// Coordinates of an object that is not on the map, as the client sends them
+// and GetObject and GetBodyContainer read them: x is POSITION_NOT_ON_MAP, y is
+// a body position (objects.hh's BODY_*) or POSITION_CONTAINER_BASE plus the
+// number of an open container window (0 to MAX_OPEN_CONTAINERS - 1, cr.hh),
+// and z the place in that container.
+const int POSITION_NOT_ON_MAP = 0xFFFF;
+const int POSITION_CONTAINER_BASE = 0x40;
+
+// The width and height of a map sector in fields (the XXXX-YYYY-ZZ.sec files).
+const int SECTOR_SIZE = 32;
+
+// The flags of a map field (GetMapContainerFlags, TSector::MapFlags), named as
+// the sector files name them: Refresh, NoLogout, ProtectionZone. In the map
+// container's Attributes[3] they are shifted left by 8.
+const int MAPFLAG_REFRESH = 1;
+const int MAPFLAG_NOLOGOUT = 2;
+const int MAPFLAG_PROTECTIONZONE = 4;
+
+// The object streams of LoadObjects and SaveObjects: each object is its type
+// number (a word) followed by its attributes, each an attribute number (a
+// byte) and its value, and END_OF_ATTRIBUTES. The attribute CONTENT has no
+// value; the objects inside follow it, ended by END_OF_OBJECTS, and then the
+// container's END_OF_ATTRIBUTES. moveuse.cc writes an empty depot chest in
+// this form.
+const int END_OF_OBJECTS = 0xFFFF;
+const int END_OF_ATTRIBUTES = 0xFF;
+
+// The size of CronHashTable, which chains the cron entries by object number.
+const int CRON_HASH_TABLE_SIZE = 2047;
+
 extern int SectorXMin;
 extern int SectorXMax;
 extern int SectorYMin;
@@ -123,7 +153,7 @@ void ReadMapConfig();
 void InitMap();
 void ExitMap(bool save);
 
-extern char InstanceAttributeNames[18][30];
+extern char InstanceAttributeNames[INSTANCEATTRIBUTES][30];
 extern matrix3d<TSector *> *Sector;
 extern TObjectBlock **ObjectBlock;
 extern TObject *FirstFreeObject;
@@ -134,7 +164,7 @@ extern uint32_t HashTableMask;
 extern int HashTableFree;
 extern int ObjectCounter;
 extern vector<TCronEntry> CronEntry;
-extern int CronHashTable[2047];
+extern int CronHashTable[CRON_HASH_TABLE_SIZE];
 extern int CronEntries;
 extern int OBCount;
 extern vector<TDepotInfo> DepotInfo;

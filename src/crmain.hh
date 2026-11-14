@@ -10,6 +10,20 @@ struct TAttackWave;
 struct TCreature;
 struct TOutfit;
 
+// The size of the race tables (RaceData, KilledCreatures, KilledPlayers):
+// races are 1 to 511, 0 is none.
+const int MAX_RACES = 512;
+
+// The size of HashList: a creature is in the list of its ID modulo this.
+const int HASH_LIST_SIZE = 1000;
+
+// The race RaiseDead and MassRaiseDead create (skeleton.mon).
+const int RACE_SKELETON = 33;
+
+// Players have their character ID as creature ID, below this number; monsters
+// and NPCs get IDs from here on (NextCreatureID, IsCreaturePlayer).
+const int FIRST_NONPLAYER_CREATURE_ID = 0x40000000;
+
 TCreature *GetCreature(uint32_t id);
 TCreature *GetCreature(Object Obj);
 bool IsCreaturePlayer(uint32_t CreatureID);
@@ -40,13 +54,13 @@ void ProcessMonsterRaids();
 void InitCr();
 void ExitCr();
 
-extern TCreature *HashList[1000];
+extern TCreature *HashList[HASH_LIST_SIZE];
 extern vector<TCreature *> CreatureList;
 extern int FirstFreeCreature;
 extern uint32_t NextCreatureID;
 extern priority_queue<uint32_t, TAttackWave *> AttackWaveQueue;
 extern matrix<uint32_t> *FirstChainCreature;
-extern int KilledCreatures[512];
-extern int KilledPlayers[512];
+extern int KilledCreatures[MAX_RACES];
+extern int KilledPlayers[MAX_RACES];
 
 #endif

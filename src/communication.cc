@@ -27,6 +27,8 @@
 #include "containr.hh"
 #include "operate.hh"
 #include "connections.hh"
+#include "sending.hh"
+#include "receiving.hh"
 #include "vlong.hh"
 #include "TRSAPublicKey.hh"
 #include "utils.hh"
@@ -58,14 +60,14 @@ pid_t AcceptorThreadPID;
 int ActiveConnections;
 Semaphore CommunicationThreadMutex(1);
 bool UseOwnStacks;
-unsigned char CommunicationThreadStacks[72089600];
-pid_t LastUsingCommunicationThread[1100];
-int FreeCommunicationThreadStacks[1100];
+unsigned char CommunicationThreadStacks[MAX_COMMUNICATION_THREADS * COMMUNICATION_THREAD_STACK_SIZE];
+pid_t LastUsingCommunicationThread[MAX_COMMUNICATION_THREADS];
+int FreeCommunicationThreadStacks[MAX_COMMUNICATION_THREADS];
 int NumberOfFreeCommunicationThreadStacks;
 TRSAPrivateKey PrivateKey;
 Semaphore RSAMutex(1);
 TQueryManagerConnectionPool QueryManagerConnectionPool(10);
-int LoadHistory[360];
+int LoadHistory[LOAD_HISTORY_SIZE];
 int LoadHistoryPointer;
 int TotalLoad;
 int TotalSend;
@@ -87,11 +89,11 @@ void InitCommunicationThreadStacks() {
 	}
 
 	memset(CommunicationThreadStacks, 0xAA, sizeof(CommunicationThreadStacks));
-	for (int i = 0; i < 1100; i++) {
+	for (int i = 0; i < MAX_COMMUNICATION_THREADS; i++) {
 		LastUsingCommunicationThread[i] = 0;
 		FreeCommunicationThreadStacks[i] = i;
 	}
-	NumberOfFreeCommunicationThreadStacks = 1100;
+	NumberOfFreeCommunicationThreadStacks = MAX_COMMUNICATION_THREADS;
 }
 
 void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
@@ -112,7 +114,7 @@ void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
 		if (LastUsingCommunicationThread[Number] == 0
 				|| tgkill(getpid(), LastUsingCommunicationThread[Number], 0) == -1) {
 			StackNumber = Number;
-			Stack = &CommunicationThreadStacks[Number * 65536];
+			Stack = &CommunicationThreadStacks[Number * COMMUNICATION_THREAD_STACK_SIZE];
 			NumberOfFreeCommunicationThreadStacks--;
 			FreeCommunicationThreadStacks[i] = FreeCommunicationThreadStacks[NumberOfFreeCommunicationThreadStacks];
 			break;
@@ -138,15 +140,15 @@ void ExitCommunicationThreadStacks() {
 		return;
 	}
 
-	if (NumberOfFreeCommunicationThreadStacks != 1100) {
+	if (NumberOfFreeCommunicationThreadStacks != MAX_COMMUNICATION_THREADS) {
 		error("FreeCommunicationThreadStacks: Nicht alle Stacks freigegeben.\n");
 	}
 
 	int HighestStackAddress = -1;
-	int LowestStackAddress = 65536;
-	for (int Stack = 0; Stack < 1100; Stack++) {
-		for (int i = 0; i < 65536; i++) {
-			if (CommunicationThreadStacks[Stack * 65536 + i] != 0xAA) {
+	int LowestStackAddress = COMMUNICATION_THREAD_STACK_SIZE;
+	for (int Stack = 0; Stack < MAX_COMMUNICATION_THREADS; Stack++) {
+		for (int i = 0; i < COMMUNICATION_THREAD_STACK_SIZE; i++) {
+			if (CommunicationThreadStacks[Stack * COMMUNICATION_THREAD_STACK_SIZE + i] != 0xAA) {
 				if (i > HighestStackAddress) {
 					HighestStackAddress = i;
 				}
@@ -157,13 +159,13 @@ void ExitCommunicationThreadStacks() {
 		}
 	}
 
-	if (65536 - (HighestStackAddress - LowestStackAddress) < 32768) {
+	if (COMMUNICATION_THREAD_STACK_SIZE - (HighestStackAddress - LowestStackAddress) < 32768) {
 		error("Maximale Stack-Ausdehnung: %d..%d\n", LowestStackAddress, HighestStackAddress);
 	}
 }
 
 void InitLoadHistory() {
-	for (int i = 0; i < 360; i++) {
+	for (int i = 0; i < LOAD_HISTORY_SIZE; i++) {
 		LoadHistory[i] = 0;
 	}
 	LoadHistoryPointer = 0;
@@ -218,7 +220,7 @@ void NetLoadCheck() {
 	LoadHistory[LoadHistoryPointer] = CurrentLoad;
 	TotalLoad += CurrentLoad;
 	LoadHistoryPointer++;
-	if (LoadHistoryPointer == 360) {
+	if (LoadHistoryPointer == LOAD_HISTORY_SIZE) {
 		LoadHistoryPointer = 0;
 	}
 
@@ -294,7 +296,7 @@ bool WriteToSocket(TConnection *Connection, unsigned char *Buffer, int Size) {
 }
 
 bool SendLoginMessage(TConnection *Connection, int Type, char *Message, int WaitingTime) {
-	if (Type < 20 || Type > 22) {
+	if (Type < SV_LOGIN_ERROR || Type > SV_LOGIN_WAITINGLIST) {
 		error("SendLoginMessage: Ung\xfcltiger Meldungstyp %d.\n", Type);
 		return true;
 	}
@@ -304,7 +306,7 @@ bool SendLoginMessage(TConnection *Connection, int Type, char *Message, int Wait
 		return true;
 	}
 
-	if (Type == 22 && !in(WaitingTime, 1, 255)) {
+	if (Type == SV_LOGIN_WAITINGLIST && !in(WaitingTime, 1, 255)) {
 		error("SendLoginMessage: Ung\xfcltige Wartezeit %d.\n", WaitingTime);
 		return true;
 	}
@@ -320,7 +322,7 @@ bool SendLoginMessage(TConnection *Connection, int Type, char *Message, int Wait
 		}
 
 		Buffer.writeString(Message);
-		if (Type == 22) {
+		if (Type == SV_LOGIN_WAITINGLIST) {
 			Buffer.writeByte(static_cast<unsigned char>(WaitingTime));
 		}
 
@@ -352,10 +354,10 @@ bool SendData(TConnection *Connection) {
 	WriteBuffer.writeWord(0);
 	WriteBuffer.writeWord(static_cast<unsigned short>(DataSize));
 
-	int Offset = Connection->NextToSend % 16384;
-	if (Offset + DataSize > 16384) {
-		WriteBuffer.writeBytes(&Connection->OutData[Offset], 16384 - Offset);
-		WriteBuffer.writeBytes(Connection->OutData, Offset + DataSize - 16384);
+	int Offset = Connection->NextToSend % OUT_DATA_SIZE;
+	if (Offset + DataSize > OUT_DATA_SIZE) {
+		WriteBuffer.writeBytes(&Connection->OutData[Offset], OUT_DATA_SIZE - Offset);
+		WriteBuffer.writeBytes(Connection->OutData, Offset + DataSize - OUT_DATA_SIZE);
 	} else {
 		WriteBuffer.writeBytes(&Connection->OutData[Offset], DataSize);
 	}
@@ -567,7 +569,7 @@ int CheckWaitingTime(char *Name, TConnection *Connection, bool FreeAccount, bool
 	if (WaitingTime > 0) {
 		char Message[250];
 		snprintf(Message, 250, "%s\n\nYou are at place %d on the waiting list.", Reason, Position);
-		SendLoginMessage(Connection, 22, Message, WaitingTime);
+		SendLoginMessage(Connection, SV_LOGIN_WAITINGLIST, Message, WaitingTime);
 	}
 
 	return WaitingTime;
@@ -610,7 +612,7 @@ bool CallGameThread(TConnection *Connection) {
 		// is the main thread, so its thread ID is the process ID.
 		if (tgkill(getpid(), GetGameThreadPID(), SIGUSR1) != 0) {
 			error("CallGameThread: Can't send SIGUSR1 to pid %d\n", GetGameThreadPID());
-			SendLoginMessage(Connection, 20, "The server is not online.\nPlease try again later.", -1);
+			SendLoginMessage(Connection, SV_LOGIN_ERROR, "The server is not online.\nPlease try again later.", -1);
 			return false;
 		}
 	}
@@ -633,7 +635,7 @@ TPlayerData *PerformRegistration(TConnection *Connection, char *PlayerName, uint
 	TQueryManagerPoolConnection QueryManagerConnection(&QueryManagerConnectionPool);
 	if (QueryManagerConnection.operator->() == nullptr) {
 		error("PerformRegistration: Kann Verbindung zum Query-Manager nicht herstellen.\n");
-		SendLoginMessage(Connection, 20, "Internal error, closing connection.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Internal error, closing connection.", -1);
 		return nullptr;
 	}
 
@@ -647,94 +649,94 @@ TPlayerData *PerformRegistration(TConnection *Connection, char *PlayerName, uint
 	int Sex, NumberOfBuddies;
 	bool PremiumAccountActivated;
 	unsigned char Rights[12];
-	uint32_t BuddyIDs[100];
-	char Guild[31], Rank[31], Title[31], BuddyNames[100][30];
+	uint32_t BuddyIDs[MAX_BUDDIES];
+	char Guild[31], Rank[31], Title[31], BuddyNames[MAX_BUDDIES][30];
 	memset(Rights, 0, sizeof(Rights));
 
 	switch (QueryManagerConnection->loginGame(AccountID, PlayerName, PlayerPassword,
 			Connection->GetIPAddress(), PrivateWorld, false, GamemasterClient,
 			CharacterID, Sex, Guild, Rank, Title, NumberOfBuddies, BuddyIDs,
 			BuddyNames, Rights, PremiumAccountActivated)) {
-	case 0:
+	case STATUS_OK:
 		break;
 
-	case 1:
+	case LOGIN_CHARACTER_UNKNOWN:
 		print(3, "Spieler existiert nicht.\n");
-		SendLoginMessage(Connection, 20, "Character doesn't exist.\nCreate a new character on the Tibia website\nat \"www.tibia.com\".", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Character doesn't exist.\nCreate a new character on the Tibia website\nat \"www.tibia.com\".", -1);
 		return nullptr;
 
-	case 2:
+	case LOGIN_CHARACTER_DELETED:
 		print(3, "Spieler wurde gel\xf6scht.\n");
-		SendLoginMessage(Connection, 20, "Character doesn't exist.\nCreate a new character on the Tibia website.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Character doesn't exist.\nCreate a new character on the Tibia website.", -1);
 		return nullptr;
 
-	case 3:
+	case LOGIN_WRONG_WORLD:
 		print(3, "Spieler lebt nicht auf dieser Welt.\n");
-		SendLoginMessage(Connection, 20, "Character doesn't live on this world.\nPlease login on the right world.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Character doesn't live on this world.\nPlease login on the right world.", -1);
 		return nullptr;
 
-	case 4:
+	case LOGIN_NOT_INVITED:
 		print(3, "Spieler ist nicht eingeladen.\n");
-		SendLoginMessage(Connection, 20, "This world is private and you have not been invited to play on it.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "This world is private and you have not been invited to play on it.", -1);
 		return nullptr;
 
-	case 6:
+	case LOGIN_WRONG_PASSWORD:
 		Log("game", "Falsches Pa\xdfwort f\xfcr Spieler %s; Login von %s.\n", PlayerName, Connection->GetIPAddress());
-		SendLoginMessage(Connection, 20, "Accountnumber or password is not correct.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Accountnumber or password is not correct.", -1);
 		return nullptr;
 
-	case 7:
+	case LOGIN_ACCOUNT_BLOCKED:
 		Log("game", "Spieler %s blockiert; Login von %s.\n", PlayerName, Connection->GetIPAddress());
-		SendLoginMessage(Connection, 20, "Account disabled for five minutes. Please wait.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Account disabled for five minutes. Please wait.", -1);
 		return nullptr;
 
-	case 8:
+	case LOGIN_ACCOUNT_DELETED:
 		Log("game", "Account von Spieler %s wurde gel\xf6scht.\n", PlayerName);
-		SendLoginMessage(Connection, 20, "Accountnumber or password is not correct.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Accountnumber or password is not correct.", -1);
 		return nullptr;
 
-	case 9:
+	case LOGIN_IP_BLOCKED:
 		Log("game", "IP-Adresse %s f\xfcr Spieler %s blockiert.\n", Connection->GetIPAddress(), PlayerName);
-		SendLoginMessage(Connection, 20, "IP address blocked for 30 minutes. Please wait.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "IP address blocked for 30 minutes. Please wait.", -1);
 		return nullptr;
 
-	case 10:
+	case LOGIN_ACCOUNT_BANISHED:
 		print(3, "Account ist verbannt.\n");
-		SendLoginMessage(Connection, 20, "Your account is banished.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Your account is banished.", -1);
 		return nullptr;
 
-	case 11:
+	case LOGIN_NAMELOCKED:
 		print(3, "Character muss umbenannt werden.\n");
-		SendLoginMessage(Connection, 20, "Your character is banished because of his/her name.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Your character is banished because of his/her name.", -1);
 		return nullptr;
 
-	case 12:
+	case LOGIN_IP_BANISHED:
 		print(3, "IP-Adresse ist gesperrt.\n");
-		SendLoginMessage(Connection, 20, "Your IP address is banished.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Your IP address is banished.", -1);
 		return nullptr;
 
-	case 13:
+	case LOGIN_ALREADY_ONLINE:
 		print(3, "Schon andere Charaktere desselben Accounts eingeloggt.\n");
-		SendLoginMessage(Connection, 20, "You may only login with one character\nof your account at the same time.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "You may only login with one character\nof your account at the same time.", -1);
 		return nullptr;
 
-	case 14:
+	case LOGIN_NOT_GAMEMASTER:
 		print(3, "Login mit Gamemaster-Client auf Nicht-Gamemaster-Account.\n");
-		SendLoginMessage(Connection, 20, "You may only login with a Gamemaster account.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "You may only login with a Gamemaster account.", -1);
 		return nullptr;
 
-	case 15:
+	case LOGIN_WRONG_ACCOUNT:
 		Log("game", "Falsche Accountnummer %lu f\xfcr %s.\n", static_cast<unsigned long>(AccountID), PlayerName);
-		SendLoginMessage(Connection, 20, "Login failed due to corrupt data.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Login failed due to corrupt data.", -1);
 		return nullptr;
 
 	case -1:
-		SendLoginMessage(Connection, 20, "Internal error, closing connection.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Internal error, closing connection.", -1);
 		return nullptr;
 
 	default:
 		error("PerformRegistration: Unbekannter R\xfc" "ckgabewert vom QueryManager.\n");
-		SendLoginMessage(Connection, 20, "Internal error, closing connection.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Internal error, closing connection.", -1);
 		return nullptr;
 	}
 
@@ -745,13 +747,13 @@ TPlayerData *PerformRegistration(TConnection *Connection, char *PlayerName, uint
 
 	if (AccountID == 0) {
 		error("PerformRegistration: Spieler %s wurde noch keinem Account zugewiesen.\n", PlayerName);
-		SendLoginMessage(Connection, 20, "Character is not assigned to an account.\nPerform this on the Tibia website\nat \"www.tibia.com\".", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Character is not assigned to an account.\nPerform this on the Tibia website\nat \"www.tibia.com\".", -1);
 		return nullptr;
 	}
 
 	PlayerName[29] = 0;
 	if (PremiumAccountActivated) {
-		SendLoginMessage(Connection, 21, "Your Premium Account is now activated.\nHave a lot of fun in Tibia.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_MESSAGE, "Your Premium Account is now activated.\nHave a lot of fun in Tibia.", -1);
 	}
 
 	Log("game", "Spieler %s loggt ein an Socket %d von %s.\n", PlayerName, Connection->GetSocket(), Connection->GetIPAddress());
@@ -760,7 +762,7 @@ TPlayerData *PerformRegistration(TConnection *Connection, char *PlayerName, uint
 	if (PlayerData == nullptr) {
 		error("PerformRegistration: Kann keinen Slot f\xfcr Spielerdaten zuweisen.\n");
 		QueryManagerConnection->decrementIsOnline(CharacterID);
-		SendLoginMessage(Connection, 20, "There are too many players online.\nPlease try again later.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "There are too many players online.\nPlease try again later.", -1);
 		return nullptr;
 	}
 
@@ -797,7 +799,7 @@ bool HandleLogin(TConnection *Connection) {
 		return false;
 	}
 
-	if (Command != 10) {
+	if (Command != CL_LOGIN) {
 		print(3, "Ung\xfcltiges Init-Kommando %d.\n", Command);
 		return false;
 	}
@@ -827,7 +829,7 @@ bool HandleLogin(TConnection *Connection) {
 		} catch (const char *s) {
 			error("HandleLogin: Fehler beim Entschl\xfcsseln (%s).\n", s);
 			RSAMutex.up();
-			SendLoginMessage(Connection, 20, "Login failed due to corrupt data.", -1);
+			SendLoginMessage(Connection, SV_LOGIN_ERROR, "Login failed due to corrupt data.", -1);
 			return false;
 		}
 		RSAMutex.up();
@@ -846,32 +848,32 @@ bool HandleLogin(TConnection *Connection) {
 		Help.readString(PlayerPassword, 30);
 	} catch (const char *s) {
 		print(3, "Fehler beim Auslesen der Login-Daten (%s).\n", s);
-		SendLoginMessage(Connection, 20, "Login failed due to corrupt data.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Login failed due to corrupt data.", -1);
 		return false;
 	}
 
 	if (PlayerName[0] == 0) {
-		SendLoginMessage(Connection, 20, "You must enter a character name.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "You must enter a character name.", -1);
 		return false;
 	}
 
 	if (TerminalType >= TERMINALTYPES || TerminalVersion < TERMINALVERSION[TerminalType]) {
-		SendLoginMessage(Connection, 20, "Your terminal version is too old.\nPlease get a new version at\nhttp://www.tibia.com.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Your terminal version is too old.\nPlease get a new version at\nhttp://www.tibia.com.", -1);
 		return false;
 	}
 
 	if (!GameRunning()) {
-		SendLoginMessage(Connection, 20, "The server is not online.\nPlease try again later.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "The server is not online.\nPlease try again later.", -1);
 		return false;
 	}
 
 	if (GameStarting()) {
-		SendLoginMessage(Connection, 20, "The game is just starting.\nPlease try again later.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "The game is just starting.\nPlease try again later.", -1);
 		return false;
 	}
 
 	if (GameEnding()) {
-		SendLoginMessage(Connection, 20, "The game is just going down.\nPlease try again later.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "The game is just going down.\nPlease try again later.", -1);
 		return false;
 	}
 
@@ -886,7 +888,7 @@ again:
 		int RemainingWaitingTime = static_cast<int>(NextTry - RoundNr);
 		if (RemainingWaitingTime > 0) {
 			Log("queue", "%s meldet sich %d Sekunden zu fr\xfch an.\n", PlayerName, RemainingWaitingTime);
-			SendLoginMessage(Connection, 22, "It's not your turn yet.", RemainingWaitingTime);
+			SendLoginMessage(Connection, SV_LOGIN_WAITINGLIST, "It's not your turn yet.", RemainingWaitingTime);
 			return false;
 		}
 
@@ -919,12 +921,12 @@ again:
 
 		ReadOnly = PlayerData->Locked != gettid();
 		FreeAccount = (PlayerData->Rights[PREMIUM_ACCOUNT / 8] & (1 << (PREMIUM_ACCOUNT % 8))) == 0;
-		Newbie = PlayerData->Profession == 0
+		Newbie = PlayerData->Profession == PROFESSION_NONE
 				&& (PlayerData->Rights[NO_LOGOUT_BLOCK / 8] & (1 << (NO_LOGOUT_BLOCK % 8))) == 0;
 
 		if (FreeAccount && (MaxPlayers == PremiumPlayerBuffer
 				|| (Newbie && MaxNewbies == PremiumNewbieBuffer))) {
-			SendLoginMessage(Connection, 20, "Only players with premium accounts\nare allowed to enter this world.", -1);
+			SendLoginMessage(Connection, SV_LOGIN_ERROR, "Only players with premium accounts\nare allowed to enter this world.", -1);
 
 			TQueryManagerPoolConnection QueryManagerConnection(&QueryManagerConnectionPool);
 			if (QueryManagerConnection.operator->() == nullptr) {
@@ -970,13 +972,13 @@ again:
 
 	TWriteBuffer WriteBuffer(Connection->InData + 2, 2046);
 	try {
-		WriteBuffer.writeByte(11);
+		WriteBuffer.writeByte(CL_JOIN_GAME);
 		WriteBuffer.writeWord(TerminalType);
 		WriteBuffer.writeWord(TerminalVersion);
 		WriteBuffer.writeQuad(PlayerData->CharacterID);
 	} catch (const char *s) {
 		error("HandleLogin: Fehler beim Zusammenbauen des Login-Pakets (%s).\n", s);
-		SendLoginMessage(Connection, 20, "Internal error, closing connection.", -1);
+		SendLoginMessage(Connection, SV_LOGIN_ERROR, "Internal error, closing connection.", -1);
 		return false;
 	}
 
@@ -1026,7 +1028,7 @@ again:
 	if (Connection->GetState() == CONNECTION_CONNECTED) {
 		int Count = ReadFromSocket(Connection, Connection->InData + 2, Connection->InDataSize);
 		if (Count < 0) {
-			SendLoginMessage(Connection, 20, "Internal error, closing connection.", -1);
+			SendLoginMessage(Connection, SV_LOGIN_ERROR, "Internal error, closing connection.", -1);
 			return false;
 		}
 
@@ -1038,7 +1040,7 @@ again:
 		int PacketSize = Connection->InDataSize;
 		int Count = ReadFromSocket(Connection, Connection->InData, PacketSize);
 		if (Count < 0) {
-			SendLoginMessage(Connection, 20, "Internal error, closing connection.", -1);
+			SendLoginMessage(Connection, SV_LOGIN_ERROR, "Internal error, closing connection.", -1);
 			return false;
 		}
 
@@ -1378,7 +1380,7 @@ int AcceptorThreadLoop(void *) {
 
 				IncrementActiveConnections();
 				if (StartThread(HandleConnection, reinterpret_cast<void *>(static_cast<intptr_t>(StackNumber * 65536 + NewSocket)),
-						Stack, 65536, true) == 0) {
+						Stack, COMMUNICATION_THREAD_STACK_SIZE, true) == 0) {
 					print(3, "Kann neuen Thread nicht anlegen.\n");
 					if (close(NewSocket) < 0) {
 						error("AcceptorThreadLoop: Fehler %d beim Schlie\xdf" "en der Socket (2).\n", errno);
@@ -1387,7 +1389,7 @@ int AcceptorThreadLoop(void *) {
 					ReleaseCommunicationThreadStack(StackNumber);
 				}
 			} else {
-				if (ActiveConnections >= 1100) {
+				if (ActiveConnections >= MAX_COMMUNICATION_THREADS) {
 					print(3, "Keine Verbindung mehr frei.\n");
 					if (close(NewSocket) < 0) {
 						error("AcceptorThreadLoop: Fehler %d beim Schlie\xdf" "en der Socket (3).\n", errno);
@@ -1396,7 +1398,7 @@ int AcceptorThreadLoop(void *) {
 				}
 
 				IncrementActiveConnections();
-				if (StartThread(HandleConnection, reinterpret_cast<void *>(static_cast<intptr_t>(NewSocket)), 65536, true) == 0) {
+				if (StartThread(HandleConnection, reinterpret_cast<void *>(static_cast<intptr_t>(NewSocket)), COMMUNICATION_THREAD_STACK_SIZE, true) == 0) {
 					print(3, "Kann neuen Thread nicht anlegen.\n");
 					if (close(NewSocket) < 0) {
 						error("AcceptorThreadLoop: Fehler %d beim Schlie\xdf" "en der Socket (4).\n", errno);

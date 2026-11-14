@@ -25,6 +25,7 @@
 #include "TXTEASymmetricKey.hh"
 #include "crmain.hh"
 #include "crplayer.hh"
+#include "receiving.hh"
 #include "sending.hh"
 #include "shm.hh"
 #include "writer.hh"
@@ -32,7 +33,7 @@
 const int PINGTIME = 30;
 const int IDLETIME = 900;
 
-TConnection Connections[1100];
+TConnection Connections[MAX_CONNECTIONS];
 TConnection *FirstSendingConnection;
 Semaphore ConnectionMutex(1);
 int ConnectionIterator;
@@ -84,7 +85,9 @@ void TConnection::Process() {
 void TConnection::ResetTimer(int Command) {
 	if (State == CONNECTION_GAME || State == CONNECTION_DEAD) {
 		TimeStamp = RoundNr;
-		if (Command != 105 && Command != 190 && Command != 201 && Command != 202 && Command != 30) {
+		// A stop, a cancel, a refresh or a ping is no action: it leaves the idle time running.
+		if (Command != CL_STOP && Command != CL_CANCEL && Command != CL_REFRESH_FIELD
+				&& Command != CL_REFRESH_CONTAINER && Command != CL_PING) {
 			TimeStampAction = RoundNr;
 		}
 	}
@@ -215,7 +218,7 @@ bool TConnection::JoinGame(TReadBuffer &Buffer) {
 			return false;
 		}
 
-		if (pl->IsLoggingOut() && pl->LogoutPossible() == 0) {
+		if (pl->IsLoggingOut() && pl->LogoutPossible() == LOGOUT_POSSIBLE) {
 			Log("game", "Spieler %s loggt gerade aus - Einloggen gescheitert.\n", pl->Name);
 			DecreasePlayerPoolSlotSticky(CharacterID);
 			return false;
@@ -361,7 +364,7 @@ bool TConnection::IsVisible(int x, int y, int z) {
 }
 
 KNOWNCREATURESTATE TConnection::KnownCreature(uint32_t ID, bool UpdateFollows) {
-	for (int i = 0; i < 150; i++) {
+	for (int i = 0; i < MAX_KNOWN_CREATURES; i++) {
 		TKnownCreature &K = KnownCreatureTable[i];
 		if (K.CreatureID == ID) {
 			KNOWNCREATURESTATE State = K.State;
@@ -379,7 +382,7 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 	uint32_t OldID = 0;
 	int FreeEntry = -1;
 
-	for (int i = 0; i < 150; i++) {
+	for (int i = 0; i < MAX_KNOWN_CREATURES; i++) {
 		if (KnownCreatureTable[i].CreatureID == NewID) {
 			FreeEntry = i;
 			OldID = NewID;
@@ -388,7 +391,7 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 	}
 
 	if (FreeEntry == -1) {
-		for (int i = 0; i < 150; i++) {
+		for (int i = 0; i < MAX_KNOWN_CREATURES; i++) {
 			if (KnownCreatureTable[i].State == KNOWNCREATURE_FREE) {
 				FreeEntry = i;
 				OldID = KnownCreatureTable[i].CreatureID;
@@ -398,7 +401,7 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 	}
 
 	if (FreeEntry == -1) {
-		for (int i = 0; i < 150; i++) {
+		for (int i = 0; i < MAX_KNOWN_CREATURES; i++) {
 			TCreature *cr = GetCreature(KnownCreatureTable[i].CreatureID);
 			if (cr == nullptr) {
 				error("TUserCom::NewKnownCreature: Bekannte Kreatur existiert nicht.\n");
@@ -441,7 +444,7 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 }
 
 void TConnection::ClearKnownCreatureTable(bool Unchain) {
-	for (int i = 0; i < 150; i++) {
+	for (int i = 0; i < MAX_KNOWN_CREATURES; i++) {
 		TKnownCreature &K = KnownCreatureTable[i];
 		if (Unchain && K.State != KNOWNCREATURE_FREE) {
 			UnchainKnownCreature(K.CreatureID);
@@ -486,7 +489,7 @@ void TConnection::UnchainKnownCreature(uint32_t ID) {
 
 TConnection *AssignFreeConnection() {
 	ConnectionMutex.down();
-	for (int i = 0; i < 1100; i++) {
+	for (int i = 0; i < MAX_CONNECTIONS; i++) {
 		if (Connections[i].GetState() == CONNECTION_FREE) {
 			Connections[i].Assign();
 			ConnectionMutex.up();
@@ -504,7 +507,7 @@ TConnection *GetFirstConnection() {
 }
 
 TConnection *GetNextConnection() {
-	while (ConnectionIterator < 1099) {
+	while (ConnectionIterator < MAX_CONNECTIONS - 1) {
 		ConnectionIterator++;
 		if (Connections[ConnectionIterator].GetState() != CONNECTION_FREE) {
 			return &Connections[ConnectionIterator];
@@ -523,7 +526,7 @@ void ProcessConnections() {
 }
 
 void InitConnections() {
-	for (int i = 0; i < 1100; i++) {
+	for (int i = 0; i < MAX_CONNECTIONS; i++) {
 		Connections[i].Free();
 	}
 

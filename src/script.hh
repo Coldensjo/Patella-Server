@@ -41,10 +41,10 @@ struct TReadScriptFile {
 	void getCoordinate(int &x, int &y, int &z);
 	char getSpecial();
 private:
-	FILE *File[3];
-	char Filename[3][4096];
-	int Line[3];
-	char String[4000];
+	FILE *File[MAXIMUMRECURSIONDEPTH];
+	char Filename[MAXIMUMRECURSIONDEPTH][4096];
+	int Line[MAXIMUMRECURSIONDEPTH];
+	char String[MAXIMUMSTRINGLENGTH];
 	int RecursionDepth;
 	unsigned char *Bytes;
 	int Number;

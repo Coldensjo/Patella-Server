@@ -11,6 +11,7 @@
 #include "script.hh"
 #include "threads.hh"
 #include "map.hh"
+#include "cr.hh"
 #include "dbfuncs.hh"
 #include "config.hh"
 #include "utils.hh"
@@ -66,7 +67,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 	PlayerDataPath(Slot->CharacterID, "usr", FileName);
 	if (!FileExists(FileName)) {
 		Slot->Race = 1;
-		Slot->Profession = 0;
+		Slot->Profession = PROFESSION_NONE;
 		memset(&Slot->OriginalOutfit, 0, sizeof(Slot->OriginalOutfit));
 		memset(&Slot->CurrentOutfit, 0, sizeof(Slot->CurrentOutfit));
 		Slot->LastLoginTime = 0;
@@ -78,7 +79,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 		Slot->posy = 0;
 		Slot->posz = 0;
 		Slot->PlayerkillerEnd = 0;
-		for (int SkillNr = 0; SkillNr < 25; SkillNr++) {
+		for (int SkillNr = 0; SkillNr < MAX_SKILLS; SkillNr++) {
 			Slot->Minimum[SkillNr] = INT_MIN;
 		}
 		memset(Slot->SpellList, 0, sizeof(Slot->SpellList));
@@ -86,7 +87,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 		memset(Slot->MurderTimestamps, 0, sizeof(Slot->MurderTimestamps));
 		Slot->Inventory = nullptr;
 		Slot->InventorySize = 0;
-		for (int DepotNr = 0; DepotNr < 9; DepotNr++) {
+		for (int DepotNr = 0; DepotNr < MAX_DEPOTS; DepotNr++) {
 			Slot->Depot[DepotNr] = nullptr;
 			Slot->DepotSize[DepotNr] = 0;
 		}
@@ -144,7 +145,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 		Script.readSymbol('=');
 		Slot->PlayerkillerEnd = Script.readNumber();
 
-		for (int SkillNr = 0; SkillNr < 25; SkillNr++) {
+		for (int SkillNr = 0; SkillNr < MAX_SKILLS; SkillNr++) {
 			Slot->Minimum[SkillNr] = INT_MIN;
 		}
 
@@ -157,7 +158,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 			Script.readSymbol('=');
 			Script.readSymbol('(');
 			int SkillNr = Script.readNumber();
-			if (!in(SkillNr, 0, 24)) {
+			if (!in(SkillNr, 0, MAX_SKILLS - 1)) {
 				Script.error("illegal skill number");
 			}
 			Script.readSymbol(',');
@@ -203,7 +204,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 			}
 
 			int SpellNr = Script.getNumber();
-			if (!in(SpellNr, 0, 255)) {
+			if (!in(SpellNr, 0, MAX_SPELLS - 1)) {
 				Script.error("illegal spell number");
 			}
 			Slot->SpellList[SpellNr] = 1;
@@ -225,7 +226,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 				Script.error("'(' expected");
 			}
 			int Number = Script.readNumber();
-			if (!in(Number, 0, 499)) {
+			if (!in(Number, 0, MAX_QUESTS - 1)) {
 				Script.error("illegal quest number");
 			}
 			Script.readSymbol(',');
@@ -278,7 +279,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 		Script.readIdentifier();
 		Script.readSymbol('=');
 		Script.readSymbol('{');
-		for (int DepotNr = 0; DepotNr < 9; DepotNr++) {
+		for (int DepotNr = 0; DepotNr < MAX_DEPOTS; DepotNr++) {
 			Slot->Depot[DepotNr] = nullptr;
 		}
 		while (true) {
@@ -320,7 +321,7 @@ bool LoadPlayerData(TPlayerData *Slot) {
 			Slot->Inventory = nullptr;
 		}
 		Slot->InventorySize = 0;
-		for (int DepotNr = 0; DepotNr < 9; DepotNr++) {
+		for (int DepotNr = 0; DepotNr < MAX_DEPOTS; DepotNr++) {
 			if (Slot->Depot[DepotNr] != nullptr) {
 				delete[] Slot->Depot[DepotNr];
 				Slot->Depot[DepotNr] = nullptr;
@@ -397,7 +398,7 @@ void SavePlayerData(TPlayerData *Slot) {
 		Script.writeLn();
 
 		Script.writeLn();
-		for (int SkillNr = 0; SkillNr < 25; SkillNr++) {
+		for (int SkillNr = 0; SkillNr < MAX_SKILLS; SkillNr++) {
 			if (Slot->Minimum[SkillNr] != INT_MIN) {
 				Script.writeText("Skill = (");
 				Script.writeNumber(SkillNr);
@@ -437,7 +438,7 @@ void SavePlayerData(TPlayerData *Slot) {
 		Script.writeLn();
 		Script.writeText("Spells      = {");
 		bool FirstSpell = true;
-		for (int SpellNr = 0; SpellNr < 256; SpellNr++) {
+		for (int SpellNr = 0; SpellNr < MAX_SPELLS; SpellNr++) {
 			if (Slot->SpellList[SpellNr] != 0) {
 				if (!FirstSpell) {
 					Script.writeText(",");
@@ -451,7 +452,7 @@ void SavePlayerData(TPlayerData *Slot) {
 
 		Script.writeText("QuestValues = {");
 		bool FirstQuestValue = true;
-		for (int Number = 0; Number < 500; Number++) {
+		for (int Number = 0; Number < MAX_QUESTS; Number++) {
 			if (Slot->QuestValues[Number] != 0) {
 				if (!FirstQuestValue) {
 					Script.writeText(",");
@@ -511,7 +512,7 @@ void SavePlayerData(TPlayerData *Slot) {
 		Script.writeLn();
 		Script.writeText("Depots      = {");
 		bool FirstDepot = true;
-		for (int DepotNr = 0; DepotNr < 9; DepotNr++) {
+		for (int DepotNr = 0; DepotNr < MAX_DEPOTS; DepotNr++) {
 			if (Slot->Depot[DepotNr] != nullptr) {
 				if (FirstDepot) {
 					FirstDepot = false;

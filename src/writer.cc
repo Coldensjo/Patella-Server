@@ -30,7 +30,7 @@ const int PROTOCOL_TEXTLENGTH = 256;
 
 struct TProtocolThreadOrder {
 	char ProtocolName[20];
-	char Text[256];
+	char Text[PROTOCOL_TEXTLENGTH];
 };
 
 enum TWriterThreadOrderType {
@@ -145,9 +145,9 @@ bool GetReply(TWriterThreadReplyType &ReplyType, void *&Data);
 static Thread ProtocolThread = 0;
 static Thread WriterThread = 0;
 static TQueryManagerConnection *QueryManagerConnection = nullptr;
-static TProtocolThreadOrder ProtocolBuffer[1000];
-static TWriterThreadOrder OrderBuffer[2000];
-static TWriterThreadReply ReplyBuffer[100];
+static TProtocolThreadOrder ProtocolBuffer[PROTOCOL_BUFFER_SIZE];
+static TWriterThreadOrder OrderBuffer[ORDER_BUFFER_SIZE];
+static TWriterThreadReply ReplyBuffer[REPLY_BUFFER_SIZE];
 static int ProtocolPointerWrite;
 static int ProtocolPointerRead;
 static int OrderPointerWrite;
@@ -155,9 +155,9 @@ static int OrderPointerRead;
 static int ReplyPointerWrite;
 static int ReplyPointerRead;
 static Semaphore ProtocolMutex(1);
-static Semaphore ProtocolBufferEmpty(1000);
+static Semaphore ProtocolBufferEmpty(PROTOCOL_BUFFER_SIZE);
 static Semaphore ProtocolBufferFull(0);
-static Semaphore OrderBufferEmpty(2000);
+static Semaphore OrderBufferEmpty(ORDER_BUFFER_SIZE);
 static Semaphore OrderBufferFull(0);
 
 void InitProtocol() {
@@ -212,7 +212,7 @@ void WriteProtocol(char *ProtocolName, char *Text) {
 
 int ProtocolThreadLoop(void *) {
 	char ProtocolName[20];
-	char Text[256];
+	char Text[PROTOCOL_TEXTLENGTH];
 
 	while (true) {
 		GetProtocolOrder(ProtocolName, Text);
@@ -261,24 +261,24 @@ void Log(char *ProtocolName, char *Text, ...) {
 	}
 
 	va_list args;
-	char Output[256], Line[256];
+	char Output[PROTOCOL_TEXTLENGTH], Line[PROTOCOL_TEXTLENGTH];
 	time_t Time;
 
 	va_start(args, Text);
-	vsnprintf(Output, 256, Text, args);
+	vsnprintf(Output, PROTOCOL_TEXTLENGTH, Text, args);
 	va_end(args);
-	Output[255] = 0;
+	Output[PROTOCOL_TEXTLENGTH - 1] = 0;
 
 	if (WriteDate) {
 		print(2, "%s.log: %s", ProtocolName, Output);
 		time(&Time);
 		tm *t = localtime(&Time);
-		snprintf(Line, 256, "%02d.%02d.%04d %02d:%02d:%02d (%ld): %s", t->tm_mday, t->tm_mon + 1, t->tm_year + 1900, t->tm_hour, t->tm_min, t->tm_sec, (long)(int32_t)RoundNr, Output);
+		snprintf(Line, PROTOCOL_TEXTLENGTH, "%02d.%02d.%04d %02d:%02d:%02d (%ld): %s", t->tm_mday, t->tm_mon + 1, t->tm_year + 1900, t->tm_hour, t->tm_min, t->tm_sec, (long)(int32_t)RoundNr, Output);
 	} else {
 		strcpy(Line, Output);
 	}
 
-	Line[254] = 0;
+	Line[PROTOCOL_TEXTLENGTH - 2] = 0;
 	if (Line[0] != 0 && Line[strlen(Line) - 1] != '\n') {
 		strcat(Line, "\n");
 	}
@@ -391,7 +391,7 @@ void LogoutOrder(TPlayer *Player) {
 
 	TLogoutOrderData *Data = new TLogoutOrderData;
 	Data->CharacterID = Player->ID;
-	Data->Level = Player->Skills[0]->Get();
+	Data->Level = Player->Skills[SKILL_LEVEL]->Get();
 	Data->Profession = Player->GetActiveProfession();
 	if (Player->PlayerData != nullptr) {
 		Data->LastLoginTime = Player->PlayerData->LastLoginTime;
@@ -684,7 +684,7 @@ void ProcessPunishmentOrder(void *RawData) {
 	bool ok = true;
 	uint32_t BanishmentID = 0;
 
-	if (Data->Action == 0) {
+	if (Data->Action == BANISHMENT_ACTION_NOTATION) {
 		switch (QueryManagerConnection->setNotation(Data->GamemasterID, Data->CriminalName, Data->CriminalIPAddress, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment, BanishmentID)) {
 			case 0:
 				DirectReply(Data->GamemasterID, "Notation for player %s inserted.", Data->CriminalName);
@@ -701,7 +701,8 @@ void ProcessPunishmentOrder(void *RawData) {
 		}
 	}
 
-	if (ok && (Data->Action == 1 || Data->Action == 3 || Data->Action == 5)) {
+	if (ok && (Data->Action == BANISHMENT_ACTION_NAMELOCK || Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT
+			|| Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING)) {
 		switch (QueryManagerConnection->setNamelock(Data->GamemasterID, Data->CriminalName, Data->CriminalIPAddress, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment)) {
 			case 0:
 				DirectReply(Data->GamemasterID, "Player %s reported for renaming.", Data->CriminalName);
@@ -722,8 +723,10 @@ void ProcessPunishmentOrder(void *RawData) {
 		}
 	}
 
-	if (ok && (Data->Action == 2 || Data->Action == 3 || Data->Action == 4 || Data->Action == 5)) {
-		bool FinalWarning = (Data->Action == 4 || Data->Action == 5);
+	if (ok && (Data->Action == BANISHMENT_ACTION_BANISHMENT || Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT
+			|| Data->Action == BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING || Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING)) {
+		bool FinalWarning = (Data->Action == BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING
+				|| Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING);
 		int Days;
 		switch (QueryManagerConnection->banishAccount(Data->GamemasterID, Data->CriminalName, Data->CriminalIPAddress, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment, FinalWarning, Days, BanishmentID)) {
 			case 0:
@@ -835,19 +838,19 @@ void ProcessPunishmentOrder(void *RawData) {
 
 		switch (QueryManagerConnection->reportStatement(Data->GamemasterID, Data->CriminalName, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment, BanishmentID, Data->StatementID, NumberOfStatements, StatementIDs, TimeStamps, CharacterIDs, Channels, Texts)) {
 			case 0:
-				if (Data->Action == 6) {
+				if (Data->Action == BANISHMENT_ACTION_STATEMENT_REPORT) {
 					DirectReply(Data->GamemasterID, "Statement of %s reported.", Data->CriminalName);
 				}
 				Log("banish", "%s meldet \xc4u\xdf" "erung von Spieler %s.\n", Data->GamemasterName, Data->CriminalName);
 				break;
 			case 1:
-				if (Data->Action == 6) {
+				if (Data->Action == BANISHMENT_ACTION_STATEMENT_REPORT) {
 					DirectReply(Data->GamemasterID, "A player with this name does not exist. Perhaps he/she has been renamed?");
 				}
 				ok = false;
 				break;
 			case 2:
-				if (Data->Action == 6) {
+				if (Data->Action == BANISHMENT_ACTION_STATEMENT_REPORT) {
 					DirectReply(Data->GamemasterID, "Statement has already been reported.");
 				}
 				ok = false;
@@ -1001,7 +1004,7 @@ void ProcessLogoutReply(void *RawData) {
 
 	TPlayer *pl = GetPlayer(CharacterName);
 	if (pl != nullptr) {
-		GraphicalEffect(pl->GetCreatureObject(), 15);
+		GraphicalEffect(pl->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 		pl->StartLogout(true, true);
 	}
 

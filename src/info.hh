@@ -107,6 +107,18 @@ const int LAST_NAMEBANISHMENT_RIGHT = 26;
 const int FIRST_REPORT_RIGHT = 27;
 const int LAST_REPORT_RIGHT = 45;
 
+// What a gamemaster does with a reported player or statement: the Action of
+// CheckBanishmentRight and PunishmentOrder, as the client's rule violation
+// dialog sends it. Each one needs the rights that CheckBanishmentRight names
+// and makes the query manager requests of ProcessPunishmentOrder (writer.cc).
+const int BANISHMENT_ACTION_NOTATION = 0;
+const int BANISHMENT_ACTION_NAMELOCK = 1;
+const int BANISHMENT_ACTION_BANISHMENT = 2;
+const int BANISHMENT_ACTION_NAMELOCK_BANISHMENT = 3;
+const int BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING = 4;
+const int BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING = 5;
+const int BANISHMENT_ACTION_STATEMENT_REPORT = 6;
+
 enum RESULT {
 	ERROR = -1,
 	NOERROR = 0,
@@ -182,6 +194,19 @@ int GetObjectBodyPosition(Object Obj);
 int GetObjectRNum(Object Obj);
 bool ObjectInRange(uint32_t CreatureID, Object Obj, int Range);
 bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range);
+// The colours the client draws a liquid in, which GetLiquidColor gives for
+// each liquid (objects.hh's LIQUID_*): water blue, wine and manafluid purple,
+// blood and lifefluid red, slime green, urine and lemonade yellow, milk white;
+// beer, mud and oil brown. 0 is no liquid.
+const int LIQUID_COLOR_NONE = 0;
+const int LIQUID_COLOR_BLUE = 1;
+const int LIQUID_COLOR_RED = 2;
+const int LIQUID_COLOR_BROWN = 3;
+const int LIQUID_COLOR_GREEN = 4;
+const int LIQUID_COLOR_YELLOW = 5;
+const int LIQUID_COLOR_WHITE = 6;
+const int LIQUID_COLOR_PURPLE = 7;
+
 const char *GetLiquidName(uint32_t nr);
 unsigned char GetLiquidColor(uint32_t nr);
 int ObjectDistance(Object Obj1, Object Obj2);
@@ -201,6 +226,18 @@ int CountInventoryMoney(uint32_t CreatureID);
 void CalculateChange(int Amount, int &Gold, int &Platinum, int &Crystal);
 int GetHeight(int x, int y, int z);
 bool JumpPossible(int x, int y, int z, bool AvoidPlayers);
+// The field types of magic.cc's CreateField, the magic fields its switch
+// creates (the harmless kind of the first three on a non-PvP world for a
+// peaceful caster); fire, poison and energy fields block the caster's logout.
+// FieldPossible tests a magic wall and rush wood against every unpassable
+// object, creatures included; the other fields only against objects that are
+// no creatures.
+const int FIELD_FIRE = 1;
+const int FIELD_POISON = 2;
+const int FIELD_ENERGY = 3;
+const int FIELD_MAGICWALL = 4;
+const int FIELD_RUSHWOOD = 5;
+
 bool FieldPossible(int x, int y, int z, int Type);
 bool SearchFreeField(int &x, int &y, int &z, int Distance, unsigned short HouseID, bool Jump);
 bool SearchLoginField(int &x, int &y, int &z, int Distance, bool Player);

@@ -33,6 +33,10 @@ enum GAMESTATE {
 
 const int PRINTBUFFERENTRIES = 200;
 
+// The errors ErrorHandler writes to error.log; it counts the later ones
+// without writing them.
+const int MAX_LOGGED_ERRORS = 0x8000;
+
 struct TSharedMemory {
 	int Command;
 	char CommandBuffer[256];
@@ -42,7 +46,7 @@ struct TSharedMemory {
 	int PlayersOnline;
 	int NewbiesOnline;
 	int PrintBufferPosition;
-	char PrintBuffer[200][128];
+	char PrintBuffer[PRINTBUFFERENTRIES][128];
 	GAMESTATE GameState;
 	int32_t GameThreadPID;
 };
@@ -139,12 +143,12 @@ void ErrorHandler(char *Text) {
 
 	if (SHM != nullptr) {
 		// Text is handed to Log as its format string, as in the original.
-		if (SHM->Errors < 0x8000) {
+		if (SHM->Errors < MAX_LOGGED_ERRORS) {
 			Log("error", Text);
 		}
 
 		SHM->Errors++;
-		if (SHM->Errors == 0x8000) {
+		if (SHM->Errors == MAX_LOGGED_ERRORS) {
 			Log("error", "Zu viele Fehler. Keine weitere Protokollierung.\n");
 		}
 	}
