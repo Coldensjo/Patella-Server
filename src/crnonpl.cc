@@ -155,6 +155,15 @@ const int FUNCTION_QUEUE = 3;
 const int FUNCTION_TELEPORT = 1;
 const int FUNCTION_STARTPOSITION = 2;
 
+// How a monster chooses its target (TRaceData::Strategy, the chance of each
+// in percent): the nearest creature, the one with the fewest hit points, the
+// one that did the monster the most damage, or any (the random tie breaker
+// alone decides).
+const int STRATEGY_NEAREST = 0;
+const int STRATEGY_WEAKEST = 1;
+const int STRATEGY_MOST_DAMAGE = 2;
+const int STRATEGY_RANDOM = 3;
+
 struct TNode {
 	int Type;
 	int Data;
@@ -1438,7 +1447,7 @@ void ProcessMonsterhomes() {
 		int y = MH.y;
 		int z = MH.z;
 		int MaxRadius = std::min(10, MH.Radius);
-		TFindCreatures Search(MaxRadius + 9, MaxRadius + 7, x, y, 1);
+		TFindCreatures Search(MaxRadius + 9, MaxRadius + 7, x, y, FIND_PLAYERS);
 		while (true) {
 			uint32_t ID = Search.getNext();
 			if (ID == 0) {
@@ -1543,11 +1552,11 @@ void TNonplayer::DelInList() {
 TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) {
 	print(1, "Lade NPC-Daten aus Datei %s...\n", FileName);
 	this->Type = NPC;
-	this->Sex = 1;
+	this->Sex = SEX_MALE;
 	this->Race = 0;
 	this->Outfit = TOutfit();
 	this->posz = 255;
-	this->Direction = 2;
+	this->Direction = DIRECTION_SOUTH;
 	this->Name[0] = 0;
 	this->Topic = 0;
 	this->Price = 0;
@@ -1582,10 +1591,10 @@ TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) 
 			char *value = Script.readIdentifier();
 			this->Sex = 255;
 			if (strcmp(value, "male") == 0) {
-				this->Sex = 1;
+				this->Sex = SEX_MALE;
 			}
 			if (strcmp(value, "female") == 0) {
-				this->Sex = 2;
+				this->Sex = SEX_FEMALE;
 			}
 			if (this->Sex == 255) {
 				Script.error("unknown constant");
@@ -1615,8 +1624,8 @@ TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) 
 				throw "gostrength before race in npc-script-file";
 			}
 			int GoStrength = Script.readNumber();
-			this->Skills[4]->SetAct(GoStrength);
-			this->Skills[4]->SetMax(GoStrength);
+			this->Skills[SKILL_GOSTRENGTH]->SetAct(GoStrength);
+			this->Skills[SKILL_GOSTRENGTH]->SetMax(GoStrength);
 		}
 
 		if (strcmp(Ident, "behaviour") == 0) {
@@ -1738,7 +1747,7 @@ Again:
 		return;
 	}
 
-	TFindCreatures Search(10, 10, this->ID, 1);
+	TFindCreatures Search(10, 10, this->ID, FIND_PLAYERS);
 	if (Search.getNext() == 0) {
 		this->State = SLEEPING;
 		return;
@@ -1780,7 +1789,7 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 		if (CreatureID == this->QueuedPlayers(i) || CreatureID == this->ID) {
 			TCreature *cr = GetCreature(this->QueuedPlayers(i));
 			// cr is not checked for NULL, as in the original.
-			if (Type == 0
+			if (Type == OBJECT_DELETED
 					|| abs(cr->posx - this->posx) >= 5
 					|| abs(cr->posy - this->posy) >= 4
 					|| cr->posz != this->posz) {
@@ -1805,12 +1814,12 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 				return;
 			}
 
-			if (Type != 0) {
+			if (Type != OBJECT_DELETED) {
 				this->TurnToInterlocutor();
 			}
 
 			if (this->State != LEAVING) {
-				if (Type == 0
+				if (Type == OBJECT_DELETED
 						|| abs(cr->posx - this->posx) >= 5
 						|| abs(cr->posy - this->posy) >= 4
 						|| cr->posz != this->posz) {
@@ -1826,7 +1835,7 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 		return;
 	}
 
-	if (this->State == SLEEPING && Type != 0) {
+	if (this->State == SLEEPING && Type != OBJECT_DELETED) {
 		this->State = IDLE;
 		this->ToDoYield();
 	}
@@ -1949,15 +1958,15 @@ void TNPC::TurnToInterlocutor() {
 	int Dir;
 	if (abs(dx) < abs(dy)) {
 		if (dy < 0) {
-			Dir = 0;
+			Dir = DIRECTION_NORTH;
 		} else {
-			Dir = 2;
+			Dir = DIRECTION_SOUTH;
 		}
 	} else {
 		if (dx < 0) {
-			Dir = 3;
+			Dir = DIRECTION_WEST;
 		} else {
-			Dir = 1;
+			Dir = DIRECTION_EAST;
 		}
 	}
 	this->Rotate((unsigned char)Dir);
@@ -2035,7 +2044,7 @@ TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 
 	if (this->Master == 0 && RaceData[Race].Items > 0) {
 		try {
-			Object Bag = Create(GetBodyContainer(this->ID, 3), GetSpecialObject(INVENTORY_CONTAINER), 0);
+			Object Bag = Create(GetBodyContainer(this->ID, BODY_CONTAINER), GetSpecialObject(INVENTORY_CONTAINER), 0);
 			for (int i = 1; i <= RaceData[Race].Items; i++) {
 				TItemData &I = RaceData[Race].Item(i);
 				if (random(0, 999) > I.Probability) {
@@ -2085,14 +2094,14 @@ TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 	}
 
 	this->Combat.CheckCombatValues();
-	this->Combat.SetAttackMode(2);
+	this->Combat.SetAttackMode(ATTACK_MODE_BALANCED);
 	this->ToDoWait(0);
 	this->ToDoStart();
 }
 
 TMonster::~TMonster() {
 	if (!this->IsDead) {
-		GraphicalEffect(this->posx, this->posy, this->posz, 3);
+		GraphicalEffect(this->posx, this->posy, this->posz, EFFECT_POFF);
 	} else if (this->Master == 0) {
 		this->Combat.DistributeExperiencePoints(RaceData[this->Race].ExperiencePoints);
 	}
@@ -2128,9 +2137,9 @@ void TMonster::IdleStimulus() {
 	if (this->Master != 0) {
 		TCreature *master = GetCreature(this->Master);
 		if (master == nullptr) {
-			if (this->Master >= 0x40000000) {
+			if (this->Master >= FIRST_NONPLAYER_CREATURE_ID) {
 				print(3, "Kreatur %s verliert ihr Mutter-Monster.\n", this->Name);
-				this->Skills[2]->Set(0);
+				this->Skills[SKILL_HITPOINTS]->Set(0);
 				this->Death();
 			} else {
 				print(3, "Kreatur %s verliert ihren Spieler-Master.\n", this->Name);
@@ -2140,7 +2149,7 @@ void TMonster::IdleStimulus() {
 			return;
 		}
 
-		if (this->Master < 0x40000000 && master->SummonedCreatures == 0) {
+		if (this->Master < FIRST_NONPLAYER_CREATURE_ID && master->SummonedCreatures == 0) {
 			print(3, "Spieler-Master hat sich eben wieder neu eingeloggt.\n");
 			this->StartLogout(true, true);
 			this->State = SLEEPING;
@@ -2151,12 +2160,12 @@ void TMonster::IdleStimulus() {
 					&& (abs(this->posz - master->posz) > 1
 						|| abs(this->posx - master->posx) > 30
 						|| abs(this->posy - master->posy) > 30))
-				|| (this->posz != master->posz && this->Master >= 0x40000000)) {
-			if (this->Master < 0x40000000) {
+				|| (this->posz != master->posz && this->Master >= FIRST_NONPLAYER_CREATURE_ID)) {
+			if (this->Master < FIRST_NONPLAYER_CREATURE_ID) {
 				print(3, "Spieler-Master ist zu weit entfernt.\n");
 				this->StartLogout(true, true);
 			} else {
-				this->Skills[2]->Set(0);
+				this->Skills[SKILL_HITPOINTS]->Set(0);
 				this->Death();
 				print(3, "Mutter-Monster ist zu weit entfernt.\n");
 			}
@@ -2240,7 +2249,7 @@ void TMonster::IdleStimulus() {
 				StrategySelection -= RaceData[this->Race].Strategy[i];
 			}
 
-			TFindCreatures Search(12, 12, this->ID, 5);
+			TFindCreatures Search(12, 12, this->ID, FIND_PLAYERS | FIND_MONSTERS);
 			while (true) {
 				uint32_t ID = Search.getNext();
 				if (ID == 0) {
@@ -2296,16 +2305,16 @@ void TMonster::IdleStimulus() {
 
 				int NewGoodness;
 				switch (Strategy) {
-					case 0:
+					case STRATEGY_NEAREST:
 						NewGoodness = -(dx + dy);
 						break;
-					case 1:
-						NewGoodness = -cr->Skills[2]->Get();
+					case STRATEGY_WEAKEST:
+						NewGoodness = -cr->Skills[SKILL_HITPOINTS]->Get();
 						break;
-					case 2:
+					case STRATEGY_MOST_DAMAGE:
 						NewGoodness = (int)this->Combat.GetDamageByCreature(cr->ID);
 						break;
-					case 3:
+					case STRATEGY_RANDOM:
 						NewGoodness = 0;
 						break;
 					default:
@@ -2355,7 +2364,7 @@ void TMonster::IdleStimulus() {
 			}
 
 			if (this->Master == 0
-					&& this->Skills[2]->Get() <= RaceData[this->Race].FleeThreshold
+					&& this->Skills[SKILL_HITPOINTS]->Get() <= RaceData[this->Race].FleeThreshold
 					&& random(1, 3) != 1) {
 				continue;
 			}
@@ -2451,7 +2460,7 @@ void TMonster::IdleStimulus() {
 		}
 
 		try {
-			if (this->Master == 0 && this->Skills[2]->Get() <= RaceData[this->Race].FleeThreshold) {
+			if (this->Master == 0 && this->Skills[SKILL_HITPOINTS]->Get() <= RaceData[this->Race].FleeThreshold) {
 				int x;
 				int y;
 				int z;
@@ -2477,13 +2486,13 @@ void TMonster::IdleStimulus() {
 				this->ToDoStart();
 				return;
 			} else {
-				if (this->Skills[11]->Get() > 0 && this->State != PANIC) {
+				if (this->Skills[SKILL_FISTFIGHTING]->Get() > 0 && this->State != PANIC) {
 					this->State = ATTACKING;
 				}
 
 				if (this->State == ATTACKING || this->State == PANIC) {
 					this->Combat.SetAttackDest(this->Target, false);
-					this->Combat.SetChaseMode(0);
+					this->Combat.SetChaseMode(CHASE_MODE_STAND);
 				}
 
 				if (RaceData[this->Race].DistanceFighting
@@ -2520,7 +2529,7 @@ void TMonster::IdleStimulus() {
 						this->ToDoGo(target->posx, target->posy, target->posz, false, Distance - 4);
 					}
 				} else {
-					this->Combat.SetChaseMode(1);
+					this->Combat.SetChaseMode(CHASE_MODE_FOLLOW);
 					if (abs(this->posx - target->posx) <= 1 && abs(this->posy - target->posy) <= 1) {
 						int destX = this->posx;
 						int destY = this->posy;
@@ -2618,14 +2627,14 @@ RandomMove:
 
 void TMonster::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	if (CreatureID == this->ID) {
-		if (this->State == SLEEPING && Type != 0) {
+		if (this->State == SLEEPING && Type != OBJECT_DELETED) {
 			this->State = IDLE;
 			this->ToDoYield();
 		}
 		return;
 	}
 
-	if (this->State == SLEEPING && Type != 0) {
+	if (this->State == SLEEPING && Type != OBJECT_DELETED) {
 		TCreature *cr = GetCreature(CreatureID);
 		if (cr == nullptr) {
 			error("TMonster::CreatureMoveStimulus: Kreatur %d existiert nicht.\n", CreatureID);
@@ -2689,7 +2698,7 @@ bool TMonster::MovePossible(int x, int y, int z, bool Execute, bool) {
 		return false;
 	}
 
-	if (this->Skills[4]->GetAct() < 0) {
+	if (this->Skills[SKILL_GOSTRENGTH]->GetAct() < 0) {
 		error("TMonster::MovePossible: Monster %s an [%d,%d,%d] darf sich nicht bewegen.\n",
 				this->Name, this->posx, this->posy, this->posz);
 		return false;
@@ -2801,9 +2810,9 @@ Again:
 
 			if (Obj.getFlag(AVOID)
 					&& !(this->State == PANIC && Obj.getAttribute(AVOIDDAMAGETYPES) != 0)
-					&& !(RaceData[this->Race].NoBurning && Obj.getAttribute(AVOIDDAMAGETYPES) == 4)
-					&& !(RaceData[this->Race].NoPoison && Obj.getAttribute(AVOIDDAMAGETYPES) == 2)
-					&& !(RaceData[this->Race].NoEnergy && Obj.getAttribute(AVOIDDAMAGETYPES) == 8)) {
+					&& !(RaceData[this->Race].NoBurning && Obj.getAttribute(AVOIDDAMAGETYPES) == DAMAGE_FIRE)
+					&& !(RaceData[this->Race].NoPoison && Obj.getAttribute(AVOIDDAMAGETYPES) == DAMAGE_POISON)
+					&& !(RaceData[this->Race].NoEnergy && Obj.getAttribute(AVOIDDAMAGETYPES) == DAMAGE_ENERGY)) {
 				if (Obj.getFlag(UNMOVE)) {
 					return false;
 				}
@@ -2824,7 +2833,7 @@ Again:
 }
 
 bool TMonster::IsPeaceful() {
-	return this->Master != 0 && this->Master < 0x40000000;
+	return this->Master != 0 && this->Master < FIRST_NONPLAYER_CREATURE_ID;
 }
 
 bool TMonster::CanKickBoxes() {
@@ -2864,7 +2873,7 @@ void TMonster::KickBoxes(Object Obj) {
 		} else if (x + 1 != this->posx && ::MovePossible(x + 1, y, z)) {
 			::Move(this->ID, Obj, GetMapContainer(x + 1, y, z), -1, false, NONE);
 		} else {
-			GraphicalEffect(Obj, 4);
+			GraphicalEffect(Obj, EFFECT_BLOCK_HIT);
 			Delete(Obj, -1);
 		}
 	} catch (RESULT r) {
@@ -2929,9 +2938,9 @@ bool TMonster::KickCreature(TCreature *Obstacle) {
 		}
 
 		print(3, "Kein Platz zum Verschieben => T\xf6ten.\n");
-		GraphicalEffect(Obstacle->GetCreatureObject(), 4);
-		Obstacle->Combat.AddDamageToCombatList(this->ID, (unsigned short)Obstacle->Skills[2]->Get());
-		Obstacle->Skills[2]->Set(0);
+		GraphicalEffect(Obstacle->GetCreatureObject(), EFFECT_BLOCK_HIT);
+		Obstacle->Combat.AddDamageToCombatList(this->ID, (unsigned short)Obstacle->Skills[SKILL_HITPOINTS]->Get());
+		Obstacle->Skills[SKILL_HITPOINTS]->Set(0);
 		Obstacle->Death();
 	} catch (RESULT r) {
 		error("TMonster::KickCreature: Exception %d, Kreatur %s.\n", r, Obstacle->Name);
@@ -2984,7 +2993,7 @@ void TMonster::SetTarget(TCreature *NewTarget) {
 }
 
 TCreature *CreateMonster(int Race, int x, int y, int z, int Home, uint32_t Father, bool ShowEffect) {
-	if (Race < 1 || Race > 511) {
+	if (Race < 1 || Race > MAX_RACES - 1) {
 		error("CreateMonster: Ung\xfcltige Rassennummer %d.\n", Race);
 		return nullptr;
 	}
@@ -2997,7 +3006,7 @@ TCreature *CreateMonster(int Race, int x, int y, int z, int Home, uint32_t Fathe
 	SearchFreeField(x, y, z, 2, 0, false);
 	TMonster *cr = new TMonster(Race, x, y, z, Home, Father);
 	if (ShowEffect) {
-		GraphicalEffect(x, y, z, 11);
+		GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	}
 	return cr;
 }
