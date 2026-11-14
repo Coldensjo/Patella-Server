@@ -123,10 +123,10 @@ struct TSkillCarryStrength : public TSkillAdd {
 	virtual void Set(int a);
 };
 
-// std::__cmath_power<double> of the original's libstdc++ 3.2, which its
-// pow(double, int) goes through. Today's pow(double, int) is libm's
-// pow(double, double) and rounds differently, which moves skill thresholds.
-// The x87 code keeps __x and __y on the register stack and returns the result
+// pow(double, int) as libstdc++ 3.2 computes it (std::__cmath_power<double>),
+// which gives the skill thresholds. Today's pow(double, int) is libm's
+// pow(double, double) and rounds differently, which would move them. __x and
+// __y are kept in x87 extended precision and the result is returned
 // unrounded, hence long double (the 80-bit x87 type on x86-64 Linux).
 static long double __cmath_power(double __x_, unsigned int __n) {
 	long double __x = __x_;
@@ -140,7 +140,7 @@ static long double __cmath_power(double __x_, unsigned int __n) {
 	return __y;
 }
 
-// std::__pow_helper<double> of the same libstdc++, the body of pow(double, int).
+// std::__pow_helper<double> of libstdc++ 3.2, the body of its pow(double, int).
 static long double __pow_helper(double __x, int __n) {
 	return __n < 0
 		? 1.0L / __cmath_power(__x, -__n)
@@ -221,8 +221,6 @@ int GetSkillByName(char *Name) {
 }
 
 TSkillBase::TSkillBase() {
-	// The original loop runs to i <= 25, one past both arrays. The extra round
-	// only clears TimerList[0] and FirstFreeTimer, which are cleared anyway.
 	for (int i = 0; i < MAX_SKILLS; i++) {
 		Skills[i] = nullptr;
 		TimerList[i] = nullptr;
@@ -782,9 +780,9 @@ int TSkillProbe::GetExpForLevel(int Level) {
 		return (Level - Min) * Delta;
 	}
 
-	// The x87 code computes in extended precision and rounds to double only
-	// where it stores: FP, and the result of floor(). A result outside of int
-	// (or NaN) converts to INT_MIN, as fistp does.
+	// Computed in x87 extended precision and rounded to double only at FP and
+	// at the result of floor(), which keeps the skill thresholds. A result
+	// outside of int (or NaN) converts to INT_MIN, as x87's fistp does.
 	double FP = (double)((long double)FactorPercent / 1000.0L);
 	return (int)(double)floorl((__pow_helper(FP, Level - Min) - 1.0L) / (FP - 1.0L) * Delta);
 }
@@ -892,8 +890,8 @@ int TSkillProbe::ProbeValue(int max, bool _Increase) {
 }
 
 void TSkillProbe::ChangeSkill(int fp, int delta) {
-	// As in GetExpForLevel: extended precision, rounded to double only where
-	// the x87 code stores (Progress, FP and the results of floor()).
+	// As in GetExpForLevel: extended precision, rounded to double only at
+	// Progress, FP and the results of floor().
 	double Progress = 0.0;
 	if (NextLevel > LastLevel) {
 		double ExpGained = Exp - LastLevel;
