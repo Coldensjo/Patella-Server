@@ -129,6 +129,10 @@ const int CONJURE_EXPLOSIVE_ARROW = 2;
 const int CONJURE_BOLT = 3;
 const int CONJURE_POWER_BOLT = 4;
 
+// The creatures a player can have summoned or convinced at once
+// (SummonCreature, Convince).
+const int MAX_SUMMONS = 2;
+
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
 int Direction(int dx, int dy) {
@@ -281,7 +285,7 @@ void CheckAffectedPlayers(TCreature *cr, int x, int y, int z) {
 		throw ERROR;
 	}
 
-	if (cr->Type != PLAYER || cr->Combat.GetSecureMode() == 0 || WorldType != NORMAL) {
+	if (cr->Type != PLAYER || cr->Combat.GetSecureMode() == SECURE_MODE_OFF || WorldType != NORMAL) {
 		return;
 	}
 
@@ -631,7 +635,7 @@ TSummonImpact::TSummonImpact(TCreature *_Actor, int _Race, int _Maximum) {
 		error("TSummonImpact::TSummonImpact: Actor ist NULL.\n");
 	}
 
-	if (!in(_Race, 1, 511)) {
+	if (!in(_Race, 1, MAX_RACES - 1)) {
 		error("TSummonImpact::TSummonImpact: Ung\xfcltige Rassennummer %d.\n", _Race);
 	}
 
@@ -645,7 +649,7 @@ void TSummonImpact::handleField(int x, int y, int z) {
 		return;
 	}
 
-	if (in(Race, 1, 511) && Actor->SummonedCreatures < Maximum
+	if (in(Race, 1, MAX_RACES - 1) && Actor->SummonedCreatures < Maximum
 			&& SearchSummonField(x, y, z, 2)) {
 		CreateMonster(Race, x, y, z, 0, Actor->ID, true);
 	}
@@ -818,25 +822,25 @@ void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, in
 			int y;
 			int z = Actor->posz;
 			switch (Actor->Direction) {
-				case 0: {
+				case DIRECTION_NORTH: {
 					x = Actor->posx + j;
 					y = Actor->posy - i;
 					break;
 				}
 
-				case 1: {
+				case DIRECTION_EAST: {
 					x = Actor->posx + i;
 					y = Actor->posy + j;
 					break;
 				}
 
-				case 2: {
+				case DIRECTION_SOUTH: {
 					x = Actor->posx + j;
 					y = Actor->posy + i;
 					break;
 				}
 
-				case 3: {
+				case DIRECTION_WEST: {
 					x = Actor->posx - i;
 					y = Actor->posy + j;
 					break;
@@ -924,7 +928,7 @@ void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, 
 	int x, y, z;
 	GetObjectCoordinates(Target, x, y, z);
 	if (!Target.isCreature()) {
-		Target = GetFirstSpecObject(x, y, z, ObjectType(99));
+		Target = GetFirstSpecObject(x, y, z, ObjectType(TYPEID_CREATURE));
 	}
 
 	if (Target == NONE) {
@@ -1021,10 +1025,10 @@ void CreateField(TCreature *cr, int Mana, int SoulPoints, int Type) {
 	int y = cr->posy;
 	int z = cr->posz;
 	switch (cr->Direction) {
-		case 0: y -= 1; break;
-		case 1: x += 1; break;
-		case 2: y += 1; break;
-		case 3: x -= 1; break;
+		case DIRECTION_NORTH: y -= 1; break;
+		case DIRECTION_EAST: x += 1; break;
+		case DIRECTION_SOUTH: y += 1; break;
+		case DIRECTION_WEST: x -= 1; break;
 	}
 
 	if (cr->Type == PLAYER && !CheckRight(cr->ID, ATTACK_EVERYWHERE) && IsProtectionZone(x, y, z)) {
@@ -1255,22 +1259,22 @@ void CleanupField(TCreature *cr) {
 	}
 
 	switch (cr->Direction) {
-		case 0: {
+		case DIRECTION_NORTH: {
 			CleanupField(cr, GetMapContainer(cr->posx, cr->posy - 1, cr->posz), 0, 0);
 			break;
 		}
 
-		case 1: {
+		case DIRECTION_EAST: {
 			CleanupField(cr, GetMapContainer(cr->posx + 1, cr->posy, cr->posz), 0, 0);
 			break;
 		}
 
-		case 2: {
+		case DIRECTION_SOUTH: {
 			CleanupField(cr, GetMapContainer(cr->posx, cr->posy + 1, cr->posz), 0, 0);
 			break;
 		}
 
-		case 3: {
+		case DIRECTION_WEST: {
 			CleanupField(cr, GetMapContainer(cr->posx - 1, cr->posy, cr->posz), 0, 0);
 			break;
 		}
@@ -1327,7 +1331,7 @@ void Teleport(TCreature *cr, char *Param) {
 		}
 
 		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(100);
-		AnnounceChangedCreature(cr->ID, 4);
+		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "fastest", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
@@ -1335,7 +1339,7 @@ void Teleport(TCreature *cr, char *Param) {
 		}
 
 		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(200);
-		AnnounceChangedCreature(cr->ID, 4);
+		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "slow", -1) == 0 || stricmp(Param, "normal", -1) == 0) {
 		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
@@ -1343,7 +1347,7 @@ void Teleport(TCreature *cr, char *Param) {
 		}
 
 		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(0);
-		AnnounceChangedCreature(cr->ID, 4);
+		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else {
 		if (sscanf(Param, "%d,%d,%d", &x, &y, &z) == 3 || sscanf(Param, "[%d,%d,%d]", &x, &y, &z) == 3) {
@@ -1545,10 +1549,10 @@ void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 	int dy = y;
 	int dz = z;
 	switch (cr->Direction) {
-		case 0: dy -= 1; break;
-		case 1: dx += 1; break;
-		case 2: dy += 1; break;
-		case 3: dx -= 1; break;
+		case DIRECTION_NORTH: dy -= 1; break;
+		case DIRECTION_EAST: dx += 1; break;
+		case DIRECTION_SOUTH: dy += 1; break;
+		case DIRECTION_WEST: dx -= 1; break;
 	}
 
 	if (z > 0 && stricmp(Direction, "up", -1) == 0) {
@@ -1626,7 +1630,7 @@ void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 		Type = GetObjectTypeByName(Param1, true);
 	} else {
 		int TypeID = atoi(Param1);
-		if (TypeID > ObjectType(99).getTypeID() && ObjectTypeExists(TypeID)) {
+		if (TypeID > ObjectType(TYPEID_CREATURE).getTypeID() && ObjectTypeExists(TypeID)) {
 			Type = TypeID;
 		}
 
@@ -1765,7 +1769,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 		throw ERROR;
 	}
 
-	if (Race < 1 || Race > 511) {
+	if (Race < 1 || Race > MAX_RACES - 1) {
 		error("SummonCreature: Ung\xfcltige Rassennummer %d \xfc" "bergeben.\n", Race);
 		throw ERROR;
 	}
@@ -1779,7 +1783,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 			throw NOTACCESSIBLE;
 		}
 
-		if (cr->Type == PLAYER && cr->SummonedCreatures >= 2) {
+		if (cr->Type == PLAYER && cr->SummonedCreatures >= MAX_SUMMONS) {
 			throw TOOMANYSLAVES;
 		}
 	}
@@ -1811,7 +1815,7 @@ void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
 	}
 
 	int Race = 0;
-	for (int i = 1; i < 512; i++) {
+	for (int i = 1; i < MAX_RACES; i++) {
 		if (stricmp(RaceName, GetRaceName(i), -1) == 0) {
 			Race = i;
 			break;
@@ -1891,7 +1895,7 @@ void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 
 	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	Delete(Obj, -1);
-	CreateMonster(33, x, y, z, 0, cr->ID, true);
+	CreateMonster(RACE_SKELETON, x, y, z, 0, cr->ID, true);
 }
 
 void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
@@ -1935,7 +1939,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 					int sz = z;
 					if (SearchFreeField(sx, sy, sz, 1, 0, false) && !IsProtectionZone(sx, sy, sz)) {
 						Delete(Help, -1);
-						CreateMonster(33, sx, sy, sz, 0, cr->ID, false);
+						CreateMonster(RACE_SKELETON, sx, sy, sz, 0, cr->ID, false);
 					}
 				}
 			}
@@ -2247,13 +2251,13 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 				dest->SetTimer(SKILL_ILLUSION, 0, 0, 0, -1);
 				if (dest->Skills[SKILL_ILLUSION]->Get() == 0) {
 					dest->Outfit = dest->OrgOutfit;
-					AnnounceChangedCreature(dest->ID, 3);
-					NotifyAllCreatures(dest->GetCreatureObject(), 2, NONE);
+					AnnounceChangedCreature(dest->ID, CREATURE_OUTFIT);
+					NotifyAllCreatures(dest->GetCreatureObject(), OBJECT_CHANGED, NONE);
 				} else {
 					GraphicalEffect(dx, dy, z, EFFECT_BLOCK_HIT);
 					EffectShown = true;
 					if (WorldType == PVP_ENFORCED) {
-						for (int b = 1; b <= 10; b++) {
+						for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION; b++) {
 							Object Item = GetBodyObject(dest->ID, b);
 							if (Item != NONE
 									&& Item.getFlag(SKILLBOOST)
@@ -2288,7 +2292,7 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 	}
 
 	int Race = 0;
-	for (int i = 1; i < 512; i++) {
+	for (int i = 1; i < MAX_RACES; i++) {
 		if (stricmp(RaceName, GetRaceName(i), -1) == 0) {
 			Race = i;
 			break;
@@ -2362,8 +2366,8 @@ void ChangeData(TCreature *cr, char *Param) {
 		return;
 	}
 
-	Object Obj = GetBodyObject(cr->ID, 5);
-	Object Obj2 = GetBodyObject(cr->ID, 6);
+	Object Obj = GetBodyObject(cr->ID, BODY_RIGHTHAND);
+	Object Obj2 = GetBodyObject(cr->ID, BODY_LEFTHAND);
 	if (Obj != NONE && Obj2 != NONE) {
 		SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "First drop one object.");
 		return;
@@ -2414,9 +2418,9 @@ void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, O
 		throw ERROR;
 	}
 
-	Object Obj = GetBodyObject(cr->ID, 5);
+	Object Obj = GetBodyObject(cr->ID, BODY_RIGHTHAND);
 	if (Obj == NONE || Obj.getObjectType() != Origin) {
-		Obj = GetBodyObject(cr->ID, 6);
+		Obj = GetBodyObject(cr->ID, BODY_LEFTHAND);
 		if (Obj == NONE || Obj.getObjectType() != Origin) {
 			throw MAGICITEM;
 		}
@@ -2432,7 +2436,7 @@ void Convince(TCreature *master, TCreature *slave) {
 		throw ATTACKNOTALLOWED;
 	}
 
-	if (master->Type == PLAYER && master->SummonedCreatures > 1) {
+	if (master->Type == PLAYER && master->SummonedCreatures > MAX_SUMMONS - 1) {
 		throw TOOMANYSLAVES;
 	}
 
@@ -2462,7 +2466,7 @@ void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
 			}
 
 			GraphicalEffect(dx, dy, cr->posz, EFFECT_MAGIC_BLUE);
-			Object Obj = GetFirstSpecObject(dx, dy, cr->posz, ObjectType(99));
+			Object Obj = GetFirstSpecObject(dx, dy, cr->posz, ObjectType(TYPEID_CREATURE));
 			if (Obj != NONE) {
 				TCreature *dest = GetCreature(Obj);
 				if (dest == nullptr) {
@@ -2604,7 +2608,7 @@ void GetQuestValue(TCreature *cr, char *Param) {
 
 	// The original's 32-bit strtol saturates at the int range.
 	int Number = (int)std::clamp(strtol(Param, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
-	if (in(Number, 0, 499)) {
+	if (in(Number, 0, MAX_QUESTS - 1)) {
 		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Quest value %d is %d.", Number, pl->GetQuestValue(Number));
 	} else {
 		SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Invalid quest number.");
@@ -2639,7 +2643,7 @@ void SetQuestValue(TCreature *cr, char *Param1, char *Param2) {
 
 	int Number = (int)std::clamp(strtol(Param1, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
 	int Value = (int)std::clamp(strtol(Param2, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
-	if (!in(Number, 0, 499)) {
+	if (!in(Number, 0, MAX_QUESTS - 1)) {
 		SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Invalid quest number.");
 		return;
 	}
@@ -2664,7 +2668,7 @@ void ClearQuestValues(TCreature *cr) {
 		return;
 	}
 
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < MAX_QUESTS; i++) {
 		pl->SetQuestValue(i, 0);
 	}
 
@@ -2733,29 +2737,29 @@ void ChangeProfession(TCreature *cr, char *Param) {
 	}
 
 	if (stricmp(Param, "male", -1) == 0) {
-		pl->Sex = 1;
+		pl->Sex = SEX_MALE;
 	} else if (stricmp(Param, "female", -1) == 0) {
-		pl->Sex = 2;
+		pl->Sex = SEX_FEMALE;
 	} else if (stricmp(Param, "none", -1) == 0) {
 		pl->ClearProfession();
 	} else if (stricmp(Param, "knight", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(1);
+		pl->SetProfession(PROFESSION_KNIGHT);
 	} else if (stricmp(Param, "paladin", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(2);
+		pl->SetProfession(PROFESSION_PALADIN);
 	} else if (stricmp(Param, "sorcerer", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(3);
+		pl->SetProfession(PROFESSION_SORCERER);
 	} else if (stricmp(Param, "druid", -1) == 0) {
 		pl->ClearProfession();
-		pl->SetProfession(4);
+		pl->SetProfession(PROFESSION_DRUID);
 	} else if (stricmp(Param, "promote", -1) == 0) {
-		if (pl->GetRealProfession() == 0 || pl->GetRealProfession() >= 10) {
+		if (pl->GetRealProfession() == PROFESSION_NONE || pl->GetRealProfession() >= PROFESSION_PROMOTION) {
 			return;
 		}
 
-		pl->SetProfession(10);
+		pl->SetProfession(PROFESSION_PROMOTION);
 	} else {
 		return;
 	}
@@ -2867,16 +2871,16 @@ void EditNameDoor(TCreature *cr) {
 
 	if (Door == NONE) {
 		switch (pl->Direction) {
-			case 0:
+			case DIRECTION_NORTH:
 				y--;
 				break;
-			case 1:
+			case DIRECTION_EAST:
 				x++;
 				break;
-			case 2:
+			case DIRECTION_SOUTH:
 				y++;
 				break;
-			case 3:
+			case DIRECTION_WEST:
 				x--;
 				break;
 		}
@@ -3477,8 +3481,8 @@ void RuneSpell(uint32_t CreatureID, int SpellNr) {
 		throw ERROR;
 	}
 
-	Object Obj1 = GetBodyObject(CreatureID, 5);
-	Object Obj2 = GetBodyObject(CreatureID, 6);
+	Object Obj1 = GetBodyObject(CreatureID, BODY_RIGHTHAND);
+	Object Obj2 = GetBodyObject(CreatureID, BODY_LEFTHAND);
 	CheckSpellbook(cr, SpellNr);
 	CheckAccount(cr, SpellNr);
 	CheckLevel(cr, SpellNr);
@@ -3950,7 +3954,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
-				if (pl->GetEffectiveProfession() != 4) {
+				if (pl->GetEffectiveProfession() != PROFESSION_DRUID) {
 					throw NOTUSABLE;
 				}
 				MagicGoStrength(pl, dest, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, -101, 1);
@@ -4014,11 +4018,11 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 
 	int Refresh;
 	switch (Obj.getAttribute(CONTAINERLIQUIDTYPE)) {
-		case 10:
+		case LIQUID_MANAFLUID:
 			Refresh = ComputeDamage(nullptr, 0, 100, 50);
 			RefreshMana(pl, 0, 0, Refresh);
 			break;
-		case 11:
+		case LIQUID_LIFEFLUID:
 			Refresh = ComputeDamage(nullptr, 0, 50, 25);
 			Heal(pl, 0, 0, Refresh);
 			break;
@@ -4027,7 +4031,7 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 			throw ERROR;
 	}
 
-	Change(Obj, CONTAINERLIQUIDTYPE, 0);
+	Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 }
 
 void InitCircles() {
