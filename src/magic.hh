@@ -11,7 +11,6 @@
 
 struct Object;
 struct ObjectType;
-struct TCircle;
 struct TCreature;
 struct TSpellList;
 
@@ -188,7 +187,6 @@ int CheckForSpell(uint32_t CreatureID, char *Text);
 void DeleteRune(Object Obj);
 void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest);
 void DrinkPotion(uint32_t CreatureID, Object Obj);
-void InitCircles();
 TSpellList *CreateSpell(int SpellNr, ...);
 void InitSpells();
 void InitMagic();
@@ -197,7 +195,6 @@ void InitMagic();
 const int MAX_SYLLABLES = 51;
 
 extern char SpellSyllable[MAX_SYLLABLES][6];
-extern TCircle Circle[10];
 extern TSpellList SpellList[MAX_SPELLS];
 
 #endif

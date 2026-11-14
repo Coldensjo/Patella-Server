@@ -3,7 +3,7 @@
 // (spellbook, level, mana, ...); the impacts (TImpact) and the shapes that
 // apply them to fields and creatures, which the monsters' spells use too; the
 // spell functions, from attack and healing spells to the gamemasters'
-// commands; runes, magic items and potions; and the circles of circles.dat.
+// commands; runes, magic items and potions. The circles are in magicdata.cc.
 
 #include <algorithm>
 #include <climits>
@@ -23,6 +23,7 @@
 #include "connections.hh"
 #include "operate.hh"
 #include "magic.hh"
+#include "magicdata.hh"
 #include "utils.hh"
 #include "time.hh"
 #include "TXTEASymmetricKey.hh"
@@ -34,15 +35,8 @@
 #include "writer.hh"
 #include <cstdarg>
 #include <cstring>
-#include <fstream>
 #include <sstream>
 #include "houses.hh"
-
-struct TCircle {
-	int x[32];
-	int y[32];
-	int Count;
-};
 
 // The words a spell can have, its class syllable included (TSpellList's
 // Syllable, CheckForSpell); a shorter spell ends with syllable 0.
@@ -133,7 +127,6 @@ char SpellSyllable[MAX_SYLLABLES][6] = {
 	"",
 	"",
 };
-TCircle Circle[10];
 TSpellList SpellList[MAX_SPELLS];
 
 // The spell numbers (SpellList), named after the spell names InitSpells
@@ -4144,47 +4137,6 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 	Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 }
 
-void InitCircles() {
-	char FileName[4096];
-	std::ifstream IN;
-	int X, Y, Center;
-	for (int i = 0; i < 10; i++) {
-		memset(&Circle[i], 0, sizeof(TCircle));
-	}
-
-	sprintf(FileName, "%s/circles.dat", DATAPATH);
-	IN.open(FileName);
-	if (IN.fail()) {
-		error("InitCircles: Kann Datei %s nicht \xf6" "ffnen.\n", FileName);
-		throw "Cannot open \"circles.dat\"";
-	}
-
-	IN >> X;
-	IN >> Y;
-	IN >> Center;
-	if (X < 1 || X > 21 || Y < 1 || Y > 21) {
-		error("InitCircles: Ung\xfcltiges Dateiformat.\n");
-		throw "Cannot process \"circles.dat\"";
-	}
-
-	// Quirk: an entry that cannot be read, and every one after it (the stream
-	// stays failed), takes the last radius read, or 0 before the first.
-	int rad = 0;
-	for (int y = 0; y < Y; y++) {
-		for (int x = 0; x < X; x++) {
-			int Value;
-			if (IN >> Value) {
-				rad = Value;
-			}
-			if (rad < 10) {
-				Circle[rad].x[Circle[rad].Count] = x - Center;
-				Circle[rad].y[Circle[rad].Count] = y - Center;
-				Circle[rad].Count++;
-			}
-		}
-	}
-}
-
 TSpellList *CreateSpell(int SpellNr, ...) {
 	va_list va;
 	va_start(va, SpellNr);
@@ -4912,7 +4864,7 @@ static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool
 
 // EnchantObject through HomeTeleport, CharacterRightSpell, AccountRightSpell,
 // CastSpell, RuneSpell, DeleteRune, UseMagicItem, DrinkPotion and the static
-// CreateField report a failure by throwing a RESULT, and InitCircles,
-// CreateSpell, InitSpells and InitMagic by throwing a const char *. They have
-// no exception specification (C++17 has none), so an exception of another
-// type passes to the caller too.
+// CreateField report a failure by throwing a RESULT, and CreateSpell,
+// InitSpells and InitMagic by throwing a const char * (InitCircles, which
+// InitMagic calls, throws one too). They have no exception specification
+// (C++17 has none), so an exception of another type passes to the caller too.

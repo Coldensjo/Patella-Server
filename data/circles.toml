@@ -1,0 +1,30 @@
+# circles.toml: the circles of the game server, the area shapes its spells and
+# the monsters' spells hit, converted from the original circles.dat by
+# patella-convert. The game reads circles.toml in its data folder ([paths]
+# data of config.toml). Anything but rows, or a row that breaks the rules
+# below, is an error.
+#
+# rows is a square of fields, as many rows as fields in a row (an odd number,
+# at most 21), whose middle field is the center: the caster, or the field a
+# spell is aimed at. The rows go from north to south, the fields of a row,
+# separated by single spaces, from west to east. A digit puts the field into
+# the circle of that radius (0 to 9, each of at most 32 fields), "." into
+# none. A spell of radius N hits the circles up to N, one after the other,
+# and the fields of a circle in the order they stand here, row by row; that
+# order decides which creature is hit first.
+
+rows = [
+	". . . . . . 7 . . . . . .",
+	". . . . 7 7 6 7 7 . . . .",
+	". . . 7 6 5 5 5 6 7 . . .",
+	". . 7 6 5 4 4 4 5 6 7 . .",
+	". 7 6 5 4 3 3 3 4 5 6 7 .",
+	". 7 5 4 3 2 1 2 3 4 5 7 .",
+	"7 6 5 4 3 1 0 1 3 4 5 6 7",
+	". 7 5 4 3 2 1 2 3 4 5 7 .",
+	". 7 6 5 4 3 3 3 4 5 6 7 .",
+	". . 7 6 5 4 4 4 5 6 7 . .",
+	". . . 7 6 5 5 5 6 7 . . .",
+	". . . . 7 7 6 7 7 . . . .",
+	". . . . . . 7 . . . . . .",
+]
