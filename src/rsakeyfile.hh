@@ -32,7 +32,8 @@ struct TRSAKeyFile {
 // one-line text "<FileName>: <what is wrong>" when the file cannot be read,
 // is not an unencrypted RSA private key in PEM, or the key is not one the
 // client can use (modulus of other than 1024 bits, exponent other than
-// 65537, modulus not the product of the primes). The texts never hold a
+// 65537, modulus not the product of the primes, a factor that is not an odd
+// prime). The primality test reads /dev/urandom. The texts never hold a
 // prime.
 TRSAKeyFile ReadRSAKeyFile(const std::string &FileName);
 

@@ -66,6 +66,24 @@ bool equal(const vlong &a, const vlong &b) {
 	return !(a < b) && !(b < a);
 }
 
+// The first odd number from Start up that no number below 2000 but 1 divides.
+vlong noSmallFactor(const Bytes &start) {
+	vlong number = toVlong(start);
+	if (number % 2 == 0) {
+		number = number + 1;
+	}
+	for (;;) {
+		bool found = true;
+		for (int k = 3; k < 2000 && found; k += 2) {
+			found = number % k != 0;
+		}
+		if (found) {
+			return number;
+		}
+		number = number + 2;
+	}
+}
+
 // ---------------------------------------------------------------- DER, built here
 
 Bytes cat(std::initializer_list<Bytes> parts) {
@@ -305,6 +323,31 @@ void testFields(const Fields &key) {
 	// p * p has 1024 bits too: p has 512, the top two set.
 	f.n = toBytes(toVlong(key.p) * toVlong(key.p));
 	REFUSED(pem(f.der()), "the two primes of the key are the same");
+
+	// Factors that are not odd primes, with the modulus their product: an
+	// even one, one with the factor 3, and one with no factor below 2000
+	// (the product of two 256-bit numbers), which only Miller-Rabin finds.
+	vlong q = toVlong(key.q);
+	f = key;
+	f.p = toBytes(toVlong(key.p) + 1);
+	f.n = toBytes(toVlong(f.p) * q);
+	REFUSED(pem(f.der()), "a factor of the modulus is even; the key needs two odd primes");
+	vlong threes = toVlong(key.p) + 2;
+	while (threes % 3 != 0) {
+		threes = threes + 2;
+	}
+	f.p = toBytes(threes);
+	f.n = toBytes(threes * q);
+	REFUSED(pem(f.der()), "a factor of the modulus is not a prime");
+	vlong composite = noSmallFactor(Bytes(32, 0xF1)) * noSmallFactor(Bytes(32, 0xE3));
+	f.p = toBytes(composite);
+	f.n = toBytes(composite * q);
+	CHECK(f.p.size() == 64);
+	REFUSED(pem(f.der()), "a factor of the modulus is not a prime");
+	REFUSED(pem(Fields{Bytes(), f.n, key.e, key.d, f.q, f.p, key.dp, key.dq, key.qinv}.der()),
+		"a factor of the modulus is not a prime");
+	CHECK_THROWS(MakeRSAKeyDER(toDecimal(composite), Q), std::runtime_error);
+	CHECK_THROWS(MakeRSAKeyDER(Q, toDecimal(threes)), std::runtime_error);
 
 	// Version 1 (more than two primes) and other versions.
 	f = key;

@@ -416,69 +416,6 @@ void AppendInteger(TBytes &Out, const TBytes &Value) {
 	Out.insert(Out.end(), Content.begin(), Content.end());
 }
 
-// ---------------------------------------------------------------- checks
-
-// Checks that the primes P and Q make a key the client can use, whose
-// modulus is Modulus (when given), and returns the private exponent.
-TBytes CheckPrimes(const TBytes &P, const TBytes &Q, const TBytes *Modulus, const std::string &Name) {
-	if (Compare(P, TBytes{1}) <= 0 || Compare(Q, TBytes{1}) <= 0) {
-		Fail(Name, "a prime of the key is 0 or 1");
-	}
-	if (Compare(P, Q) == 0) {
-		Fail(Name, "the two primes of the key are the same");
-	}
-	// The product of numbers of a and b bits has a + b - 1 or a + b bits.
-	size_t Bits = BitsOf(P) + BitsOf(Q);
-	if (Bits < static_cast<size_t>(RSA_KEY_BITS) || Bits > static_cast<size_t>(RSA_KEY_BITS) + 1) {
-		Fail(Name, Modulus != nullptr ? "the modulus is not the product of the two primes"
-				: "the product of the two primes does not have " + std::to_string(RSA_KEY_BITS) + " bits");
-	}
-	vlong p = ToVlong(P);
-	vlong q = ToVlong(Q);
-	TBytes Product = FromVlong(p * q);
-	if (Modulus != nullptr && Compare(Product, *Modulus) != 0) {
-		Fail(Name, "the modulus is not the product of the two primes");
-	}
-	if (BitsOf(Product) != static_cast<size_t>(RSA_KEY_BITS)) {
-		Fail(Name, "the product of the two primes does not have " + std::to_string(RSA_KEY_BITS) + " bits");
-	}
-	// TRSAPrivateKey::init computes these two inverses; they exist for two
-	// different primes with 65537 not dividing either less one.
-	vlong e(RSA_KEY_EXPONENT);
-	vlong Phi = (p - 1) * (q - 1);
-	vlong d = vlong::modinv(e, Phi);
-	vlong U = vlong::modinv(p, q);
-	if ((d * e) % Phi != 1 || (U * p) % q != 1) {
-		Fail(Name, "the primes do not make a usable key (65537 has no inverse, or they are not primes)");
-	}
-	return FromVlong(d);
-}
-
-TRSAKeyFile CheckKey(const TKeyParts &Parts, const std::string &Name) {
-	size_t Bits = BitsOf(Parts.Modulus);
-	if (Bits != static_cast<size_t>(RSA_KEY_BITS)) {
-		Fail(Name, "the modulus has " + std::to_string(Bits) + " bits; the client needs " + std::to_string(RSA_KEY_BITS));
-	}
-	vlong Exponent(RSA_KEY_EXPONENT);
-	if (Compare(Parts.PublicExponent, FromVlong(Exponent)) != 0) {
-		Fail(Name, "the public exponent is " + (Parts.PublicExponent.size() <= 8 ? ToDecimal(Parts.PublicExponent)
-				: std::string("very large")) + "; the client needs " + std::to_string(RSA_KEY_EXPONENT));
-	}
-	for (const TBytes *Private : {&Parts.PrivateExponent, &Parts.Exponent1, &Parts.Exponent2, &Parts.Coefficient}) {
-		if (Private->size() > MAX_PRIVATE_INTEGER_SIZE) {
-			Fail(Name, "a private integer of the key is larger than the modulus");
-		}
-	}
-	CheckPrimes(Parts.Prime1, Parts.Prime2, &Parts.Modulus, Name);
-
-	TRSAKeyFile Key;
-	bool FirstSmaller = Compare(Parts.Prime1, Parts.Prime2) < 0;
-	Key.PrimeP = ToDecimal(FirstSmaller ? Parts.Prime1 : Parts.Prime2);
-	Key.PrimeQ = ToDecimal(FirstSmaller ? Parts.Prime2 : Parts.Prime1);
-	Key.Modulus = ToDecimal(Parts.Modulus);
-	return Key;
-}
-
 // ---------------------------------------------------------------- primes
 
 const unsigned int SMALL_PRIMES_LIMIT = 2000;
@@ -510,7 +447,16 @@ private:
 	FILE *File;
 };
 
+// Whether n is a prime, with an error probability of at most 4^-40 for a
+// composite n (Miller-Rabin with random bases, after trial division by the
+// primes below SMALL_PRIMES_LIMIT, which decides small n exactly).
 bool IsProbablePrime(const vlong &n, TRandom &Random) {
+	if (n < 2) {
+		return false;
+	}
+	if (n % 2 == 0) {
+		return n == 2;
+	}
 	for (unsigned int p = 3; p < SMALL_PRIMES_LIMIT; p += 2) {
 		bool PrimeP = true;
 		for (unsigned int k = 3; k * k <= p; k += 2) {
@@ -520,9 +466,11 @@ bool IsProbablePrime(const vlong &n, TRandom &Random) {
 			}
 		}
 		if (PrimeP && n % vlong(p) == 0) {
-			return false;
+			return n == static_cast<int>(p);
 		}
 	}
+	// n is odd and has no factor below SMALL_PRIMES_LIMIT, so n > 2000 and
+	// the bases 2 .. n - 2 below exist.
 
 	vlong NMinus1 = n - 1;
 	vlong d = NMinus1;
@@ -566,6 +514,80 @@ TBytes RandomPrime(TRandom &Random) {
 			return Data;
 		}
 	}
+}
+
+// ---------------------------------------------------------------- checks
+
+// Checks that the primes P and Q make a key the client can use, whose
+// modulus is Modulus (when given), and returns the private exponent.
+TBytes CheckPrimes(const TBytes &P, const TBytes &Q, const TBytes *Modulus, const std::string &Name) {
+	if (Compare(P, TBytes{1}) <= 0 || Compare(Q, TBytes{1}) <= 0) {
+		Fail(Name, "a prime of the key is 0 or 1");
+	}
+	if (Compare(P, Q) == 0) {
+		Fail(Name, "the two primes of the key are the same");
+	}
+	// The product of numbers of a and b bits has a + b - 1 or a + b bits.
+	size_t Bits = BitsOf(P) + BitsOf(Q);
+	if (Bits < static_cast<size_t>(RSA_KEY_BITS) || Bits > static_cast<size_t>(RSA_KEY_BITS) + 1) {
+		Fail(Name, Modulus != nullptr ? "the modulus is not the product of the two primes"
+				: "the product of the two primes does not have " + std::to_string(RSA_KEY_BITS) + " bits");
+	}
+	vlong p = ToVlong(P);
+	vlong q = ToVlong(Q);
+	TBytes Product = FromVlong(p * q);
+	if (Modulus != nullptr && Compare(Product, *Modulus) != 0) {
+		Fail(Name, "the modulus is not the product of the two primes");
+	}
+	if (BitsOf(Product) != static_cast<size_t>(RSA_KEY_BITS)) {
+		Fail(Name, "the product of the two primes does not have " + std::to_string(RSA_KEY_BITS) + " bits");
+	}
+	// TRSAPrivateKey's decryption by the Chinese remainder theorem is right
+	// only for two odd primes: with a composite factor it gives wrong blocks,
+	// and with the factor 2 its exponent d mod (2 - 1) = 0 makes vlong's
+	// modular power loop for minutes.
+	if (p % 2 == 0 || q % 2 == 0) {
+		Fail(Name, "a factor of the modulus is even; the key needs two odd primes");
+	}
+	TRandom Random;
+	if (!IsProbablePrime(p, Random) || !IsProbablePrime(q, Random)) {
+		Fail(Name, "a factor of the modulus is not a prime");
+	}
+	// TRSAPrivateKey::init computes these two inverses; they exist for two
+	// different primes with 65537 not dividing either less one.
+	vlong e(RSA_KEY_EXPONENT);
+	vlong Phi = (p - 1) * (q - 1);
+	vlong d = vlong::modinv(e, Phi);
+	vlong U = vlong::modinv(p, q);
+	if ((d * e) % Phi != 1 || (U * p) % q != 1) {
+		Fail(Name, "the primes do not make a usable key (65537 has no inverse modulo (p - 1)(q - 1))");
+	}
+	return FromVlong(d);
+}
+
+TRSAKeyFile CheckKey(const TKeyParts &Parts, const std::string &Name) {
+	size_t Bits = BitsOf(Parts.Modulus);
+	if (Bits != static_cast<size_t>(RSA_KEY_BITS)) {
+		Fail(Name, "the modulus has " + std::to_string(Bits) + " bits; the client needs " + std::to_string(RSA_KEY_BITS));
+	}
+	vlong Exponent(RSA_KEY_EXPONENT);
+	if (Compare(Parts.PublicExponent, FromVlong(Exponent)) != 0) {
+		Fail(Name, "the public exponent is " + (Parts.PublicExponent.size() <= 8 ? ToDecimal(Parts.PublicExponent)
+				: std::string("very large")) + "; the client needs " + std::to_string(RSA_KEY_EXPONENT));
+	}
+	for (const TBytes *Private : {&Parts.PrivateExponent, &Parts.Exponent1, &Parts.Exponent2, &Parts.Coefficient}) {
+		if (Private->size() > MAX_PRIVATE_INTEGER_SIZE) {
+			Fail(Name, "a private integer of the key is larger than the modulus");
+		}
+	}
+	CheckPrimes(Parts.Prime1, Parts.Prime2, &Parts.Modulus, Name);
+
+	TRSAKeyFile Key;
+	bool FirstSmaller = Compare(Parts.Prime1, Parts.Prime2) < 0;
+	Key.PrimeP = ToDecimal(FirstSmaller ? Parts.Prime1 : Parts.Prime2);
+	Key.PrimeQ = ToDecimal(FirstSmaller ? Parts.Prime2 : Parts.Prime1);
+	Key.Modulus = ToDecimal(Parts.Modulus);
+	return Key;
 }
 
 bool IsIdentifierCharacter(char c) {
