@@ -33,6 +33,20 @@ const int DIRECTION_EAST = 1;
 const int DIRECTION_SOUTH = 2;
 const int DIRECTION_WEST = 3;
 
+// The eight directions counter-clockwise from the east, and COMPASS_NONE for
+// the same field: magic.cc's Direction(), as FindPerson names them (adding 4
+// turns a direction round), and the steps of a path (receiving.cc's CGoPath).
+// They are not the DIRECTION_* values.
+const int COMPASS_NONE = 0;
+const int COMPASS_EAST = 1;
+const int COMPASS_NORTHEAST = 2;
+const int COMPASS_NORTH = 3;
+const int COMPASS_NORTHWEST = 4;
+const int COMPASS_WEST = 5;
+const int COMPASS_SOUTHWEST = 6;
+const int COMPASS_SOUTH = 7;
+const int COMPASS_SOUTHEAST = 8;
+
 // TCreature::Sex.
 const int SEX_MALE = 1;
 const int SEX_FEMALE = 2;
@@ -116,6 +130,11 @@ const int LAST_MALE_OUTFIT = 134;
 const int FIRST_FEMALE_OUTFIT = 136;
 const int LAST_FEMALE_OUTFIT = 142;
 
+// The last outfit of each sex a player without a premium account may wear
+// (receiving.cc's CSetOutfit; sending.cc's SendOutfit offers the same ranges).
+const int LAST_FREE_MALE_OUTFIT = 131;
+const int LAST_FREE_FEMALE_OUTFIT = 139;
+
 // The quest values that TPlayer::Death counts and clears: each one set lowers
 // the share of experience and skills a player loses by one percent point (the
 // blessings).
@@ -125,6 +144,20 @@ const int LAST_BLESSING_QUEST = 105;
 // The container windows a player can have open (TPlayer::OpenContainer; the
 // ContNr of the Send functions).
 const int MAX_OPEN_CONTAINERS = 16;
+
+// TCreature::LoseInventory, what a dying creature leaves in its corpse
+// (TCreature's destructor): nothing, its containers and each other object with
+// a chance of one in ten, or everything. TCreature::TCreature sets
+// LOSE_INVENTORY_ALL; TPlayer sets its own value (crplayer.cc).
+const int LOSE_INVENTORY_NONE = 0;
+const int LOSE_INVENTORY_SOME = 1;
+const int LOSE_INVENTORY_ALL = 2;
+
+// The results of TCreature::LogoutPossible: a logout is possible, the creature
+// fought too recently (EarliestLogoutRound), or it stands on a NoLogout field.
+const int LOGOUT_POSSIBLE = 0;
+const int LOGOUT_AFTER_FIGHT = 1;
+const int LOGOUT_NO_LOGOUT_FIELD = 2;
 
 enum ToDoType {
 	TDWait = 0,

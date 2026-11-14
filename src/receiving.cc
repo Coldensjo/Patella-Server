@@ -37,33 +37,11 @@
 // TConnection::JoinGame.
 const int CL_JOIN_GAME = 0x0B;
 
-// The steps of CGoPath's path, counter-clockwise from east; they are not
-// cr.hh's DIRECTION_* values.
-const int STEP_EAST = 1;
-const int STEP_NORTHEAST = 2;
-const int STEP_NORTH = 3;
-const int STEP_NORTHWEST = 4;
-const int STEP_WEST = 5;
-const int STEP_SOUTHWEST = 6;
-const int STEP_SOUTH = 7;
-const int STEP_SOUTHEAST = 8;
-
-// The last outfit of each sex a player without a premium account may wear
-// (CSetOutfit; SendOutfit offers the same ranges).
-const int LAST_FREE_MALE_OUTFIT = 131;
-const int LAST_FREE_FEMALE_OUTFIT = 139;
-
 // The lists CEditList changes: a house's guests, its subowners (both by house
 // ID) and the names on a name door (by object ID).
 const int EDIT_LIST_HOUSE_GUESTS = 1;
 const int EDIT_LIST_HOUSE_SUBOWNERS = 2;
 const int EDIT_LIST_NAME_DOOR = 3;
-
-// The results of TCreature::LogoutPossible (crmain.cc): a logout is possible,
-// the creature fought too recently, or it stands on a NoLogout field.
-const int LOGOUT_POSSIBLE = 0;
-const int LOGOUT_AFTER_FIGHT = 1;
-const int LOGOUT_NO_LOGOUT_FIELD = 2;
 
 // Every command handler that takes a TReadBuffer is declared
 // throw(const char *) in the original. C++17 has no dynamic exception
@@ -193,14 +171,14 @@ void CGoPath(TConnection *Connection, TReadBuffer &Buffer) {
 
 		for (int i = 0; i < Steps; i++) {
 			switch (Buffer.readByte()) {
-				case STEP_EAST: x++; break;
-				case STEP_NORTHEAST: x++; y--; break;
-				case STEP_NORTH: y--; break;
-				case STEP_NORTHWEST: x--; y--; break;
-				case STEP_WEST: x--; break;
-				case STEP_SOUTHWEST: x--; y++; break;
-				case STEP_SOUTH: y++; break;
-				case STEP_SOUTHEAST: x++; y++; break;
+				case COMPASS_EAST: x++; break;
+				case COMPASS_NORTHEAST: x++; y--; break;
+				case COMPASS_NORTH: y--; break;
+				case COMPASS_NORTHWEST: x--; y--; break;
+				case COMPASS_WEST: x--; break;
+				case COMPASS_SOUTHWEST: x--; y++; break;
+				case COMPASS_SOUTH: y++; break;
+				case COMPASS_SOUTHEAST: x++; y++; break;
 				default: continue;
 			}
 

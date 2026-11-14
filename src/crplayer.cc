@@ -54,13 +54,6 @@ const int MAX_PLAYERS_PER_LOAD = 10000;
 // writes them.
 const int END_OF_INVENTORY = 0xFF;
 
-// TCreature::LoseInventory, what a dying player loses (TCreature's destructor
-// in crmain.cc): nothing, the containers and each other object at a chance of
-// one in ten, or everything.
-const int LOSE_INVENTORY_NONE = 0;
-const int LOSE_INVENTORY_SOME = 1;
-const int LOSE_INVENTORY_ALL = 2;
-
 // The bits of the state that CheckState sends (SendPlayerState), each set
 // while the named skill's condition lasts; PLAYERSTATE_SLOWED and
 // PLAYERSTATE_HASTE are a lower or higher SKILL_GOSTRENGTH, and

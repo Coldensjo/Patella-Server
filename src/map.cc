@@ -68,20 +68,7 @@ struct TMark {
 	int z;
 };
 
-// The number of instance attributes (objects.hh's INSTANCEATTRIBUTE, CONTENT
-// to REMAININGUSES); InstanceAttributeNames holds their names in the sector
-// files.
-const int NUMBER_OF_INSTANCE_ATTRIBUTES = 18;
-
-// The object streams of LoadObjects and SaveObjects: each object is its type
-// number (a word) followed by its attributes, each an attribute number (a
-// byte) and its value, and END_OF_ATTRIBUTES. The attribute CONTENT has no
-// value; the objects inside follow it, ended by END_OF_OBJECTS, and then the
-// container's END_OF_ATTRIBUTES.
-const int END_OF_OBJECTS = 0xFFFF;
-const int END_OF_ATTRIBUTES = 0xFF;
-
-char InstanceAttributeNames[NUMBER_OF_INSTANCE_ATTRIBUTES][30] = {
+char InstanceAttributeNames[INSTANCEATTRIBUTES][30] = {
 	"Content",
 	"ChestQuestNumber",
 	"Amount",
@@ -465,9 +452,6 @@ Object SplitObject(Object Obj, int Count) {
 	Copy.setAttribute(AMOUNT, Count);
 	return Copy;
 }
-
-// The most pieces a cumulative object holds (its AMOUNT).
-const int MAX_AMOUNT = 100;
 
 void MergeObjects(Object Obj, Object Dest) {
 	if (!Obj.exists()) {
@@ -1387,7 +1371,7 @@ void DeleteSwappedSectors() {
 }
 
 int GetInstanceAttributeByName(char *Name) {
-	for (int i = 0; i < NUMBER_OF_INSTANCE_ATTRIBUTES; i++) {
+	for (int i = 0; i < INSTANCEATTRIBUTES; i++) {
 		if (stricmp(InstanceAttributeNames[i], Name, -1) == 0) {
 			return i;
 		}
@@ -1673,7 +1657,7 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 				error("Obj ist NONE (2)\n");
 			}
 
-			for (int Attribute = 0; Attribute <= NUMBER_OF_INSTANCE_ATTRIBUTES - 1; Attribute++) {
+			for (int Attribute = 0; Attribute <= INSTANCEATTRIBUTES - 1; Attribute++) {
 				if (Attribute == CONTENT) {
 					continue;
 				}

@@ -24,11 +24,6 @@
 int ApplicationType;
 char LoginData[30];
 
-// The ApplicationType that the game server sends in its login request
-// (main.cc's SetQueryManagerLoginData), followed by its world name. The same
-// name as in the query manager's protocol.hh.
-const int APPLICATION_GAME = 1;
-
 // The word that stands for the size of a request or response that does not
 // fit in a word: the size follows as a quad.
 const int QUERY_LONG_SIZE_MARKER = 0xFFFF;

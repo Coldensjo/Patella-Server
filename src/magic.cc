@@ -240,15 +240,6 @@ const int SPELL_START_MONSTERRAID = 102;
 // has no dynamic exception specifications, so an exception of another type
 // now propagates instead of ending in std::unexpected().
 
-// The field types of CreateField, the magic fields its switch creates (the
-// harmless kind of the first three on a non-PvP world for a peaceful
-// caster). Fire, poison and energy fields block the caster's logout.
-const int FIELD_FIRE = 1;
-const int FIELD_POISON = 2;
-const int FIELD_ENERGY = 3;
-const int FIELD_MAGICWALL = 4;
-const int FIELD_RUSHWOOD = 5;
-
 // The ammunition CreateArrows conjures, named after the spells that use them
 // (Conjure Arrow, Poisoned Arrow, Explosive Arrow, Conjure Bolt, Power Bolt).
 const int CONJURE_ARROW = 0;
@@ -262,19 +253,6 @@ const int CONJURE_POWER_BOLT = 4;
 const int MAX_SUMMONS = 2;
 
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
-
-// The eight directions of Direction(), counter-clockwise from the east, as
-// FindPerson names them; COMPASS_NONE for the same field. Adding 4 turns a
-// direction round.
-const int COMPASS_NONE = 0;
-const int COMPASS_EAST = 1;
-const int COMPASS_NORTHEAST = 2;
-const int COMPASS_NORTH = 3;
-const int COMPASS_NORTHWEST = 4;
-const int COMPASS_WEST = 5;
-const int COMPASS_SOUTHWEST = 6;
-const int COMPASS_SOUTH = 7;
-const int COMPASS_SOUTHEAST = 8;
 
 int Direction(int dx, int dy) {
 	if (dx == 0) {

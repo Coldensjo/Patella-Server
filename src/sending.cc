@@ -32,18 +32,9 @@
 // N (0 to 6, CheckBanishmentRight), and this bit an IP banishment besides.
 const int RIGHTS_IP_BANISHMENT = 0x80;
 
-// The INFORMATIONTYPE of the spellbook: SendEditText shows the player's spells
-// (GetSpellbook) instead of a text.
-const int INFORMATION_SPELLBOOK = 4;
-
 // The channel number of the "Private Chat Channel" entry SendChannels lists for
 // a player who may open his own channel (MayOpenChannel); no CHANNEL has it.
 const int PRIVATE_CHAT_CHANNEL = 0xFFFF;
-
-// The last outfit of each sex a player without a premium account may wear
-// (SendOutfit; receiving.cc's CSetOutfit checks the same).
-const int LAST_FREE_MALE_OUTFIT = 131;
-const int LAST_FREE_FEMALE_OUTFIT = 139;
 
 const int OBJECTS_PER_POINT = 10;
 

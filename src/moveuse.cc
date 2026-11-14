@@ -143,18 +143,6 @@ const int EVENTOBJECT_OBJ2 = 2;
 const int EVENTOBJECT_USER = 3;
 const int EVENTOBJECT_TEMP = 4;
 
-// What an INFORMATION object tells (its INFORMATIONTYPE, UseAnnouncer): the
-// date and the time, the time, the blessings received, or its own text.
-const int INFORMATION_DATE = 1;
-const int INFORMATION_TIME = 2;
-const int INFORMATION_BLESSINGS = 3;
-const int INFORMATION_TEXT = 4;
-
-// The markers of an object stream (map.cc's SaveObjects and LoadObjects): the
-// byte after an object's attributes and the word after a container's objects.
-const int STREAM_END_OF_ATTRIBUTES = 0xFF;
-const int STREAM_END_OF_OBJECTS = 0xFFFF;
-
 struct TMoveUseCondition {
 	ModifierType Modifier;
 	ConditionType Condition;
@@ -848,8 +836,8 @@ void SendMails(TPlayerData *PlayerData) {
 		if (DepotEmpty) {
 			TWriteBuffer Buffer(&NewDepot[D.PacketSize], 5);
 			Buffer.writeWord((unsigned short)GetSpecialObject(DEPOT_CHEST).getTypeID());
-			Buffer.writeByte(STREAM_END_OF_ATTRIBUTES);
-			Buffer.writeWord(STREAM_END_OF_OBJECTS);
+			Buffer.writeByte(END_OF_ATTRIBUTES);
+			Buffer.writeWord(END_OF_OBJECTS);
 		} else {
 			memcpy(&NewDepot[D.PacketSize], PlayerData->Depot[D.DepotNumber], PlayerData->DepotSize[D.DepotNumber]);
 			delete[] PlayerData->Depot[D.DepotNumber];
@@ -1614,7 +1602,7 @@ void UseAnnouncer(uint32_t CreatureID, Object Obj) {
 			}
 			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s", Help);
 			break;
-		case INFORMATION_TEXT:
+		case INFORMATION_SPELLBOOK:
 			SendEditText(pl->GetConnection(), Obj);
 			break;
 		default:

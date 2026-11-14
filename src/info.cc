@@ -694,13 +694,6 @@ bool JumpPossible(int x, int y, int z, bool AvoidPlayers) {
 	return BankThere;
 }
 
-// The field types of magic.cc's CreateField that create MAGICFIELD_MAGICWALL
-// and MAGICFIELD_RUSHWOOD. FieldPossible tests them against every unpassable
-// object, creatures included; the other fields only against objects that are
-// no creatures.
-const int FIELD_MAGICWALL = 4;
-const int FIELD_RUSHWOOD = 5;
-
 bool FieldPossible(int x, int y, int z, int Type) {
 	Object Obj = GetFirstObject(x, y, z);
 	if (Obj == NONE || !Obj.getFlag(BANK)) {

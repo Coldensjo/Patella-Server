@@ -37,20 +37,6 @@ const int HASH_LIST_SIZE = 1000;
 // chains the creatures in each block (two blocks per sector side, see InitCr).
 const int CHAIN_BLOCK_SIZE = 16;
 
-// TCreature::LoseInventory, what a dying creature leaves in its corpse:
-// nothing, its containers and each other object with a chance of one in ten,
-// or everything. TCreature::TCreature sets LOSE_INVENTORY_ALL; TPlayer sets
-// its own value (crplayer.cc).
-const int LOSE_INVENTORY_NONE = 0;
-const int LOSE_INVENTORY_SOME = 1;
-const int LOSE_INVENTORY_ALL = 2;
-
-// The results of TCreature::LogoutPossible: a logout is possible, the creature
-// fought too recently (EarliestLogoutRound), or it stands on a NoLogout field.
-const int LOGOUT_POSSIBLE = 0;
-const int LOGOUT_AFTER_FIGHT = 1;
-const int LOGOUT_NO_LOGOUT_FIELD = 2;
-
 // TCreature::MovePossible is declared throw(RESULT) in the original, and
 // LoadRace, LoadRaces, LoadMonsterRaid, LoadMonsterRaids and InitCr are
 // declared throw(const char *). C++17 has no dynamic exception specifications,

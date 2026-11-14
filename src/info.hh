@@ -226,6 +226,18 @@ int CountInventoryMoney(uint32_t CreatureID);
 void CalculateChange(int Amount, int &Gold, int &Platinum, int &Crystal);
 int GetHeight(int x, int y, int z);
 bool JumpPossible(int x, int y, int z, bool AvoidPlayers);
+// The field types of magic.cc's CreateField, the magic fields its switch
+// creates (the harmless kind of the first three on a non-PvP world for a
+// peaceful caster); fire, poison and energy fields block the caster's logout.
+// FieldPossible tests a magic wall and rush wood against every unpassable
+// object, creatures included; the other fields only against objects that are
+// no creatures.
+const int FIELD_FIRE = 1;
+const int FIELD_POISON = 2;
+const int FIELD_ENERGY = 3;
+const int FIELD_MAGICWALL = 4;
+const int FIELD_RUSHWOOD = 5;
+
 bool FieldPossible(int x, int y, int z, int Type);
 bool SearchFreeField(int &x, int &y, int &z, int Distance, unsigned short HouseID, bool Jump);
 bool SearchLoginField(int &x, int &y, int &z, int Distance, bool Player);

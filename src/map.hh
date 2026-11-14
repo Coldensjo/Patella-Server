@@ -65,6 +65,15 @@ const int MAPFLAG_REFRESH = 1;
 const int MAPFLAG_NOLOGOUT = 2;
 const int MAPFLAG_PROTECTIONZONE = 4;
 
+// The object streams of LoadObjects and SaveObjects: each object is its type
+// number (a word) followed by its attributes, each an attribute number (a
+// byte) and its value, and END_OF_ATTRIBUTES. The attribute CONTENT has no
+// value; the objects inside follow it, ended by END_OF_OBJECTS, and then the
+// container's END_OF_ATTRIBUTES. moveuse.cc writes an empty depot chest in
+// this form.
+const int END_OF_OBJECTS = 0xFFFF;
+const int END_OF_ATTRIBUTES = 0xFF;
+
 extern int SectorXMin;
 extern int SectorXMax;
 extern int SectorYMin;

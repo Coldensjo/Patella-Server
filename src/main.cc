@@ -46,10 +46,6 @@
 // milliseconds after the round begins.
 const int ROUND_DURATION = 1000;
 
-// The application type the game server logs in to the query manager with (the
-// query manager's protocol.hh: APPLICATION_GAME).
-const int APPLICATION_GAME = 1;
-
 bool BeADaemon;
 int SigUsr1Counter;
 int SigAlarmCounter;

@@ -146,6 +146,14 @@ enum TYPEATTRIBUTE {
 
 const int TYPEATTRIBUTES = 62;
 
+// What an INFORMATION object tells, its INFORMATIONTYPE (moveuse.cc's
+// UseAnnouncer): the date and the time, the time, the blessings received, or
+// the player's spells (the spellbook; sending.cc's SendEditText shows them).
+const int INFORMATION_DATE = 1;
+const int INFORMATION_TIME = 2;
+const int INFORMATION_BLESSINGS = 3;
+const int INFORMATION_SPELLBOOK = 4;
+
 enum INSTANCEATTRIBUTE {
 	CONTENT = 0,
 	CHESTQUESTNUMBER = 1,
@@ -168,6 +176,9 @@ enum INSTANCEATTRIBUTE {
 };
 
 const int INSTANCEATTRIBUTES = 18;
+
+// The most pieces a cumulative object can hold (its AMOUNT).
+const int MAX_AMOUNT = 100;
 
 enum SPECIALMEANING {
 	MONEY_ONE = 1,

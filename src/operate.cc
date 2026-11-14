@@ -86,9 +86,6 @@ fifo<TStatement> Statements(1024);
 fifo<TListener> Listeners(1024);
 vector<TParty> Party(0, 100, 50);
 
-// The most pieces a cumulative object can hold (its AMOUNT).
-const int MAX_AMOUNT = 100;
-
 // CheckTopMoveObject through both CheckWeight overloads, Create, Copy, Move,
 // Merge, both Change overloads, Delete, Empty and Look are declared
 // throw(RESULT) in the original. C++17 has no dynamic exception

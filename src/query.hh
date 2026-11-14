@@ -8,6 +8,11 @@
 #include "utils.hh"
 #include "threads.hh"
 
+// The ApplicationType that the game server sends in its login request
+// (main.cc's SetQueryManagerLoginData), followed by its world name. The same
+// name as in the query manager's protocol.hh.
+const int APPLICATION_GAME = 1;
+
 // The query types: the first byte of a request (prepareQuery), named after the
 // TQueryManagerConnection method that sends it. The same names as in the
 // query manager's protocol.hh.
