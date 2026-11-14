@@ -5,11 +5,11 @@ manager (SQLite) and a login server for 7.72 clients.
 
 This repository contains no CipSoft files apart from what `data/` holds: the
 original installation's config, object types, circles, move and use rules,
-houses and map settings and the original game's spell table, converted to
-TOML, and its original map (`origmap.zip`, unzipped into the folder
-`[paths] origmap` names; start `map/` as a copy of it). To run the server you
-still need your own copy of the original installation for the rest (data
-files, monsters, NPCs).
+houses, map settings and old object numbers and the original game's spell
+table, converted to TOML, and its original map (`origmap.zip`, unzipped into
+the folder `[paths] origmap` names; start `map/` as a copy of it). To run the
+server you still need your own copy of the original installation for the rest
+(data files, monsters, NPCs).
 
 ## Build
 
@@ -94,6 +94,18 @@ the `dat/mem.dat` it includes converted with
 top explain the fields. Keep `map.dat` and `mem.dat` there too: the original
 operator tools (`highscores`, `deloldusr`, `mgrep`, `ugrep`, `tempel`) still
 read them.
+
+## Old object numbers
+
+Before the object types had numbers of their own, an object was known by a
+group and a number; the code and `spells.toml` still name the runes, food,
+arrows and bolts the spells make that way. The game reads the type each old
+group and number stands for from `conversion.toml` in its data folder.
+`data/conversion.toml` is the original installation's `dat/conversion.lst`
+converted with `patella-convert conversion conversion.lst conversion.toml`;
+copy it into the installation's data folder. The comments at its top explain
+the layout. Keep `conversion.lst` there too: the original operator tools
+(`highscores`, `deloldusr`, `mgrep`, `ugrep`, `tempel`) still read it.
 
 ## License
 
