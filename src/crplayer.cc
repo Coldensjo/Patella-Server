@@ -229,7 +229,7 @@ void CreatePlayerList(bool Online) {
 			}
 
 			strcpy(&PlayerNames[NumberOfPlayers * 30], Player->Name);
-			PlayerLevels[NumberOfPlayers] = Player->Skills[0]->Get();
+			PlayerLevels[NumberOfPlayers] = Player->Skills[SKILL_LEVEL]->Get();
 			PlayerProfessions[NumberOfPlayers] = Player->GetActiveProfession();
 			NumberOfPlayers++;
 		}
@@ -246,7 +246,7 @@ void PrintPlayerPositions() {
 	for (int i = 0; i < FirstFreePlayer; i++) {
 		TPlayer *Player = PlayerList(i);
 		Log("players", "[%d,%d,%d] %d %d\n", Player->posx, Player->posy, Player->posz,
-				Player->Skills[0]->Get(), Player->GetActiveProfession());
+				Player->Skills[SKILL_LEVEL]->Get(), Player->GetActiveProfession());
 	}
 }
 
@@ -980,35 +980,35 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 		CheckOutfit();
 		SetInList();
 
-		Skills[22]->SetMax(GetActivePromotion() ? 200 : 100);
-		Skills[22]->Check();
-		int Rest = Skills[22]->TimerValue();
+		Skills[SKILL_SOULPOINTS]->SetMax(GetActivePromotion() ? 200 : 100);
+		Skills[SKILL_SOULPOINTS]->Check();
+		int Rest = Skills[SKILL_SOULPOINTS]->TimerValue();
 		if (Rest > 14) {
 			int Interval = GetActivePromotion() ? 15 : 120;
-			SetTimer(22, (Rest - 1) / Interval + 1, (Rest - 1) % Interval + 1, Interval, -1);
+			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / Interval + 1, (Rest - 1) % Interval + 1, Interval, -1);
 		}
 
-		TSkill *sk = Skills[2];
+		TSkill *sk = Skills[SKILL_HITPOINTS];
 		if (sk->Get() <= 0) {
 			sk->Set(sk->GetMax());
 			posx = startx;
 			posy = starty;
 			posz = startz;
-			for (int i = 0; i < 25; i++) {
+			for (int i = 0; i < MAX_SKILLS; i++) {
 				DelTimer((unsigned short)i);
 				Skills[i]->SetMDAct(0);
 				Skills[i]->SetDAct(0);
 			}
 			Outfit = OrgOutfit;
-			Skills[3]->Set(Skills[3]->GetMax());
+			Skills[SKILL_MANA]->Set(Skills[SKILL_MANA]->GetMax());
 		}
 
 		if (PlayerData->LastLoginTime == 0 && CheckRight(ID, GAMEMASTER_OUTFIT)) {
 			Log("game", "Gamemaster-Charakter %s loggt zum ersten Mal ein -> Level 2 setzen.\n", Name);
-			Skills[0]->SetAct(2);
-			Skills[0]->SetExp(100);
-			Skills[0]->SetLastLevel(100);
-			Skills[0]->SetNextLevel(200);
+			Skills[SKILL_LEVEL]->SetAct(2);
+			Skills[SKILL_LEVEL]->SetExp(100);
+			Skills[SKILL_LEVEL]->SetLastLevel(100);
+			Skills[SKILL_LEVEL]->SetNextLevel(200);
 		}
 
 		if (CoordinateFlag(posx, posy, posz, BED)) {
@@ -1098,9 +1098,9 @@ TPlayer::~TPlayer() {
 			PlayerData->Inventory = nullptr;
 		}
 
-		if ((Profession != 0 && Skills[0]->Get() <= 5) || Skills[2]->GetMax() <= 0) {
+		if ((Profession != 0 && Skills[SKILL_LEVEL]->Get() <= 5) || Skills[SKILL_HITPOINTS]->GetMax() <= 0) {
 			// The level line is logged in both cases, as in the original.
-			if (Skills[2]->GetMax() <= 0) {
+			if (Skills[SKILL_HITPOINTS]->GetMax() <= 0) {
 				Log("game", "Setze Spieler %s komplett zur\xfc" "ck wegen MaxHitpoints.\n", Name);
 			}
 			Log("game", "Setze Spieler %s komplett zur\xfc" "ck wegen Level.\n", Name);
@@ -1115,7 +1115,7 @@ TPlayer::~TPlayer() {
 				PlayerData->Profession = 0;
 				memset(PlayerData->SpellList, 0, sizeof(PlayerData->SpellList));
 				memset(PlayerData->QuestValues, 0, sizeof(PlayerData->QuestValues));
-				for (int i = 0; i < 25; i++) {
+				for (int i = 0; i < MAX_SKILLS; i++) {
 					PlayerData->Minimum[i] = INT32_MIN;
 				}
 			}
@@ -1236,7 +1236,7 @@ void TPlayer::LoadData() {
 	Profession = (unsigned char)PlayerData->Profession;
 	memcpy(SpellList, PlayerData->SpellList, sizeof(SpellList));
 	memcpy(QuestValues, PlayerData->QuestValues, sizeof(QuestValues));
-	for (int SkillNr = 0; SkillNr < 25; SkillNr++) {
+	for (int SkillNr = 0; SkillNr < MAX_SKILLS; SkillNr++) {
 		if (PlayerData->Minimum[SkillNr] != INT32_MIN) {
 			Skills[SkillNr]->Load(PlayerData->Actual[SkillNr], PlayerData->Maximum[SkillNr],
 					PlayerData->Minimum[SkillNr], PlayerData->DeltaAct[SkillNr],
@@ -1274,7 +1274,7 @@ void TPlayer::SaveData() {
 	PlayerData->Profession = Profession;
 	memcpy(PlayerData->SpellList, SpellList, sizeof(SpellList));
 	memcpy(PlayerData->QuestValues, QuestValues, sizeof(QuestValues));
-	for (int SkillNr = 0; SkillNr < 25; SkillNr++) {
+	for (int SkillNr = 0; SkillNr < MAX_SKILLS; SkillNr++) {
 		if (Skills[SkillNr] == nullptr) {
 			PlayerData->Minimum[SkillNr] = INT32_MIN;
 		} else {
@@ -1450,7 +1450,7 @@ void TPlayer::TakeOver(TConnection *Connection) {
 void TPlayer::Death() {
 	if (CheckRight(ID, INVULNERABLE)) {
 		error("TPlayer::Death: Aha, so geht das aber nicht!! Goetter kann man nicht toeten!!\n");
-		Skills[2]->Set(Skills[2]->GetMax());
+		Skills[SKILL_HITPOINTS]->Set(Skills[SKILL_HITPOINTS]->GetMax());
 		return;
 	}
 
@@ -1462,7 +1462,7 @@ void TPlayer::Death() {
 
 	TCreature::Death();
 	if (WorldType == PVP_ENFORCED) {
-		Combat.DistributeExperiencePoints((uint32_t)(Skills[0]->GetExp() / 20));
+		Combat.DistributeExperiencePoints((uint32_t)(Skills[SKILL_LEVEL]->GetExp() / 20));
 	}
 
 	int Percent = GetActivePromotion() ? 7 : 10;
@@ -1473,23 +1473,23 @@ void TPlayer::Death() {
 		}
 	}
 
-	TSkill *sk = Skills[8];
+	TSkill *sk = Skills[SKILL_SWORDFIGHTING];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[10];
+	sk = Skills[SKILL_AXEFIGHTING];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[9];
+	sk = Skills[SKILL_CLUBFIGHTING];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[7];
+	sk = Skills[SKILL_DISTANCEFIGHTING];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[11];
+	sk = Skills[SKILL_FISTFIGHTING];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[6];
+	sk = Skills[SKILL_SHIELDING];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[1];
+	sk = Skills[SKILL_MAGICLEVEL];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[13];
+	sk = Skills[SKILL_FISHING];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
-	sk = Skills[0];
+	sk = Skills[SKILL_LEVEL];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
 }
 
@@ -1644,7 +1644,7 @@ void TPlayer::AcceptTrade() {
 			}
 
 			if (!CheckRight(Player[1 - p]->ID, UNLIMITED_CAPACITY)) {
-				TSkill *sk = Player[1 - p]->Skills[5];
+				TSkill *sk = Player[1 - p]->Skills[SKILL_CARRYSTRENGTH];
 				if (sk == nullptr) {
 					error("TPlayer::AcceptTrade: Skill CARRYSTRENGTH existiert nicht.\n");
 					throw ERROR;
@@ -1779,10 +1779,10 @@ void TPlayer::SetProfession(unsigned char prof) {
 
 		Profession += 10;
 		Combat.CheckCombatValues();
-		Skills[22]->SetMax(200);
-		int Rest = Skills[22]->TimerValue();
+		Skills[SKILL_SOULPOINTS]->SetMax(200);
+		int Rest = Skills[SKILL_SOULPOINTS]->TimerValue();
 		if (Rest > 14) {
-			SetTimer(22, (Rest - 1) / 15 + 1, (Rest - 1) % 15 + 1, 15, -1);
+			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / 15 + 1, (Rest - 1) % 15 + 1, 15, -1);
 		}
 		return;
 	}
@@ -1794,52 +1794,52 @@ void TPlayer::SetProfession(unsigned char prof) {
 
 	switch (prof) {
 		case 1:
-			Skills[8]->ChangeSkill(1100, 50);
-			Skills[10]->ChangeSkill(1100, 50);
-			Skills[9]->ChangeSkill(1100, 50);
-			Skills[11]->ChangeSkill(1100, 50);
-			Skills[7]->ChangeSkill(1400, 30);
-			Skills[6]->ChangeSkill(1100, 100);
-			Skills[2]->SetAddLevel(15);
-			Skills[5]->SetAddLevel(25);
-			Skills[3]->SetAddLevel(5);
-			Skills[1]->ChangeSkill(3000, 1600);
+			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(1100, 50);
+			Skills[SKILL_AXEFIGHTING]->ChangeSkill(1100, 50);
+			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(1100, 50);
+			Skills[SKILL_FISTFIGHTING]->ChangeSkill(1100, 50);
+			Skills[SKILL_DISTANCEFIGHTING]->ChangeSkill(1400, 30);
+			Skills[SKILL_SHIELDING]->ChangeSkill(1100, 100);
+			Skills[SKILL_HITPOINTS]->SetAddLevel(15);
+			Skills[SKILL_CARRYSTRENGTH]->SetAddLevel(25);
+			Skills[SKILL_MANA]->SetAddLevel(5);
+			Skills[SKILL_MAGICLEVEL]->ChangeSkill(3000, 1600);
 			break;
 		case 2:
-			Skills[8]->ChangeSkill(1200, 50);
-			Skills[10]->ChangeSkill(1200, 50);
-			Skills[9]->ChangeSkill(1200, 50);
-			Skills[11]->ChangeSkill(1200, 50);
-			Skills[7]->ChangeSkill(1100, 30);
-			Skills[6]->ChangeSkill(1100, 100);
-			Skills[2]->SetAddLevel(10);
-			Skills[5]->SetAddLevel(20);
-			Skills[3]->SetAddLevel(15);
-			Skills[1]->ChangeSkill(1400, 1600);
+			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(1200, 50);
+			Skills[SKILL_AXEFIGHTING]->ChangeSkill(1200, 50);
+			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(1200, 50);
+			Skills[SKILL_FISTFIGHTING]->ChangeSkill(1200, 50);
+			Skills[SKILL_DISTANCEFIGHTING]->ChangeSkill(1100, 30);
+			Skills[SKILL_SHIELDING]->ChangeSkill(1100, 100);
+			Skills[SKILL_HITPOINTS]->SetAddLevel(10);
+			Skills[SKILL_CARRYSTRENGTH]->SetAddLevel(20);
+			Skills[SKILL_MANA]->SetAddLevel(15);
+			Skills[SKILL_MAGICLEVEL]->ChangeSkill(1400, 1600);
 			break;
 		case 3:
-			Skills[8]->ChangeSkill(2000, 50);
-			Skills[10]->ChangeSkill(2000, 50);
-			Skills[9]->ChangeSkill(2000, 50);
-			Skills[11]->ChangeSkill(1500, 50);
-			Skills[7]->ChangeSkill(2000, 30);
-			Skills[6]->ChangeSkill(1500, 100);
-			Skills[2]->SetAddLevel(5);
-			Skills[5]->SetAddLevel(10);
-			Skills[3]->SetAddLevel(30);
-			Skills[1]->ChangeSkill(1100, 1600);
+			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(2000, 50);
+			Skills[SKILL_AXEFIGHTING]->ChangeSkill(2000, 50);
+			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(2000, 50);
+			Skills[SKILL_FISTFIGHTING]->ChangeSkill(1500, 50);
+			Skills[SKILL_DISTANCEFIGHTING]->ChangeSkill(2000, 30);
+			Skills[SKILL_SHIELDING]->ChangeSkill(1500, 100);
+			Skills[SKILL_HITPOINTS]->SetAddLevel(5);
+			Skills[SKILL_CARRYSTRENGTH]->SetAddLevel(10);
+			Skills[SKILL_MANA]->SetAddLevel(30);
+			Skills[SKILL_MAGICLEVEL]->ChangeSkill(1100, 1600);
 			break;
 		case 4:
-			Skills[8]->ChangeSkill(1800, 50);
-			Skills[10]->ChangeSkill(1800, 50);
-			Skills[9]->ChangeSkill(1800, 50);
-			Skills[11]->ChangeSkill(1500, 50);
-			Skills[7]->ChangeSkill(1800, 30);
-			Skills[6]->ChangeSkill(1500, 100);
-			Skills[2]->SetAddLevel(5);
-			Skills[5]->SetAddLevel(10);
-			Skills[3]->SetAddLevel(30);
-			Skills[1]->ChangeSkill(1100, 1600);
+			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(1800, 50);
+			Skills[SKILL_AXEFIGHTING]->ChangeSkill(1800, 50);
+			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(1800, 50);
+			Skills[SKILL_FISTFIGHTING]->ChangeSkill(1500, 50);
+			Skills[SKILL_DISTANCEFIGHTING]->ChangeSkill(1800, 30);
+			Skills[SKILL_SHIELDING]->ChangeSkill(1500, 100);
+			Skills[SKILL_HITPOINTS]->SetAddLevel(5);
+			Skills[SKILL_CARRYSTRENGTH]->SetAddLevel(10);
+			Skills[SKILL_MANA]->SetAddLevel(30);
+			Skills[SKILL_MAGICLEVEL]->ChangeSkill(1100, 1600);
 			break;
 		default:
 			error("TPlayer::SetProfession: Beruf %d existiert nicht!\n", prof);
@@ -1960,31 +1960,31 @@ void TPlayer::CheckState() {
 	}
 
 	int NewState = 0;
-	if (Skills[17]->TimerValue() > 0) {
+	if (Skills[SKILL_POISON]->TimerValue() > 0) {
 		NewState |= 1;
 	}
 
-	if (Skills[18]->TimerValue() > 0) {
+	if (Skills[SKILL_BURNING]->TimerValue() > 0) {
 		NewState |= 2;
 	}
 
-	if (Skills[19]->TimerValue() > 0) {
+	if (Skills[SKILL_ENERGY]->TimerValue() > 0) {
 		NewState |= 4;
 	}
 
-	if (Skills[20]->TimerValue() > 0 && Skills[20]->Get() == 0) {
+	if (Skills[SKILL_DRUNKEN]->TimerValue() > 0 && Skills[SKILL_DRUNKEN]->Get() == 0) {
 		NewState |= 8;
 	}
 
-	if (Skills[21]->TimerValue() > 0 || Skills[21]->Get() > 0) {
+	if (Skills[SKILL_MANASHIELD]->TimerValue() > 0 || Skills[SKILL_MANASHIELD]->Get() > 0) {
 		NewState |= 16;
 	}
 
-	if (Skills[4]->GetMDAct() < 0) {
+	if (Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
 		NewState |= 32;
 	}
 
-	if (Skills[4]->GetMDAct() > 0) {
+	if (Skills[SKILL_GOSTRENGTH]->GetMDAct() > 0) {
 		NewState |= 64;
 	}
 
@@ -2156,19 +2156,19 @@ void TPlayer::Regenerate() {
 	}
 
 	int Regeneration = (int)(OfflineTime / 15);
-	int Fed = Skills[14]->TimerValue() / 3;
+	int Fed = Skills[SKILL_EATING]->TimerValue() / 3;
 	if (Fed < Regeneration) {
 		Regeneration = Fed;
 	}
 
 	if (Regeneration > 0) {
-		Skills[2]->Change(Regeneration / 4);
-		Skills[3]->Change(Regeneration);
-		SetTimer(14, Skills[14]->TimerValue() - Regeneration * 3, 0, 0, -1);
+		Skills[SKILL_HITPOINTS]->Change(Regeneration / 4);
+		Skills[SKILL_MANA]->Change(Regeneration);
+		SetTimer(SKILL_EATING, Skills[SKILL_EATING]->TimerValue() - Regeneration * 3, 0, 0, -1);
 	}
 
 	if (OfflineTime >= 900) {
-		Skills[22]->Change((int)(OfflineTime / 900));
+		Skills[SKILL_SOULPOINTS]->Change((int)(OfflineTime / 900));
 	}
 
 	try {
