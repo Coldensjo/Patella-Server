@@ -42,6 +42,20 @@
 #include "shm.hh"
 #include "writer.hh"
 
+// The communication threads that can run at once, one for each connection:
+// the number of own stacks, and the limit of ActiveConnections without them.
+const int MAX_COMMUNICATION_THREADS = 1100;
+
+// The stack of one communication thread, an own one or the thread library's.
+const int COMMUNICATION_THREAD_STACK_SIZE = 65536;
+
+// The size of TConnection::OutData, the ring buffer SendData sends from.
+const int OUT_DATA_SIZE = 16384;
+
+// The entries of LoadHistory, the received bytes per player of the last
+// NetLoadCheck calls.
+const int LOAD_HISTORY_SIZE = 360;
+
 struct TWaitinglistEntry {
 	TWaitinglistEntry *Next;
 	char Name[30];
@@ -60,14 +74,14 @@ pid_t AcceptorThreadPID;
 int ActiveConnections;
 Semaphore CommunicationThreadMutex(1);
 bool UseOwnStacks;
-unsigned char CommunicationThreadStacks[72089600];
-pid_t LastUsingCommunicationThread[1100];
-int FreeCommunicationThreadStacks[1100];
+unsigned char CommunicationThreadStacks[MAX_COMMUNICATION_THREADS * COMMUNICATION_THREAD_STACK_SIZE];
+pid_t LastUsingCommunicationThread[MAX_COMMUNICATION_THREADS];
+int FreeCommunicationThreadStacks[MAX_COMMUNICATION_THREADS];
 int NumberOfFreeCommunicationThreadStacks;
 TRSAPrivateKey PrivateKey;
 Semaphore RSAMutex(1);
 TQueryManagerConnectionPool QueryManagerConnectionPool(10);
-int LoadHistory[360];
+int LoadHistory[LOAD_HISTORY_SIZE];
 int LoadHistoryPointer;
 int TotalLoad;
 int TotalSend;
@@ -89,11 +103,11 @@ void InitCommunicationThreadStacks() {
 	}
 
 	memset(CommunicationThreadStacks, 0xAA, sizeof(CommunicationThreadStacks));
-	for (int i = 0; i < 1100; i++) {
+	for (int i = 0; i < MAX_COMMUNICATION_THREADS; i++) {
 		LastUsingCommunicationThread[i] = 0;
 		FreeCommunicationThreadStacks[i] = i;
 	}
-	NumberOfFreeCommunicationThreadStacks = 1100;
+	NumberOfFreeCommunicationThreadStacks = MAX_COMMUNICATION_THREADS;
 }
 
 void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
@@ -114,7 +128,7 @@ void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
 		if (LastUsingCommunicationThread[Number] == 0
 				|| tgkill(getpid(), LastUsingCommunicationThread[Number], 0) == -1) {
 			StackNumber = Number;
-			Stack = &CommunicationThreadStacks[Number * 65536];
+			Stack = &CommunicationThreadStacks[Number * COMMUNICATION_THREAD_STACK_SIZE];
 			NumberOfFreeCommunicationThreadStacks--;
 			FreeCommunicationThreadStacks[i] = FreeCommunicationThreadStacks[NumberOfFreeCommunicationThreadStacks];
 			break;
@@ -140,15 +154,15 @@ void ExitCommunicationThreadStacks() {
 		return;
 	}
 
-	if (NumberOfFreeCommunicationThreadStacks != 1100) {
+	if (NumberOfFreeCommunicationThreadStacks != MAX_COMMUNICATION_THREADS) {
 		error("FreeCommunicationThreadStacks: Nicht alle Stacks freigegeben.\n");
 	}
 
 	int HighestStackAddress = -1;
-	int LowestStackAddress = 65536;
-	for (int Stack = 0; Stack < 1100; Stack++) {
-		for (int i = 0; i < 65536; i++) {
-			if (CommunicationThreadStacks[Stack * 65536 + i] != 0xAA) {
+	int LowestStackAddress = COMMUNICATION_THREAD_STACK_SIZE;
+	for (int Stack = 0; Stack < MAX_COMMUNICATION_THREADS; Stack++) {
+		for (int i = 0; i < COMMUNICATION_THREAD_STACK_SIZE; i++) {
+			if (CommunicationThreadStacks[Stack * COMMUNICATION_THREAD_STACK_SIZE + i] != 0xAA) {
 				if (i > HighestStackAddress) {
 					HighestStackAddress = i;
 				}
@@ -159,13 +173,13 @@ void ExitCommunicationThreadStacks() {
 		}
 	}
 
-	if (65536 - (HighestStackAddress - LowestStackAddress) < 32768) {
+	if (COMMUNICATION_THREAD_STACK_SIZE - (HighestStackAddress - LowestStackAddress) < 32768) {
 		error("Maximale Stack-Ausdehnung: %d..%d\n", LowestStackAddress, HighestStackAddress);
 	}
 }
 
 void InitLoadHistory() {
-	for (int i = 0; i < 360; i++) {
+	for (int i = 0; i < LOAD_HISTORY_SIZE; i++) {
 		LoadHistory[i] = 0;
 	}
 	LoadHistoryPointer = 0;
@@ -220,7 +234,7 @@ void NetLoadCheck() {
 	LoadHistory[LoadHistoryPointer] = CurrentLoad;
 	TotalLoad += CurrentLoad;
 	LoadHistoryPointer++;
-	if (LoadHistoryPointer == 360) {
+	if (LoadHistoryPointer == LOAD_HISTORY_SIZE) {
 		LoadHistoryPointer = 0;
 	}
 
@@ -354,10 +368,10 @@ bool SendData(TConnection *Connection) {
 	WriteBuffer.writeWord(0);
 	WriteBuffer.writeWord(static_cast<unsigned short>(DataSize));
 
-	int Offset = Connection->NextToSend % 16384;
-	if (Offset + DataSize > 16384) {
-		WriteBuffer.writeBytes(&Connection->OutData[Offset], 16384 - Offset);
-		WriteBuffer.writeBytes(Connection->OutData, Offset + DataSize - 16384);
+	int Offset = Connection->NextToSend % OUT_DATA_SIZE;
+	if (Offset + DataSize > OUT_DATA_SIZE) {
+		WriteBuffer.writeBytes(&Connection->OutData[Offset], OUT_DATA_SIZE - Offset);
+		WriteBuffer.writeBytes(Connection->OutData, Offset + DataSize - OUT_DATA_SIZE);
 	} else {
 		WriteBuffer.writeBytes(&Connection->OutData[Offset], DataSize);
 	}
@@ -1380,7 +1394,7 @@ int AcceptorThreadLoop(void *) {
 
 				IncrementActiveConnections();
 				if (StartThread(HandleConnection, reinterpret_cast<void *>(static_cast<intptr_t>(StackNumber * 65536 + NewSocket)),
-						Stack, 65536, true) == 0) {
+						Stack, COMMUNICATION_THREAD_STACK_SIZE, true) == 0) {
 					print(3, "Kann neuen Thread nicht anlegen.\n");
 					if (close(NewSocket) < 0) {
 						error("AcceptorThreadLoop: Fehler %d beim Schlie\xdf" "en der Socket (2).\n", errno);
@@ -1389,7 +1403,7 @@ int AcceptorThreadLoop(void *) {
 					ReleaseCommunicationThreadStack(StackNumber);
 				}
 			} else {
-				if (ActiveConnections >= 1100) {
+				if (ActiveConnections >= MAX_COMMUNICATION_THREADS) {
 					print(3, "Keine Verbindung mehr frei.\n");
 					if (close(NewSocket) < 0) {
 						error("AcceptorThreadLoop: Fehler %d beim Schlie\xdf" "en der Socket (3).\n", errno);
@@ -1398,7 +1412,7 @@ int AcceptorThreadLoop(void *) {
 				}
 
 				IncrementActiveConnections();
-				if (StartThread(HandleConnection, reinterpret_cast<void *>(static_cast<intptr_t>(NewSocket)), 65536, true) == 0) {
+				if (StartThread(HandleConnection, reinterpret_cast<void *>(static_cast<intptr_t>(NewSocket)), COMMUNICATION_THREAD_STACK_SIZE, true) == 0) {
 					print(3, "Kann neuen Thread nicht anlegen.\n");
 					if (close(NewSocket) < 0) {
 						error("AcceptorThreadLoop: Fehler %d beim Schlie\xdf" "en der Socket (4).\n", errno);
