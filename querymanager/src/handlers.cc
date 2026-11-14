@@ -216,7 +216,7 @@ uint32_t Dispatcher::requireWorld(const Session &session) const {
 //   response: status only
 // connect() treats every status other than 0 as "Anmeldung fehlgeschlagen"
 // and reads nothing else. The password is the one from the QueryManager
-// entry in .tibia after DisguisePassword (src/config.cc); for the game
+// entry in config.toml after DisguisePassword (src/config.cc); for the game
 // server LoginData is its world name (InitAll).
 void Dispatcher::handleLogin(Session &session, ReadBuffer &in, WriteBuffer &out) {
 	uint8_t applicationType = in.readByte();

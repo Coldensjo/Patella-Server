@@ -27,13 +27,14 @@ add_library(qm_server STATIC
 target_include_directories(qm_server PUBLIC src)
 target_link_libraries(qm_server PUBLIC qm_protocol qm_storage Threads::Threads)
 
-# Seeding from a game server installation (.tibia, usr/, dat/owners.dat).
+# Seeding from a game server installation (config.toml or .tibia, usr/,
+# dat/owners.dat).
 add_library(qm_seed STATIC
 	src/script.cc
 	src/seed.cc
 )
 target_include_directories(qm_seed PUBLIC src)
-target_link_libraries(qm_seed PUBLIC qm_storage)
+target_link_libraries(qm_seed PUBLIC qm_storage tomlplusplus)
 
 add_executable(querymanager src/main.cc)
 target_link_libraries(querymanager PRIVATE qm_server)

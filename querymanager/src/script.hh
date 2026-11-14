@@ -1,4 +1,4 @@
-// Reader for the game's text data files (.tibia, usr/NN/<id>.usr,
+// Reader for the game's text data files (the original .tibia, usr/NN/<id>.usr,
 // dat/owners.dat), as far as seeding needs it.
 //
 // The token rules are those of TReadScriptFile::nextToken (src/script.cc): '#'
