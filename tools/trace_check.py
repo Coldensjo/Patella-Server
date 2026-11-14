@@ -15,16 +15,16 @@ What it does, in WSL Ubuntu-24.04:
      (--install, a tar or a folder; default /home/chris/patella-cmp/pristine.tar) in ~/.cache/patella-check/trace/game
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
-     relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml and data/moveuse.toml go
-     into the copy's data folder ([paths] data), and the files they were converted from, objects.srv, circles.dat and
-     moveuse.dat, are removed (spells.toml replaces the spell table in the code). A tree without them (faithful) gets
-     the copy's .tibia with its paths pointed at the copy, and keeps objects.srv, circles.dat and moveuse.dat. The
-     scenario's clients read the object types from the file the copy has. Either config gets a scratch SHM key (--shm,
-     default 17011) and scratch query manager ports (--qm-port, default 17173, and the three after it for the other
-     entries). Then it seeds a scratch database with the build's querymanager-seed (game port --port, default 17171),
-     adds the two test accounts with a new character each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female;
-     neither may have a player file) and starts the build's query manager. The game runs with HOME set to the copy, so
-     it reads the copy's config.toml (or .tibia).
+     relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/moveuse.toml and
+     data/houses.toml go into the copy's data folder ([paths] data), and the files they were converted from,
+     objects.srv, circles.dat, moveuse.dat, houseareas.dat and houses.dat, are removed (spells.toml replaces the spell
+     table in the code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the copy, and
+     keeps those files. The scenario's clients read the object types from the file the copy has. Either config gets a
+     scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the three
+     after it for the other entries). Then it seeds a scratch database with the build's querymanager-seed (game port
+     --port, default 17171), adds the two test accounts with a new character each (900001 'Testa Alpha', male, and
+     900002 'Testb Beta', female; neither may have a player file) and starts the build's query manager. The game runs
+     with HOME set to the copy, so it reads the copy's config.toml (or .tibia).
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
@@ -274,13 +274,14 @@ def data_folder(game):
 	return os.path.normpath(os.path.join(game, data))
 
 
-# The TOML files of a tree's data/ that go into the copy's data folder, each with the original file of that folder it
-# was converted from and replaces (None: one the game had in its code).
+# The TOML files of a tree's data/ that go into the copy's data folder, each with the original files of that folder it
+# was converted from and replaces (none: one the game had in its code).
 DATA_FILES = [
-	("items.toml", "objects.srv"),
-	("circles.toml", "circles.dat"),
-	("spells.toml", None),
-	("moveuse.toml", "moveuse.dat"),
+	("items.toml", ("objects.srv",)),
+	("circles.toml", ("circles.dat",)),
+	("spells.toml", ()),
+	("moveuse.toml", ("moveuse.dat",)),
+	("houses.toml", ("houseareas.dat", "houses.dat")),
 ]
 
 
@@ -294,20 +295,20 @@ def lay_out(game, data, options):
 		if os.path.exists(tibia):
 			os.remove(tibia)
 		layout = "config.toml from the tree's data/, no .tibia"
-		for name, original in DATA_FILES:
+		for name, originals in DATA_FILES:
 			if not os.path.isfile(os.path.join(data, name)):
 				continue
 			folder = data_folder(game)
 			shutil.copyfile(os.path.join(data, name), os.path.join(folder, name))
 			layout += "; %s from the tree's data/" % name
-			if original:
+			for original in originals:
 				if os.path.exists(os.path.join(folder, original)):
 					os.remove(os.path.join(folder, original))
 				layout += ", no %s" % original
 			if name == "items.toml":
 				objects = os.path.join(folder, name)
 		return world, layout, objects
-	for name, original in DATA_FILES:
+	for name, _ in DATA_FILES:
 		if data and os.path.isfile(os.path.join(data, name)):
 			raise CheckError("data/%s without data/config.toml: the copy's data folder is unknown" % name)
 	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"]), ".tibia", objects
