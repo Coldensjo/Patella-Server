@@ -6,7 +6,7 @@
 // account number and password are the operator's choice. It can also create
 // new characters: they get the next free character id and have no player
 // file, so the game starts them as new characters (LoadPlayerData,
-// dbfuncs.c, 0x806c240).
+// dbfuncs.c).
 // --login-password, alone or with either mode, stores the password the
 // login server (loginserver/) presents. It sends it as it is, without the
 // game's DisguisePassword.
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
 			haveAccount = true;
 		} else if (option == "--password") {
 			// The terminal gives UTF-8; the client sends ISO-8859-1, and
-			// HandleLogin (0x80dd5b0) reads at most 29 bytes of it.
+			// HandleLogin reads at most 29 bytes of it.
 			password = qm::utf8ToLatin1(value);
 			ok = password.size() <= qm::MAX_NAME_LENGTH;
 			havePassword = true;

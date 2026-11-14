@@ -228,7 +228,7 @@ void importPlayers(Storage &storage, const std::string &userPath, uint32_t world
 	report.playerFiles = files.size();
 
 	for (const fs::path &file : files) {
-		// PlayerDataPath (dbfuncs.c, 0x806c180): "%s/%02ld/%ld.usr" with
+		// PlayerDataPath (dbfuncs.c): "%s/%02ld/%ld.usr" with
 		// CharacterID % 100 as the directory.
 		std::string where = file.parent_path().filename().string() + "/" + file.filename().string();
 		PlayerFile player;
