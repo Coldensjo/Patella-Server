@@ -60,6 +60,10 @@ const int COMMUNICATION_THREAD_STACK_SIZE = 65536;
 // NetLoadCheck calls.
 const int LOAD_HISTORY_SIZE = 360;
 
+// Reads the RSA key from RSAKEYPATH (config.cc) for InitCommunication. Throws
+// a const char * "<file>: <what>" when the file cannot be read or holds no
+// key the client can use (rsakeyfile.hh).
+void ReadPrivateKey();
 void InitCommunication();
 void ExitCommunication();
 

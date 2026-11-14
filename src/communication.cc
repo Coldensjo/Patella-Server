@@ -39,9 +39,9 @@
 #include "utils.hh"
 #include "time.hh"
 #include "TXTEASymmetricKey.hh"
-#include "RSA_PrivateKey.hh"
 #include "communication.hh"
 #include "TRSAPrivateKey.hh"
+#include "rsakeyfile.hh"
 #include "crplayer.hh"
 #include "mudinc.hh"
 #include "shm.hh"
@@ -70,6 +70,8 @@ pid_t LastUsingCommunicationThread[MAX_COMMUNICATION_THREADS];
 int FreeCommunicationThreadStacks[MAX_COMMUNICATION_THREADS];
 int NumberOfFreeCommunicationThreadStacks;
 TRSAPrivateKey PrivateKey;
+// The primes of PrivateKey, from the key file (ReadPrivateKey).
+static TRSAKeyFile PrivateKeyFile;
 Semaphore RSAMutex(1);
 TQueryManagerConnectionPool QueryManagerConnectionPool(10);
 int LoadHistory[LOAD_HISTORY_SIZE];
@@ -1421,8 +1423,19 @@ void ChooseThreadStacks() {
 	}
 }
 
+void ReadPrivateKey() {
+	try {
+		PrivateKeyFile = ReadRSAKeyFile(RSAKEYPATH);
+	} catch (const std::exception &e) {
+		static char ErrorText[4096 + 256];
+		snprintf(ErrorText, sizeof(ErrorText), "%s", e.what());
+		throw static_cast<const char *>(ErrorText);
+	}
+}
+
 // Throws a const char * when it cannot connect to the query manager, open
-// the socket or start the acceptor thread.
+// the socket or start the acceptor thread. ReadPrivateKey must have read the
+// key.
 void InitCommunication() {
 	ChooseThreadStacks();
 	InitCommunicationThreadStacks();
@@ -1437,7 +1450,7 @@ void InitCommunication() {
 
 	InitLoadHistory();
 	WaitinglistHead = nullptr;
-	PrivateKey.init(RSA_PRIME_P, RSA_PRIME_Q);
+	PrivateKey.init(PrivateKeyFile.PrimeP.c_str(), PrivateKeyFile.PrimeQ.c_str());
 
 	AcceptorThread = StartThread(AcceptorThreadLoop, nullptr, false);
 	if (AcceptorThread == 0) {

@@ -338,6 +338,8 @@ static void TestErrors(const fs::path &Folder) {
 		Eleven += "[[query_manager]]\nhost = \"h\"\nport = 1\npassword = \"p\"\n";
 	}
 	Expect(Eleven, 4 * MAX_QUERY_MANAGERS + 1, "more than 10 query managers");
+	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
+	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
 	Expect("beat =\n", 1, "");
 
@@ -378,6 +380,18 @@ static void TestFileNames(const fs::path &Folder) {
 	CHECK(strcmp(LOGPATH, "/abs/log") == 0);
 	CHECK(USERPATH[0] == 0);
 	CHECK(BINPATH[0] == 0);
+	// Without rsa_key: key.pem in the config file's folder.
+	CHECK(RSAKEYPATH == Sub + "/key.pem");
+
+	// rsa_key: relative to the config file's folder, or absolute.
+	WriteFile(Folder / "rel" / "sub" / "relkey.toml", "rsa_key = \"keys/server.pem\"\n");
+	WriteFile(Folder / "rel" / "sub" / "abskey.toml", "rsa_key = \"/etc/patella/key.pem\"\n");
+	ReadConfig("sub/relkey.toml");
+	CHECK(RSAKEYPATH == Sub + "/keys/server.pem");
+	ReadConfig("sub/abskey.toml");
+	CHECK(strcmp(RSAKEYPATH, "/etc/patella/key.pem") == 0);
+	SetConfigDefaults();
+	CHECK(RSAKEYPATH[0] == 0);
 	CHECK(chdir(Here) == 0);
 }
 

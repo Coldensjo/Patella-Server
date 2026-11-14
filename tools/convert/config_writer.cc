@@ -47,6 +47,12 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "# the game (default 0).\n";
 	Text += "shm_key = " + std::to_string(SHMKey) + "\n";
 	Text += "\n";
+	Text += "# The file of the server's RSA private key, for the clients' logins: PEM,\n";
+	Text += "# PKCS#1 or PKCS#8, unencrypted, 1024 bits, exponent 65537 (rsakeygen makes\n";
+	Text += "# one). A relative path is relative to the folder this file is in (default\n";
+	Text += "# \"key.pem\"). Keep the file private.\n";
+	Text += "rsa_key = \"key.pem\"\n";
+	Text += "\n";
 	Text += "[world]\n";
 	Text += "# The world's name; the game logs in to the query manager with it (default\n";
 	Text += "# empty).\n";

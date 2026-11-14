@@ -14,6 +14,12 @@ beat = 50
 # the game (default 0).
 shm_key = 10011
 
+# The file of the server's RSA private key, for the clients' logins: PEM,
+# PKCS#1 or PKCS#8, unencrypted, 1024 bits, exponent 65537 (rsakeygen makes
+# one). A relative path is relative to the folder this file is in (default
+# "key.pem"). Keep the file private.
+rsa_key = "key.pem"
+
 [world]
 # The world's name; the game logs in to the query manager with it (default
 # empty).
