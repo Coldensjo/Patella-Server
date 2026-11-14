@@ -236,7 +236,7 @@ TSkillBase::~TSkillBase() {
 
 void TSkillBase::DelTimer(unsigned short SkNr) {
 	if (SkNr >= MAX_SKILLS) {
-		error("TSkillBase::DelTimer: Ungueltige SkNr: %d\n", SkNr);
+		error("TSkillBase::DelTimer: Invalid SkNr: %d\n", SkNr);
 		return;
 	}
 
@@ -257,7 +257,7 @@ void TSkillBase::DelTimer(unsigned short SkNr) {
 
 bool TSkillBase::SetTimer(unsigned short SkNr, int cyc, int cou, int maxcou, int additionalvalue) {
 	if (SkNr >= MAX_SKILLS) {
-		error("TSkillBase::SetTimer: Ungueltige SkNr: %d\n", SkNr);
+		error("TSkillBase::SetTimer: Invalid SkNr: %d\n", SkNr);
 		return false;
 	}
 
@@ -289,7 +289,7 @@ void TSkillBase::ProcessSkills() {
 
 bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
 	if (SkillNo >= MAX_SKILLS) {
-		error("TSkillBase::NewSkill: unbekannte SkillNummer %d\n", SkillNo);
+		error("TSkillBase::NewSkill: Unknown skill number %d\n", SkillNo);
 		return false;
 	}
 
@@ -354,7 +354,7 @@ bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
 
 bool TSkillBase::SetSkills(int Race) {
 	if (Race < 1 || Race > MAX_RACES - 1) {
-		error("TSkillBase::SetSkills: Ung\xfcltige Rassennummer %d.\n", Race);
+		error("TSkillBase::SetSkills: Invalid race number %d.\n", Race);
 		return false;
 	}
 
@@ -466,9 +466,9 @@ int TSkill::GetProgress() {
 	long long ExpNecessary = NextLevel - LastLevel;
 	int Percent = (int)(ExpGained * 100 / ExpNecessary);
 	if (!in(Percent, 0, 99)) {
-		error("TSkill::GetProgress: Berechnungsfehler Exp %d, Last %d, Next %d, Prozent %d.\n",
+		error("TSkill::GetProgress: Calculation error Exp %d, Last %d, Next %d, Percent %d.\n",
 				Exp, LastLevel, NextLevel, Percent);
-		error("# Spieler %s - Skill %d\n", Master != nullptr ? Master->Name : "(Unknown", SkNr);
+		error("# Player %s - Skill %d\n", Master != nullptr ? Master->Name : "(Unknown", SkNr);
 		Percent = 0;
 	}
 	return Percent;
@@ -539,17 +539,17 @@ bool TSkill::DelTimer() {
 
 int TSkillLevel::GetExpForLevel(int Level) {
 	if (Level < 1) {
-		error("TSkillLevel::GetExpForLevel: Ung\xfcltiger Level %d.\n", Level);
+		error("TSkillLevel::GetExpForLevel: Invalid level %d.\n", Level);
 		return 0;
 	}
 
 	if (Delta < 1) {
-		error("TSkillLevel::GetExpForLevel: Ung\xfcltiger Delta-Wert %d.\n", Delta);
+		error("TSkillLevel::GetExpForLevel: Invalid delta value %d.\n", Delta);
 		return 0;
 	}
 
 	if (Level > 500) {
-		error("TSkillLevel::GetExpForLevel: Level=%d; Formel gegen \xdc" "berlauf sichern.\n", Level);
+		error("TSkillLevel::GetExpForLevel: Level=%d; guard the formula against overflow.\n", Level);
 		return -1;
 	}
 
@@ -558,7 +558,7 @@ int TSkillLevel::GetExpForLevel(int Level) {
 
 void TSkillLevel::Increase(int Amount) {
 	if (Amount < 0) {
-		error("TSkillLevel::Increase: Amount negativ (%d).\n", Amount);
+		error("TSkillLevel::Increase: Amount negative (%d).\n", Amount);
 		return;
 	}
 
@@ -569,7 +569,7 @@ void TSkillLevel::Increase(int Amount) {
 		NextLevel = GetExpForLevel(Act + 1);
 		LastLevel = GetExpForLevel(Act);
 		if (NextLevel < 0) {
-			error("TSkillLevel::Increase: Skill vor \xdc" "berlauf (%s, Skill %d).\n",
+			error("TSkillLevel::Increase: Skill about to overflow (%s, Skill %d).\n",
 					GetMaster()->Name, GetSkNr());
 			NextLevel = Exp;
 			Exp -= 1000000;
@@ -584,7 +584,7 @@ void TSkillLevel::Increase(int Amount) {
 
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillLevel::Increase: GetMaster liefert NULL zurueck.\n");
+		error("TSkillLevel::Increase: GetMaster returns NULL.\n");
 		return;
 	}
 
@@ -595,12 +595,12 @@ void TSkillLevel::Increase(int Amount) {
 
 void TSkillLevel::Decrease(int Amount) {
 	if (Amount < 0) {
-		error("TSkillLevel::Decrease: Amount negativ (%d).\n", Amount);
+		error("TSkillLevel::Decrease: Amount negative (%d).\n", Amount);
 		return;
 	}
 
 	if (Amount > Exp && Exp > 100000) {
-		error("TSkillLevel::Decrease: Amount zu gross(%d).\n", Amount);
+		error("TSkillLevel::Decrease: Amount too large (%d).\n", Amount);
 		return;
 	}
 
@@ -628,7 +628,7 @@ void TSkillLevel::Decrease(int Amount) {
 
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillLevel::Decrease: GetMaster liefert NULL zurueck.\n");
+		error("TSkillLevel::Decrease: GetMaster returns NULL.\n");
 		return;
 	}
 
@@ -640,7 +640,7 @@ void TSkillLevel::Decrease(int Amount) {
 bool TSkillLevel::Jump(int Range) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillLevel::Jump: GetMaster liefert NULL zurueck!\n");
+		error("TSkillLevel::Jump: GetMaster returns NULL!\n");
 		return false;
 	}
 
@@ -676,7 +676,7 @@ bool TSkillProbe::SetTimer(int cyc, int cou, int maxcou, int) {
 
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillProbe::SetTimer: GetMaster liefert NULL zurueck!\n");
+		error("TSkillProbe::SetTimer: GetMaster returns NULL!\n");
 		return false;
 	}
 
@@ -690,7 +690,7 @@ void TSkillProbe::Event(int) {
 	if (Cycle == 0) {
 		TCreature *cr = GetMaster();
 		if (cr == nullptr) {
-			error("TSkillProbe::Event: GetMaster liefert NULL zurueck!\n");
+			error("TSkillProbe::Event: GetMaster returns NULL!\n");
 			return;
 		}
 
@@ -704,7 +704,7 @@ void TSkillProbe::Event(int) {
 bool TSkillProbe::Jump(int Range) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillProbe::Jump: GetMaster liefert NULL zurueck!\n");
+		error("TSkillProbe::Jump: GetMaster returns NULL!\n");
 		return false;
 	}
 
@@ -757,22 +757,22 @@ bool TSkillProbe::Jump(int Range) {
 
 int TSkillProbe::GetExpForLevel(int Level) {
 	if (Level < 0 || Level < Min) {
-		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger Level %d.\n", Level);
+		error("TSkillProbe::GetExpForLevel: Invalid level %d.\n", Level);
 		return 0;
 	}
 
 	if (Delta <= 0) {
-		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger Delta-Wert %d.\n", Delta);
+		error("TSkillProbe::GetExpForLevel: Invalid delta value %d.\n", Delta);
 		return 0;
 	}
 
 	if (FactorPercent < 1000) {
-		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger FactorPercent-Wert %d bei %s.\n",
+		error("TSkillProbe::GetExpForLevel: Invalid FactorPercent value %d for %s.\n",
 				FactorPercent, GetMaster() != nullptr ? GetMaster()->Name : "---");
 	}
 
 	if (FactorPercent > 1000 && FactorPercent < 1050) {
-		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger FactorPercent-Wert %d. Rechne mit 1000 weiter.\n",
+		error("TSkillProbe::GetExpForLevel: Invalid FactorPercent value %d. Continuing with 1000.\n",
 				FactorPercent);
 	}
 
@@ -789,7 +789,7 @@ int TSkillProbe::GetExpForLevel(int Level) {
 
 void TSkillProbe::Increase(int Amount) {
 	if (Amount < 0) {
-		error("TSkillProbe::Increase: Amount negativ (%d).\n", Amount);
+		error("TSkillProbe::Increase: Amount negative (%d).\n", Amount);
 		return;
 	}
 
@@ -801,7 +801,7 @@ void TSkillProbe::Increase(int Amount) {
 		NextLevel = GetExpForLevel(Act + 1);
 		LastLevel = GetExpForLevel(Act);
 		if (NextLevel < 0) {
-			error("TSkillProbe::Increase: Skill vor \xdc" "berlauf (%s, Skill %d).\n",
+			error("TSkillProbe::Increase: Skill about to overflow (%s, Skill %d).\n",
 					GetMaster()->Name, GetSkNr());
 			NextLevel = Exp;
 			Exp -= 1000;
@@ -826,7 +826,7 @@ void TSkillProbe::Increase(int Amount) {
 
 void TSkillProbe::Decrease(int Amount) {
 	if (Amount < 0) {
-		error("TSkillProbe::Decrease: Amount negativ (%d).\n", Amount);
+		error("TSkillProbe::Decrease: Amount negative (%d).\n", Amount);
 		return;
 	}
 
@@ -969,7 +969,7 @@ bool TSkillPoison::Process() {
 void TSkillPoison::Event(int Range) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillPoison::Event: GetMaster liefert NULL zurueck!\n");
+		error("TSkillPoison::Event: GetMaster returns NULL!\n");
 		return;
 	}
 
@@ -992,7 +992,7 @@ void TSkillPoison::Event(int Range) {
 void TSkillBurning::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillBurning::Event: GetMaster liefert NULL zurueck!\n");
+		error("TSkillBurning::Event: GetMaster returns NULL!\n");
 		return;
 	}
 
@@ -1011,7 +1011,7 @@ void TSkillBurning::Event(int) {
 void TSkillEnergy::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillEnergy::Event: GetMaster liefert NULL zurueck!\n");
+		error("TSkillEnergy::Event: GetMaster returns NULL!\n");
 		return;
 	}
 
@@ -1030,7 +1030,7 @@ void TSkillEnergy::Event(int) {
 void TSkillFed::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillFed::Event: GetMaster liefert NULL zurueck!\n");
+		error("TSkillFed::Event: GetMaster returns NULL!\n");
 		return;
 	}
 
@@ -1071,7 +1071,7 @@ void TSkillFed::Event(int) {
 				SecsPerMana = 2;
 				break;
 			default:
-				error("TSkillFed::Event: Unbekannter Beruf %d.\n", Profession);
+				error("TSkillFed::Event: Unknown profession %d.\n", Profession);
 				break;
 		}
 
@@ -1089,7 +1089,7 @@ void TSkillIllusion::Event(int) {
 	if (Cycle == 0) {
 		TCreature *cr = GetMaster();
 		if (cr == nullptr) {
-			error("TSkillIllusion::Event: GetMaster liefert NULL zurueck!\n");
+			error("TSkillIllusion::Event: GetMaster returns NULL!\n");
 			return;
 		}
 
@@ -1106,7 +1106,7 @@ bool TSkillIllusion::SetTimer(int cyc, int cou, int maxcou, int) {
 
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillIllusion::SetTimer: GetMaster liefert NULL zurueck!\n");
+		error("TSkillIllusion::SetTimer: GetMaster returns NULL!\n");
 		return false;
 	}
 
@@ -1119,7 +1119,7 @@ bool TSkillIllusion::SetTimer(int cyc, int cou, int maxcou, int) {
 void TSkillLight::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillLight::Event: GetMaster liefert NULL zurueck!\n");
+		error("TSkillLight::Event: GetMaster returns NULL!\n");
 		return;
 	}
 
@@ -1131,7 +1131,7 @@ bool TSkillLight::SetTimer(int cyc, int cou, int maxcou, int) {
 
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillLight::SetTimer: GetMaster liefert NULL zurueck!\n");
+		error("TSkillLight::SetTimer: GetMaster returns NULL!\n");
 		return false;
 	}
 
@@ -1144,7 +1144,7 @@ bool TSkillLight::SetTimer(int cyc, int cou, int maxcou, int) {
 void TSkillHitpoints::Set(int a) {
 	TCreature *cr = GetMaster();
 	if (cr != nullptr && cr->IsDead && a > 0) {
-		error("TSkillHitpoints::Set: HP von toter Kreatur sollen erh\xf6ht werden.\n");
+		error("TSkillHitpoints::Set: Attempt to raise HP of a dead creature.\n");
 		return;
 	}
 
@@ -1178,7 +1178,7 @@ void TSkillSoulpoints::Set(int a) {
 void TSkillSoulpoints::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillSoulpoints::Event: GetMaster liefert NULL zurueck!\n");
+		error("TSkillSoulpoints::Event: GetMaster returns NULL!\n");
 		return;
 	}
 
@@ -1195,7 +1195,7 @@ bool TSkillGoStrength::SetTimer(int cyc, int cou, int maxcou, int) {
 
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
-		error("TSkillGoStrength::SetTimer: GetMaster liefert NULL zurueck!\n");
+		error("TSkillGoStrength::SetTimer: GetMaster returns NULL!\n");
 		return false;
 	}
 
@@ -1207,7 +1207,7 @@ void TSkillGoStrength::Event(int) {
 	if (Cycle == 0) {
 		TCreature *cr = GetMaster();
 		if (cr == nullptr) {
-			error("TSkillGoStrength::Event: GetMaster liefert NULL zurueck!\n");
+			error("TSkillGoStrength::Event: GetMaster returns NULL!\n");
 			return;
 		}
 
