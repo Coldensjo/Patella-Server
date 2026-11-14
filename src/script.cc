@@ -687,6 +687,9 @@ TWriteScriptFile::~TWriteScriptFile() {
 			::error("TWriteScriptFile::~TWriteScriptFile: Error %d while closing the file.\n", errno);
 		}
 	}
+
+	// The text openText wrote; open_memstream leaves it to the caller.
+	free(Text);
 }
 
 void TWriteScriptFile::open(char *FileName) {
@@ -698,6 +701,9 @@ void TWriteScriptFile::open(char *FileName) {
 		File = nullptr;
 	}
 
+	free(Text);
+	Text = nullptr;
+	TextLength = 0;
 	File = fopen(FileName, "wb");
 	if (File == nullptr) {
 		int ErrorCode = errno;
