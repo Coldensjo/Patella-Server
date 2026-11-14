@@ -19,6 +19,7 @@ add_library(convert_common STATIC
 	circles_writer.cc
 	spells_reference.cc
 	spells_writer.cc
+	commands_reference.cc
 	moveuse_dat.cc
 	moveuse_writer.cc
 	houses_dat.cc
@@ -112,6 +113,19 @@ add_executable(convert_test_spells tests/test_spells.cc)
 target_link_libraries(convert_test_spells PRIVATE convert_common)
 add_test(NAME convert_spells COMMAND convert_test_spells)
 add_test(NAME convert_spells_original COMMAND convert_test_spells --original ${PROJECT_SOURCE_DIR}/data/spells.toml)
+
+# The round trip of the commands: the spell table with its commands and the
+# rights the code checked for them (InitReferenceSpells and
+# InitReferenceCommandRights), and from spells.toml and commands.toml (through
+# LoadSpells and LoadCommands), are the same, field by field. convert_commands
+# uses made-up tables and files; convert_commands_original the committed
+# data/spells.toml and data/commands.toml, which must also be exactly what
+# patella-convert commands writes.
+add_executable(convert_test_commands tests/test_commands.cc)
+target_link_libraries(convert_test_commands PRIVATE convert_common)
+add_test(NAME convert_commands COMMAND convert_test_commands)
+add_test(NAME convert_commands_original COMMAND convert_test_commands --original
+	${PROJECT_SOURCE_DIR}/data/spells.toml ${PROJECT_SOURCE_DIR}/data/commands.toml)
 
 # The round trip of the move and use rules: the rules the game ends up with
 # from a moveuse.dat (through the old reader, ReadMoveUseDat) and from its

@@ -1,0 +1,244 @@
+# commands.toml: the commands of the game server, the spells of the classes al
+# and om, which gamemasters give by saying their words (and players, those of
+# their houses), written by patella-convert from the spell table the game had
+# in its code and the rights its code checked. The game reads commands.toml in
+# its data folder ([paths] data of config.toml), after spells.toml. What a
+# command does stays in the code; this file says what it is called, what is
+# said to give it and which rights it needs. An unknown key or right, or a
+# value of the wrong type, is an error.
+#
+# Each [[command]] is one command:
+#   number  The command number, 1 to 255, each at most once and none of a
+#           spell in spells.toml. It ties the command to what it does in the
+#           code.
+#   name    Its name, at most 30 characters.
+#   words   What is said to give it, written as spells.toml writes words:
+#           the class syllable and the next one as one word, every further
+#           syllable a word of its own, separated by single spaces; at most
+#           10 syllables, and no two commands or spells with the same. The
+#           class is "al" for the commands of character rights, "om" for
+#           those of account rights. "para" stands for a word the caster
+#           chooses (a name, a number; in quotes if it has spaces).
+#   right   The right a player needs for the command to do anything, by its
+#           name below. Command 37 (Move) needs one of four rights, by the
+#           word given, so its right is a table of them: vertical ("up" and
+#           "down"), speed ("fast", "fastest", "slow" and "normal"),
+#           coordinate (x,y,z or [x,y,z]) and mark (the name of a mark). The
+#           code checks no right for the house commands and for those that
+#           point to the rule violation dialog (Ctrl+Y): they have none.
+#           Every other command needs it.
+#
+# The rights:
+#   PREMIUM_ACCOUNT, NOTATION, NAMELOCK, STATEMENT_REPORT, BANISHMENT,
+#   FINAL_WARNING, IP_BANISHMENT, KICK, HOME_TELEPORT, GAMEMASTER_BROADCAST,
+#   ANONYMOUS_BROADCAST, NO_BANISHMENT, ALLOW_MULTICLIENT, LOG_COMMUNICATION,
+#   READ_GAMEMASTER_CHANNEL, READ_TUTOR_CHANNEL, HIGHLIGHT_HELP_CHANNEL,
+#   SEND_BUGREPORTS, NAME_INSULTING, NAME_SENTENCE, NAME_NONSENSICAL_LETTERS,
+#   NAME_BADLY_FORMATTED, NAME_NO_PERSON, NAME_CELEBRITY, NAME_COUNTRY,
+#   NAME_FAKE_IDENTITY, NAME_FAKE_POSITION, STATEMENT_INSULTING,
+#   STATEMENT_SPAMMING, STATEMENT_ADVERT_OFFTOPIC, STATEMENT_ADVERT_MONEY,
+#   STATEMENT_NON_ENGLISH, STATEMENT_CHANNEL_OFFTOPIC,
+#   STATEMENT_VIOLATION_INCITING, CHEATING_BUG_ABUSE, CHEATING_GAME_WEAKNESS,
+#   CHEATING_MACRO_USE, CHEATING_MODIFIED_CLIENT, CHEATING_HACKING,
+#   CHEATING_MULTI_CLIENT, CHEATING_ACCOUNT_TRADING, CHEATING_ACCOUNT_SHARING,
+#   GAMEMASTER_THREATENING, GAMEMASTER_PRETENDING, GAMEMASTER_INFLUENCE,
+#   GAMEMASTER_FALSE_REPORTS, KILLING_EXCESSIVE_UNJUSTIFIED,
+#   DESTRUCTIVE_BEHAVIOUR, SPOILING_AUCTION, INVALID_PAYMENT,
+#   TELEPORT_TO_CHARACTER, TELEPORT_TO_MARK, TELEPORT_VERTICAL,
+#   TELEPORT_TO_COORDINATE, LEVITATE, SPECIAL_MOVEUSE, MODIFY_GOSTRENGTH,
+#   SHOW_COORDINATE, RETRIEVE, ENTER_HOUSES, OPEN_NAMEDOORS, INVULNERABLE,
+#   UNLIMITED_MANA, KEEP_INVENTORY, ALL_SPELLS, UNLIMITED_CAPACITY,
+#   ZERO_CAPACITY, ATTACK_EVERYWHERE, NO_ATTACK, NO_RUNES, NO_LOGOUT_BLOCK,
+#   GAMEMASTER_OUTFIT, ILLUMINATE, CHANGE_PROFESSION, IGNORED_BY_MONSTERS,
+#   SHOW_KEYHOLE_NUMBERS, CREATE_OBJECTS, CREATE_MONEY, CREATE_MONSTERS,
+#   CHANGE_SKILLS, CLEANUP_FIELDS, NO_STATISTICS
+
+[[command]]
+number = 34
+name = "Get Item"
+words = "alevo para para"
+right = "CREATE_OBJECTS"
+
+[[command]]
+number = 35
+name = "Get Item"
+words = "alevo para"
+right = "CREATE_OBJECTS"
+
+[[command]]
+number = 37
+name = "Move"
+words = "alani para"
+[command.right]
+vertical = "TELEPORT_VERTICAL"
+speed = "MODIFY_GOSTRENGTH"
+coordinate = "TELEPORT_TO_COORDINATE"
+mark = "TELEPORT_TO_MARK"
+
+[[command]]
+number = 40
+name = "Get Experience"
+words = "alevo cogni para"
+right = "CHANGE_SKILLS"
+
+[[command]]
+number = 41
+name = "Change Data"
+words = "aleta para"
+right = "CREATE_OBJECTS"
+
+[[command]]
+number = 46
+name = "Get Skill Experience"
+words = "alevo cogni para para"
+right = "CHANGE_SKILLS"
+
+[[command]]
+number = 47
+name = "Teleport to Friend"
+words = "alani sio para"
+right = "TELEPORT_TO_CHARACTER"
+
+[[command]]
+number = 52
+name = "Retrieve Friend"
+words = "alliber sio para"
+right = "RETRIEVE"
+
+[[command]]
+number = 53
+name = "Summon Wild Creature"
+words = "alevo res para"
+right = "CREATE_MONSTERS"
+
+[[command]]
+number = 57
+name = "Banish Account"
+words = "omana liber para para para"
+
+[[command]]
+number = 58
+name = "Get Position"
+words = "aliva tera"
+right = "SHOW_COORDINATE"
+
+[[command]]
+number = 60
+name = "Temple Teleport"
+words = "omani para"
+right = "HOME_TELEPORT"
+
+[[command]]
+number = 61
+name = "Delete Account"
+words = "omana gran liber para para"
+
+[[command]]
+number = 62
+name = "Set Namerule"
+words = "omamo para"
+
+[[command]]
+number = 63
+name = "Create Gold"
+words = "alevo vis para"
+right = "CREATE_MONEY"
+
+[[command]]
+number = 64
+name = "Change Profession or Sex"
+words = "aleta vita para"
+right = "CHANGE_PROFESSION"
+
+[[command]]
+number = 65
+name = "Entry in Criminal Record"
+words = "omisa para para"
+
+[[command]]
+number = 66
+name = "Namelock"
+words = "omana hora para"
+
+[[command]]
+number = 67
+name = "Kick Player"
+words = "omana para"
+right = "KICK"
+
+[[command]]
+number = 68
+name = "Delete Character"
+words = "omana gran res para para"
+
+[[command]]
+number = 69
+name = "Banish IP Address"
+words = "omana vis para para"
+
+[[command]]
+number = 70
+name = "Banish Character"
+words = "omana res para para para"
+
+[[command]]
+number = 71
+name = "Invite Guests"
+words = "aleta sio"
+
+[[command]]
+number = 72
+name = "Invite Subowners"
+words = "aleta som"
+
+[[command]]
+number = 73
+name = "Kick Guest"
+words = "alana sio para"
+
+[[command]]
+number = 74
+name = "Edit Door"
+words = "aleta grav"
+
+[[command]]
+number = 96
+name = "Get Quest Value"
+words = "aliva cogni para"
+right = "CHANGE_SKILLS"
+
+[[command]]
+number = 97
+name = "Set Quest Value"
+words = "aleta cogni para para"
+right = "CHANGE_SKILLS"
+
+[[command]]
+number = 98
+name = "Desintegrate Spell"
+words = "alito tera"
+right = "CLEANUP_FIELDS"
+
+[[command]]
+number = 99
+name = "Levitate Gamemaster"
+words = "alani hur para"
+right = "LEVITATE"
+
+[[command]]
+number = 100
+name = "Clear Quest Values"
+words = "alana cogni"
+right = "CHANGE_SKILLS"
+
+[[command]]
+number = 101
+name = "Kill All Creatures"
+words = "alito mas res"
+right = "CREATE_MONSTERS"
+
+[[command]]
+number = 102
+name = "Start Monsterraid"
+words = "alevo mas res para"
+right = "CREATE_MONSTERS"

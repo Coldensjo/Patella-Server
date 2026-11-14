@@ -21,7 +21,15 @@
 //   patella-convert spells OUTPUT
 //     The spells: the spell table the game had in its code (its old
 //     InitSpells, compiled into patella-convert) to spells.toml, which belongs
-//     in the installation's data folder. OUTPUT "-" is standard output.
+//     in the installation's data folder. OUTPUT "-" is standard output. The
+//     commands (the spells of the classes al and om) are left out; they go
+//     into commands.toml.
+//
+//   patella-convert commands OUTPUT
+//     The commands: the commands of that spell table, with the rights the
+//     code checked for them (compiled into patella-convert), to
+//     commands.toml, which belongs in the installation's data folder. OUTPUT
+//     "-" is standard output.
 //
 //   patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT
 //     The move and use rules: moveuse.dat to moveuse.toml, which belongs in
@@ -88,6 +96,7 @@
 #include "moveuse_writer.hh"
 #include "objects.hh"
 #include "objects_srv.hh"
+#include "commands_reference.hh"
 #include "spells_reference.hh"
 #include "spells_writer.hh"
 #include "tibia_config.hh"
@@ -99,6 +108,7 @@ static int Usage() {
 			"       patella-convert items OBJECTS_SRV OUTPUT\n"
 			"       patella-convert circles CIRCLES_DAT OUTPUT\n"
 			"       patella-convert spells OUTPUT\n"
+			"       patella-convert commands OUTPUT\n"
 			"       patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT\n"
 			"       patella-convert houses HOUSEAREAS_DAT HOUSES_DAT OUTPUT\n"
 			"       patella-convert map MAP_DAT OUTPUT\n"
@@ -168,6 +178,17 @@ static int ConvertSpells(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertCommands(int argc, char **argv) {
+	if (argc != 1 || (argv[0][0] == '-' && argv[0][1] != 0)) {
+		return Usage();
+	}
+
+	InitReferenceSpells();
+	InitReferenceCommandRights();
+	WriteTextFile(argv[0], CommandsToToml());
+	return 0;
+}
+
 static int ConvertMoveUse(int argc, char **argv) {
 	if (argc != 3 || (argv[0][0] == '-' && argv[0][1] != 0) || (argv[1][0] == '-' && argv[1][1] != 0)) {
 		return Usage();
@@ -230,6 +251,9 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[1], "spells") == 0) {
 			return ConvertSpells(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "commands") == 0) {
+			return ConvertCommands(argc - 2, argv + 2);
 		}
 		if (strcmp(argv[1], "moveuse") == 0) {
 			return ConvertMoveUse(argc - 2, argv + 2);

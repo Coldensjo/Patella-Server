@@ -1,8 +1,9 @@
 // test_spells.cc: the round trip of the spells. The spell table the game ends
 // up with from the table it had in its code (InitReferenceSpells, the old
-// InitSpells) and from the spells.toml patella-convert writes of it, through
-// the game's LoadSpells, must be the same, field by field; LoadSpells must
-// refuse what is wrong with the file and line.
+// InitSpells) without the commands (al and om, test_commands.cc) and from the
+// spells.toml patella-convert writes of it, through the game's LoadSpells,
+// must be the same, field by field; LoadSpells must refuse what is wrong with
+// the file and line.
 //
 //   convert_test_spells
 //     With made-up tables and files in a temporary folder.
@@ -93,6 +94,16 @@ static std::string Convert(const std::function<void()> &Fill) {
 	});
 }
 
+// The reference table without its commands, the spells spells.toml holds.
+static void InitReferenceSpellsOnly() {
+	InitReferenceSpells();
+	for (int i = 1; i < MAX_SPELLS; i++) {
+		if (SpellList[i].Syllable[0] == SYLLABLE_AL || SpellList[i].Syllable[0] == SYLLABLE_OM) {
+			memset(&SpellList[i], 0, sizeof(TSpellList));
+		}
+	}
+}
+
 // Writes the table Fill makes as spells.toml, loads it and compares. Returns
 // the spells.toml text.
 static std::string RoundTrip(const fs::path &Folder, const char *Name, const std::function<void()> &Fill) {
@@ -155,7 +166,7 @@ static void TestRoundTrips(const fs::path &Folder) {
 		SetWords(*S, {"ex"});
 		S->Comment = "";
 		S = &SpellList[3];
-		SetWords(*S, {"al", "ana", "evo", "ori", "mort", "lux", "liber", "vita", "flam", "pox"});
+		SetWords(*S, {"ut", "ana", "evo", "ori", "mort", "lux", "liber", "vita", "flam", "pox"});
 		S->Comment = "a \"quoted\" back\\slash \xe4\xf6\xfc\xdf";
 		S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MAX_100 | SPELLFLAG_FACTOR_MIN_100;
 		S = &SpellList[4];
@@ -169,7 +180,7 @@ static void TestRoundTrips(const fs::path &Folder) {
 		S->Mana = INT_MAX;
 		S->SoulPoints = INT_MAX;
 		S = &SpellList[255];
-		SetWords(*S, {"om", "moe", "ani", "ina", "eta", "amo", "hora", "cogni", "res", "mas"});
+		SetWords(*S, {"ex", "moe", "ani", "ina", "eta", "amo", "hora", "cogni", "res", "mas"});
 		S->Comment = "Last";
 		S->RuneGr = 1;
 		S = &SpellList[100];
@@ -188,7 +199,7 @@ static void TestRoundTrips(const fs::path &Folder) {
 			"soul_points = 0\nflags = [\"factor_min_100\"]\n\n") != std::string::npos);
 	CHECK(Toml.find("number = 2\nname = \"\"\nwords = \"ex\"\nlevel = 0\nmana = 0\nsoul_points = 0\n\n")
 			!= std::string::npos);
-	CHECK(Toml.find("words = \"alana evo ori mort lux liber vita flam pox\"\n") != std::string::npos);
+	CHECK(Toml.find("words = \"utana evo ori mort lux liber vita flam pox\"\n") != std::string::npos);
 	CHECK(Toml.find("name = \"a \\\"quoted\\\" back\\\\slash \xc3\xa4\xc3\xb6\xc3\xbc\xc3\x9f\"\n")
 			!= std::string::npos);
 	CHECK(Toml.find("flags = [\"aggressive\", \"premium\", \"factor_max_100\", \"factor_min_100\"]\n")
@@ -210,8 +221,21 @@ static void TestRoundTrips(const fs::path &Folder) {
 	Toml = RoundTrip(Folder, "empty", []() {});
 	CHECK(Toml.find("\n[[spell]]\n") == std::string::npos);
 
-	// The reference table, with its own words, too.
-	RoundTrip(Folder, "reference", InitReferenceSpells);
+	// The reference table, with its own words, too, without its commands.
+	RoundTrip(Folder, "reference", InitReferenceSpellsOnly);
+
+	// The commands of a table are left out.
+	std::string WithCommands = Convert([]() {
+		SetWords(SpellList[5], {"ex", "ura"});
+		SpellList[5].Comment = "Healing";
+		SetWords(SpellList[6], {"al", "evo", "para"});
+		SpellList[6].Comment = "Get";
+		SetWords(SpellList[7], {"om", "ana", "para"});
+		SpellList[7].Comment = "Kick";
+	});
+	CHECK(WithCommands.find("number = 5\n") != std::string::npos);
+	CHECK(WithCommands.find("number = 6\n") == std::string::npos);
+	CHECK(WithCommands.find("number = 7\n") == std::string::npos);
 }
 
 // What a conversion refuses.
@@ -249,6 +273,18 @@ static void TestRefusals() {
 	Refused("rune number without group", [](TSpellList &S) { S.RuneNr = 1; }, "rune values without a rune group");
 	Refused("rune level without group", [](TSpellList &S) { S.RuneLevel = 1; }, "rune values without a rune group");
 	Refused("charges without group", [](TSpellList &S) { S.Amount = 1; }, "rune values without a rune group");
+	for (const char *Class : {"al", "om"}) {
+		Refused("command with a level", [Class](TSpellList &S) { SetWords(S, {Class, "evo"}); S.Level = 1; },
+				"a command (al or om) with a level");
+		Refused("command with mana", [Class](TSpellList &S) { SetWords(S, {Class, "evo"}); S.Mana = 1; },
+				"a command (al or om) with a level");
+		Refused("command with soul points", [Class](TSpellList &S) { SetWords(S, {Class, "evo"}); S.SoulPoints = 1; },
+				"a command (al or om) with a level");
+		Refused("command with a flag", [Class](TSpellList &S) { SetWords(S, {Class, "evo"}); S.Flags = 2; },
+				"a command (al or om) with a level");
+		Refused("command with a rune", [Class](TSpellList &S) { SetWords(S, {Class, "evo"}); S.RuneGr = 1; },
+				"a command (al or om) with a level");
+	}
 	Refused("only a level", [](TSpellList &S) {
 		memset(S.Syllable, 0, sizeof(S.Syllable));
 		S.Comment = nullptr;
@@ -295,10 +331,13 @@ static void TestErrors(const fs::path &Folder) {
 	Expect(Words("\"exura \""), 4, "words must be syllables separated by single spaces");
 	Expect(Words("\"exura  gran\""), 4, "words must be syllables separated by single spaces");
 	Expect(Words("\"ex ura\""), 4, "words must be syllables separated by single spaces");
-	Expect(Words("\"ura\""), 4, "words must start with al, ad, ex, ut or om");
-	Expect(Words("\"e\""), 4, "words must start with al, ad, ex, ut or om");
-	Expect(Words("\"Exura\""), 4, "words must start with al, ad, ex, ut or om");
-	Expect(Words("\"paraura\""), 4, "words must start with al, ad, ex, ut or om");
+	Expect(Words("\"ura\""), 4, "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
+	Expect(Words("\"e\""), 4, "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
+	Expect(Words("\"Exura\""), 4, "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
+	Expect(Words("\"paraura\""), 4, "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
+	Expect(Words("\"alevo para\""), 4, "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
+	Expect(Words("\"omana\""), 4, "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
+	Expect(Words("\"al\""), 4, "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
 	Expect(Words("\"exura grna\""), 4, "unknown syllable \"grna\" in words");
 	Expect(Words("\"exUra\""), 4, "unknown syllable \"Ura\" in words");
 	Expect(Words("\"exura\\tgran\""), 4, "unknown syllable \"ura\tgran\" in words");
@@ -466,7 +505,7 @@ static int Original(const char *SpellsToml) {
 		Failures++;
 	}
 
-	std::string Expected = Snapshot(InitReferenceSpells);
+	std::string Expected = Snapshot(InitReferenceSpellsOnly);
 	std::string Actual = Snapshot(NewLoader(SpellsToml));
 	if (IsError(Expected) || IsError(Actual)) {
 		fprintf(stderr, "a load failed: %s / %s\n", Expected.substr(0, 200).c_str(), Actual.substr(0, 200).c_str());
@@ -480,8 +519,8 @@ static int Original(const char *SpellsToml) {
 			Spells += Values[Prefix + "name"] != "(null)";
 			Runes += Values[Prefix + "rune group"] != "0";
 		}
-		printf("the code and %s give the same table: %d spells, %d of them runes; %d fields compared\n", SpellsToml,
-				Spells, Runes, static_cast<int>(Values.size()));
+		printf("the code (without its commands) and %s give the same table: %d spells, %d of them runes; %d fields "
+				"compared\n", SpellsToml, Spells, Runes, static_cast<int>(Values.size()));
 	}
 
 	fs::path Folder = TemporaryFolder("convert-test-spells-original");
