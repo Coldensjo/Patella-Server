@@ -143,73 +143,73 @@ static long double __pow_helper(double __x, int __n) {
 
 int GetSkillByName(char *Name) {
 	if (strcmp(Name, "level") == 0) {
-		return 0;
+		return SKILL_LEVEL;
 	}
 	if (strcmp(Name, "magiclevel") == 0) {
-		return 1;
+		return SKILL_MAGICLEVEL;
 	}
 	if (strcmp(Name, "hitpoints") == 0) {
-		return 2;
+		return SKILL_HITPOINTS;
 	}
 	if (strcmp(Name, "mana") == 0) {
-		return 3;
+		return SKILL_MANA;
 	}
 	if (strcmp(Name, "gostrength") == 0) {
-		return 4;
+		return SKILL_GOSTRENGTH;
 	}
 	if (strcmp(Name, "carrystrength") == 0) {
-		return 5;
+		return SKILL_CARRYSTRENGTH;
 	}
 	if (strcmp(Name, "shielding") == 0) {
-		return 6;
+		return SKILL_SHIELDING;
 	}
 	if (strcmp(Name, "distancefighting") == 0) {
-		return 7;
+		return SKILL_DISTANCEFIGHTING;
 	}
 	if (strcmp(Name, "swordfighting") == 0) {
-		return 8;
+		return SKILL_SWORDFIGHTING;
 	}
 	if (strcmp(Name, "clubfighting") == 0) {
-		return 9;
+		return SKILL_CLUBFIGHTING;
 	}
 	if (strcmp(Name, "axefighting") == 0) {
-		return 10;
+		return SKILL_AXEFIGHTING;
 	}
 	if (strcmp(Name, "fistfighting") == 0) {
-		return 11;
+		return SKILL_FISTFIGHTING;
 	}
 	if (strcmp(Name, "magicdefense") == 0) {
-		return 12;
+		return SKILL_MAGICDEFENSE;
 	}
 	if (strcmp(Name, "fishing") == 0) {
-		return 13;
+		return SKILL_FISHING;
 	}
 	if (strcmp(Name, "eating") == 0) {
-		return 14;
+		return SKILL_EATING;
 	}
 	if (strcmp(Name, "shining") == 0) {
-		return 15;
+		return SKILL_SHINING;
 	}
 	if (strcmp(Name, "illusion") == 0) {
-		return 16;
+		return SKILL_ILLUSION;
 	}
 	if (strcmp(Name, "poison") == 0) {
-		return 17;
+		return SKILL_POISON;
 	}
 	if (strcmp(Name, "burning") == 0) {
-		return 18;
+		return SKILL_BURNING;
 	}
 	if (strcmp(Name, "energy") == 0) {
-		return 19;
+		return SKILL_ENERGY;
 	}
 	if (strcmp(Name, "drunken") == 0) {
-		return 20;
+		return SKILL_DRUNKEN;
 	}
 	if (strcmp(Name, "manashield") == 0) {
-		return 21;
+		return SKILL_MANASHIELD;
 	}
 	if (strcmp(Name, "soulpoints") == 0) {
-		return 22;
+		return SKILL_SOULPOINTS;
 	}
 	return -1;
 }
@@ -217,7 +217,7 @@ int GetSkillByName(char *Name) {
 TSkillBase::TSkillBase() {
 	// The original loop runs to i <= 25, one past both arrays. The extra round
 	// only clears TimerList[0] and FirstFreeTimer, which are cleared anyway.
-	for (int i = 0; i < 25; i++) {
+	for (int i = 0; i < MAX_SKILLS; i++) {
 		Skills[i] = nullptr;
 		TimerList[i] = nullptr;
 	}
@@ -225,13 +225,13 @@ TSkillBase::TSkillBase() {
 }
 
 TSkillBase::~TSkillBase() {
-	for (int i = 0; i < 25; i++) {
+	for (int i = 0; i < MAX_SKILLS; i++) {
 		delete Skills[i];
 	}
 }
 
 void TSkillBase::DelTimer(unsigned short SkNr) {
-	if (SkNr >= 25) {
+	if (SkNr >= MAX_SKILLS) {
 		error("TSkillBase::DelTimer: Ungueltige SkNr: %d\n", SkNr);
 		return;
 	}
@@ -252,7 +252,7 @@ void TSkillBase::DelTimer(unsigned short SkNr) {
 }
 
 bool TSkillBase::SetTimer(unsigned short SkNr, int cyc, int cou, int maxcou, int additionalvalue) {
-	if (SkNr >= 25) {
+	if (SkNr >= MAX_SKILLS) {
 		error("TSkillBase::SetTimer: Ungueltige SkNr: %d\n", SkNr);
 		return false;
 	}
@@ -284,7 +284,7 @@ void TSkillBase::ProcessSkills() {
 }
 
 bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
-	if (SkillNo >= 25) {
+	if (SkillNo >= MAX_SKILLS) {
 		error("TSkillBase::NewSkill: unbekannte SkillNummer %d\n", SkillNo);
 		return false;
 	}
@@ -295,50 +295,50 @@ bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
 	}
 
 	switch (SkillNo) {
-		case 0:
+		case SKILL_LEVEL:
 			Skills[SkillNo] = new TSkillLevel(SkillNo, cr);
 			break;
-		case 1:
-		case 6:
-		case 7:
-		case 8:
-		case 9:
-		case 10:
-		case 11:
-		case 13:
+		case SKILL_MAGICLEVEL:
+		case SKILL_SHIELDING:
+		case SKILL_DISTANCEFIGHTING:
+		case SKILL_SWORDFIGHTING:
+		case SKILL_CLUBFIGHTING:
+		case SKILL_AXEFIGHTING:
+		case SKILL_FISTFIGHTING:
+		case SKILL_FISHING:
 			Skills[SkillNo] = new TSkillProbe(SkillNo, cr);
 			break;
-		case 2:
+		case SKILL_HITPOINTS:
 			Skills[SkillNo] = new TSkillHitpoints(SkillNo, cr);
 			break;
-		case 3:
+		case SKILL_MANA:
 			Skills[SkillNo] = new TSkillMana(SkillNo, cr);
 			break;
-		case 4:
+		case SKILL_GOSTRENGTH:
 			Skills[SkillNo] = new TSkillGoStrength(SkillNo, cr);
 			break;
-		case 5:
+		case SKILL_CARRYSTRENGTH:
 			Skills[SkillNo] = new TSkillCarryStrength(SkillNo, cr);
 			break;
-		case 14:
+		case SKILL_EATING:
 			Skills[SkillNo] = new TSkillFed(SkillNo, cr);
 			break;
-		case 15:
+		case SKILL_SHINING:
 			Skills[SkillNo] = new TSkillLight(SkillNo, cr);
 			break;
-		case 16:
+		case SKILL_ILLUSION:
 			Skills[SkillNo] = new TSkillIllusion(SkillNo, cr);
 			break;
-		case 17:
+		case SKILL_POISON:
 			Skills[SkillNo] = new TSkillPoison(SkillNo, cr);
 			break;
-		case 18:
+		case SKILL_BURNING:
 			Skills[SkillNo] = new TSkillBurning(SkillNo, cr);
 			break;
-		case 19:
+		case SKILL_ENERGY:
 			Skills[SkillNo] = new TSkillEnergy(SkillNo, cr);
 			break;
-		case 22:
+		case SKILL_SOULPOINTS:
 			Skills[SkillNo] = new TSkillSoulpoints(SkillNo, cr);
 			break;
 		default:
@@ -349,7 +349,7 @@ bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
 }
 
 bool TSkillBase::SetSkills(int Race) {
-	if (Race < 1 || Race > 511) {
+	if (Race < 1 || Race > MAX_RACES - 1) {
 		error("TSkillBase::SetSkills: Ung\xfcltige Rassennummer %d.\n", Race);
 		return false;
 	}
@@ -472,7 +472,7 @@ int TSkill::GetProgress() {
 
 void TSkill::SetMDAct(int value) {
 	MDAct = value;
-	if (SkNr == 4 && Master != nullptr && Master->Type == PLAYER) {
+	if (SkNr == SKILL_GOSTRENGTH && Master != nullptr && Master->Type == PLAYER) {
 		static_cast<TPlayer *>(Master)->CheckState();
 	}
 }
@@ -640,16 +640,16 @@ bool TSkillLevel::Jump(int Range) {
 		return false;
 	}
 
-	TSkill *sk = cr->Skills[2];
+	TSkill *sk = cr->Skills[SKILL_HITPOINTS];
 	sk->Advance(Range);
-	sk = cr->Skills[3];
+	sk = cr->Skills[SKILL_MANA];
 	sk->Advance(Range);
-	sk = cr->Skills[5];
+	sk = cr->Skills[SKILL_CARRYSTRENGTH];
 	sk->Advance(Range);
-	sk = cr->Skills[4];
+	sk = cr->Skills[SKILL_GOSTRENGTH];
 	sk->Advance(Range);
 
-	AnnounceChangedCreature(cr->ID, 4);
+	AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 	cr->Combat.CheckCombatValues();
 
 	int OldLevel = Get() - Range;
@@ -705,7 +705,7 @@ bool TSkillProbe::Jump(int Range) {
 	}
 
 	if (cr->Type == PLAYER) {
-		if (GetSkNr() == 1) {
+		if (GetSkNr() == SKILL_MAGICLEVEL) {
 			SendPlayerData(cr->GetConnection());
 		} else {
 			SendPlayerSkills(cr->GetConnection());
@@ -713,35 +713,35 @@ bool TSkillProbe::Jump(int Range) {
 
 		if (Range >= 0) {
 			switch (GetSkNr()) {
-				case 1:
+				case SKILL_MAGICLEVEL:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced to magic level %d.", Get());
 					break;
-				case 6:
+				case SKILL_SHIELDING:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced in shielding.");
 					break;
-				case 7:
+				case SKILL_DISTANCEFIGHTING:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced in distance fighting.");
 					break;
-				case 8:
+				case SKILL_SWORDFIGHTING:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced in sword fighting.");
 					break;
-				case 9:
+				case SKILL_CLUBFIGHTING:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced in club fighting.");
 					break;
-				case 10:
+				case SKILL_AXEFIGHTING:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced in axe fighting.");
 					break;
-				case 11:
+				case SKILL_FISTFIGHTING:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced in fist fighting.");
 					break;
-				case 13:
+				case SKILL_FISHING:
 					SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 							"You advanced in fishing.");
 					break;
@@ -811,7 +811,7 @@ void TSkillProbe::Increase(int Amount) {
 	} else {
 		TCreature *cr = GetMaster();
 		if (cr != nullptr && cr->Type == PLAYER && GetProgress() != OldProgress) {
-			if (GetSkNr() == 1) {
+			if (GetSkNr() == SKILL_MAGICLEVEL) {
 				SendPlayerData(cr->GetConnection());
 			} else {
 				SendPlayerSkills(cr->GetConnection());
@@ -850,7 +850,7 @@ void TSkillProbe::Decrease(int Amount) {
 	} else {
 		TCreature *cr = GetMaster();
 		if (cr != nullptr && cr->Type == PLAYER && GetProgress() != OldProgress) {
-			if (GetSkNr() == 1) {
+			if (GetSkNr() == SKILL_MAGICLEVEL) {
 				SendPlayerData(cr->GetConnection());
 			} else {
 				SendPlayerSkills(cr->GetConnection());
@@ -905,7 +905,7 @@ void TSkillProbe::ChangeSkill(int fp, int delta) {
 
 	TCreature *cr = GetMaster();
 	if (cr != nullptr && cr->Type == PLAYER) {
-		if (GetSkNr() == 1) {
+		if (GetSkNr() == SKILL_MAGICLEVEL) {
 			SendPlayerData(cr->GetConnection());
 		} else {
 			SendPlayerSkills(cr->GetConnection());
@@ -973,11 +973,11 @@ void TSkillPoison::Event(int Range) {
 		Range = -Range;
 	}
 
-	cr->Damage(GetCreature(cr->PoisonDamageOrigin), Range, 2);
+	cr->Damage(GetCreature(cr->PoisonDamageOrigin), Range, DAMAGE_POISON);
 
 	Object Obj = GetFirstObject(cr->posx, cr->posy, cr->posz);
 	while (Obj != NONE) {
-		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == 2) {
+		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == DAMAGE_POISON) {
 			Cycle++;
 			break;
 		}
@@ -992,11 +992,11 @@ void TSkillBurning::Event(int) {
 		return;
 	}
 
-	cr->Damage(GetCreature(cr->FireDamageOrigin), 10, 4);
+	cr->Damage(GetCreature(cr->FireDamageOrigin), 10, DAMAGE_FIRE);
 
 	Object Obj = GetFirstObject(cr->posx, cr->posy, cr->posz);
 	while (Obj != NONE) {
-		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == 4) {
+		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == DAMAGE_FIRE) {
 			Cycle++;
 			break;
 		}
@@ -1011,11 +1011,11 @@ void TSkillEnergy::Event(int) {
 		return;
 	}
 
-	cr->Damage(GetCreature(cr->EnergyDamageOrigin), 25, 8);
+	cr->Damage(GetCreature(cr->EnergyDamageOrigin), 25, DAMAGE_ENERGY);
 
 	Object Obj = GetFirstObject(cr->posx, cr->posy, cr->posz);
 	while (Obj != NONE) {
-		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == 8) {
+		if (Obj.getFlag(AVOID) && Obj.getAttribute(AVOIDDAMAGETYPES) == DAMAGE_ENERGY) {
 			Cycle++;
 			break;
 		}
@@ -1033,36 +1033,36 @@ void TSkillFed::Event(int) {
 	if (!cr->IsDead && !IsProtectionZone(cr->posx, cr->posy, cr->posz)) {
 		int SecsPerHP = 12;
 		int SecsPerMana = 6;
-		int Profession = 0;
+		int Profession = PROFESSION_NONE;
 		if (cr->Type == PLAYER) {
 			Profession = static_cast<TPlayer *>(cr)->GetActiveProfession();
 		}
 
 		switch (Profession) {
-			case 0:
-			case 1:
+			case PROFESSION_NONE:
+			case PROFESSION_KNIGHT:
 				SecsPerHP = 6;
 				SecsPerMana = 6;
 				break;
-			case 2:
+			case PROFESSION_PALADIN:
 				SecsPerHP = 8;
 				SecsPerMana = 4;
 				break;
-			case 3:
-			case 4:
+			case PROFESSION_SORCERER:
+			case PROFESSION_DRUID:
 				SecsPerHP = 12;
 				SecsPerMana = 3;
 				break;
-			case 11:
+			case PROFESSION_ELITE_KNIGHT:
 				SecsPerHP = 4;
 				SecsPerMana = 6;
 				break;
-			case 12:
+			case PROFESSION_ROYAL_PALADIN:
 				SecsPerHP = 6;
 				SecsPerMana = 3;
 				break;
-			case 13:
-			case 14:
+			case PROFESSION_MASTER_SORCERER:
+			case PROFESSION_ELDER_DRUID:
 				SecsPerHP = 12;
 				SecsPerMana = 2;
 				break;
@@ -1072,11 +1072,11 @@ void TSkillFed::Event(int) {
 		}
 
 		if (TimerValue() % SecsPerHP == 0) {
-			cr->Skills[2]->Change(1);
+			cr->Skills[SKILL_HITPOINTS]->Change(1);
 		}
 
 		if (TimerValue() % SecsPerMana == 0) {
-			cr->Skills[3]->Change(2);
+			cr->Skills[SKILL_MANA]->Change(2);
 		}
 	}
 }
@@ -1091,8 +1091,8 @@ void TSkillIllusion::Event(int) {
 
 		if (Get() <= 0) {
 			cr->Outfit = cr->OrgOutfit;
-			AnnounceChangedCreature(cr->ID, 3);
-			NotifyAllCreatures(cr->GetCreatureObject(), 2, NONE);
+			AnnounceChangedCreature(cr->ID, CREATURE_OUTFIT);
+			NotifyAllCreatures(cr->GetCreatureObject(), OBJECT_CHANGED, NONE);
 		}
 	}
 }
@@ -1107,7 +1107,7 @@ bool TSkillIllusion::SetTimer(int cyc, int cou, int maxcou, int) {
 	}
 
 	if (GetCreature(cr->ID) != nullptr) {
-		AnnounceChangedCreature(cr->ID, 3);
+		AnnounceChangedCreature(cr->ID, CREATURE_OUTFIT);
 	}
 	return true;
 }
@@ -1119,7 +1119,7 @@ void TSkillLight::Event(int) {
 		return;
 	}
 
-	AnnounceChangedCreature(cr->ID, 2);
+	AnnounceChangedCreature(cr->ID, CREATURE_LIGHT);
 }
 
 bool TSkillLight::SetTimer(int cyc, int cou, int maxcou, int) {
@@ -1132,7 +1132,7 @@ bool TSkillLight::SetTimer(int cyc, int cou, int maxcou, int) {
 	}
 
 	if (GetCreature(cr->ID) != nullptr) {
-		AnnounceChangedCreature(cr->ID, 2);
+		AnnounceChangedCreature(cr->ID, CREATURE_LIGHT);
 	}
 	return true;
 }
@@ -1149,7 +1149,7 @@ void TSkillHitpoints::Set(int a) {
 		if (cr->Type == PLAYER) {
 			SendPlayerData(cr->GetConnection());
 		}
-		AnnounceChangedCreature(cr->ID, 1);
+		AnnounceChangedCreature(cr->ID, CREATURE_HEALTH);
 	}
 }
 
@@ -1179,7 +1179,7 @@ void TSkillSoulpoints::Event(int) {
 	}
 
 	if (!cr->IsDead) {
-		cr->Skills[22]->Change(1);
+		cr->Skills[SKILL_SOULPOINTS]->Change(1);
 	}
 }
 
@@ -1195,7 +1195,7 @@ bool TSkillGoStrength::SetTimer(int cyc, int cou, int maxcou, int) {
 		return false;
 	}
 
-	AnnounceChangedCreature(cr->ID, 4);
+	AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 	return true;
 }
 
@@ -1208,7 +1208,7 @@ void TSkillGoStrength::Event(int) {
 		}
 
 		SetMDAct(0);
-		AnnounceChangedCreature(cr->ID, 4);
+		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 	}
 }
 
