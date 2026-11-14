@@ -15,9 +15,9 @@
 #include "mudinc.hh"
 #include "utils.hh"
 
-// The original formats file names of up to 4095 characters into ErrorString:
-// unbounded with sprintf in the binary-file classes, truncating with snprintf
-// in the script-file classes.
+// The text of the errors the file classes throw. It takes file names of up to
+// 4095 characters: the script-file classes format it with snprintf, which
+// truncates; quirk: the binary-file classes format it with sprintf, unbounded.
 
 static char ErrorString[100];
 
@@ -243,7 +243,7 @@ again:
 				return;
 			}
 			if (isDigit(c)) {
-				// unsigned: an overlong number wraps around as in the original
+				// unsigned: an overlong number wraps around
 				Number = (int)((unsigned int)Number * 10 + (c - '0'));
 			} else if (c == '-') {
 				Bytes[pos++] = (unsigned char)Number;
@@ -897,7 +897,7 @@ void TReadBinaryFile::readBytes(unsigned char *Buffer, int Count) {
 		::error("# Datei: %s, Position %d, R\xfc" "ckgabewert: %d, Fehlercode: %d (%s)\n",
 				Filename, (int)ftell(File), Result, ErrorCode, strerror(ErrorCode));
 		if (fclose(File) != 0) {
-			// the original names readByte here
+			// quirk: the message names readByte, not readBytes
 			::error("TReadBinaryFile::readByte: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
 		}
 		File = nullptr;

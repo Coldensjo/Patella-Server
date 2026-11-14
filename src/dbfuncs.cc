@@ -44,7 +44,7 @@ void TOutfit::save(TWriteScriptFile &Script) {
 }
 
 void PlayerDataPath(uint32_t CharacterID, char *Extension, char *Path) {
-	// The original passes the unsigned 32-bit ID to %ld, which prints it as a signed 32-bit number.
+	// The file name prints the 32-bit ID as a signed number.
 	sprintf(Path, "%s/%02ld/%ld.%s", USERPATH, (long)(CharacterID % 100), (long)(int32_t)CharacterID, Extension);
 }
 
@@ -333,7 +333,8 @@ bool LoadPlayerData(TPlayerData *Slot) {
 		}
 	}
 
-	// The original returns true here even when the file could not be read.
+	// Quirk: true even when the file could not be read; the inventory and the
+	// depots are empty then.
 	return true;
 }
 

@@ -492,9 +492,9 @@ void Trim(char *Text) {
 		i++;
 	}
 
-	// The length is taken from Text + 1, as in the original: an empty Text is
-	// measured behind its terminator, and with leading spaces up to i - 1
-	// bytes behind the terminator are moved along.
+	// Quirk: the length is taken from Text + 1, so an empty Text is measured
+	// behind its terminator, and with leading spaces up to i - 1 bytes behind
+	// the terminator are moved along.
 	memmove(Text, Text + i, strlen(Text + 1) + 1);
 
 	i = static_cast<int>(strlen(Text));

@@ -328,7 +328,7 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 		return static_cast<TPlayer *>(cr)->GetOpenContainer(Position - POSITION_CONTAINER_BASE);
 	}
 
-	// As in the original, the error does not end the function.
+	// Quirk: the error does not end the function.
 	if (!cr->GetCreatureObject().exists()) {
 		error("GetBodyContainer: Kreatur-Objekt von %s existiert nicht (Pos %d).\n", cr->Name, Position);
 	}
@@ -528,7 +528,7 @@ int CountObjects(Object Obj, ObjectType Type, uint32_t Value) {
 	}
 
 	while (Obj != NONE) {
-		// As in the original, objects inside containers are counted with Value 0.
+		// Quirk: objects inside containers are counted with Value 0, whatever Value is.
 		if (Obj.getFlag(CONTAINER)) {
 			count += CountObjects(GetFirstContainerObject(Obj), Type, 0);
 		}
@@ -572,7 +572,7 @@ int CountMoney(Object Obj) {
 
 	while (Obj != NONE) {
 		// Written as member calls so that the object type is read before
-		// GetSpecialObject is called, as in the original.
+		// GetSpecialObject is called.
 		if (Obj.getObjectType().operator==(GetSpecialObject(MONEY_ONE))) {
 			count += Obj.getAttribute(AMOUNT);
 		}
@@ -1216,7 +1216,7 @@ bool CheckRight(uint32_t CharacterID, RIGHT Right) {
 		return false;
 	}
 
-	// The original compares the right as a signed number.
+	// The right is compared as a signed number.
 	if (static_cast<int>(Right) < 0 || static_cast<int>(Right) / 8 >= static_cast<int>(sizeof(pl->Rights))) {
 		error("CheckRight: Ung\xfcltige Rechtnummer %d.\n", Right);
 		return false;
@@ -1232,7 +1232,7 @@ bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 		return false;
 	}
 
-	// %ld printed the 32-bit ID as a signed number.
+	// The messages print the 32-bit ID as a signed number.
 	if (!in(Reason, 0, LAST_BANISHMENT_RIGHT - FIRST_BANISHMENT_RIGHT)) {
 		error("CheckBanishmentRight: Ung\xfcltiger Banngrund %d von Spieler %ld.\n",
 				Reason, static_cast<long>(static_cast<int32_t>(CharacterID)));

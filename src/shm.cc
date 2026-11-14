@@ -138,7 +138,7 @@ void ErrorHandler(char *Text) {
 	}
 
 	if (SHM != nullptr) {
-		// Text is handed to Log as its format string, as in the original.
+		// Quirk: Text is handed to Log as its format string.
 		if (SHM->Errors < MAX_LOGGED_ERRORS) {
 			Log("error", Text);
 		}
