@@ -31,6 +31,40 @@
 #include "TXTEASymmetricKey.hh"
 #include "receiving.hh"
 
+// Not a client packet: HandleLogin (communication.cc) puts it in place of the
+// client's CL_LOGIN for the game thread, with the terminal type, the terminal
+// version and the character ID, and ReceiveData passes it to
+// TConnection::JoinGame.
+const int CL_JOIN_GAME = 0x0B;
+
+// The steps of CGoPath's path, counter-clockwise from east; they are not
+// cr.hh's DIRECTION_* values.
+const int STEP_EAST = 1;
+const int STEP_NORTHEAST = 2;
+const int STEP_NORTH = 3;
+const int STEP_NORTHWEST = 4;
+const int STEP_WEST = 5;
+const int STEP_SOUTHWEST = 6;
+const int STEP_SOUTH = 7;
+const int STEP_SOUTHEAST = 8;
+
+// The last outfit of each sex a player without a premium account may wear
+// (CSetOutfit; SendOutfit offers the same ranges).
+const int LAST_FREE_MALE_OUTFIT = 131;
+const int LAST_FREE_FEMALE_OUTFIT = 139;
+
+// The lists CEditList changes: a house's guests, its subowners (both by house
+// ID) and the names on a name door (by object ID).
+const int EDIT_LIST_HOUSE_GUESTS = 1;
+const int EDIT_LIST_HOUSE_SUBOWNERS = 2;
+const int EDIT_LIST_NAME_DOOR = 3;
+
+// The results of TCreature::LogoutPossible (crmain.cc): a logout is possible,
+// the creature fought too recently, or it stands on a NoLogout field.
+const int LOGOUT_POSSIBLE = 0;
+const int LOGOUT_AFTER_FIGHT = 1;
+const int LOGOUT_NO_LOGOUT_FIELD = 2;
+
 // Every command handler that takes a TReadBuffer is declared
 // throw(const char *) in the original. C++17 has no dynamic exception
 // specifications, so an exception of another type now propagates instead of
@@ -44,10 +78,11 @@ bool CommandAllowed(TConnection *Connection, unsigned short Command) {
 
 	int State = Connection->GetState();
 	if (State == CONNECTION_GAME) {
-		return Command != 10 && Command != 11;
+		return Command != CL_LOGIN && Command != CL_JOIN_GAME;
 	}
 	if (State == CONNECTION_DEAD || State == CONNECTION_LOGOUT) {
-		return Command == 0xE6 || Command == 0xE8 || Command == 0x1E || Command == 0x14;
+		return Command == CL_BUG_REPORT || Command == CL_ERROR_FILE_ENTRY || Command == CL_PING
+				|| Command == CL_QUIT_GAME;
 	}
 
 	error("CommandAllowed: Ung\xfcltiger Verbindungsstatus %d bei Kommando %d.\n", State, Command);
@@ -55,7 +90,7 @@ bool CommandAllowed(TConnection *Connection, unsigned short Command) {
 }
 
 bool CheckSpecialCoordinates(int Command, int x, int y, int z, bool AnyAllowed) {
-	if (x != 0xFFFF) {
+	if (x != POSITION_NOT_ON_MAP) {
 		return IsOnMap(x, y, z);
 	}
 
@@ -63,7 +98,8 @@ bool CheckSpecialCoordinates(int Command, int x, int y, int z, bool AnyAllowed) 
 		return AnyAllowed;
 	}
 
-	if (y <= 10 || (y >= 64 && y <= 79)) {
+	if (y <= LAST_BODY_POSITION
+			|| (y >= POSITION_CONTAINER_BASE && y <= POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1)) {
 		return true;
 	}
 
@@ -97,7 +133,7 @@ bool CheckObjectType(int Command, int TypeID) {
 }
 
 ObjectType GetObjectType(unsigned short TypeID) {
-	if (!CheckObjectType(0x78, TypeID)) {
+	if (!CheckObjectType(CL_MOVE_OBJECT, TypeID)) {
 		return ObjectType(0);
 	}
 	return ObjectType(TypeID);
@@ -157,14 +193,14 @@ void CGoPath(TConnection *Connection, TReadBuffer &Buffer) {
 
 		for (int i = 0; i < Steps; i++) {
 			switch (Buffer.readByte()) {
-				case 1: x++; break;
-				case 2: x++; y--; break;
-				case 3: y--; break;
-				case 4: x--; y--; break;
-				case 5: x--; break;
-				case 6: x--; y++; break;
-				case 7: y++; break;
-				case 8: x++; y++; break;
+				case STEP_EAST: x++; break;
+				case STEP_NORTHEAST: x++; y--; break;
+				case STEP_NORTH: y--; break;
+				case STEP_NORTHWEST: x--; y--; break;
+				case STEP_WEST: x--; break;
+				case STEP_SOUTHWEST: x--; y++; break;
+				case STEP_SOUTH: y++; break;
+				case STEP_SOUTHEAST: x++; y++; break;
 				default: continue;
 			}
 
@@ -204,11 +240,11 @@ void CLookAtPoint(TConnection *Connection, TReadBuffer &Buffer) {
 	int x = Buffer.readWord();
 	int y = Buffer.readWord();
 	int z = Buffer.readByte();
-	if (!CheckSpecialCoordinates(0x8C, x, y, z, false)) {
+	if (!CheckSpecialCoordinates(CL_LOOK_AT_POINT, x, y, z, false)) {
 		return;
 	}
 
-	if (x != 0xFFFF && !CheckVisibility(0x8C, Connection, x, y, z)) {
+	if (x != POSITION_NOT_ON_MAP && !CheckVisibility(CL_LOOK_AT_POINT, Connection, x, y, z)) {
 		return;
 	}
 
@@ -218,7 +254,7 @@ void CLookAtPoint(TConnection *Connection, TReadBuffer &Buffer) {
 	}
 
 	uint32_t CreatureID = pl->ID;
-	Object Obj = GetObject(CreatureID, x, y, z, (x == 0xFFFF ? z : -1), ObjectType(0));
+	Object Obj = GetObject(CreatureID, x, y, z, (x == POSITION_NOT_ON_MAP ? z : -1), ObjectType(0));
 	if (!Obj.exists()) {
 		return;
 	}
@@ -243,7 +279,7 @@ void CRefreshField(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	if (!CheckVisibility(0xC9, Connection, x, y, z)) {
+	if (!CheckVisibility(CL_REFRESH_FIELD, Connection, x, y, z)) {
 		return;
 	}
 
@@ -340,12 +376,12 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 		Mode = TALK_PRIVATE_MESSAGE;
 	}
 
-	if (Mode == TALK_YELL && pl->Skills[0]->Get() < 2) {
+	if (Mode == TALK_YELL && pl->Skills[SKILL_LEVEL]->Get() < 2) {
 		SendMessage(Connection, TALK_FAILURE_MESSAGE, "You may not yell as long as you are on level 1.");
 		return;
 	}
 
-	if (Mode == TALK_CHANNEL_CALL && pl->Skills[0]->Get() < 2) {
+	if (Mode == TALK_CHANNEL_CALL && pl->Skills[SKILL_LEVEL]->Get() < 2) {
 		SendMessage(Connection, TALK_FAILURE_MESSAGE, "You may not speak into channels as long as you are on level 1.");
 		return;
 	}
@@ -622,7 +658,7 @@ void CRotate(TConnection *Connection, int Direction) {
 		return;
 	}
 
-	if (Direction < 0 || Direction > 3) {
+	if (Direction < DIRECTION_NORTH || Direction > DIRECTION_WEST) {
 		return;
 	}
 
@@ -838,23 +874,23 @@ void CMoveObject(TConnection *Connection, TReadBuffer &Buffer) {
 	int zy = Buffer.readWord();
 	int zz = Buffer.readByte();
 	unsigned char Count = Buffer.readByte();
-	if (sx != 0xFFFF) {
+	if (sx != POSITION_NOT_ON_MAP) {
 		RNum = 1;
 	}
 
-	if (!CheckSpecialCoordinates(0x78, sx, sy, sz, false)) {
+	if (!CheckSpecialCoordinates(CL_MOVE_OBJECT, sx, sy, sz, false)) {
 		return;
 	}
 
-	if (sx != 0xFFFF && !CheckVisibility(0x78, Connection, sx, sy, sz)) {
+	if (sx != POSITION_NOT_ON_MAP && !CheckVisibility(CL_MOVE_OBJECT, Connection, sx, sy, sz)) {
 		return;
 	}
 
-	if (!CheckSpecialCoordinates(0x78, zx, zy, zz, true)) {
+	if (!CheckSpecialCoordinates(CL_MOVE_OBJECT, zx, zy, zz, true)) {
 		return;
 	}
 
-	if (zx != 0xFFFF && !CheckVisibility(0x78, Connection, zx, zy, zz)) {
+	if (zx != POSITION_NOT_ON_MAP && !CheckVisibility(CL_MOVE_OBJECT, Connection, zx, zy, zz)) {
 		return;
 	}
 
@@ -894,15 +930,15 @@ void CTradeObject(TConnection *Connection, TReadBuffer &Buffer) {
 	ObjectType Type = GetObjectType(Buffer.readWord());
 	unsigned char RNum = Buffer.readByte();
 	uint32_t TradePartner = Buffer.readQuad();
-	if (x != 0xFFFF) {
+	if (x != POSITION_NOT_ON_MAP) {
 		RNum = 1;
 	}
 
-	if (!CheckSpecialCoordinates(0x7D, x, y, z, false)) {
+	if (!CheckSpecialCoordinates(CL_TRADE_OBJECT, x, y, z, false)) {
 		return;
 	}
 
-	if (x != 0xFFFF && !CheckVisibility(0x7D, Connection, x, y, z)) {
+	if (x != POSITION_NOT_ON_MAP && !CheckVisibility(CL_TRADE_OBJECT, Connection, x, y, z)) {
 		return;
 	}
 
@@ -988,11 +1024,11 @@ void CUseObject(TConnection *Connection, TReadBuffer &Buffer) {
 	unsigned char RNum = Buffer.readByte();
 	unsigned char Dummy = Buffer.readByte();
 
-	if (!CheckSpecialCoordinates(0x82, x, y, z, false)) {
+	if (!CheckSpecialCoordinates(CL_USE_OBJECT, x, y, z, false)) {
 		return;
 	}
 
-	if (x != 0xFFFF && !CheckVisibility(0x82, Connection, x, y, z)) {
+	if (x != POSITION_NOT_ON_MAP && !CheckVisibility(CL_USE_OBJECT, Connection, x, y, z)) {
 		return;
 	}
 
@@ -1004,7 +1040,7 @@ void CUseObject(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	if (Type.getFlag(CONTAINER) && Dummy > 15) {
+	if (Type.getFlag(CONTAINER) && Dummy > MAX_OPEN_CONTAINERS - 1) {
 		return;
 	}
 
@@ -1041,11 +1077,11 @@ void CUseTwoObjects(TConnection *Connection, TReadBuffer &Buffer) {
 	ObjectType Type2 = GetObjectType(Buffer.readWord());
 	unsigned char RNum2 = Buffer.readByte();
 
-	if (!CheckSpecialCoordinates(0x83, x1, y1, z1, false)) {
+	if (!CheckSpecialCoordinates(CL_USE_TWO_OBJECTS, x1, y1, z1, false)) {
 		return;
 	}
 
-	if (x1 != 0xFFFF && !CheckVisibility(0x83, Connection, x1, y1, z1)) {
+	if (x1 != POSITION_NOT_ON_MAP && !CheckVisibility(CL_USE_TWO_OBJECTS, Connection, x1, y1, z1)) {
 		return;
 	}
 
@@ -1057,11 +1093,11 @@ void CUseTwoObjects(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	if (!CheckSpecialCoordinates(0x83, x2, y2, z2, false)) {
+	if (!CheckSpecialCoordinates(CL_USE_TWO_OBJECTS, x2, y2, z2, false)) {
 		return;
 	}
 
-	if (x2 != 0xFFFF && !CheckVisibility(0x83, Connection, x2, y2, z2)) {
+	if (x2 != POSITION_NOT_ON_MAP && !CheckVisibility(CL_USE_TWO_OBJECTS, Connection, x2, y2, z2)) {
 		return;
 	}
 
@@ -1098,11 +1134,11 @@ void CUseOnCreature(TConnection *Connection, TReadBuffer &Buffer) {
 	unsigned char RNum = Buffer.readByte();
 	uint32_t CreatureID = Buffer.readQuad();
 
-	if (!CheckSpecialCoordinates(0x84, x, y, z, false)) {
+	if (!CheckSpecialCoordinates(CL_USE_ON_CREATURE, x, y, z, false)) {
 		return;
 	}
 
-	if (x != 0xFFFF && !CheckVisibility(0x84, Connection, x, y, z)) {
+	if (x != POSITION_NOT_ON_MAP && !CheckVisibility(CL_USE_ON_CREATURE, Connection, x, y, z)) {
 		return;
 	}
 
@@ -1115,7 +1151,7 @@ void CUseOnCreature(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	if (!CheckVisibility(0x84, Connection, Dest->posx, Dest->posy, Dest->posz)) {
+	if (!CheckVisibility(CL_USE_ON_CREATURE, Connection, Dest->posx, Dest->posy, Dest->posz)) {
 		return;
 	}
 
@@ -1164,11 +1200,11 @@ void CTurnObject(TConnection *Connection, TReadBuffer &Buffer) {
 	ObjectType Type = GetObjectType(Buffer.readWord());
 	unsigned char RNum = Buffer.readByte();
 
-	if (!CheckSpecialCoordinates(0x85, x, y, z, false)) {
+	if (!CheckSpecialCoordinates(CL_TURN_OBJECT, x, y, z, false)) {
 		return;
 	}
 
-	if (x != 0xFFFF && !CheckVisibility(0x85, Connection, x, y, z)) {
+	if (x != POSITION_NOT_ON_MAP && !CheckVisibility(CL_TURN_OBJECT, Connection, x, y, z)) {
 		return;
 	}
 
@@ -1199,7 +1235,7 @@ void CCloseContainer(TConnection *Connection, TReadBuffer &Buffer) {
 	}
 
 	int Window = Buffer.readByte();
-	if (Window > 15) {
+	if (Window > MAX_OPEN_CONTAINERS - 1) {
 		return;
 	}
 
@@ -1219,7 +1255,7 @@ void CUpContainer(TConnection *Connection, TReadBuffer &Buffer) {
 	}
 
 	int Window = Buffer.readByte();
-	if (Window > 15) {
+	if (Window > MAX_OPEN_CONTAINERS - 1) {
 		return;
 	}
 
@@ -1250,7 +1286,7 @@ void CRefreshContainer(TConnection *Connection, TReadBuffer &Buffer) {
 	}
 
 	int Window = Buffer.readByte();
-	if (Window > 15) {
+	if (Window > MAX_OPEN_CONTAINERS - 1) {
 		return;
 	}
 
@@ -1301,17 +1337,17 @@ void CSetOutfit(TConnection *Connection, TReadBuffer &Buffer) {
 	unsigned char Colors[4];
 	Buffer.readBytes(Colors, 4);
 
-	if (pl->Sex == 1) {
-		if (!in(OutfitID, 128, 134)
-				|| (!CheckRight(pl->ID, PREMIUM_ACCOUNT) && OutfitID > 131)) {
+	if (pl->Sex == SEX_MALE) {
+		if (!in(OutfitID, FIRST_MALE_OUTFIT, LAST_MALE_OUTFIT)
+				|| (!CheckRight(pl->ID, PREMIUM_ACCOUNT) && OutfitID > LAST_FREE_MALE_OUTFIT)) {
 			print(3, "CSetOutfit: Ung\xfcltiges Outfit %d f\xfcr M\xe4nner.\n", OutfitID);
 			return;
 		}
 	}
 
-	if (pl->Sex == 2) {
-		if (!in(OutfitID, 136, 142)
-				|| (!CheckRight(pl->ID, PREMIUM_ACCOUNT) && OutfitID > 139)) {
+	if (pl->Sex == SEX_FEMALE) {
+		if (!in(OutfitID, FIRST_FEMALE_OUTFIT, LAST_FEMALE_OUTFIT)
+				|| (!CheckRight(pl->ID, PREMIUM_ACCOUNT) && OutfitID > LAST_FREE_FEMALE_OUTFIT)) {
 			print(3, "CSetOutfit: Ung\xfcltiges Outfit %d f\xfcr Frauen.\n", OutfitID);
 			return;
 		}
@@ -1327,7 +1363,7 @@ void CSetOutfit(TConnection *Connection, TReadBuffer &Buffer) {
 	memcpy(NewOutfit.Colors, Colors, sizeof(NewOutfit.Colors));
 	if (memcmp(&pl->Outfit, &pl->OrgOutfit, sizeof(TOutfit)) == 0) {
 		pl->Outfit = NewOutfit;
-		AnnounceChangedCreature(pl->ID, 3);
+		AnnounceChangedCreature(pl->ID, CREATURE_OUTFIT);
 	}
 	pl->OrgOutfit = NewOutfit;
 }
@@ -1384,17 +1420,17 @@ void CEditList(TConnection *Connection, TReadBuffer &Buffer) {
 
 	try {
 		switch (Type) {
-			case 1: {
+			case EDIT_LIST_HOUSE_GUESTS: {
 				ChangeGuests((unsigned short)ID, pl, Text);
 				break;
 			}
 
-			case 2: {
+			case EDIT_LIST_HOUSE_SUBOWNERS: {
 				ChangeSubowners((unsigned short)ID, pl, Text);
 				break;
 			}
 
-			case 3: {
+			case EDIT_LIST_NAME_DOOR: {
 				Door = Object(ID);
 				if (!Door.exists() || !Door.getFlag(NAMEDOOR) || !Door.getFlag(TEXT)) {
 					SendResult(Connection, NOTACCESSIBLE);
@@ -1424,17 +1460,17 @@ void CSetTactics(TConnection *Connection, TReadBuffer &Buffer) {
 	int ChaseMode = Buffer.readByte();
 	int SecureMode = Buffer.readByte();
 
-	if (!in(AttackMode, 1, 3)) {
+	if (!in(AttackMode, ATTACK_MODE_OFFENSIVE, ATTACK_MODE_DEFENSIVE)) {
 		print(3, "CSetTactics: Ung\xfcltiger Angriffsmodus %d.\n", AttackMode);
 		return;
 	}
 
-	if (!in(ChaseMode, 0, 1)) {
+	if (!in(ChaseMode, CHASE_MODE_STAND, CHASE_MODE_FOLLOW)) {
 		print(3, "CSetTactics: Ung\xfcltiger Verfolgungsmodus %d.\n", ChaseMode);
 		return;
 	}
 
-	if (!in(SecureMode, 0, 1)) {
+	if (!in(SecureMode, SECURE_MODE_OFF, SECURE_MODE_ON)) {
 		print(3, "CSetTactics: Ung\xfcltiger Sicherheitsmodus %d.\n", SecureMode);
 		return;
 	}
@@ -1490,7 +1526,7 @@ void CInviteToParty(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	if (!CheckVisibility(0xA3, Connection, guest->posx, guest->posy, guest->posz)) {
+	if (!CheckVisibility(CL_INVITE_TO_PARTY, Connection, guest->posx, guest->posy, guest->posz)) {
 		return;
 	}
 
@@ -1777,16 +1813,16 @@ void CQuitGame(TConnection *Connection) {
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl != nullptr) {
 		switch (pl->LogoutPossible()) {
-			case 0: {
+			case LOGOUT_POSSIBLE: {
 				break;
 			}
 
-			case 1: {
+			case LOGOUT_AFTER_FIGHT: {
 				SendMessage(Connection, TALK_FAILURE_MESSAGE, "You may not logout during or immediately after a fight!");
 				return;
 			}
 
-			case 2: {
+			case LOGOUT_NO_LOGOUT_FIELD: {
 				SendMessage(Connection, TALK_FAILURE_MESSAGE, "You may not logout here!");
 				return;
 			}
@@ -1830,7 +1866,7 @@ void ReceiveData(TConnection *Connection) {
 	}
 
 	if (Connection->GetState() == CONNECTION_LOGIN) {
-		if (Command != 0x0B) {
+		if (Command != CL_JOIN_GAME) {
 			error("ReceiveData: Falsches Login-Kommando %d.\n", Command);
 			return;
 		}
@@ -1857,65 +1893,65 @@ void ReceiveData(TConnection *Connection) {
 
 	try {
 		switch (Command) {
-			case 0x14: CQuitGame(Connection); break;
-			case 0x1E: break;
-			case 0x64: CGoPath(Connection, Buffer); break;
-			case 0x65: CGoDirection(Connection, 0, -1); break;
-			case 0x66: CGoDirection(Connection, 1, 0); break;
-			case 0x67: CGoDirection(Connection, 0, 1); break;
-			case 0x68: CGoDirection(Connection, -1, 0); break;
-			case 0x69: CStop(Connection); break;
-			case 0x6A: CGoDirection(Connection, 1, -1); break;
-			case 0x6B: CGoDirection(Connection, 1, 1); break;
-			case 0x6C: CGoDirection(Connection, -1, 1); break;
-			case 0x6D: CGoDirection(Connection, -1, -1); break;
-			case 0x6F: CRotate(Connection, 0); break;
-			case 0x70: CRotate(Connection, 1); break;
-			case 0x71: CRotate(Connection, 2); break;
-			case 0x72: CRotate(Connection, 3); break;
-			case 0x78: CMoveObject(Connection, Buffer); break;
-			case 0x7D: CTradeObject(Connection, Buffer); break;
-			case 0x7E: CInspectTrade(Connection, Buffer); break;
-			case 0x7F: CAcceptTrade(Connection); break;
-			case 0x80: CRejectTrade(Connection); break;
-			case 0x82: CUseObject(Connection, Buffer); break;
-			case 0x83: CUseTwoObjects(Connection, Buffer); break;
-			case 0x84: CUseOnCreature(Connection, Buffer); break;
-			case 0x85: CTurnObject(Connection, Buffer); break;
-			case 0x87: CCloseContainer(Connection, Buffer); break;
-			case 0x88: CUpContainer(Connection, Buffer); break;
-			case 0x89: CEditText(Connection, Buffer); break;
-			case 0x8A: CEditList(Connection, Buffer); break;
-			case 0x8C: CLookAtPoint(Connection, Buffer); break;
-			case 0x96: CTalk(Connection, Buffer); break;
-			case 0x97: CGetChannels(Connection); break;
-			case 0x98: CJoinChannel(Connection, Buffer); break;
-			case 0x99: CLeaveChannel(Connection, Buffer); break;
-			case 0x9A: CPrivateChannel(Connection, Buffer); break;
-			case 0x9B: CProcessRequest(Connection, Buffer); break;
-			case 0x9C: CRemoveRequest(Connection, Buffer); break;
-			case 0x9D: CCancelRequest(Connection); break;
-			case 0xA0: CSetTactics(Connection, Buffer); break;
-			case 0xA1: CAttack(Connection, Buffer, false); break;
-			case 0xA2: CAttack(Connection, Buffer, true); break;
-			case 0xA3: CInviteToParty(Connection, Buffer); break;
-			case 0xA4: CJoinParty(Connection, Buffer); break;
-			case 0xA5: CRevokeInvitation(Connection, Buffer); break;
-			case 0xA6: CPassLeadership(Connection, Buffer); break;
-			case 0xA7: CLeaveParty(Connection); break;
-			case 0xAA: COpenChannel(Connection); break;
-			case 0xAB: CInviteToChannel(Connection, Buffer); break;
-			case 0xAC: CExcludeFromChannel(Connection, Buffer); break;
-			case 0xBE: CCancel(Connection); break;
-			case 0xC9: CRefreshField(Connection, Buffer); break;
-			case 0xCA: CRefreshContainer(Connection, Buffer); break;
-			case 0xD2: CGetOutfit(Connection); break;
-			case 0xD3: CSetOutfit(Connection, Buffer); break;
-			case 0xDC: CAddBuddy(Connection, Buffer); break;
-			case 0xDD: CRemoveBuddy(Connection, Buffer); break;
-			case 0xE6: CBugReport(Connection, Buffer); break;
-			case 0xE7: CRuleViolation(Connection, Buffer); break;
-			case 0xE8: CErrorFileEntry(Connection, Buffer); break;
+			case CL_QUIT_GAME: CQuitGame(Connection); break;
+			case CL_PING: break;
+			case CL_GO_PATH: CGoPath(Connection, Buffer); break;
+			case CL_GO_NORTH: CGoDirection(Connection, 0, -1); break;
+			case CL_GO_EAST: CGoDirection(Connection, 1, 0); break;
+			case CL_GO_SOUTH: CGoDirection(Connection, 0, 1); break;
+			case CL_GO_WEST: CGoDirection(Connection, -1, 0); break;
+			case CL_STOP: CStop(Connection); break;
+			case CL_GO_NORTHEAST: CGoDirection(Connection, 1, -1); break;
+			case CL_GO_SOUTHEAST: CGoDirection(Connection, 1, 1); break;
+			case CL_GO_SOUTHWEST: CGoDirection(Connection, -1, 1); break;
+			case CL_GO_NORTHWEST: CGoDirection(Connection, -1, -1); break;
+			case CL_ROTATE_NORTH: CRotate(Connection, DIRECTION_NORTH); break;
+			case CL_ROTATE_EAST: CRotate(Connection, DIRECTION_EAST); break;
+			case CL_ROTATE_SOUTH: CRotate(Connection, DIRECTION_SOUTH); break;
+			case CL_ROTATE_WEST: CRotate(Connection, DIRECTION_WEST); break;
+			case CL_MOVE_OBJECT: CMoveObject(Connection, Buffer); break;
+			case CL_TRADE_OBJECT: CTradeObject(Connection, Buffer); break;
+			case CL_INSPECT_TRADE: CInspectTrade(Connection, Buffer); break;
+			case CL_ACCEPT_TRADE: CAcceptTrade(Connection); break;
+			case CL_REJECT_TRADE: CRejectTrade(Connection); break;
+			case CL_USE_OBJECT: CUseObject(Connection, Buffer); break;
+			case CL_USE_TWO_OBJECTS: CUseTwoObjects(Connection, Buffer); break;
+			case CL_USE_ON_CREATURE: CUseOnCreature(Connection, Buffer); break;
+			case CL_TURN_OBJECT: CTurnObject(Connection, Buffer); break;
+			case CL_CLOSE_CONTAINER: CCloseContainer(Connection, Buffer); break;
+			case CL_UP_CONTAINER: CUpContainer(Connection, Buffer); break;
+			case CL_EDIT_TEXT: CEditText(Connection, Buffer); break;
+			case CL_EDIT_LIST: CEditList(Connection, Buffer); break;
+			case CL_LOOK_AT_POINT: CLookAtPoint(Connection, Buffer); break;
+			case CL_TALK: CTalk(Connection, Buffer); break;
+			case CL_GET_CHANNELS: CGetChannels(Connection); break;
+			case CL_JOIN_CHANNEL: CJoinChannel(Connection, Buffer); break;
+			case CL_LEAVE_CHANNEL: CLeaveChannel(Connection, Buffer); break;
+			case CL_PRIVATE_CHANNEL: CPrivateChannel(Connection, Buffer); break;
+			case CL_PROCESS_REQUEST: CProcessRequest(Connection, Buffer); break;
+			case CL_REMOVE_REQUEST: CRemoveRequest(Connection, Buffer); break;
+			case CL_CANCEL_REQUEST: CCancelRequest(Connection); break;
+			case CL_SET_TACTICS: CSetTactics(Connection, Buffer); break;
+			case CL_ATTACK: CAttack(Connection, Buffer, false); break;
+			case CL_FOLLOW: CAttack(Connection, Buffer, true); break;
+			case CL_INVITE_TO_PARTY: CInviteToParty(Connection, Buffer); break;
+			case CL_JOIN_PARTY: CJoinParty(Connection, Buffer); break;
+			case CL_REVOKE_INVITATION: CRevokeInvitation(Connection, Buffer); break;
+			case CL_PASS_LEADERSHIP: CPassLeadership(Connection, Buffer); break;
+			case CL_LEAVE_PARTY: CLeaveParty(Connection); break;
+			case CL_OPEN_CHANNEL: COpenChannel(Connection); break;
+			case CL_INVITE_TO_CHANNEL: CInviteToChannel(Connection, Buffer); break;
+			case CL_EXCLUDE_FROM_CHANNEL: CExcludeFromChannel(Connection, Buffer); break;
+			case CL_CANCEL: CCancel(Connection); break;
+			case CL_REFRESH_FIELD: CRefreshField(Connection, Buffer); break;
+			case CL_REFRESH_CONTAINER: CRefreshContainer(Connection, Buffer); break;
+			case CL_GET_OUTFIT: CGetOutfit(Connection); break;
+			case CL_SET_OUTFIT: CSetOutfit(Connection, Buffer); break;
+			case CL_ADD_BUDDY: CAddBuddy(Connection, Buffer); break;
+			case CL_REMOVE_BUDDY: CRemoveBuddy(Connection, Buffer); break;
+			case CL_BUG_REPORT: CBugReport(Connection, Buffer); break;
+			case CL_RULE_VIOLATION: CRuleViolation(Connection, Buffer); break;
+			case CL_ERROR_FILE_ENTRY: CErrorFileEntry(Connection, Buffer); break;
 			default: {
 				print(3, "Unbekanntes Kommando %d.\n", Command);
 				break;
