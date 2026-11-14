@@ -670,7 +670,6 @@ void TWriteScriptFile::open(char *FileName) {
 		throw "Cannot create script-file";
 	}
 
-	Line = 0;
 	strcpy(Filename, FileName);
 }
 
