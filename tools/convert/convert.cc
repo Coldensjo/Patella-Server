@@ -29,6 +29,12 @@
 //     (the installation's items.toml): the rules may only name types that
 //     exist, and the comments give their names. OUTPUT "-" is standard
 //     output.
+//
+//   patella-convert houses HOUSEAREAS_DAT HOUSES_DAT OUTPUT
+//     The houses: houseareas.dat (the areas, their prices and depots) and
+//     houses.dat (the houses) to houses.toml, which belongs in the
+//     installation's data folder. OUTPUT "-" is standard output. owners.dat,
+//     the owners the game writes, is not part of it.
 
 #include <cstdio>
 #include <cstring>
@@ -37,6 +43,8 @@
 #include "circles_dat.hh"
 #include "circles_writer.hh"
 #include "config_writer.hh"
+#include "houses_dat.hh"
+#include "houses_writer.hh"
 #include "items_writer.hh"
 #include "moveuse_dat.hh"
 #include "moveuse_writer.hh"
@@ -52,7 +60,8 @@ static int Usage() {
 			"       patella-convert items OBJECTS_SRV OUTPUT\n"
 			"       patella-convert circles CIRCLES_DAT OUTPUT\n"
 			"       patella-convert spells OUTPUT\n"
-			"       patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT\n");
+			"       patella-convert moveuse ITEMS_TOML MOVEUSE_DAT OUTPUT\n"
+			"       patella-convert houses HOUSEAREAS_DAT HOUSES_DAT OUTPUT\n");
 	return 2;
 }
 
@@ -128,6 +137,18 @@ static int ConvertMoveUse(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertHouses(int argc, char **argv) {
+	if (argc != 3 || (argv[0][0] == '-' && argv[0][1] != 0) || (argv[1][0] == '-' && argv[1][1] != 0)) {
+		return Usage();
+	}
+
+	THousesDatExtras Extras;
+	ReadHouseAreasDat(argv[0], Extras);
+	ReadHousesDat(argv[1], Extras);
+	WriteTextFile(argv[2], HousesToToml(Extras));
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		return Usage();
@@ -148,6 +169,9 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[1], "moveuse") == 0) {
 			return ConvertMoveUse(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "houses") == 0) {
+			return ConvertHouses(argc - 2, argv + 2);
 		}
 	} catch (const char *Text) {
 		fprintf(stderr, "patella-convert: %s\n", Text);

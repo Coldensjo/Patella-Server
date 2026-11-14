@@ -16,6 +16,7 @@ add_executable(game
 	shm.cc
 	map.cc
 	houses.cc
+	housesdata.cc
 	threads.cc
 	writer.cc
 	dbfuncs.cc

@@ -1,6 +1,7 @@
 // houses.cc: the houses. Their areas, owners, subowners, guests and name doors and who may enter; the auctions,
 // transfers, evictions and rents settled with the query manager at start-up; the clean-up that moves the items in a
-// house to its owner's depot; and the house data files (houseareas.dat, houses.dat, owners.dat).
+// house to its owner's depot; and the owners file (owners.dat). The houses and their areas come from houses.toml
+// (housesdata.cc).
 
 #include <algorithm>
 #include <cstdint>
@@ -26,6 +27,7 @@
 #include "operate.hh"
 #include "utils.hh"
 #include "time.hh"
+#include "housesdata.hh"
 #include "houses.hh"
 
 // The entries ChangeSubowners and ChangeGuests take from the edited list.
@@ -36,56 +38,12 @@ const int MAX_GUESTS = 100;
 // owner says.
 const int RENT_PERIOD = 2592000;
 
-struct THouseGuest {
-	char Name[60];
-	operator char *() { return Name; }
-};
-
-struct THouseArea {
-	unsigned short ID;
-	int SQMPrice;
-	int DepotNr;
-};
-
 struct THelpDepot {
 	uint32_t CharacterID;
 	Object Box;
 	int DepotNr;
 };
 
-struct THouse {
-	unsigned short ID;
-	char Name[50];
-	char Description[500];
-	int Size;
-	uint32_t Rent;
-	int DepotNr;
-	bool NoAuction;
-	bool GuildHouse;
-	int ExitX;
-	int ExitY;
-	int ExitZ;
-	int CenterX;
-	int CenterY;
-	int CenterZ;
-	uint32_t OwnerID;
-	char OwnerName[30];
-	int LastTransition;
-	int PaidUntil;
-	vector<THouseGuest> Subowner;
-	int Subowners;
-	vector<THouseGuest> Guest;
-	int Guests;
-	int Help;
-	THouse() : Subowner(0, 4, 5), Guest(0, 9, 10) {}
-};
-
-vector<THouseArea> HouseArea(0, 99, 50);
-int HouseAreas;
-vector<THouse> House(0, 99, 100);
-int Houses;
-int MaxHouseX;
-int MaxHouseY;
 static TQueryManagerConnection *QueryManagerConnection;
 int PaymentExtension;
 vector<THelpDepot> HelpDepot(1, 10, 10);
@@ -93,21 +51,10 @@ int HelpDepots;
 
 // ShowSubownerList, ShowGuestList, ChangeSubowners, ChangeGuests, both
 // KickGuest, KickGuests, ShowNameDoor, ChangeNameDoor, FinishAuctions and
-// CollectRents report a failure by throwing a RESULT; LoadHouseAreas,
-// LoadHouses, LoadOwners, SaveOwners and InitHouses throw a const char *.
+// CollectRents report a failure by throwing a RESULT; LoadHouses,
+// LoadOwners, SaveOwners and InitHouses throw a const char *.
 // They have no exception specification: an exception of another type passes
 // on to the caller.
-
-THouseArea *GetHouseArea(unsigned short ID) {
-	for (int i = 0; i < HouseAreas; i++) {
-		if (HouseArea(i).ID == ID) {
-			return &HouseArea(i);
-		}
-	}
-
-	error("GetHouseArea: Gebiet mit ID %d nicht gefunden.\n", ID);
-	return nullptr;
-}
 
 int CheckAccessRight(char *Rule, TPlayer *pl) {
 	if (Rule == nullptr) {
@@ -1379,165 +1326,15 @@ void CleanHouseField(int x, int y, int z) {
 	CleanField(x, y, z, HelpDepot(DepotLoaded).Box);
 }
 
-void LoadHouseAreas() {
-	Log("houses", "Lade Daten der H\xe4usergebiete...\n");
-
-	char FileName[4096];
-	sprintf(FileName, "%s/houseareas.dat", DATAPATH);
-	if (!FileExists(FileName)) {
-		Log("houses", "Keine Daten f\xfcr H\xe4usergebiete gefunden.\n");
-		return;
-	}
-
-	TReadScriptFile Script;
-	Script.open(FileName);
-	while (true) {
-		Script.nextToken();
-		if (Script.Token == ENDOFFILE) {
-			break;
-		}
-
-		if (Script.Token != IDENTIFIER) {
-			Script.error("Identifier expected");
-		}
-
-		Script.readSymbol('=');
-		Script.readSymbol('(');
-		HouseArea(HouseAreas).ID = Script.readNumber();
-		Script.readSymbol(',');
-		Script.readString();
-		Script.readSymbol(',');
-		HouseArea(HouseAreas).SQMPrice = Script.readNumber();
-		Script.readSymbol(',');
-		HouseArea(HouseAreas).DepotNr = Script.readNumber();
-		Script.readSymbol(')');
-		HouseAreas++;
-	}
-
-	Script.close();
-}
-
 void LoadHouses() {
+	// houseareas.dat and houses.dat, which the two lines named, are one file
+	// now; the areas come first in it.
+	Log("houses", "Lade Daten der H\xe4usergebiete...\n");
 	Log("houses", "Lade H\xe4userdaten...\n");
 
-	Houses = 0;
-	MaxHouseX = 0;
-	MaxHouseY = 0;
-
 	char FileName[4096];
-	int x, y, z;
-	sprintf(FileName, "%s/houses.dat", DATAPATH);
-	if (!FileExists(FileName)) {
-		Log("houses", "Keine H\xe4userdaten gefunden.\n");
-		return;
-	}
-
-	TReadScriptFile Script;
-	Script.open(FileName);
-	while (true) {
-		Script.nextToken();
-		if (Script.Token == ENDOFFILE) {
-			break;
-		}
-
-		if (Script.Token != IDENTIFIER) {
-			Script.error("Identifier expected");
-		}
-
-		Script.readSymbol('=');
-		House(Houses).ID = Script.readNumber();
-		if (House(Houses).ID == 0) {
-			error("LoadHouses: Ung\xfcltige ID %d.\n", House(Houses).ID);
-			Script.close();
-			throw "Cannot load houses";
-		}
-
-		if (Houses > 0 && House(Houses).ID <= House(Houses - 1).ID) {
-			error("LoadHouses: IDs nicht aufsteigend sortiert (ID=%d).\n", House(Houses).ID);
-			Script.close();
-			throw "Cannot load houses";
-		}
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		strcpy(House(Houses).Name, Script.readString());
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		strcpy(House(Houses).Description, Script.readString());
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		int RentOffset = Script.readNumber();
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		THouseArea *Area = GetHouseArea(Script.readNumber());
-		if (Area == nullptr) {
-			error("LoadHouses: Gebiet f\xfcr Haus %d existiert nicht.\n", House(Houses).ID);
-			Script.close();
-			throw "Cannot load houses";
-		}
-
-		House(Houses).DepotNr = Area->DepotNr;
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		House(Houses).GuildHouse = (strcmp(Script.readIdentifier(), "true") == 0);
-		House(Houses).NoAuction = false;
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		Script.readCoordinate(House(Houses).ExitX, House(Houses).ExitY, House(Houses).ExitZ);
-		if (House(Houses).ExitX == 0) {
-			error("LoadHouses: Ausgang f\xfcr Haus %d nicht gesetzt.\n", House(Houses).ID);
-		}
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		Script.readCoordinate(House(Houses).CenterX, House(Houses).CenterY, House(Houses).CenterZ);
-		if (House(Houses).CenterX == 0) {
-			error("LoadHouses: Ausgang f\xfcr Haus %d nicht gesetzt.\n", House(Houses).ID);
-		}
-
-		Script.readIdentifier();
-		Script.readSymbol('=');
-		Script.readSymbol('{');
-		House(Houses).Size = 0;
-		while (true) {
-			Script.nextToken();
-			if (Script.Token == SPECIAL && Script.getSpecial() == '}') {
-				break;
-			}
-
-			if (Script.Token == SPECIAL && Script.getSpecial() == ',') {
-				continue;
-			}
-
-			Script.getCoordinate(x, y, z);
-			SetHouseID(x, y, z, House(Houses).ID);
-			House(Houses).Size++;
-
-			if (abs(x - House(Houses).CenterX) > MaxHouseX) {
-				MaxHouseX = abs(x - House(Houses).CenterX);
-			}
-
-			if (abs(y - House(Houses).CenterY) > MaxHouseY) {
-				MaxHouseY = abs(y - House(Houses).CenterY);
-			}
-		}
-
-		House(Houses).Rent = Area->SQMPrice * House(Houses).Size + RentOffset;
-		House(Houses).OwnerID = 0;
-		House(Houses).OwnerName[0] = 0;
-		House(Houses).LastTransition = 0;
-		House(Houses).PaidUntil = 0;
-		House(Houses).Subowners = 0;
-		House(Houses).Guests = 0;
-		Houses++;
-	}
-
-	Script.close();
+	sprintf(FileName, "%s/houses.toml", DATAPATH);
+	LoadHouseData(FileName, SetHouseID);
 
 	QueryManagerConnection = new TQueryManagerConnection(std::max(0x4000, Houses * 600));
 
@@ -1783,7 +1580,6 @@ void SaveOwners() {
 void InitHouses() {
 	try {
 		InitLog("houses");
-		LoadHouseAreas();
 		LoadHouses();
 		LoadOwners();
 		FinishAuctions();

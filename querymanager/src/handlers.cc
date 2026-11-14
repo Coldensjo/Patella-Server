@@ -682,7 +682,7 @@ void Dispatcher::handleRemoveBuddy(Session &session, ReadBuffer &in, WriteBuffer
 }
 
 // Query 45, insertHouses, called by LoadHouses (src/houses.cc) at every
-// start with all houses of dat/houses.dat.
+// start with all houses of houses.toml in its data folder (houses.dat before).
 //   request:  word NumberOfHouses, then per house word HouseID, string Name,
 //             quad Rent, string Description, word Size, word PositionX,
 //             word PositionY, byte PositionZ, string Town, flag Guildhouse

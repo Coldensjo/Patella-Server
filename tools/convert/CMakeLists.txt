@@ -16,8 +16,11 @@ add_library(convert_common STATIC
 	spells_writer.cc
 	moveuse_dat.cc
 	moveuse_writer.cc
+	houses_dat.cc
+	houses_writer.cc
 	tomlwrite.cc
 	${GAME_SOURCE}/config.cc
+	${GAME_SOURCE}/housesdata.cc
 	${GAME_SOURCE}/magicdata.cc
 	${GAME_SOURCE}/moveusedata.cc
 	${GAME_SOURCE}/objects.cc
@@ -106,3 +109,22 @@ add_test(NAME convert_moveuse COMMAND convert_test_moveuse)
 add_test(NAME convert_moveuse_original COMMAND convert_test_moveuse --original ${PROJECT_SOURCE_DIR}/data/items.toml
 	${PATELLA_ORIGINAL_MOVEUSE} ${PROJECT_SOURCE_DIR}/data/moveuse.toml)
 set_tests_properties(convert_moveuse_original PROPERTIES SKIP_RETURN_CODE 77)
+
+# The round trip of the houses: the areas, houses and house fields the game
+# ends up with from a houseareas.dat and a houses.dat (through the old
+# readers, ReadHouseAreasDat and ReadHousesDat) and from their houses.toml
+# (through LoadHouseData) are the same, field by field and in the same order.
+# convert_houses uses made-up files; convert_houses_original the original
+# files, PATELLA_ORIGINAL_HOUSEAREAS and PATELLA_ORIGINAL_HOUSES, and the
+# committed data/houses.toml, which must also be exactly what patella-convert
+# makes of them. It is skipped when those files are not there.
+set(PATELLA_ORIGINAL_HOUSEAREAS "/mnt/c/Tibia/Patella-Gameserver/dat/houseareas.dat" CACHE FILEPATH
+	"The original installation's houseareas.dat, for the test convert_houses_original")
+set(PATELLA_ORIGINAL_HOUSES "/mnt/c/Tibia/Patella-Gameserver/dat/houses.dat" CACHE FILEPATH
+	"The original installation's houses.dat, for the test convert_houses_original")
+add_executable(convert_test_houses tests/test_houses.cc)
+target_link_libraries(convert_test_houses PRIVATE convert_common)
+add_test(NAME convert_houses COMMAND convert_test_houses)
+add_test(NAME convert_houses_original COMMAND convert_test_houses --original ${PATELLA_ORIGINAL_HOUSEAREAS}
+	${PATELLA_ORIGINAL_HOUSES} ${PROJECT_SOURCE_DIR}/data/houses.toml)
+set_tests_properties(convert_houses_original PROPERTIES SKIP_RETURN_CODE 77)
