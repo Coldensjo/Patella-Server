@@ -285,7 +285,7 @@ bool TCreature::SetOnMap() {
 	}
 
 	try {
-		Create(Obj, ObjectType(99), ID);
+		Create(Obj, ObjectType(TYPEID_CREATURE), ID);
 	} catch (RESULT r) {
 		error("TCreature::SetOnMap: Kann Kreatur nicht setzen ([%d,%d,%d] - Exception %d).\n",
 				posx, posy, posz, r);
@@ -321,8 +321,8 @@ void TCreature::Go(int x, int y, int z) {
 
 	// The divisor is not guarded against a timer value of 7, as in the
 	// original.
-	if (Skills[20] != nullptr && Skills[20]->TimerValue() > 0 && Skills[20]->Get() == 0
-			&& rand() % (7 - Skills[20]->TimerValue()) == 0) {
+	if (Skills[SKILL_DRUNKEN] != nullptr && Skills[SKILL_DRUNKEN]->TimerValue() > 0 && Skills[SKILL_DRUNKEN]->Get() == 0
+			&& rand() % (7 - Skills[SKILL_DRUNKEN]->TimerValue()) == 0) {
 		int dx = 0;
 		int dy = 0;
 		switch (rand() % 4) {
@@ -371,7 +371,7 @@ void TCreature::Go(int x, int y, int z) {
 
 void TCreature::Rotate(unsigned char Dir) {
 	Direction = Dir;
-	AnnounceChangedObject(CrObject, 2);
+	AnnounceChangedObject(CrObject, OBJECT_CHANGED);
 }
 
 void TCreature::Rotate(TCreature *Target) {
@@ -384,9 +384,9 @@ void TCreature::Rotate(TCreature *Target) {
 	int dx = Target->posx - posx;
 	int dy = Target->posy - posy;
 	if (abs(dx) < abs(dy)) {
-		Dir = (dy < 0) ? 0 : 2;
+		Dir = (dy < 0) ? DIRECTION_NORTH : DIRECTION_SOUTH;
 	} else {
-		Dir = (dx < 0) ? 3 : 1;
+		Dir = (dx < 0) ? DIRECTION_WEST : DIRECTION_EAST;
 	}
 
 	Rotate((unsigned char)Dir);
@@ -410,7 +410,7 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 		Count = Obj.getAttribute(AMOUNT);
 	}
 
-	if (zx != 0xffff) {
+	if (zx != POSITION_NOT_ON_MAP) {
 		Object Dest = GetMapContainer(zx, zy, zz);
 		if (!Dest.exists()) {
 			throw ERROR;
@@ -422,7 +422,7 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 			}
 
 			if (GetObjectCreatureID(Obj) != ID) {
-				ToDoMove(Obj, 0xffff, 0, 0, 1);
+				ToDoMove(Obj, POSITION_NOT_ON_MAP, 0, 0, 1);
 			}
 
 			ToDoGo(zx, zy, zz, false, 0x7fffffff);
@@ -435,11 +435,11 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 	}
 
 	if (zy == 0) {
-		for (int b = 1; b <= 10; b++) {
+		for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION; b++) {
 			try {
 				CheckInventoryDestination(Obj, GetBodyContainer(ID, b), false);
 				zy = b;
-				if (b != 5 && b != 6 && b != 10) {
+				if (b != BODY_RIGHTHAND && b != BODY_LEFTHAND && b != BODY_AMMO) {
 					break;
 				}
 			} catch (RESULT) {
@@ -447,7 +447,7 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 		}
 
 		if (zy == 0) {
-			for (int b = 1; b <= 10; b++) {
+			for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION; b++) {
 				Object Help = GetBodyObject(ID, b);
 				if (Help != NONE && Help.getFlag(CONTAINER)) {
 					try {
@@ -464,14 +464,15 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 		}
 	}
 
-	if (zy < 1 || (zy > 10 && zy < 64) || zy > 79) {
+	if (zy < FIRST_BODY_POSITION || (zy > LAST_BODY_POSITION && zy < POSITION_CONTAINER_BASE)
+			|| zy > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1) {
 		error("TCreature::Move: Ung\xfcltiger Containercode %d.\n", zy);
 		throw ERROR;
 	}
 
 	Object DestCon = GetBodyContainer(ID, zy);
 	Object DestObj = NONE;
-	if (zy < 64) {
+	if (zy < POSITION_CONTAINER_BASE) {
 		DestObj = GetBodyObject(ID, zy);
 	} else {
 		if (zz < 254) {
@@ -522,7 +523,7 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 	try {
 		::Move(ID, Obj, DestCon, Count, false, DestObj);
 	} catch (RESULT r) {
-		if (zy >= 64 || DestObj == NONE
+		if (zy >= POSITION_CONTAINER_BASE || DestObj == NONE
 				|| (r != NOROOM && r != HANDSNOTFREE && r != HANDBLOCKED && r != ONEWEAPONONLY)) {
 			throw r;
 		}
@@ -613,7 +614,7 @@ void TCreature::Use(Object Obj1, Object Obj2, unsigned char Dummy) {
 		}
 
 		if (GetObjectCreatureID(Obj1) != ID) {
-			ToDoMove(Obj1, 0xffff, 0, 0, 1);
+			ToDoMove(Obj1, POSITION_NOT_ON_MAP, 0, 0, 1);
 		}
 
 		ToDoGo(x, y, z, false, 0x7fffffff);
@@ -681,25 +682,25 @@ void TCreature::NotifyGo() {
 			while (dx > 0) {
 				posx++;
 				dx--;
-				SendRow(GetConnection(), 1);
+				SendRow(GetConnection(), DIRECTION_EAST);
 			}
 
 			while (dx < 0) {
 				posx--;
 				dx++;
-				SendRow(GetConnection(), 3);
+				SendRow(GetConnection(), DIRECTION_WEST);
 			}
 
 			while (dy > 0) {
 				posy++;
 				dy--;
-				SendRow(GetConnection(), 2);
+				SendRow(GetConnection(), DIRECTION_SOUTH);
 			}
 
 			while (dy < 0) {
 				posy--;
 				dy++;
-				SendRow(GetConnection(), 0);
+				SendRow(GetConnection(), DIRECTION_NORTH);
 			}
 		} else {
 			posx += dx;
@@ -715,7 +716,7 @@ void TCreature::NotifyGo() {
 
 	if (Type == PLAYER) {
 		TPlayer *self = (TPlayer *)this;
-		for (int con = 0; con < 16; con++) {
+		for (int con = 0; con < MAX_OPEN_CONTAINERS; con++) {
 			Object Con = self->GetOpenContainer(con);
 			if (Con == NONE) {
 				continue;
@@ -778,13 +779,13 @@ void TCreature::NotifyTurn(Object DestCon) {
 	int dx = x - posx;
 	int dy = y - posy;
 	if (dx > 0) {
-		Direction = 1;
+		Direction = DIRECTION_EAST;
 	} else if (dx < 0) {
-		Direction = 3;
+		Direction = DIRECTION_WEST;
 	} else if (dy < 0) {
-		Direction = 0;
+		Direction = DIRECTION_NORTH;
 	} else if (dy > 0) {
-		Direction = 2;
+		Direction = DIRECTION_SOUTH;
 	}
 }
 
@@ -821,12 +822,12 @@ void TCreature::NotifyChangeInventory() {
 		return;
 	}
 
-	int NewDelta[25];
-	for (int i = 0; i < 25; i++) {
+	int NewDelta[MAX_SKILLS];
+	for (int i = 0; i < MAX_SKILLS; i++) {
 		NewDelta[i] = 0;
 	}
 
-	for (int b = 1; b <= 10; b++) {
+	for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION; b++) {
 		Object Obj = GetBodyObject(ID, b);
 		if (Obj == NONE || !Obj.getFlag(SKILLBOOST)) {
 			continue;
@@ -844,7 +845,7 @@ void TCreature::NotifyChangeInventory() {
 
 		// A negative skill number is not rejected, as in the original.
 		int SkillNr = Obj.getAttribute(SKILLNUMBER);
-		if (SkillNr > 24) {
+		if (SkillNr > MAX_SKILLS - 1) {
 			error("TCreature::NotifyChangeInventory: Objekt %d hat ung\xfcltige SKILLNUMBER %d.\n",
 					Obj.getObjectType().getTypeID(), SkillNr);
 			continue;
@@ -858,28 +859,28 @@ void TCreature::NotifyChangeInventory() {
 	}
 
 	bool SkillsChanged = false;
-	for (int i = 0; i < 25; i++) {
+	for (int i = 0; i < MAX_SKILLS; i++) {
 		if (Skills[i]->GetDAct() == NewDelta[i]) {
 			continue;
 		}
 
 		Skills[i]->SetDAct(NewDelta[i]);
-		if (i == 4) {
-			AnnounceChangedCreature(ID, 4);
+		if (i == SKILL_GOSTRENGTH) {
+			AnnounceChangedCreature(ID, CREATURE_SPEED);
 		}
 
-		if (i == 16) {
-			if (NewDelta[16] > 0) {
-				if (!IsInvisible() && Skills[16]->TimerValue() != 0) {
-					SetTimer(16, 0, 0, 0, -1);
+		if (i == SKILL_ILLUSION) {
+			if (NewDelta[SKILL_ILLUSION] > 0) {
+				if (!IsInvisible() && Skills[SKILL_ILLUSION]->TimerValue() != 0) {
+					SetTimer(SKILL_ILLUSION, 0, 0, 0, -1);
 				}
 				Outfit.OutfitID = 0;
 				Outfit.ObjectType = 0;
-			} else if (Skills[16]->TimerValue() == 0) {
+			} else if (Skills[SKILL_ILLUSION]->TimerValue() == 0) {
 				Outfit = OrgOutfit;
 			}
 
-			AnnounceChangedCreature(ID, 3);
+			AnnounceChangedCreature(ID, CREATURE_OUTFIT);
 		}
 
 		SkillsChanged = true;
@@ -898,11 +899,11 @@ void TCreature::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 		return;
 	}
 
-	if (Type != 2 || !LockToDo || IsDead || ActToDo >= NrToDo) {
+	if (Type != OBJECT_CHANGED || !LockToDo || IsDead || ActToDo >= NrToDo) {
 		return;
 	}
 
-	if (ToDoList(ActToDo).Code != TDAttack || Combat.GetChaseMode() != 1) {
+	if (ToDoList(ActToDo).Code != TDAttack || Combat.GetChaseMode() != CHASE_MODE_FOLLOW) {
 		return;
 	}
 
@@ -1230,7 +1231,7 @@ void TCreature::ToDoGo(int DestX, int DestY, int DestZ, bool Dest, int MaxSteps)
 
 void TCreature::ToDoRotate(int Direction) {
 	// Negative directions are not rejected, as in the original.
-	if (Direction > 3) {
+	if (Direction > DIRECTION_WEST) {
 		throw ERROR;
 	}
 
@@ -1246,7 +1247,7 @@ void TCreature::ToDoMove(int sx, int sy, int sz, ObjectType Type, unsigned char 
 		throw NOTACCESSIBLE;
 	}
 
-	if (sx != 0xffff) {
+	if (sx != POSITION_NOT_ON_MAP) {
 		if (sz > posz) {
 			throw DOWNSTAIRS;
 		}
@@ -1351,7 +1352,7 @@ void TCreature::ToDoTrade(int x, int y, int z, ObjectType Type, unsigned char RN
 		throw ERROR;
 	}
 
-	if (x != 0xffff) {
+	if (x != POSITION_NOT_ON_MAP) {
 		if (z > posz) {
 			throw DOWNSTAIRS;
 		}
@@ -1388,7 +1389,7 @@ void TCreature::ToDoUse(unsigned char Count, int x1, int y1, int z1, ObjectType 
 		Obj2 = NONE;
 	}
 
-	if (x1 != 0xffff) {
+	if (x1 != POSITION_NOT_ON_MAP) {
 		if (z1 > posz) {
 			throw DOWNSTAIRS;
 		}
@@ -1448,7 +1449,7 @@ void TCreature::ToDoTurn(int x, int y, int z, ObjectType Type, unsigned char RNu
 		throw NOTACCESSIBLE;
 	}
 
-	if (x != 0xffff) {
+	if (x != POSITION_NOT_ON_MAP) {
 		if (z > posz) {
 			throw DOWNSTAIRS;
 		}
