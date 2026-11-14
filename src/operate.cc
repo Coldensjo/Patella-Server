@@ -814,7 +814,7 @@ void CheckWeight(uint32_t CreatureID, Object Obj, int Count) {
 		throw TOOHEAVY;
 	}
 
-	TSkill *sk = cr->Skills[5];
+	TSkill *sk = cr->Skills[SKILL_CARRYSTRENGTH];
 	if (sk == nullptr) {
 		error("CheckWeight: Skill CARRYSTRENGTH existiert nicht.\n");
 		throw ERROR;
@@ -851,7 +851,7 @@ void CheckWeight(uint32_t CreatureID, ObjectType Type, uint32_t Data, int oldWei
 		throw TOOHEAVY;
 	}
 
-	TSkill *sk = cr->Skills[5];
+	TSkill *sk = cr->Skills[SKILL_CARRYSTRENGTH];
 	if (sk == nullptr) {
 		error("CheckWeight: Skill CARRYSTRENGTH existiert nicht.\n");
 		throw ERROR;
@@ -1755,11 +1755,11 @@ void Look(uint32_t CreatureID, Object Obj) {
 		if (Yourself) {
 			strcpy(Player, "yourself");
 		} else {
-			TSkill *sk = Opp->Skills[0];
+			TSkill *sk = Opp->Skills[SKILL_LEVEL];
 			snprintf(Player, sizeof(Player), "%s (Level %d)", Opp->Name, (sk != nullptr ? sk->Get() : 1));
 		}
 
-		if (Opp->Sex == 2) {
+		if (Opp->Sex == SEX_FEMALE) {
 			strcpy(Pronoun, "She");
 		} else {
 			strcpy(Pronoun, "He");
@@ -1767,7 +1767,7 @@ void Look(uint32_t CreatureID, Object Obj) {
 
 		int Profession = Opp->GetActiveProfession();
 		if (Yourself) {
-			if (Profession != 0) {
+			if (Profession != PROFESSION_NONE) {
 				char HelpProfession[30];
 				GetProfessionName(HelpProfession, Profession, true, false);
 				snprintf(Vocation, sizeof(Vocation), "You are %s", HelpProfession);
@@ -1775,7 +1775,7 @@ void Look(uint32_t CreatureID, Object Obj) {
 				strcpy(Vocation, "You have no vocation");
 			}
 		} else {
-			if (Profession != 0) {
+			if (Profession != PROFESSION_NONE) {
 				char HelpProfession[30];
 				GetProfessionName(HelpProfession, Profession, true, false);
 				snprintf(Vocation, sizeof(Vocation), "%s is %s", Pronoun, HelpProfession);
@@ -1900,16 +1900,16 @@ void Look(uint32_t CreatureID, Object Obj) {
 				}
 
 				switch (i) {
-					case 1:
+					case PROFESSION_KNIGHT:
 						strcpy(s2, "knights");
 						break;
-					case 2:
+					case PROFESSION_PALADIN:
 						strcpy(s2, "paladins");
 						break;
-					case 3:
+					case PROFESSION_SORCERER:
 						strcpy(s2, "sorcerers");
 						break;
-					case 4:
+					case PROFESSION_DRUID:
 						strcpy(s2, "druids");
 						break;
 					case 5:
@@ -2352,7 +2352,7 @@ void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 		UseLevelDoor(CreatureID, Obj1);
 	} else if (Obj1.getFlag(QUESTDOOR)) {
 		UseQuestDoor(CreatureID, Obj1);
-	} else if (Obj1.getFlag(WEAPON) && in(Obj1.getAttribute(WEAPONTYPE), 1, 3) && Obj2 != NONE && Obj2.getFlag(DESTROY)) {
+	} else if (Obj1.getFlag(WEAPON) && in(Obj1.getAttribute(WEAPONTYPE), WEAPON_SWORD, WEAPON_AXE) && Obj2 != NONE && Obj2.getFlag(DESTROY)) {
 		UseWeapon(CreatureID, Obj1, Obj2);
 	} else if (Obj1.getFlag(CHANGEUSE)) {
 		UseChangeObject(CreatureID, Obj1);
@@ -3125,7 +3125,7 @@ void InviteToChannel(uint32_t CharacterID, char *Name) {
 	C.InvitedPlayers++;
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s has been invited.", Name);
 	if (Opp != nullptr) {
-		SendMessage(Opp->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s private chat channel.", pl->Name, (pl->Sex == 1 ? "his" : "her"));
+		SendMessage(Opp->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s private chat channel.", pl->Name, (pl->Sex == SEX_MALE ? "his" : "her"));
 	}
 }
 
@@ -3506,7 +3506,7 @@ void InviteToParty(uint32_t Host, uint32_t Guest) {
 		P->InvitedPlayers = 1;
 		host->JoinParty(Host);
 		SendMessage(host->GetConnection(), TALK_INFO_MESSAGE, "%s has been invited.", guest->Name);
-		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == 1 ? "his" : "her"));
+		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == SEX_MALE ? "his" : "her"));
 		SendCreatureParty(host->GetConnection(), Host);
 		SendCreatureSkull(host->GetConnection(), Host);
 		SendCreatureParty(host->GetConnection(), Guest);
@@ -3533,7 +3533,7 @@ void InviteToParty(uint32_t Host, uint32_t Guest) {
 		P->InvitedPlayer(P->InvitedPlayers) = Guest;
 		P->InvitedPlayers++;
 		SendMessage(host->GetConnection(), TALK_INFO_MESSAGE, "%s has been invited.", guest->Name);
-		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == 1 ? "his" : "her"));
+		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s invites you to %s party.", host->Name, (host->Sex == SEX_MALE ? "his" : "her"));
 		SendCreatureParty(host->GetConnection(), Guest);
 		SendCreatureParty(guest->GetConnection(), Host);
 	} else {
@@ -3587,7 +3587,7 @@ void RevokeInvitation(uint32_t Host, uint32_t Guest) {
 
 	if (guest != nullptr) {
 		SendMessage(host->GetConnection(), TALK_INFO_MESSAGE, "Invitation for %s has been revoked.", guest->Name);
-		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s has revoked %s invitation.", host->Name, (host->Sex == 1 ? "his" : "her"));
+		SendMessage(guest->GetConnection(), TALK_INFO_MESSAGE, "%s has revoked %s invitation.", host->Name, (host->Sex == SEX_MALE ? "his" : "her"));
 		SendCreatureParty(host->GetConnection(), Guest);
 		SendCreatureParty(guest->GetConnection(), Host);
 	} else {
