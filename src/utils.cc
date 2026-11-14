@@ -16,6 +16,10 @@ TPrintFunction *PrintFunction = nullptr;
 TErrorFunction *ErrorFunction = nullptr;
 char StandardLogfile[4096] = "";
 
+// The length word of a string in a stream: a string of this length or longer
+// has this word followed by its length as a quad.
+const int LONG_STRING_MARKER = 0xFFFF;
+
 void SetPrintFunction(TPrintFunction *Function) {
 	PrintFunction = Function;
 }
@@ -120,7 +124,7 @@ void TReadStream::readString(char *Buffer, int MaxLength) {
 	}
 
 	int Length = readWord();
-	if (Length == 0xFFFF) {
+	if (Length == LONG_STRING_MARKER) {
 		Length = static_cast<int>(readQuad());
 	}
 
@@ -173,10 +177,10 @@ void TWriteStream::writeString(char *s) {
 	}
 
 	int Length = static_cast<int>(strlen(s));
-	if (Length < 0xFFFF) {
+	if (Length < LONG_STRING_MARKER) {
 		writeWord(static_cast<unsigned short>(Length));
 	} else {
-		writeWord(0xFFFF);
+		writeWord(LONG_STRING_MARKER);
 		writeQuad(static_cast<uint32_t>(Length));
 	}
 
