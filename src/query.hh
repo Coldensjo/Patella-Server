@@ -13,12 +13,10 @@
 // name as in the query manager's protocol.hh.
 const int APPLICATION_GAME = 1;
 
-// The query types: the first byte of a request (prepareQuery), named after the
-// TQueryManagerConnection method that sends it. The same names as in the
-// query manager's protocol.hh.
+// The query types the game sends: the first byte of a request (prepareQuery),
+// named after the TQueryManagerConnection method that sends it. The same names
+// as in the query manager's protocol.hh, which lists the other tools' too.
 const int QUERY_LOGIN = 0;
-const int QUERY_CHECK_ACCOUNT_PASSWORD = 10;
-const int QUERY_LOGIN_ADMIN = 12;
 const int QUERY_LOGIN_GAME = 20;
 const int QUERY_LOGOUT_GAME = 21;
 const int QUERY_SET_NAMELOCK = 23;
@@ -49,22 +47,6 @@ const int QUERY_LOAD_PLAYERS = 50;
 const int QUERY_EXCLUDE_FROM_AUCTIONS = 51;
 const int QUERY_CANCEL_HOUSE_TRANSFER = 52;
 const int QUERY_LOAD_WORLD_CONFIG = 53;
-const int QUERY_GET_KEPT_CHARACTERS = 200;
-const int QUERY_GET_DELETED_CHARACTERS = 201;
-const int QUERY_DELETE_OLD_CHARACTER = 202;
-const int QUERY_GET_HIDDEN_CHARACTERS = 203;
-const int QUERY_CREATE_HIGHSCORES = 204;
-const int QUERY_CREATE_CENSUS = 205;
-const int QUERY_CREATE_KILL_STATISTICS = 206;
-const int QUERY_GET_PLAYERS_ONLINE = 207;
-const int QUERY_GET_WORLDS = 208;
-const int QUERY_GET_SERVER_LOAD = 209;
-const int QUERY_INSERT_PAYMENT_DATA_OLD = 210;
-const int QUERY_ADD_PAYMENT_OLD = 211;
-const int QUERY_CANCEL_PAYMENT_OLD = 212;
-const int QUERY_INSERT_PAYMENT_DATA_NEW = 213;
-const int QUERY_ADD_PAYMENT_NEW = 214;
-const int QUERY_CANCEL_PAYMENT_NEW = 215;
 
 // The status byte of a response, which executeQuery returns: STATUS_FAILED
 // also when the request could not be sent or answered. STATUS_ERROR is
@@ -110,8 +92,6 @@ struct TQueryManagerConnection {
 	TQueryManagerConnection(int QueryBufferSize = 16384);
 	~TQueryManagerConnection();
 	bool isConnected() { return Socket >= 0; }
-	int checkAccountPassword(uint32_t AccountID, char *Password, char *IPAddress);
-	int loginAdmin(uint32_t AccountID, bool PrivateWorld, int &NumberOfCharacters, char (*Characters)[30], char (*Worlds)[30], unsigned char (*IPAddresses)[4], unsigned short *Ports, unsigned short &PremiumDaysLeft);
 	int loadWorldConfig(int &WorldType, int &RebootTime, int *IPAddress, int &Port, int &MaxPlayers, int &PremiumPlayerBuffer, int &MaxNewbies, int &PremiumNewbieBuffer);
 	int loginGame(uint32_t AccountID, char *PlayerName, char *Password, char *IPAddress, bool PrivateWorld, bool PremiumAccountRequired, bool GamemasterRequired, uint32_t &CharacterID, int &Sex, char *Guild, char *Rank, char *Title, int &NumberOfBuddies, uint32_t *BuddyIDs, char (*BuddyNames)[30], unsigned char *Rights, bool &PremiumAccountActivated);
 	int logoutGame(uint32_t CharacterID, int Level, char *Profession, char *Residence, time_t LastLoginTime, int TutorActivities);
@@ -142,22 +122,6 @@ struct TQueryManagerConnection {
 	int createPlayerlist(int NumberOfPlayers, char **Names, int *Levels, char (*Professions)[30], bool &NewRecord);
 	int logKilledCreatures(int NumberOfRaces, char **Names, int *KilledPlayers, int *KilledCreatures);
 	int loadPlayers(uint32_t MinimumCharacterID, int &NumberOfPlayers, char (*Names)[30], uint32_t *CharacterIDs);
-	int getKeptCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs);
-	int getDeletedCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs);
-	int deleteOldCharacter(uint32_t CharacterID);
-	int getHiddenCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs);
-	int createHighscores(int NumberOfPlayers, uint32_t *CharacterIDs, int *ExpPoints, int *ExpLevel, int *Fist, int *Club, int *Axe, int *Sword, int *Distance, int *Shielding, int *Magic, int *Fishing);
-	int createCensus();
-	int createKillStatistics();
-	int getPlayersOnline(int &NumberOfWorlds, char (*Names)[30], unsigned short *Players);
-	int getWorlds(int &NumberOfWorlds, char (*Names)[30]);
-	int getServerLoad(char *World, int Period, int *Data);
-	int insertPaymentDataOld(uint32_t PurchaseNr, uint32_t ReferenceNr, char *FirstName, char *LastName, char *Company, char *Street, char *Zip, char *City, char *Country, char *State, char *Phone, char *Fax, char *EMail, char *PaymentMethod, uint32_t ProductID, char *Registrant, uint32_t AccountID, uint32_t &PaymentID);
-	int addPaymentOld(uint32_t AccountID, char *Description, uint32_t PaymentID, int Days, int &ActionTaken);
-	int cancelPaymentOld(uint32_t PurchaseNr, uint32_t ReferenceNr, uint32_t AccountID, bool &IllegalUse, char *EMailAddress);
-	int insertPaymentDataNew(uint32_t PurchaseNr, uint32_t ReferenceNr, char *FirstName, char *LastName, char *Company, char *Street, char *Zip, char *City, char *Country, char *State, char *Phone, char *Fax, char *EMail, char *PaymentMethod, uint32_t ProductID, char *Registrant, char *PaymentKey, uint32_t &PaymentID);
-	int addPaymentNew(char *PaymentKey, uint32_t PaymentID, int &ActionTaken, char *EMailReceiver);
-	int cancelPaymentNew(uint32_t PurchaseNr, uint32_t ReferenceNr, char *PaymentKey, bool &IllegalUse, bool &Present, char *EMailAddress);
 private:
 	void connect();
 	void disconnect();
@@ -170,13 +134,11 @@ protected:
 	void sendWord(unsigned short w);
 	void sendQuad(uint32_t q);
 	void sendString(char *s);
-	void sendBytes(unsigned char *Buffer, int Count);
 	bool getFlag();
 	unsigned char getByte();
 	unsigned short getWord();
 	uint32_t getQuad();
 	void getString(char *Buffer, int MaxLength);
-	void getBytes(unsigned char *Buffer, int Count);
 	int executeQuery(int Timeout, bool AutoReconnect);
 private:
 	int BufferSize;
