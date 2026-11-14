@@ -1248,7 +1248,7 @@ bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 		return false;
 	}
 
-	if (!in(Action, 0, 6)) {
+	if (!in(Action, BANISHMENT_ACTION_NOTATION, BANISHMENT_ACTION_STATEMENT_REPORT)) {
 		error("CheckBanishmentRight: Ung\xfcltige Aktion %d von Spieler %ld.\n",
 				Action, static_cast<long>(static_cast<int32_t>(CharacterID)));
 		return false;
@@ -1259,34 +1259,34 @@ bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 	}
 
 	switch (Action) {
-		case 0: {
+		case BANISHMENT_ACTION_NOTATION: {
 			return CheckRight(CharacterID, NOTATION);
 		}
-		case 1: {
+		case BANISHMENT_ACTION_NAMELOCK: {
 			return in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, NAMELOCK);
 		}
-		case 2: {
+		case BANISHMENT_ACTION_BANISHMENT: {
 			return !in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, BANISHMENT);
 		}
-		case 3: {
+		case BANISHMENT_ACTION_NAMELOCK_BANISHMENT: {
 			return in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, NAMELOCK)
 					&& CheckRight(CharacterID, BANISHMENT);
 		}
-		case 4: {
+		case BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING: {
 			return !in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, BANISHMENT)
 					&& CheckRight(CharacterID, FINAL_WARNING);
 		}
-		case 5: {
+		case BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING: {
 			return in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_NAMEBANISHMENT_RIGHT, LAST_NAMEBANISHMENT_RIGHT)
 					&& CheckRight(CharacterID, NAMELOCK)
 					&& CheckRight(CharacterID, BANISHMENT)
 					&& CheckRight(CharacterID, FINAL_WARNING);
 		}
-		case 6: {
+		case BANISHMENT_ACTION_STATEMENT_REPORT: {
 			return (in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_REPORT_RIGHT, LAST_REPORT_RIGHT)
 						|| Reason + FIRST_BANISHMENT_RIGHT == DESTRUCTIVE_BEHAVIOUR)
 					&& CheckRight(CharacterID, STATEMENT_REPORT);

@@ -107,6 +107,18 @@ const int LAST_NAMEBANISHMENT_RIGHT = 26;
 const int FIRST_REPORT_RIGHT = 27;
 const int LAST_REPORT_RIGHT = 45;
 
+// What a gamemaster does with a reported player or statement: the Action of
+// CheckBanishmentRight and PunishmentOrder, as the client's rule violation
+// dialog sends it. Each one needs the rights that CheckBanishmentRight names
+// and makes the query manager requests of ProcessPunishmentOrder (writer.cc).
+const int BANISHMENT_ACTION_NOTATION = 0;
+const int BANISHMENT_ACTION_NAMELOCK = 1;
+const int BANISHMENT_ACTION_BANISHMENT = 2;
+const int BANISHMENT_ACTION_NAMELOCK_BANISHMENT = 3;
+const int BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING = 4;
+const int BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING = 5;
+const int BANISHMENT_ACTION_STATEMENT_REPORT = 6;
+
 enum RESULT {
 	ERROR = -1,
 	NOERROR = 0,

@@ -684,7 +684,7 @@ void ProcessPunishmentOrder(void *RawData) {
 	bool ok = true;
 	uint32_t BanishmentID = 0;
 
-	if (Data->Action == 0) {
+	if (Data->Action == BANISHMENT_ACTION_NOTATION) {
 		switch (QueryManagerConnection->setNotation(Data->GamemasterID, Data->CriminalName, Data->CriminalIPAddress, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment, BanishmentID)) {
 			case 0:
 				DirectReply(Data->GamemasterID, "Notation for player %s inserted.", Data->CriminalName);
@@ -701,7 +701,8 @@ void ProcessPunishmentOrder(void *RawData) {
 		}
 	}
 
-	if (ok && (Data->Action == 1 || Data->Action == 3 || Data->Action == 5)) {
+	if (ok && (Data->Action == BANISHMENT_ACTION_NAMELOCK || Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT
+			|| Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING)) {
 		switch (QueryManagerConnection->setNamelock(Data->GamemasterID, Data->CriminalName, Data->CriminalIPAddress, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment)) {
 			case 0:
 				DirectReply(Data->GamemasterID, "Player %s reported for renaming.", Data->CriminalName);
@@ -722,8 +723,10 @@ void ProcessPunishmentOrder(void *RawData) {
 		}
 	}
 
-	if (ok && (Data->Action == 2 || Data->Action == 3 || Data->Action == 4 || Data->Action == 5)) {
-		bool FinalWarning = (Data->Action == 4 || Data->Action == 5);
+	if (ok && (Data->Action == BANISHMENT_ACTION_BANISHMENT || Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT
+			|| Data->Action == BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING || Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING)) {
+		bool FinalWarning = (Data->Action == BANISHMENT_ACTION_BANISHMENT_FINAL_WARNING
+				|| Data->Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING);
 		int Days;
 		switch (QueryManagerConnection->banishAccount(Data->GamemasterID, Data->CriminalName, Data->CriminalIPAddress, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment, FinalWarning, Days, BanishmentID)) {
 			case 0:
@@ -835,19 +838,19 @@ void ProcessPunishmentOrder(void *RawData) {
 
 		switch (QueryManagerConnection->reportStatement(Data->GamemasterID, Data->CriminalName, const_cast<char *>(GetBanishmentReason(Data->Reason)), Data->Comment, BanishmentID, Data->StatementID, NumberOfStatements, StatementIDs, TimeStamps, CharacterIDs, Channels, Texts)) {
 			case 0:
-				if (Data->Action == 6) {
+				if (Data->Action == BANISHMENT_ACTION_STATEMENT_REPORT) {
 					DirectReply(Data->GamemasterID, "Statement of %s reported.", Data->CriminalName);
 				}
 				Log("banish", "%s meldet \xc4u\xdf" "erung von Spieler %s.\n", Data->GamemasterName, Data->CriminalName);
 				break;
 			case 1:
-				if (Data->Action == 6) {
+				if (Data->Action == BANISHMENT_ACTION_STATEMENT_REPORT) {
 					DirectReply(Data->GamemasterID, "A player with this name does not exist. Perhaps he/she has been renamed?");
 				}
 				ok = false;
 				break;
 			case 2:
-				if (Data->Action == 6) {
+				if (Data->Action == BANISHMENT_ACTION_STATEMENT_REPORT) {
 					DirectReply(Data->GamemasterID, "Statement has already been reported.");
 				}
 				ok = false;
