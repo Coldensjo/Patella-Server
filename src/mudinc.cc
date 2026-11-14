@@ -28,8 +28,8 @@ bool isSpace(int c) {
 	return c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t' || c == '\v';
 }
 
-// The umlaut literals are plain (signed) char, so they are negative: a
-// sign-extended byte matches, the same byte as an int in 128..255 does not.
+// Quirk: the umlaut literals are plain (signed) char, so they are negative:
+// a sign-extended byte matches, the same byte as an int in 128..255 does not.
 bool isAlpha(int c) {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 		|| c == '\xe4' || c == '\xf6' || c == '\xfc'
@@ -40,7 +40,8 @@ bool isDigit(int c) {
 	return c >= '0' && c <= '9';
 }
 
-// The Latin-1 range is tested on the low byte only; it includes 0xD7.
+// The Latin-1 range is tested on the low byte only. Quirk: it includes 0xD7
+// (the multiplication sign), which becomes 0xF7 (the division sign).
 int toLower(int c) {
 	if ((c >= 'A' && c <= 'Z')
 			|| (static_cast<unsigned char>(c) >= 0xC0 && static_cast<unsigned char>(c) <= 0xDE)) {
@@ -49,7 +50,8 @@ int toLower(int c) {
 	return c;
 }
 
-// The Latin-1 range is tested on the low byte only; it includes 0xF7.
+// The Latin-1 range is tested on the low byte only. Quirk: it includes 0xF7
+// (the division sign), which becomes 0xD7 (the multiplication sign).
 int toUpper(int c) {
 	if ((c >= 'a' && c <= 'z')
 			|| (static_cast<unsigned char>(c) >= 0xE0 && static_cast<unsigned char>(c) <= 0xFE)) {

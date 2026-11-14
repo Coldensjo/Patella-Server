@@ -24,10 +24,9 @@
 #include "time.hh"
 #include "crcombat.hh"
 
-// CheckTargetAndChase, Attack, SetAttackDest, CloseAttack and RangeAttack are
-// declared throw(RESULT) in the original. C++17 has no dynamic exception
-// specifications, so an exception of another type now propagates instead of
-// ending in std::unexpected().
+// CheckTargetAndChase, Attack, SetAttackDest, CloseAttack and RangeAttack
+// report a failure by throwing a RESULT. They have no exception specification
+// (C++17 has none), so an exception of another type passes to the caller too.
 
 // The size of TCombat::CombatList: the attackers whose damage a creature
 // remembers for the experience they get.
@@ -41,7 +40,7 @@ const int TARGET_LOST_DISTANCE = 8;
 const int SPECIALEFFECT_POISON = 1;
 const int SPECIALEFFECT_BURST = 2;
 
-// Following is not initialized, as in the original.
+// Quirk: Following is left uninitialized.
 TCombat::TCombat() {
 	Master = nullptr;
 	AttackDest = 0;
@@ -699,8 +698,10 @@ void TCombat::RangeAttack(TCreature *dfd) {
 		Drop = GetMapContainer(dfd->GetCreatureObject());
 		GetObjectCoordinates(Drop, x, y, z);
 		Attack = RollAttack();
-		// The original tests the attacker's own shield here and discards the
-		// defend value; only the side effects of RollDefense remain.
+		// Quirk: this tests the attacker's own shield, not the defender's, and
+		// discards the defend value; only the side effects of the defender's
+		// RollDefense count (its defense timer, skill learning and shield
+		// wear).
 		if (Shield != NONE) {
 			dfd->Combat.RollDefense();
 		}

@@ -8,8 +8,7 @@
 #include <pthread.h>
 #include <stddef.h>
 
-// The original is `typedef unsigned long Thread` and holds a pthread_t, which
-// was 32 bits there. It has to hold a 64-bit pthread_t here.
+// A Thread is the thread's pthread_t itself, whatever its width.
 typedef pthread_t Thread;
 
 typedef int ThreadFunction(void *);

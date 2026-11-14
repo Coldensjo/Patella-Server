@@ -17,8 +17,8 @@ const int SECONDS_PER_DAY = 86400;
 uint32_t RoundNr = 0;
 uint32_t ServerMilliseconds = 0;
 
-// time_t was a 32-bit long in the original; time() is narrowed to that width
-// wherever it is stored.
+// Quirk: time() is narrowed to a signed 32-bit value wherever it is stored,
+// as a 32-bit time_t holds it.
 
 void GetAmbiente(int &Brightness, int &Color) {
 	int Hour, Minute;
