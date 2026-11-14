@@ -297,7 +297,8 @@ int ObjectDistance(Object Obj1, Object Obj2) {
 }
 
 Object GetBodyContainer(uint32_t CreatureID, int Position) {
-	if ((Position < 1 || Position > 10) && (Position < 64 || Position > 79)) {
+	if ((Position < FIRST_BODY_POSITION || Position > LAST_BODY_POSITION)
+			&& (Position < POSITION_CONTAINER_BASE || Position > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1)) {
 		error("GetBodyContainer: ung\xfcltige Position: %d\n", Position);
 		return NONE;
 	}
@@ -312,13 +313,13 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 		return NONE;
 	}
 
-	if (Position >= 64) {
+	if (Position >= POSITION_CONTAINER_BASE) {
 		if (cr->Type != PLAYER) {
 			error("GetBodyContainer: Nur Spieler haben offene Container.\n");
 			return NONE;
 		}
 
-		return static_cast<TPlayer *>(cr)->GetOpenContainer(Position - 64);
+		return static_cast<TPlayer *>(cr)->GetOpenContainer(Position - POSITION_CONTAINER_BASE);
 	}
 
 	// As in the original, the error does not end the function.
@@ -326,11 +327,11 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 		error("GetBodyContainer: Kreatur-Objekt von %s existiert nicht (Pos %d).\n", cr->Name, Position);
 	}
 
-	return GetContainerObject(cr->GetCreatureObject(), Position - 1);
+	return GetContainerObject(cr->GetCreatureObject(), Position - FIRST_BODY_POSITION);
 }
 
 Object GetBodyObject(uint32_t CreatureID, int Position) {
-	if (Position < 1 || Position > 10) {
+	if (Position < FIRST_BODY_POSITION || Position > LAST_BODY_POSITION) {
 		error("GetBodyObject: ung\xfcltige Position %d\n", Position);
 		return NONE;
 	}
@@ -362,7 +363,7 @@ Object GetTopObject(int x, int y, int z, bool Move) {
 }
 
 Object GetContainer(uint32_t CreatureID, int x, int y, int z) {
-	if (x == 0xFFFF) {
+	if (x == POSITION_NOT_ON_MAP) {
 		return GetBodyContainer(CreatureID, y);
 	}
 
@@ -371,18 +372,18 @@ Object GetContainer(uint32_t CreatureID, int x, int y, int z) {
 
 Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType Type) {
 	Object Obj;
-	if (x == 0xFFFF) {
+	if (x == POSITION_NOT_ON_MAP) {
 		if (y == 0) {
 			return NONE;
 		}
 
-		if ((y > 10 && y < 64) || y > 79) {
+		if ((y > LAST_BODY_POSITION && y < POSITION_CONTAINER_BASE) || y > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1) {
 			error("GetObject: Ung\xfcltiger ContainerCode x=%d,y=%d,z=%d,RNum=%d,Type=%d.\n",
 					x, y, z, RNum, Type.getTypeID());
 			return NONE;
 		}
 
-		if (y >= 64) {
+		if (y >= POSITION_CONTAINER_BASE) {
 			TCreature *cr = GetCreature(CreatureID);
 			if (cr == nullptr) {
 				error("GetObject: Kreatur %d existiert nicht.\n", CreatureID);
@@ -394,7 +395,7 @@ Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType 
 				return NONE;
 			}
 
-			Object Con = static_cast<TPlayer *>(cr)->GetOpenContainer(y - 64);
+			Object Con = static_cast<TPlayer *>(cr)->GetOpenContainer(y - POSITION_CONTAINER_BASE);
 			if (Con == NONE) {
 				return NONE;
 			}
@@ -1178,7 +1179,7 @@ void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 	int Red = Brightness * 5;
 	int Green = Brightness * 5;
 	int Blue = Brightness * 5;
-	for (int i = 1; i <= 10; i++) {
+	for (int i = FIRST_BODY_POSITION; i <= LAST_BODY_POSITION; i++) {
 		Object Obj = GetBodyObject(CreatureID, i);
 		if (Obj != NONE && Obj.getFlag(LIGHT)) {
 			int B = Obj.getAttribute(BRIGHTNESS);
