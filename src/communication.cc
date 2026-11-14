@@ -986,7 +986,7 @@ again:
 
 	TWriteBuffer WriteBuffer(Connection->InData + 2, 2046);
 	try {
-		WriteBuffer.writeByte(11);
+		WriteBuffer.writeByte(CL_JOIN_GAME);
 		WriteBuffer.writeWord(TerminalType);
 		WriteBuffer.writeWord(TerminalVersion);
 		WriteBuffer.writeQuad(PlayerData->CharacterID);

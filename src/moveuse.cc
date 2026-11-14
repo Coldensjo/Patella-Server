@@ -295,7 +295,7 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
 			if (Obj.isCreature()) {
 				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->Type == PLAYER && cr->LogoutPossible() == 0;
+				fulfilled = cr != nullptr && cr->Type == PLAYER && cr->LogoutPossible() == LOGOUT_POSSIBLE;
 			}
 			break;
 		case CONDITION_HASPROFESSION:

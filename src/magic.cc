@@ -2518,7 +2518,7 @@ void ChangeData(TCreature *cr, char *Param) {
 		Attribute = KEYNUMBER;
 	} else if (Obj.getFlag(KEYDOOR) && newValue != 0) {
 		Attribute = KEYHOLENUMBER;
-	} else if (Obj.getFlag(CUMULATIVE) && newValue != 0 && newValue <= 100) {
+	} else if (Obj.getFlag(CUMULATIVE) && newValue != 0 && newValue <= MAX_AMOUNT) {
 		Attribute = AMOUNT;
 	} else if (Obj.getFlag(RUNE) && newValue != 0 && newValue <= 99) {
 		Attribute = CHARGES;
@@ -2905,7 +2905,7 @@ void EditGuests(TCreature *cr) {
 
 	char Buffer[4096];
 	ShowGuestList(HouseID, pl, Buffer);
-	SendEditList(pl->GetConnection(), 1, HouseID, Buffer);
+	SendEditList(pl->GetConnection(), EDIT_LIST_HOUSE_GUESTS, HouseID, Buffer);
 }
 
 void EditSubowners(TCreature *cr) {
@@ -2927,7 +2927,7 @@ void EditSubowners(TCreature *cr) {
 
 	char Buffer[4096];
 	ShowSubownerList(HouseID, pl, Buffer);
-	SendEditList(pl->GetConnection(), 2, HouseID, Buffer);
+	SendEditList(pl->GetConnection(), EDIT_LIST_HOUSE_SUBOWNERS, HouseID, Buffer);
 }
 
 void KickGuest(TCreature *cr, char *Name) {
@@ -3020,7 +3020,7 @@ void EditNameDoor(TCreature *cr) {
 
 	char Buffer[4096];
 	ShowNameDoor(Door, pl, Buffer);
-	SendEditList(pl->GetConnection(), 3, Door.getObjectID(), Buffer);
+	SendEditList(pl->GetConnection(), EDIT_LIST_NAME_DOOR, Door.getObjectID(), Buffer);
 }
 
 void Notation(TCreature *cr, char *Name, char *Comment) {

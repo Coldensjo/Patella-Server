@@ -223,7 +223,7 @@ bool TConnection::JoinGame(TReadBuffer &Buffer) {
 			return false;
 		}
 
-		if (pl->IsLoggingOut() && pl->LogoutPossible() == 0) {
+		if (pl->IsLoggingOut() && pl->LogoutPossible() == LOGOUT_POSSIBLE) {
 			Log("game", "Spieler %s loggt gerade aus - Einloggen gescheitert.\n", pl->Name);
 			DecreasePlayerPoolSlotSticky(CharacterID);
 			return false;

@@ -29,7 +29,8 @@
 #include "sending.hh"
 
 // SendRights sends a byte for each banishment reason: bit N set allows action
-// N (0 to 6, CheckBanishmentRight), and this bit an IP banishment besides.
+// N (info.hh's BANISHMENT_ACTION_*, CheckBanishmentRight), and this bit an IP
+// banishment besides.
 const int RIGHTS_IP_BANISHMENT = 0x80;
 
 // The channel number of the "Private Chat Channel" entry SendChannels lists for
@@ -419,7 +420,7 @@ void SendRights(TConnection *Connection) {
 		int Actions = 0;
 		if (CheckRight(pl->ID, (RIGHT)Right)) {
 			int Reason = Right - FIRST_BANISHMENT_RIGHT;
-			for (int Action = 0; Action <= 6; Action++) {
+			for (int Action = BANISHMENT_ACTION_NOTATION; Action <= BANISHMENT_ACTION_STATEMENT_REPORT; Action++) {
 				if (CheckBanishmentRight(pl->ID, Reason, Action)) {
 					Actions |= 1 << Action;
 				}

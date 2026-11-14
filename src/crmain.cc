@@ -123,7 +123,7 @@ void ProcessCreatures() {
 			cr->Death();
 		}
 
-		if (cr->LoggingOut && cr->LogoutPossible() == 0) {
+		if (cr->LoggingOut && cr->LogoutPossible() == LOGOUT_POSSIBLE) {
 			if (cr->IsDead && cr->Skills[SKILL_HITPOINTS]->Get() > 0) {
 				error("ProcessCreatures: Kreatur %s hat HP, obwohl sie tot ist.\n", cr->Name);
 				cr->Skills[SKILL_HITPOINTS]->Set(0);
@@ -1002,7 +1002,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 				bool DeleteObject = false;
 				if (Obj.getObjectType() == GetNewObjectType(77, 12)) {
 					Log("game", "%s stirbt mit Amulett of Loss.\n", Name);
-					LoseInventory = 0;
+					LoseInventory = LOSE_INVENTORY_NONE;
 					DeleteObject = true;
 				}
 

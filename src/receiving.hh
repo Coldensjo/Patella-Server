@@ -10,6 +10,11 @@ struct TReadBuffer;
 // a connection (communication.cc); CL_PING does nothing but keep the
 // connection alive (TConnection::ResetTimer).
 const int CL_LOGIN = 0x0A;
+// Not a client packet: HandleLogin (communication.cc) puts it in place of the
+// client's CL_LOGIN for the game thread, with the terminal type, the terminal
+// version and the character ID, and ReceiveData passes it to
+// TConnection::JoinGame.
+const int CL_JOIN_GAME = 0x0B;
 const int CL_QUIT_GAME = 0x14;
 const int CL_PING = 0x1E;
 const int CL_GO_PATH = 0x64;

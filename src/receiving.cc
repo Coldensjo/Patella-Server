@@ -31,18 +31,6 @@
 #include "TXTEASymmetricKey.hh"
 #include "receiving.hh"
 
-// Not a client packet: HandleLogin (communication.cc) puts it in place of the
-// client's CL_LOGIN for the game thread, with the terminal type, the terminal
-// version and the character ID, and ReceiveData passes it to
-// TConnection::JoinGame.
-const int CL_JOIN_GAME = 0x0B;
-
-// The lists CEditList changes: a house's guests, its subowners (both by house
-// ID) and the names on a name door (by object ID).
-const int EDIT_LIST_HOUSE_GUESTS = 1;
-const int EDIT_LIST_HOUSE_SUBOWNERS = 2;
-const int EDIT_LIST_NAME_DOOR = 3;
-
 // Every command handler that takes a TReadBuffer is declared
 // throw(const char *) in the original. C++17 has no dynamic exception
 // specifications, so an exception of another type now propagates instead of
@@ -1732,7 +1720,7 @@ void CRuleViolation(TConnection *Connection, TReadBuffer &Buffer) {
 		return;
 	}
 
-	if (Action == 6 && StatementID == 0) {
+	if (Action == BANISHMENT_ACTION_STATEMENT_REPORT && StatementID == 0) {
 		SendMessage(Connection, TALK_FAILURE_MESSAGE, "Please provide a statement for this rule violation.");
 		return;
 	}
@@ -1742,9 +1730,10 @@ void CRuleViolation(TConnection *Connection, TReadBuffer &Buffer) {
 	if (IdentifyPlayer(Name, false, !CheckRight(Gamemaster->ID, READ_GAMEMASTER_CHANNEL), Criminal) == 0) {
 		uint32_t CriminalID = Criminal->ID;
 		if (CheckRight(CriminalID, NO_BANISHMENT)) {
-			if (Action == 1 || Action == 3 || Action == 5) {
+			if (Action == BANISHMENT_ACTION_NAMELOCK || Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT
+					|| Action == BANISHMENT_ACTION_NAMELOCK_BANISHMENT_FINAL_WARNING) {
 				SendMessage(Connection, TALK_FAILURE_MESSAGE, "This name has already been approved.");
-			} else if (Action == 6) {
+			} else if (Action == BANISHMENT_ACTION_STATEMENT_REPORT) {
 				SendMessage(Connection, TALK_FAILURE_MESSAGE, "Statement has already been reported.");
 			} else {
 				SendMessage(Connection, TALK_FAILURE_MESSAGE, "You may not report a god or gamemaster.");
@@ -1771,7 +1760,7 @@ void CRuleViolation(TConnection *Connection, TReadBuffer &Buffer) {
 	vector<TReportedStatement> *ReportedStatements = nullptr;
 	if ((in(Reason + FIRST_BANISHMENT_RIGHT, FIRST_REPORT_RIGHT, LAST_REPORT_RIGHT) || Reason == 29)
 			&& StatementID != 0) {
-		int Result = GetCommunicationContext((Action == 6 ? 0 : Gamemaster->ID),
+		int Result = GetCommunicationContext((Action == BANISHMENT_ACTION_STATEMENT_REPORT ? 0 : Gamemaster->ID),
 				StatementID, NumberOfStatements, ReportedStatements);
 		if (Result == 1) {
 			SendMessage(Connection, TALK_FAILURE_MESSAGE, "Statement is unknown. Perhaps it is too old?");

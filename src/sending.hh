@@ -116,6 +116,13 @@ void SendTextualEffect(TConnection *Connection, int x, int y, int z, int Color, 
 void SendMissileEffect(TConnection *Connection, int sx, int sy, int sz, int zx, int zy, int zz, int Type);
 void SendMarkCreature(TConnection *Connection, uint32_t CreatureID, int Color);
 void SendEditText(TConnection *Connection, Object Obj);
+// The lists SendEditList sends and receiving.cc's CEditList changes: a house's
+// guests, its subowners (both by house ID) and the names on a name door (by
+// object ID).
+const int EDIT_LIST_HOUSE_GUESTS = 1;
+const int EDIT_LIST_HOUSE_SUBOWNERS = 2;
+const int EDIT_LIST_NAME_DOOR = 3;
+
 void SendEditList(TConnection *Connection, unsigned char Type, uint32_t ID, char *Text);
 void SendAmbiente(TConnection *Connection);
 void SendCreatureHealth(TConnection *Connection, uint32_t CreatureID);

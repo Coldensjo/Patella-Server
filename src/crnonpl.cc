@@ -1866,6 +1866,8 @@ void TNPC::GiveTo(ObjectType Type, int Amount) {
 	Log("npc", "%s -> %ld: %d %s\n", this->Name, (long)this->Interlocutor, Amount, Type.getName(1));
 	try {
 		if (Type.getFlag(CUMULATIVE)) {
+			// 100 is MAX_AMOUNT. std::min takes its arguments by reference,
+			// and with the name the compiler made other code for GiveTo.
 			while (Amount > 0) {
 				CreateAtCreature(this->Interlocutor, Type, std::min(Amount, 100));
 				Amount -= std::min(Amount, 100);

@@ -495,8 +495,8 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 	if (DestObj != NONE && Obj.getFlag(CUMULATIVE)
 			&& Obj.getObjectType() == DestObj.getObjectType()) {
 		int help = Count;
-		if (DestObj.getAttribute(AMOUNT) + help > 100) {
-			help = 100 - DestObj.getAttribute(AMOUNT);
+		if (DestObj.getAttribute(AMOUNT) + help > MAX_AMOUNT) {
+			help = MAX_AMOUNT - DestObj.getAttribute(AMOUNT);
 		}
 
 		if (help > 0) {
