@@ -687,7 +687,8 @@ int TQueryManagerConnection::reportStatement(uint32_t ReporterID, char *PlayerNa
 	sendQuad(BanishmentID);
 	sendQuad(StatementID);
 
-	// Only the unused entries at the front are left out of the count.
+	// Quirk: only the unused entries at the front are left out of the count,
+	// while every unused entry is left out of the list below.
 	int RealNumberOfStatements = NumberOfStatements;
 	for (int i = 0; i < NumberOfStatements && StatementIDs[i] == 0; i++) {
 		RealNumberOfStatements--;

@@ -91,13 +91,12 @@ int PaymentExtension;
 vector<THelpDepot> HelpDepot(1, 10, 10);
 int HelpDepots;
 
-// The original declares exception specifications: throw(RESULT) on
 // ShowSubownerList, ShowGuestList, ChangeSubowners, ChangeGuests, both
 // KickGuest, KickGuests, ShowNameDoor, ChangeNameDoor, FinishAuctions and
-// CollectRents, and throw(const char *) on LoadHouseAreas, LoadHouses,
-// LoadOwners, SaveOwners and InitHouses. C++17 has no dynamic exception
-// specifications, so an exception of another type now propagates instead of
-// ending in std::unexpected().
+// CollectRents report a failure by throwing a RESULT; LoadHouseAreas,
+// LoadHouses, LoadOwners, SaveOwners and InitHouses throw a const char *.
+// They have no exception specification: an exception of another type passes
+// on to the caller.
 
 THouseArea *GetHouseArea(unsigned short ID) {
 	for (int i = 0; i < HouseAreas; i++) {
@@ -350,7 +349,8 @@ void ChangeSubowners(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 
 	Log("houses", "%s \xe4ndert Liste der Untermieter von Haus %d.\n", pl->Name, HouseID);
 
-	// Writes one byte past the terminator of the caller's text.
+	// Quirk: appending the newline writes one byte past the terminator of the
+	// caller's text.
 	int l = (int)strlen(Buffer);
 	Buffer[l] = '\n';
 	Buffer[l + 1] = 0;
@@ -406,7 +406,8 @@ void ChangeGuests(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 
 	Log("houses", "%s \xe4ndert Liste der G\xe4ste von Haus %d.\n", pl->Name, HouseID);
 
-	// Writes one byte past the terminator of the caller's text.
+	// Quirk: appending the newline writes one byte past the terminator of the
+	// caller's text.
 	int l = (int)strlen(Buffer);
 	Buffer[l] = '\n';
 	Buffer[l + 1] = 0;
@@ -1711,7 +1712,7 @@ void LoadOwners() {
 						try {
 							UseObjects(0, Bed, Bed);
 						} catch (RESULT r) {
-							// The original passes no argument for the %d.
+							// Quirk: no argument is passed for the %d.
 							error("LoadOwners: Exception %d beim Aufr\xe4umen eines Bettes.\n");
 						}
 					}

@@ -17,8 +17,9 @@
 const int APPLICATION_GAME = 1;
 
 // The query types the game sends: the first byte of a request (prepareQuery),
-// named after the TQueryManagerConnection method that sends it. The same names
-// as in the query manager's protocol.hh, which lists the other tools' too.
+// named after the TQueryManagerConnection method that sends it (QUERY_LOGIN:
+// connect's login request). The same names as in the query manager's
+// protocol.hh, which lists the other tools' too.
 const int QUERY_LOGIN = 0;
 const int QUERY_LOGIN_GAME = 20;
 const int QUERY_LOGOUT_GAME = 21;
@@ -88,8 +89,8 @@ extern int NumberOfQueryManagers;
 extern TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
 struct TQueryManagerConnection {
-	// The default is what TQueryManagerConnectionPool::init passes to every
-	// element of its new[] (0x4000); default arguments are not in the DWARF.
+	// TQueryManagerConnectionPool::init makes each of its connections with the
+	// default, 16384 bytes, the smallest buffer a connection gets.
 	TQueryManagerConnection(int QueryBufferSize = 16384);
 	~TQueryManagerConnection();
 	bool isConnected() { return Socket >= 0; }
