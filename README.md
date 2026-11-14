@@ -4,10 +4,10 @@ A C++ rebuild of the 2006 Tibia game server (`bin/game`), with its own query
 manager (SQLite) and a login server for 7.72 clients.
 
 This repository contains no CipSoft files apart from what `data/` holds: the
-original installation's config, object types and circles and the original
-game's spell table, converted to TOML, and its original map (`origmap.zip`,
-unzipped into the folder `[paths] origmap` names; start `map/` as a copy of
-it). To run the server you still need your own copy of the original
+original installation's config, object types, circles and move and use rules and
+the original game's spell table, converted to TOML, and its original map
+(`origmap.zip`, unzipped into the folder `[paths] origmap` names; start `map/`
+as a copy of it). To run the server you still need your own copy of the original
 installation for the rest (data files, monsters, NPCs).
 
 ## Build
@@ -57,6 +57,17 @@ installation's `dat/circles.dat` converted with
 `patella-convert circles circles.dat circles.toml`. Copy both into the
 installation's data folder. The comments at the top of each file explain the
 fields.
+
+## Move and use rules
+
+The game reads the move and use rules, what happens when an object is used,
+used on something, moved, or meets or leaves another object on a field (beds,
+levers, doors, fishing, teleporters, ...), from `moveuse.toml` in its data
+folder. `data/moveuse.toml` is the original installation's `dat/moveuse.dat`
+converted with `patella-convert moveuse items.toml moveuse.dat moveuse.toml`
+(the object types come from `items.toml`); copy it into the installation's data
+folder. The comments at its top explain the fields. The order of the rules
+matters: for each event the game runs the first rule whose conditions hold.
 
 ## License
 
