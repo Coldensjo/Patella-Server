@@ -6,6 +6,7 @@
 #include "test.hh"
 
 #include <sqlite3.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include <cstdio>
@@ -1174,6 +1175,20 @@ void testPlayerData() {
 	truncated.writeString("Made Up");
 	CHECK(isFailed(f.call(truncated)));
 	CHECK(f.storage.loadPlayerData(500) == smaller);
+
+	// A save whose game has closed the connection (it gave up waiting and
+	// keeps the record in a file) is refused and changes nothing; with the
+	// connection open it is stored.
+	int sockets[2];
+	CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
+	f.session.socket = sockets[0];
+	CHECK(isOk(f.call(savePlayerDataRequest(data))));
+	CHECK(f.storage.loadPlayerData(500) == data);
+	close(sockets[1]);
+	CHECK(isFailed(f.call(savePlayerDataRequest(smaller))));
+	CHECK(f.storage.loadPlayerData(500) == data);
+	close(sockets[0]);
+	f.session.socket = -1;
 
 	// Only a game server (a session bound to a world) may ask.
 	Fixture g;

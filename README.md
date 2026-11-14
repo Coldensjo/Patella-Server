@@ -148,7 +148,9 @@ that file before it loads the character again and at its next start; the next
 successful save makes it obsolete. A query manager that takes the connection
 but does not answer makes a save wait 30 seconds; after such a save the game
 keeps its saves in files at once for a minute, so that saving many characters
-(at shutdown, say) does not take hours. While the file cannot be sent, the
+(at shutdown, say) does not take hours. The query manager does not store a
+save the game has given up on and closed the connection of, so such a late save
+never replaces newer data saved since. While the file cannot be sent, the
 character cannot log in: a load that fails refuses the login, so that a
 character never starts as new because its data could not be read.
 

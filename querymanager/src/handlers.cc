@@ -5,6 +5,8 @@
 
 #include "log.hh"
 
+#include <poll.h>
+
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
@@ -21,6 +23,19 @@ public:
 };
 
 std::string format(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
+// Whether the client has closed its side of the connection (socket -1: no
+// connection, never).
+bool clientClosed(int socket) {
+	if (socket < 0) {
+		return false;
+	}
+	struct pollfd fd;
+	fd.fd = socket;
+	fd.events = POLLRDHUP;
+	fd.revents = 0;
+	return poll(&fd, 1, 0) > 0 && (fd.revents & (POLLRDHUP | POLLHUP | POLLERR)) != 0;
+}
 
 std::string format(const char *fmt, ...) {
 	char buffer[512];
@@ -995,6 +1010,13 @@ void Dispatcher::handleLoadPlayerData(Session &session, ReadBuffer &in, WriteBuf
 // The record replaces what was stored. If the game gets no STATUS_OK, it
 // keeps the record in a file of its own and sends it again later (see
 // src/dbfuncs.cc).
+// A request whose game has closed the connection is refused: the game gave
+// up waiting (its 30 s timeout, while this server was frozen or its queue
+// long) and keeps the record in its file, and it may have saved newer data
+// of the character on another connection since, which this older record
+// must not replace. The game closes the connection before it sends anything
+// else, and this check runs under the dispatcher's lock: if a newer save was
+// stored first, this connection is already seen closed here.
 void Dispatcher::handleSavePlayerData(Session &session, ReadBuffer &in, WriteBuffer &out) {
 	PlayerData data;
 	data.characterId = in.readQuad();
@@ -1004,6 +1026,10 @@ void Dispatcher::handleSavePlayerData(Session &session, ReadBuffer &in, WriteBuf
 		throw RequestFailed("character id 0");
 	}
 	requirePlayerDataWorld(data.characterId, worldId);
+	if (clientClosed(session.socket)) {
+		throw RequestFailed(format("character %u: the game closed the connection before the record was stored",
+			data.characterId));
+	}
 	Store.savePlayerData(data);
 	out.writeByte(STATUS_OK);
 	Detail = format("character=%u skills=%zu depots=%zu", data.characterId, data.skills.size(),
