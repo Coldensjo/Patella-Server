@@ -1,3 +1,8 @@
+// objects.cc: the object types: their table (ObjectTypes), loaded from
+// objects.srv, the names of their flags and attributes, the special objects
+// (GetSpecialObject), and the conversion of an old group and number to a type
+// number (conversion.lst).
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>

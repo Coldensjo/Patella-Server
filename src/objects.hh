@@ -1,3 +1,7 @@
+// objects.hh: the object types (ObjectType, a type number) with their flags
+// and attributes, the special meanings, body positions and liquids, and the
+// loading of the types (objects.cc).
+
 #ifndef PATELLA_OBJECTS_HH
 #define PATELLA_OBJECTS_HH
 

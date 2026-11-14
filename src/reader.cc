@@ -1,3 +1,9 @@
+// reader.cc: the reader thread, which loads files away from the game thread:
+// the sectors of the pristine map that a refresh restores, and the data of an
+// offline character whose mail is to be delivered. Orders and replies pass
+// through two ring buffers; the game thread handles the replies in
+// ProcessReaderThreadReplies.
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>

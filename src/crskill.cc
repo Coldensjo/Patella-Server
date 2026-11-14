@@ -1,3 +1,9 @@
+// crskill.cc: the skills of the creatures. TSkillBase holds a creature's
+// skills and the timers among them; the classes below are the kinds of skill:
+// the level (TSkillLevel), the skills raised by use (TSkillProbe), the values
+// with a maximum (TSkillAdd: hit points, mana, ...) and the timed conditions
+// (poison, burning, light, ...). Also the experience curves.
+
 #include <cmath>
 #include <cstdlib>
 #include <cstring>

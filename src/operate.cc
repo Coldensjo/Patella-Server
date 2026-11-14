@@ -1,3 +1,9 @@
+// operate.cc: the operations of the game world and what they announce: the
+// checks and moves of objects (Create, Move, Merge, Change, Delete, ...),
+// Look, Talk, Use and the other actions of the creatures, the cron system,
+// the refresh of map sectors and the map patches, the chat channels, the
+// communication log and the parties.
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
