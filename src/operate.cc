@@ -993,7 +993,7 @@ void NotifyTrades(Object Obj) {
 
 		TPlayer *pl = GetPlayer(ID);
 		if (pl == nullptr) {
-			error("NotifyTrade: Player does not exist.\n");
+			error("NotifyTrades: Player does not exist.\n");
 			continue;
 		}
 
@@ -2462,7 +2462,7 @@ void EditText(uint32_t CreatureID, Object Obj, char *Text) {
 Object CreateAtCreature(uint32_t CreatureID, ObjectType Type, uint32_t Value) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("GiveObjectToCreature: Cannot find creature.\n");
+		error("CreateAtCreature: Cannot find creature.\n");
 		throw ERROR;
 	}
 

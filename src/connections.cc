@@ -171,7 +171,7 @@ void TConnection::Connect(int _Socket) {
 
 void TConnection::Login() {
 	if (State != CONNECTION_CONNECTED) {
-		error("TConnection::Connect: Invalid connection state %d.\n", State);
+		error("TConnection::Login: Invalid connection state %d.\n", State);
 	}
 
 	State = CONNECTION_LOGIN;
@@ -302,7 +302,7 @@ void TConnection::Close(bool Delay) {
 
 void TConnection::Disconnect() {
 	if (State < CONNECTION_CONNECTED) {
-		error("TConnection::Close: Invalid connection state %d.\n", State);
+		error("TConnection::Disconnect: Invalid connection state %d.\n", State);
 	}
 
 	ClearKnownCreatureTable(true);
@@ -409,7 +409,7 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 		for (int i = 0; i < MAX_KNOWN_CREATURES; i++) {
 			TCreature *cr = GetCreature(KnownCreatureTable[i].CreatureID);
 			if (cr == nullptr) {
-				error("TUserCom::NewKnownCreature: Known creature does not exist.\n");
+				error("TConnection::NewKnownCreature: Known creature does not exist.\n");
 			} else if (IsVisible(cr->posx, cr->posy, cr->posz)) {
 				continue;
 			}
@@ -431,7 +431,7 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 	}
 
 	if (KnownCreatureTable[FreeEntry].State != KNOWNCREATURE_FREE) {
-		error("TUserCom::NewKnownCreature: Slot is not cleared.\n");
+		error("TConnection::NewKnownCreature: Slot is not cleared.\n");
 	}
 
 	KnownCreatureTable[FreeEntry].CreatureID = NewID;
@@ -439,7 +439,7 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 
 	TCreature *cr = GetCreature(NewID);
 	if (cr == nullptr) {
-		error("TUserCom::NewKnownCreature: Creature %lu does not exist.\n", static_cast<unsigned long>(NewID));
+		error("TConnection::NewKnownCreature: Creature %lu does not exist.\n", static_cast<unsigned long>(NewID));
 	} else {
 		KnownCreatureTable[FreeEntry].Next = cr->FirstKnowingConnection;
 		cr->FirstKnowingConnection = &KnownCreatureTable[FreeEntry];
@@ -464,13 +464,13 @@ void TConnection::ClearKnownCreatureTable(bool Unchain) {
 void TConnection::UnchainKnownCreature(uint32_t ID) {
 	TCreature *cr = GetCreature(ID);
 	if (cr == nullptr) {
-		error("TUserCom::UnchainKnownCreature: Creature %lu does not exist.\n", static_cast<unsigned long>(ID));
+		error("TConnection::UnchainKnownCreature: Creature %lu does not exist.\n", static_cast<unsigned long>(ID));
 		return;
 	}
 
 	TKnownCreature *KnownCreature = cr->FirstKnowingConnection;
 	if (KnownCreature == nullptr) {
-		error("TUserCom::UnchainKnownCreature: Creature %lu is known by nobody.\n", static_cast<unsigned long>(ID));
+		error("TConnection::UnchainKnownCreature: Creature %lu is known by nobody.\n", static_cast<unsigned long>(ID));
 		return;
 	}
 
@@ -489,7 +489,7 @@ void TConnection::UnchainKnownCreature(uint32_t ID) {
 		KnownCreature = KnownCreature->Next;
 	}
 
-	error("TUserCom::UnchainKnownCreature: Creature %lu is not known.\n", static_cast<unsigned long>(ID));
+	error("TConnection::UnchainKnownCreature: Creature %lu is not known.\n", static_cast<unsigned long>(ID));
 }
 
 TConnection *AssignFreeConnection() {

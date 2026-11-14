@@ -148,7 +148,7 @@ void ExitCommunicationThreadStacks() {
 	}
 
 	if (NumberOfFreeCommunicationThreadStacks != MAX_COMMUNICATION_THREADS) {
-		error("FreeCommunicationThreadStacks: Not all stacks freed.\n");
+		error("ExitCommunicationThreadStacks: Not all stacks freed.\n");
 	}
 
 	int HighestStackAddress = -1;
@@ -1123,7 +1123,7 @@ void CommunicationThread(int Socket) {
 	}
 
 	if (fcntl(Socket, F_SETFL, O_NONBLOCK | O_ASYNC) < 0) {
-		error("ConnectionThread: F_SETFL failed for socket %d.\n", Socket);
+		error("CommunicationThread: F_SETFL failed for socket %d.\n", Socket);
 		if (close(Socket) < 0) {
 			error("CommunicationThread: Error %d while closing the socket (3).\n", errno);
 		}
@@ -1282,7 +1282,7 @@ bool OpenSocket() {
 
 	TCPSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (TCPSocket < 0) {
-		error("LaunchServer: Cannot open socket.\n");
+		error("OpenSocket: Cannot open socket.\n");
 		return false;
 	}
 
@@ -1290,7 +1290,7 @@ bool OpenSocket() {
 	l.l_onoff = 0;
 	l.l_linger = 0;
 	if (setsockopt(TCPSocket, SOL_SOCKET, SO_LINGER, &l, sizeof(l)) < 0) {
-		error("LaunchServer: Socket was not set to LINGER=0.\n");
+		error("OpenSocket: Socket was not set to LINGER=0.\n");
 		return false;
 	}
 
@@ -1303,12 +1303,12 @@ bool OpenSocket() {
 	// Quirk: the address structure is passed as the value of SO_REUSEADDR.
 	// Its first four bytes are not zero, so the option is switched on.
 	if (setsockopt(TCPSocket, SOL_SOCKET, SO_REUSEADDR, &ServerAddress, sizeof(ServerAddress)) != 0) {
-		error("LaunchServer: Error %d at setsockopt.\n", errno);
+		error("OpenSocket: Error %d at setsockopt.\n", errno);
 		return false;
 	}
 
 	if (bind(TCPSocket, reinterpret_cast<struct sockaddr *>(&ServerAddress), sizeof(ServerAddress)) < 0) {
-		error("LaunchServer: Error %d at bind.\n", errno);
+		error("OpenSocket: Error %d at bind.\n", errno);
 		print(1, "Bind Error Again -> Begin FloodBind :(\n");
 		while (bind(TCPSocket, reinterpret_cast<struct sockaddr *>(&ServerAddress), sizeof(ServerAddress)) < 0) {
 			sleep(1);
@@ -1317,7 +1317,7 @@ bool OpenSocket() {
 
 	errno = 0;
 	if (listen(TCPSocket, 512) < 0) {
-		error("LaunchServer: Error %d at listen.\n", errno);
+		error("OpenSocket: Error %d at listen.\n", errno);
 		return false;
 	}
 

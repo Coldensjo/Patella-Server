@@ -904,7 +904,7 @@ void SendDeleteField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	SendByte(Connection, (unsigned char)z);
 	if (!Obj.exists()) {
 		// Quirk: the message names SendAddField.
-		error("SendAddField: Given object does not exist.\n");
+		error("SendDeleteField: Given object does not exist.\n");
 		return;
 	}
 
@@ -1268,7 +1268,7 @@ void SendPlayerData(TConnection *Connection) {
 
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
-		error("SendStatus: No player belongs to this connection.\n");
+		error("SendPlayerData: No player belongs to this connection.\n");
 		return;
 	}
 
@@ -1357,7 +1357,7 @@ void SendPlayerSkills(TConnection *Connection) {
 
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
-		error("SendInventory: No player belongs to this connection.\n");
+		error("SendPlayerSkills: No player belongs to this connection.\n");
 		return;
 	}
 

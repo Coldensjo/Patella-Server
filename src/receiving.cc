@@ -196,7 +196,7 @@ void CGoPath(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CStop(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CGoStop: Connection is NULL.\n");
+		error("CStop: Connection is NULL.\n");
 		return;
 	}
 

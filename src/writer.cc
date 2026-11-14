@@ -341,7 +341,7 @@ void DirectReply(uint32_t CharacterID, char *Text, ...) {
 	}
 
 	if (Text == nullptr) {
-		error("SendDirectReply: No text given.\n");
+		error("DirectReply: No text given.\n");
 		return;
 	}
 
