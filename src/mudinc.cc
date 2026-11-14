@@ -32,10 +32,6 @@ bool isAlpha(int c) {
 		|| c == '\xc4' || c == '\xd6' || c == '\xdc' || c == '\xdf';
 }
 
-bool isEngAlpha(int c) {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-}
-
 bool isDigit(int c) {
 	return c >= '0' && c <= '9';
 }
@@ -85,10 +81,6 @@ int stricmp(char *s1, char *s2, int Pos) {
 		}
 	}
 	return 0;
-}
-
-char *findFirst(char *s, char c) {
-	return strchr(s, c);
 }
 
 char *findLast(char *s, char c) {

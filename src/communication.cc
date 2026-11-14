@@ -370,23 +370,6 @@ bool SendData(TConnection *Connection) {
 	return true;
 }
 
-bool SendData(TConnection *Connection, char *Data, int Size) {
-	if (Connection == nullptr) {
-		error("SendData: Connection ist NULL.\n");
-		return false;
-	}
-
-	if (Data == nullptr) {
-		error("SendData: Data ist NULL.\n");
-		return true;
-	}
-
-	memcpy(&Connection->OutData[2], Data, Size);
-	Connection->NextToSend = 0;
-	Connection->NextToCommit = Size + 2;
-	return SendData(Connection);
-}
-
 bool GetWaitinglistEntry(char *Name, uint32_t &NextTry, bool &FreeAccount, bool &Newbie) {
 	CommunicationThreadMutex.down();
 	TWaitinglistEntry *Search = WaitinglistHead;

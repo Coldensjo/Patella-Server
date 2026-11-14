@@ -180,8 +180,8 @@ const int INSTANCEATTRIBUTES = 18;
 // The most pieces a cumulative object can hold (its AMOUNT).
 const int MAX_AMOUNT = 100;
 
-// The size of the conversion tables of conversion.lst: the type numbers 0 to
-// 8191 can have an old group and number (OldGroup, OldNumber).
+// The type numbers conversion.lst may give an old group and number: 1 to
+// 8191 (LoadConversionList refuses others).
 const int CONVERSION_TYPES = 8192;
 
 enum SPECIALMEANING {
@@ -281,13 +281,10 @@ int GetTypeAttributeByName(char *Name);
 void LoadObjects();
 void LoadConversionList();
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number);
-void GetOldObjectType(ObjectType Type, unsigned char &Group, unsigned char &Number);
-bool ObjectTypeExists(unsigned char Group, unsigned char Number);
 bool ObjectTypeExists(int TypeID);
 ObjectType GetSpecialObject(SPECIALMEANING Meaning);
 ObjectType GetObjectTypeByName(char *SearchName, bool Movable);
 void InitObjects();
-void ExitObjects();
 
 extern char FlagNames[FLAGS][20];
 extern char TypeAttributeNames[TYPEATTRIBUTES][30];
@@ -295,8 +292,6 @@ extern FLAG TypeAttributeFlags[TYPEATTRIBUTES];
 extern FLAG InstanceAttributeFlags[INSTANCEATTRIBUTES];
 extern vector<TObjectType> ObjectTypes;
 extern ObjectType SpecialObjects[SPECIALMEANINGS];
-extern unsigned char OldGroup[CONVERSION_TYPES];
-extern unsigned char OldNumber[CONVERSION_TYPES];
 extern int NewType[65536];
 
 #endif

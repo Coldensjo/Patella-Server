@@ -231,9 +231,9 @@ const int SPELL_CLEAR_QUEST_VALUES = 100;
 const int SPELL_KILL_ALL_CREATURES = 101;
 const int SPELL_START_MONSTERRAID = 102;
 
-// CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckMagicItem,
-// CheckRing, CheckAffectedPlayers, CheckMana and every spell function from
-// MassCombat to ChangeData are declared throw(RESULT) in the original. C++17
+// CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckRing,
+// CheckAffectedPlayers, CheckMana and every spell function from MassCombat
+// to ChangeData are declared throw(RESULT) in the original. C++17
 // has no dynamic exception specifications, so an exception of another type
 // now propagates instead of ending in std::unexpected().
 
@@ -365,18 +365,6 @@ void CheckRuneLevel(TCreature *cr, int SpellNr) {
 
 	if (sk->Get() < Level) {
 		throw LOWMAGICLEVEL;
-	}
-}
-
-void CheckMagicItem(TCreature *cr, ObjectType Type) {
-	if (cr == nullptr) {
-		error("CheckMagicObject: \xdc" "bergebene Kreatur existiert nicht.\n");
-		throw ERROR;
-	}
-
-	if (cr->Type == PLAYER && !CheckRight(cr->ID, ALL_SPELLS)
-			&& CountInventoryObjects(cr->ID, Type, 0) == 0) {
-		throw MAGICITEM;
 	}
 }
 
@@ -731,7 +719,6 @@ TOutfitImpact::TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration) 
 		error("TOutfitImpact::TOutfitImpact: Actor ist NULL.\n");
 	}
 
-	Actor = _Actor;
 	Outfit = _Outfit;
 	Duration = _Duration;
 }
@@ -4870,9 +4857,6 @@ void InitMagic() {
 	InitCircles();
 	InitSpells();
 	InitLog("banish");
-}
-
-void ExitMagic() {
 }
 
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful) {

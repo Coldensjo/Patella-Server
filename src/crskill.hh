@@ -33,7 +33,5 @@ const int SKILL_SOULPOINTS = 22;
 const int MAX_SKILLS = 25;
 
 int GetSkillByName(char *Name);
-void InitCrskill();
-void ExitCrskill();
 
 #endif

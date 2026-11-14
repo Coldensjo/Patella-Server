@@ -49,7 +49,6 @@ public:
 
 	// Binds and listens. Throws std::runtime_error on failure.
 	void start();
-	uint16_t port() const { return Options.port; }
 	// Serves until stop() is called, then waits for the open connections.
 	void run();
 	// Makes run() return. Async-signal-safe and callable from any thread.

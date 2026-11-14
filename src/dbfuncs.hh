@@ -83,8 +83,6 @@ struct TPlayerData {
 	uint32_t EarliestMultiuseTime;
 	uint32_t TalkBufferFullTime;
 	uint32_t MutingEndRound;
-	uint32_t Addressees[20];
-	uint32_t AddresseesTimes[20];
 	int NumberOfMutings;
 };
 
@@ -92,6 +90,5 @@ void PlayerDataPath(uint32_t CharacterID, char *Extension, char *Path);
 bool PlayerDataExists(uint32_t CharacterID);
 bool LoadPlayerData(TPlayerData *Slot);
 void SavePlayerData(TPlayerData *Slot);
-void UnlinkPlayerData(uint32_t CharacterID);
 
 #endif

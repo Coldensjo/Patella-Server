@@ -229,7 +229,6 @@ public:
 
 	const std::vector<uint8_t> &data() const { return Data; }
 	size_t size() const { return Data.size(); }
-	void clear() { Data.clear(); }
 
 private:
 	std::vector<uint8_t> Data;

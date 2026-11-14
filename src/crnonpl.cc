@@ -242,7 +242,6 @@ struct TNPC : public TNonplayer {
 	TNPC(char *FileName);
 	virtual ~TNPC();
 	virtual void TalkStimulus(uint32_t Speaker, char *Text);
-	virtual void DamageStimulus(uint32_t, int, int);
 	virtual void IdleStimulus();
 	virtual void CreatureMoveStimulus(uint32_t CreatureID, int Type);
 	virtual bool MovePossible(int x, int y, int z, bool, bool);
@@ -291,7 +290,6 @@ private:
 
 vector<TNonplayer *> NonplayerList(0, 10000, 1000, nullptr);
 int FirstFreeNonplayer;
-int CurrentNonplayer;
 vector<TMonsterhome> Monsterhome(1, 5000, 1000);
 int Monsterhomes;
 store<TNode, 256> *NodeTable;
@@ -1841,9 +1839,6 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	}
 }
 
-void TNPC::DamageStimulus(uint32_t, int, int) {
-}
-
 bool TNPC::MovePossible(int x, int y, int z, bool, bool) {
 	return ::MovePossible(x, y, z)
 		&& !CoordinateAvoid(x, y, z)
@@ -3078,7 +3073,6 @@ void InitNPCs() {
 void InitNonplayer() {
 	print(1, "Initializing Nonplayers ...\n");
 	FirstFreeNonplayer = 0;
-	CurrentNonplayer = 0;
 	NodeTable = new store<TNode, 256>;
 	InitNPCs();
 	LoadMonsterhomes();

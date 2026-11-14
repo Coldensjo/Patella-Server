@@ -37,7 +37,6 @@ private:
 template<class T>
 struct matrix3d {
 	matrix3d(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax, T init);
-	matrix3d(int, int, int, int, int, int);
 	~matrix3d();
 	T &operator()(int x, int y, int z);
 private:
@@ -58,7 +57,6 @@ struct vector {
 	T &operator()(int i);
 	int low() { return min; }
 	int high() { return max; }
-	int size();
 private:
 	int min;
 	int max;
@@ -84,7 +82,6 @@ struct listIterator {
 	listnode<T> *operator()() { return actNode; }
 	listnode<T> *operator=(listnode<T> *p) { actNode = p; return actNode; }
 	listnode<T> *operator++(int);
-	listnode<T> *operator--(int);
 	T *operator*();
 private:
 	listnode<T> *actNode;
@@ -97,7 +94,6 @@ struct list {
 	listnode<T> *append();
 	void remove(listnode<T> *node);
 	listnode<T> *first() { return firstNode; }
-	listnode<T> *last();
 private:
 	listnode<T> *firstNode;
 	listnode<T> *lastNode;

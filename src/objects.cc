@@ -180,8 +180,6 @@ FLAG InstanceAttributeFlags[INSTANCEATTRIBUTES] = {
 vector<TObjectType> ObjectTypes(0, 5000, 1000);
 
 ObjectType SpecialObjects[SPECIALMEANINGS];
-unsigned char OldGroup[CONVERSION_TYPES];
-unsigned char OldNumber[CONVERSION_TYPES];
 int NewType[65536];
 
 int GetFlagByName(char *Name) {
@@ -318,10 +316,6 @@ void LoadConversionList() {
 	char FileName[4096];
 	int Group, Number, Type;
 
-	for (int i = 0; i < CONVERSION_TYPES; i++) {
-		OldGroup[i] = 0;
-		OldNumber[i] = 0;
-	}
 	for (int i = 0; i < 65536; i++) {
 		NewType[i] = -1;
 	}
@@ -346,8 +340,6 @@ void LoadConversionList() {
 			throw "Error while loading conversion.lst";
 		}
 
-		OldGroup[Type] = static_cast<unsigned char>(Group);
-		OldNumber[Type] = static_cast<unsigned char>(Number);
 		NewType[Group * 256 + Number] = Type;
 	}
 
@@ -355,13 +347,9 @@ void LoadConversionList() {
 
 	// No type (0) and the body containers keep their numbers, in group 0.
 	for (int i = 0; i <= LAST_BODY_POSITION; i++) {
-		OldGroup[i] = 0;
-		OldNumber[i] = static_cast<unsigned char>(i);
 		NewType[i] = i;
 	}
 
-	OldGroup[TYPEID_CREATURE] = 250;
-	OldNumber[TYPEID_CREATURE] = 0;
 	NewType[250 * 256 + 0] = TYPEID_CREATURE;
 }
 
@@ -372,20 +360,6 @@ ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
 		return ObjectType(0);
 	}
 	return ObjectType(Type);
-}
-
-void GetOldObjectType(ObjectType Type, unsigned char &Group, unsigned char &Number) {
-	if (!in(Type.getTypeID(), ObjectTypes.low(), ObjectTypes.high())) {
-		error("GetOldObjectType: Ung\xfcltiger Typ %d.\n", Type.getTypeID());
-		return;
-	}
-
-	Group = OldGroup[Type.getTypeID()];
-	Number = OldNumber[Type.getTypeID()];
-}
-
-bool ObjectTypeExists(unsigned char Group, unsigned char Number) {
-	return NewType[Group * 256 + Number] >= 0;
 }
 
 void ObjectType::setTypeID(int _TypeID) {
@@ -498,7 +472,4 @@ ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
 void InitObjects() {
 	LoadObjects();
 	LoadConversionList();
-}
-
-void ExitObjects() {
 }

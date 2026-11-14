@@ -1220,9 +1220,3 @@ void TSkillCarryStrength::Set(int a) {
 		SendPlayerData(cr->GetConnection());
 	}
 }
-
-void InitCrskill() {
-}
-
-void ExitCrskill() {
-}

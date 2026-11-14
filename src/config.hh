@@ -1,8 +1,6 @@
 #ifndef PATELLA_CONFIG_HH
 #define PATELLA_CONFIG_HH
 
-struct TDatabaseSettings;
-
 enum TWorldType {
 	NORMAL = 0,
 	NON_PVP = 1,
@@ -34,18 +32,5 @@ extern int RebootTime;
 
 void DisguisePassword(char *Password, const char *Key);
 void ReadConfig();
-
-extern int AdminPort;
-extern int QueryManagerPort;
-extern char AdminAddress[16];
-extern char QueryManagerAddress[16];
-extern char QueryManagerAdminPW[9];
-extern char QueryManagerGamePW[9];
-extern char QueryManagerWebPW[9];
-extern TDatabaseSettings ADMIN_DATABASE;
-extern TDatabaseSettings VOLATILE_DATABASE;
-extern TDatabaseSettings WEB_DATABASE;
-extern TDatabaseSettings FORUM_DATABASE;
-extern TDatabaseSettings MANAGER_DATABASE;
 
 #endif

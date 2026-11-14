@@ -53,7 +53,6 @@ struct TSharedMemory {
 static_assert(sizeof(TSharedMemory) == 25892, "TSharedMemory is mapped by the operator tools; keep the 32-bit layout");
 static_assert(offsetof(TSharedMemory, RoundNr) == 260, "TSharedMemory is mapped by the operator tools; keep the 32-bit layout");
 
-bool IsGameServer = false;
 bool VerboseOutput = false;
 TSharedMemory *SHM = nullptr;
 Semaphore LogfileMutex(1);
@@ -87,15 +86,6 @@ void EndGame() {
 	}
 
 	SHM->GameState = GAME_ENDING;
-}
-
-bool LoginAllowed() {
-	if (SHM == nullptr) {
-		error("IsLoginAllowed: SharedMemory existiert nicht.\n");
-		return false;
-	}
-
-	return SHM->GameState == GAME_RUNNING;
 }
 
 bool GameRunning() {
@@ -181,23 +171,6 @@ void PrintHandler(int Level, char *Text) {
 	}
 }
 
-int GetPrintlogPosition() {
-	if (SHM == nullptr) {
-		return 0;
-	}
-
-	return SHM->PrintBufferPosition;
-}
-
-char *GetPrintlogLine(int Line) {
-	// Only the upper bound is checked, as in the original.
-	if (SHM == nullptr || Line >= PRINTBUFFERENTRIES) {
-		return nullptr;
-	}
-
-	return SHM->PrintBuffer[Line];
-}
-
 void IncrementObjectCounter() {
 	if (SHM != nullptr) {
 		SHM->ObjectCounter++;
@@ -208,14 +181,6 @@ void DecrementObjectCounter() {
 	if (SHM != nullptr) {
 		SHM->ObjectCounter--;
 	}
-}
-
-uint32_t GetObjectCounter() {
-	if (SHM == nullptr) {
-		return 0;
-	}
-
-	return SHM->ObjectCounter;
 }
 
 void IncrementPlayersOnline() {
@@ -262,14 +227,6 @@ void SetRoundNr(uint32_t RoundNr) {
 	if (SHM != nullptr) {
 		SHM->RoundNr = RoundNr;
 	}
-}
-
-uint32_t GetRoundNr() {
-	if (SHM == nullptr) {
-		return 0;
-	}
-
-	return SHM->RoundNr;
 }
 
 void SetCommand(int Command, char *Text) {
@@ -372,7 +329,6 @@ void DetachSHM() {
 }
 
 void InitSHM(bool Verbose) {
-	IsGameServer = true;
 	VerboseOutput = Verbose;
 	CreateSHM();
 	AttachSHM();
@@ -397,13 +353,4 @@ void ExitSHM() {
 	SetPrintFunction(nullptr);
 	DetachSHM();
 	DeleteSHM();
-}
-
-void InitSHMExtern(bool Verbose) {
-	VerboseOutput = Verbose;
-	AttachSHM();
-}
-
-void ExitSHMExtern() {
-	DetachSHM();
 }

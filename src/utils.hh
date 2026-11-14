@@ -8,10 +8,7 @@ typedef void TPrintFunction(int, char *);
 
 typedef void TErrorFunction(char *);
 
-typedef void TFileHandlerFunction(char *, char *, char *);
-
 struct TReadStream {
-	virtual bool readFlag();
 	virtual unsigned char readByte() = 0;
 	virtual unsigned short readWord();
 	virtual uint32_t readQuad();
@@ -22,7 +19,6 @@ struct TReadStream {
 };
 
 struct TWriteStream {
-	virtual void writeFlag(bool f);
 	virtual void writeByte(unsigned char) = 0;
 	virtual void writeWord(unsigned short w);
 	virtual void writeQuad(uint32_t q);
@@ -77,18 +73,10 @@ inline bool in(int x, int min, int max) { return x >= min && x <= max; }
 
 void SetPrintFunction(TPrintFunction *Function);
 void SetErrorFunction(TErrorFunction *Function);
-void SilentHandler(int, char *);
-void SilentHandler(char *);
-void LogfileHandler(int, char *Text);
-void LogfileHandler(char *Text);
 void print(int Level, char *Text, ...);
 void error(char *Text, ...);
-int val(char c);
 int random(int low, int high);
 bool FileExists(char *FileName);
-void TreatAllFiles(char *Directory, char *Extension, TFileHandlerFunction *Function);
-void SendMail(char *Address, char *Subject, char *Text);
-void RemoveZombie();
 uint32_t PackAbsoluteCoordinate(int x, int y, int z);
 uint32_t PackRelativeCoordinate(int dx, int dy, int dz);
 void UnpackAbsoluteCoordinate(uint32_t Code, int &x, int &y, int &z);
@@ -96,7 +84,6 @@ void UnpackRelativeCoordinate(uint32_t Code, int &dx, int &dy, int &dz);
 
 extern TPrintFunction *PrintFunction;
 extern TErrorFunction *ErrorFunction;
-extern char StandardLogfile[4096];
 
 // Defined below the prototypes it uses; the original header declares them first.
 template<class T>

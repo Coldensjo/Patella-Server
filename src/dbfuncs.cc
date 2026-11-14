@@ -537,10 +537,3 @@ void SavePlayerData(TPlayerData *Slot) {
 		unlink(FileName);
 	}
 }
-
-void UnlinkPlayerData(uint32_t CharacterID) {
-	char FileName[4096];
-
-	PlayerDataPath(CharacterID, "usr", FileName);
-	unlink(FileName);
-}

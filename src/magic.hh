@@ -77,7 +77,6 @@ struct TOutfitImpact : public TImpact {
 	TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration);
 	virtual void handleCreature(TCreature *Victim);
 private:
-	TCreature *Actor;
 	TOutfit Outfit;
 	int Duration;
 };
@@ -96,7 +95,6 @@ void CheckSpellbook(TCreature *cr, int SpellNr);
 void CheckAccount(TCreature *cr, int SpellNr);
 void CheckLevel(TCreature *cr, int SpellNr);
 void CheckRuneLevel(TCreature *cr, int SpellNr);
-void CheckMagicItem(TCreature *cr, ObjectType Type);
 void CheckRing(TCreature *cr, int);
 void CheckAffectedPlayers(TCreature *cr, int x, int y, int z);
 void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay);
@@ -191,7 +189,6 @@ void InitCircles();
 TSpellList *CreateSpell(int SpellNr, ...);
 void InitSpells();
 void InitMagic();
-void ExitMagic();
 
 // The size of SpellSyllable: the syllables 1 to 50 (0 is the empty one).
 const int MAX_SYLLABLES = 51;

@@ -441,20 +441,6 @@ vlong vlong::modexp(const vlong &x, const vlong &e, const vlong &m) {
 	return me.exp(x, e);
 }
 
-vlong vlong::gcd(const vlong &X, const vlong &Y) {
-	vlong x = X, y = Y;
-	while (true) {
-		if (y == 0) {
-			return x;
-		}
-		x = x % y;
-		if (x == 0) {
-			return y;
-		}
-		y = y % x;
-	}
-}
-
 vlong vlong::modinv(const vlong &a, const vlong &m) {
 	vlong j = 1, i = 0, b = m, c = a, x, y;
 	while (c != 0) {
@@ -489,47 +475,6 @@ void vlong::convert(const char *pDecimal, vlong &Number) {
 
 		Number = Number * 10 + Digit;
 		pDecimal++;
-	}
-}
-
-void vlong::convert(vlong Number, char *pDecimal, unsigned short DecimalLength) {
-	if (pDecimal == nullptr) {
-		throw "pDecimal pointer is NULL";
-	}
-
-	if (DecimalLength == 0) {
-		throw "DecimalLength = 0";
-	}
-
-	memset(pDecimal, 0, DecimalLength);
-	if (Number == 0) {
-		pDecimal[0] = '0';
-	} else {
-		char Buffer[2] = {0, 1};
-		int Digit;
-		int i = 0;
-		while (Number > 0) {
-			if (i >= DecimalLength) {
-				throw "large number does not fit in char array (DecimalLength too small)";
-			}
-
-			Digit = static_cast<unsigned int>(Number % 10);
-			Number = Number / 10;
-			sprintf(Buffer, "%d", Digit);
-			pDecimal[i] = Buffer[0];
-			i++;
-		}
-
-		// The digits are in reverse order here. The original loop that
-		// turns them around changes neither j nor i, so it never ends
-		// for a number with two or more digits.
-		int j = 0;
-		i--;
-		while (j < i) {
-			Buffer[0] = pDecimal[j];
-			pDecimal[j] = pDecimal[i];
-			pDecimal[i] = Buffer[0];
-		}
 	}
 }
 

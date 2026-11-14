@@ -28,7 +28,6 @@ void ExitNonplayer();
 
 extern vector<TNonplayer *> NonplayerList;
 extern int FirstFreeNonplayer;
-extern int CurrentNonplayer;
 extern vector<TMonsterhome> Monsterhome;
 extern int Monsterhomes;
 extern store<TNode, 256> *NodeTable;

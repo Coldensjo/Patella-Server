@@ -4,17 +4,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #include "utils.hh"
 
 TPrintFunction *PrintFunction = nullptr;
 TErrorFunction *ErrorFunction = nullptr;
-char StandardLogfile[4096] = "";
 
 // The length word of a string in a stream: a string of this length or longer
 // has this word followed by its length as a quad.
@@ -26,44 +22,6 @@ void SetPrintFunction(TPrintFunction *Function) {
 
 void SetErrorFunction(TErrorFunction *Function) {
 	ErrorFunction = Function;
-}
-
-void SilentHandler(int, char *) {
-}
-
-void SilentHandler(char *) {
-}
-
-void LogfileHandler(int, char *Text) {
-	if (StandardLogfile[0] == 0) {
-		return;
-	}
-
-	FILE *f = fopen(StandardLogfile, "at");
-	if (f == nullptr) {
-		return;
-	}
-
-	fprintf(f, "%s", Text);
-	if (fclose(f) != 0) {
-		error("LogfileHandler: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
-	}
-}
-
-void LogfileHandler(char *Text) {
-	if (StandardLogfile[0] == 0) {
-		return;
-	}
-
-	FILE *f = fopen(StandardLogfile, "at");
-	if (f == nullptr) {
-		return;
-	}
-
-	fprintf(f, "%s", Text);
-	if (fclose(f) != 0) {
-		error("LogfileHandler: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
-	}
 }
 
 void print(int Level, char *Text, ...) {
@@ -94,10 +52,6 @@ void error(char *Text, ...) {
 	} else {
 		printf("%s", s);
 	}
-}
-
-bool TReadStream::readFlag() {
-	return readByte() != 0;
 }
 
 unsigned short TReadStream::readWord() {
@@ -152,10 +106,6 @@ void TReadStream::readBytes(unsigned char *Buffer, int Count) {
 	for (int i = 0; i < Count; i++) {
 		Buffer[i] = readByte();
 	}
-}
-
-void TWriteStream::writeFlag(bool f) {
-	writeByte(f ? 1 : 0);
 }
 
 void TWriteStream::writeWord(unsigned short w) {
@@ -382,19 +332,6 @@ void TDynamicWriteBuffer::writeBytes(unsigned char *Buffer, int Count) {
 	Position += Count;
 }
 
-int val(char c) {
-	if (c >= '0' && c <= '9') {
-		return c - '0';
-	}
-	if (c >= 'A' && c <= 'F') {
-		return c - 'A' + 10;
-	}
-	if (c >= 'a' && c <= 'f') {
-		return c - 'a' + 10;
-	}
-	return 0;
-}
-
 int random(int low, int high) {
 	// Computed unsigned so that a span of 2^31 or more wraps as it did in the original.
 	int range = static_cast<int>(static_cast<uint32_t>(high) - static_cast<uint32_t>(low) + 1);
@@ -417,96 +354,6 @@ bool FileExists(char *FileName) {
 		error("FileExists: Unerwarteter Fehlercode %d.\n", errno);
 	}
 	return false;
-}
-
-void TreatAllFiles(char *Directory, char *Extension, TFileHandlerFunction *Function) {
-	DIR *WorkingDirectory;
-	struct dirent *DirectoryEntry;
-	char FileName[4096], Name[64];
-
-	WorkingDirectory = opendir(Directory);
-	if (WorkingDirectory == nullptr) {
-		return;
-	}
-
-	while ((DirectoryEntry = readdir(WorkingDirectory)) != nullptr) {
-		strcpy(FileName, DirectoryEntry->d_name);
-		if (strlen(FileName) > strlen(Extension)) {
-			if (strcmp(FileName + strlen(FileName) - strlen(Extension), Extension) == 0) {
-				// Name holds 64 bytes; a longer file name overflows it, as in the original.
-				memset(Name, 0, sizeof(Name));
-				strncpy(Name, FileName, strlen(FileName) - strlen(Extension));
-				Function(Directory, Name, Extension);
-			}
-		}
-	}
-
-	closedir(WorkingDirectory);
-}
-
-void SendMail(char *Address, char *Subject, char *Text) {
-	static char *mailer = "/usr/sbin/sendmail";
-	static char *envelope = "auto-responder@tibia.com";
-	static char *replyto = "Tibia <cip@tibia.com>";
-	static char *sender = "Tibia <auto-responder@tibia.com>";
-	static char *xmailer = "Tibia";
-
-	int inode[2];
-	struct stat StatBuffer;
-
-	char Content[strlen(Text) + 2000];
-	Content[0] = 0;
-	sprintf(Content + strlen(Content), "From: %s\n", sender);
-	sprintf(Content + strlen(Content), "To: %s\n", Address);
-	sprintf(Content + strlen(Content), "Subject: %s\n", Subject);
-	sprintf(Content + strlen(Content), "Reply-To: %s\n", replyto);
-	sprintf(Content + strlen(Content), "X-Mailer: %s\n", xmailer);
-	sprintf(Content + strlen(Content), "Content-Type: text/plain; charset=\"iso-8859-1\"\n");
-	sprintf(Content + strlen(Content), "\n");
-	sprintf(Content + strlen(Content), "%s\n", Text);
-
-	int result = stat(mailer, &StatBuffer);
-	if (result != 0) {
-		error("SendMail: Kann %s nicht finden oder ausf\xfchren\n", mailer);
-		return;
-	}
-
-	if (pipe(inode) != 0) {
-		error("SendMail: Kann Pipe nicht anlegen.\n");
-		return;
-	}
-
-	pid_t Pid = fork();
-	if (Pid < 0) {
-		error("SendMail: Kann Proze\xdf nicht abspalten.\n");
-		return;
-	}
-
-	if (Pid == 0) {
-		dup2(inode[0], 0);
-		if (close(inode[0]) < 0) {
-			error("SendMail: Fehler %d beim Schlie\xdf" "en des ersten Inode (1).\n", errno);
-		}
-		if (close(inode[1]) < 0) {
-			error("SendMail: Fehler %d beim Schlie\xdf" "en des zweiten Inode (1).\n", errno);
-		}
-		execlp(mailer, mailer, "-f", envelope, Address, static_cast<char *>(nullptr));
-		exit(0);
-	}
-
-	// The result is ignored as in the original; glibc now marks write() warn_unused_result.
-	(void)!write(inode[1], Content, strlen(Content));
-	if (close(inode[0]) < 0) {
-		error("SendMail: Fehler %d beim Schlie\xdf" "en des ersten Inode (2).\n", errno);
-	}
-	if (close(inode[1]) < 0) {
-		error("SendMail: Fehler %d beim Schlie\xdf" "en des zweiten Inode (2).\n", errno);
-	}
-}
-
-void RemoveZombie() {
-	int status;
-	waitpid(-1, &status, WNOHANG | WUNTRACED);
 }
 
 uint32_t PackAbsoluteCoordinate(int x, int y, int z) {

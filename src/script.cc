@@ -670,7 +670,6 @@ void TWriteScriptFile::open(char *FileName) {
 		throw "Cannot create script-file";
 	}
 
-	Line = 0;
 	strcpy(Filename, FileName);
 }
 
@@ -684,18 +683,6 @@ void TWriteScriptFile::close() {
 		::error("TWriteScriptFile::close: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
 	}
 	File = nullptr;
-}
-
-void TWriteScriptFile::error(char *Text) {
-	if (File != nullptr) {
-		if (fclose(File) != 0) {
-			::error("TWriteScriptFile::error: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
-		}
-	}
-	File = nullptr;
-
-	snprintf(ErrorString, sizeof(ErrorString), "error in script-file \"%s\", line %d: %s", Filename, Line, Text);
-	throw ErrorString;
 }
 
 void TWriteScriptFile::writeLn() {

@@ -28,7 +28,6 @@ void NetLoadCheck();
 bool WriteToSocket(TConnection *Connection, unsigned char *Buffer, int Size);
 bool SendLoginMessage(TConnection *Connection, int Type, char *Message, int WaitingTime);
 bool SendData(TConnection *Connection);
-bool SendData(TConnection *Connection, char *Data, int Size);
 bool GetWaitinglistEntry(char *Name, uint32_t &NextTry, bool &FreeAccount, bool &Newbie);
 void InsertWaitinglistEntry(char *Name, uint32_t NextTry, bool FreeAccount, bool Newbie);
 void DeleteWaitinglistEntry(char *Name);

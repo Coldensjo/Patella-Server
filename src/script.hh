@@ -59,7 +59,6 @@ struct TWriteScriptFile {
 	~TWriteScriptFile();
 	void open(char *FileName);
 	void close();
-	void error(char *Text);
 	void writeLn();
 	void writeText(char *Text);
 	void writeString(char *Text);
@@ -69,7 +68,6 @@ struct TWriteScriptFile {
 private:
 	FILE *File;
 	char Filename[4096];
-	int Line;
 };
 
 struct TReadBinaryFile : public TReadStream {

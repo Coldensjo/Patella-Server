@@ -255,7 +255,6 @@ struct TCombat {
 	void SetAttackDest(uint32_t dfd, bool Follow);
 	uint32_t GetAttackDest() { return AttackDest; }
 	void SetAttackMode(unsigned char b);
-	unsigned char GetAttackMode();
 	void SetChaseMode(unsigned char b);
 	unsigned char GetChaseMode() { return ChaseMode; }
 	void SetSecureMode(unsigned char b);
@@ -320,9 +319,7 @@ struct TSkill {
 	void SetNextLevel(int value) { NextLevel = value; }
 	void SetDelta(int value) { Delta = value; }
 	void SetMaxCount(int value) { MaxCount = value; }
-	void SetCount(int);
 	int GetMax() { return Max; }
-	int GetMin();
 	int GetAct() { return Act; }
 	int GetDAct() { return DAct; }
 	int GetMDAct() { return MDAct; }

@@ -88,7 +88,6 @@ void SkipFlush(TConnection *Connection);
 void SendMapObject(TConnection *Connection, Object Obj);
 void SendMapPoint(TConnection *Connection, int x, int y, int z);
 void SendResult(TConnection *Connection, RESULT r);
-void SendRefresh(TConnection *Connection);
 void SendInitGame(TConnection *Connection, uint32_t id);
 void SendRights(TConnection *Connection);
 void SendPing(TConnection *Connection);
