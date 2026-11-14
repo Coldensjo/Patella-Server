@@ -27,7 +27,10 @@ The game reads its settings from `config.toml`: the file given with
 `data/config.toml` is the original installation's `.tibia` converted with
 `patella-convert config --base /game .tibia config.toml` (`tools/convert`);
 its paths are relative to the file's folder, so it goes into the folder of the
-installation.
+installation. Keep the installation's `.tibia` there too: the original scripts
+and operator tools in its `bin/` still read it (`reboot-daily`, which the game
+runs for its daily reboot, and `gamelogs-backup` from `/game/.tibia`;
+`highscores`, `deloldusr`, `pl` and the other programs from `$HOME/.tibia`).
 
 ## License
 
