@@ -5,9 +5,11 @@ usage: compare_traces.py OLD_DIR NEW_DIR [--context N] [--no-hex] [--allow-clock
 
 Each trace is a list of records (client commands, notes and decoded server
 messages). The sequences are compared message by message on the decoded
-text; map descriptions are compared tile by tile. Rounds and times are not
-compared but shown. Date and time strings in texts are normalised; the lines
-where that hid a difference are counted as allowed differences.
+text and on the bytes of each server message; map descriptions are
+compared tile by tile. Rounds and times are not compared but shown. Date
+and time strings in texts are normalised (the bytes of such a message are
+then not compared); the lines where that hid a difference are counted as
+allowed differences.
 
 --allow-clock: messages that follow the wall clock, not the game's rounds,
 are left out of the comparison and compared on their own, as allowed
@@ -65,7 +67,11 @@ def load(path):
 
 def lines_of(recs, allow_clock):
 	"""Flattens records into comparable lines: [(normalised key, record index,
-	key)], and the wall-clock messages left out: {kind: [(round, text)]}."""
+	key)], and the wall-clock messages left out: {kind: [(round, text)]}.
+	The normalised key of a server message's first line also holds the
+	message's bytes, unless a date was normalised in its text: a message
+	the decoder cannot read is all "UNDECODED" in its text, and the rest of
+	its packet is not in the text at all."""
 	out = []
 	clock = {}
 	for i, r in enumerate(recs):
@@ -79,7 +85,10 @@ def lines_of(recs, allow_clock):
 			key = "N connection closed"
 		else:
 			key = "%s %s" % (r["dir"], r["text"].split("\n")[0])
-		out.append((norm(key), i, key))
+		match = norm(key)
+		if r["dir"] == "S" and norm(r["text"]) == r["text"]:
+			match += "\0" + r["hex"]
+		out.append((match, i, key))
 		for t in r["text"].split("\n")[1:]:
 			key = "%s   %s" % (r["dir"], t.strip())
 			out.append((norm(key), i, key))
@@ -89,7 +98,7 @@ def lines_of(recs, allow_clock):
 def show(side, recs, items, want_hex):
 	shown = set()
 	res = []
-	for key, i, _ in items:
+	for _, i, key in items:
 		r = recs[i]
 		res.append("  %s r%-4s %s" % (side, r["round"], key))
 		if want_hex and i not in shown and r["dir"] == "S":
@@ -111,7 +120,7 @@ def compare(old, new, context, want_hex, allow_clock):
 		if tag == "equal":
 			dates += sum(1 for a, b in zip(lo[i1:i2], ln[j1:j2]) if a[2] != b[2])
 			continue
-		ctx = [k for k, _, _ in lo[max(0, i1 - context):i1]]
+		ctx = [k for _, _, k in lo[max(0, i1 - context):i1]]
 		# The last client command or step note before the difference.
 		anchor = None
 		for k, idx, _ in reversed(lo[:i1]):
