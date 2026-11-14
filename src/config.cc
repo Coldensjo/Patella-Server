@@ -1,21 +1,25 @@
-// config.cc: the server's settings. ReadConfig reads them from .tibia in the
-// home folder: the paths, the shared memory key, the debug level, the world's
-// name and state, the beat and the query managers. The world config (type,
-// reboot time, address, port, player limits) is filled in by main.cc's
-// LoadWorldConfig from the query manager. DisguisePassword disguises a query
-// manager password before it is sent.
+// config.cc: the server's settings. ReadConfig reads them from config.toml
+// (data/config.toml in the repository is an example, converted from the
+// original .tibia by tools/convert): the paths, the shared memory key, the
+// debug level, the world's name and state, the beat and the query managers.
+// The world config (type, reboot time, address, port, player limits) is filled
+// in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
+// disguises a query manager password before it is sent.
 
+#include "tomlfile.hh"
+
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <string>
 
-#include "script.hh"
-#include "threads.hh"
 #include "query.hh"
 #include "config.hh"
 #include "utils.hh"
 
-static const char PasswordKey[9] = "Pm-,o%yD";
+const char PasswordKey[9] = "Pm-,o%yD";
 
 char BINPATH[4096];
 char DATAPATH[4096];
@@ -62,30 +66,7 @@ void DisguisePassword(char *Password, const char *Key) {
 	}
 }
 
-// A database entry of the config (admindatabase, volatiledatabase,
-// webdatabase, forumdatabase, managerdatabase): (product, database, login,
-// password, host, port). The game connects to none of them, so the entry is
-// read and dropped; the password still goes through DisguisePassword, which
-// throws for a password longer than its key.
-static void SkipDatabaseSettings(TReadScriptFile &Script) {
-	Script.readSymbol('(');
-	Script.readIdentifier();
-	Script.readSymbol(',');
-	Script.readString();
-	Script.readSymbol(',');
-	Script.readString();
-	Script.readSymbol(',');
-	char Password[30];
-	strcpy(Password, Script.readString());
-	DisguisePassword(Password, PasswordKey);
-	Script.readSymbol(',');
-	Script.readString();
-	Script.readSymbol(',');
-	Script.readString();
-	Script.readSymbol(')');
-}
-
-void ReadConfig() {
+void SetConfigDefaults() {
 	BINPATH[0] = 0;
 	DATAPATH[0] = 0;
 	LOGPATH[0] = 0;
@@ -101,6 +82,7 @@ void ReadConfig() {
 	DebugLevel = 1;
 	PrivateWorld = false;
 	WorldType = NORMAL;
+	WorldName[0] = 0;
 	MaxPlayers = 0;
 	MaxNewbies = 0;
 	PremiumPlayerBuffer = 0;
@@ -108,130 +90,137 @@ void ReadConfig() {
 	Beat = 200;
 	RebootTime = 540;
 	NumberOfQueryManagers = 0;
+}
 
-	TReadScriptFile Script;
-	char FileName[4096];
-
-	sprintf(FileName, ".tibia");
-	if (getenv("HOME") != nullptr) {
-		sprintf(FileName, "%s/.tibia", getenv("HOME"));
-	}
-	if (getenv("home") != nullptr) {
-		sprintf(FileName, "%s/.tibia", getenv("home"));
-	}
-
-	if (!FileExists(FileName)) {
-		throw "cannot find config-file";
+// A folder of [paths]. A relative one is taken relative to Folder, the
+// folder of the config file as a full path without a trailing '/': it is
+// written out as Folder/<path>, and "." as Folder. An absolute or empty one is
+// kept as it is written.
+static void ReadPath(const toml::table &Paths, const char *Key, const std::string &Folder, char *Path) {
+	char Value[4096];
+	if (!TomlGetString(Paths, Key, Value, sizeof(Value))) {
+		return;
 	}
 
-	Script.open(FileName);
-	while (true) {
-		Script.nextToken();
-		if (Script.Token == ENDOFFILE) {
-			break;
-		}
+	if (Value[0] == 0 || Value[0] == '/') {
+		strcpy(Path, Value);
+		return;
+	}
 
-		if (Script.Token != IDENTIFIER) {
-			Script.error("Identifier expected");
-		}
+	std::string Resolved = strcmp(Value, ".") == 0 ? Folder : (Folder == "/" ? "" : Folder) + "/" + Value;
+	if (Resolved.size() >= sizeof(Value)) {
+		TomlError(Paths.get(Key)->source(), "%s is longer than %d characters as a full path",
+				Key, static_cast<int>(sizeof(Value)) - 1);
+	}
+	strcpy(Path, Resolved.c_str());
+}
 
-		char Ident[30];
-		strcpy(Ident, Script.getIdentifier());
-		Script.readSymbol('=');
+// The folder of a file as a full path, normalized, without a trailing '/'
+// (but "/" for the root).
+static std::string FolderOf(const char *FileName) {
+	std::string Folder = std::filesystem::absolute(FileName).parent_path().lexically_normal().string();
+	while (Folder.size() > 1 && Folder.back() == '/') {
+		Folder.pop_back();
+	}
+	return Folder;
+}
 
-		if (strcmp(Ident, "binpath") == 0) {
-			strcpy(BINPATH, Script.readString());
-		}
+// An entry of [[query_manager]]: host, port and password, all three needed.
+// The password is the one written in the file; it is kept disguised.
+static void ReadQueryManager(const toml::node &Node) {
+	if (!Node.is_table()) {
+		TomlError(Node.source(), "an entry of query_manager must be a table");
+	}
 
-		if (strcmp(Ident, "mappath") == 0) {
-			strcpy(MAPPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "origmappath") == 0) {
-			strcpy(ORIGMAPPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "datapath") == 0) {
-			strcpy(DATAPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "monsterpath") == 0) {
-			strcpy(MONSTERPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "npcpath") == 0) {
-			strcpy(NPCPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "userpath") == 0) {
-			strcpy(USERPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "logpath") == 0) {
-			strcpy(LOGPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "savepath") == 0) {
-			strcpy(SAVEPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "shm") == 0) {
-			SHMKey = Script.readNumber();
-		}
-
-		// These entries are read and dropped: the game uses none of them. The
-		// query managers it connects to are those of "querymanager".
-		if (strcmp(Ident, "adminport") == 0 || strcmp(Ident, "querymanagerport") == 0) {
-			Script.readNumber();
-		}
-
-		if (strcmp(Ident, "adminaddress") == 0 || strcmp(Ident, "querymanageraddress") == 0
-				|| strcmp(Ident, "querymanageradminpw") == 0 || strcmp(Ident, "querymanagergamepw") == 0
-				|| strcmp(Ident, "querymanagerwebpw") == 0) {
-			Script.readString();
-		}
-
-		if (strcmp(Ident, "debuglevel") == 0) {
-			DebugLevel = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "state") == 0) {
-			PrivateWorld = (strcmp(Script.readIdentifier(), "private") == 0);
-		}
-
-		if (strcmp(Ident, "world") == 0) {
-			strcpy(WorldName, Script.readString());
-		}
-
-		if (strcmp(Ident, "beat") == 0) {
-			Beat = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "admindatabase") == 0 || strcmp(Ident, "volatiledatabase") == 0
-				|| strcmp(Ident, "webdatabase") == 0 || strcmp(Ident, "forumdatabase") == 0
-				|| strcmp(Ident, "managerdatabase") == 0) {
-			SkipDatabaseSettings(Script);
-		}
-
-		if (strcmp(Ident, "querymanager") == 0) {
-			Script.readSymbol('{');
-			do {
-				if (NumberOfQueryManagers >= MAX_QUERY_MANAGERS) {
-					Script.error("Cannot handle more query managers");
-				}
-
-				Script.readSymbol('(');
-				strcpy(QUERY_MANAGER[NumberOfQueryManagers].Host, Script.readString());
-				Script.readSymbol(',');
-				QUERY_MANAGER[NumberOfQueryManagers].Port = Script.readNumber();
-				Script.readSymbol(',');
-				strcpy(QUERY_MANAGER[NumberOfQueryManagers].Password, Script.readString());
-				DisguisePassword(QUERY_MANAGER[NumberOfQueryManagers].Password, PasswordKey);
-				Script.readSymbol(')');
-				NumberOfQueryManagers++;
-			} while (Script.readSpecial() != '}');
+	const toml::table &Entry = *Node.as_table();
+	TomlCheckKeys(Entry, "[[query_manager]]", {"host", "port", "password"});
+	for (const char *Key : {"host", "port", "password"}) {
+		if (!Entry.contains(Key)) {
+			TomlError(Node.source(), "an entry of query_manager needs %s", Key);
 		}
 	}
 
-	Script.close();
+	if (NumberOfQueryManagers >= MAX_QUERY_MANAGERS) {
+		TomlError(Node.source(), "more than %d query managers", MAX_QUERY_MANAGERS);
+	}
+
+	TQueryManagerSettings &Settings = QUERY_MANAGER[NumberOfQueryManagers];
+	TomlGetString(Entry, "host", Settings.Host, sizeof(Settings.Host));
+	TomlGetNumber(Entry, "port", Settings.Port, INT_MIN, INT_MAX);
+	TomlGetString(Entry, "password", Settings.Password, sizeof(Settings.Password));
+	try {
+		DisguisePassword(Settings.Password, PasswordKey);
+	} catch (const char *Text) {
+		TomlError(Entry.get("password")->source(), "%s", Text);
+	}
+	NumberOfQueryManagers++;
+}
+
+void LoadConfig(const char *FileName) {
+	SetConfigDefaults();
+
+	toml::table Config = TomlParseFile(FileName);
+	TomlCheckKeys(Config, "the top level", {"debug_level", "beat", "shm_key", "world", "paths", "query_manager"});
+
+	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
+	TomlGetNumber(Config, "beat", Beat, INT_MIN, INT_MAX);
+	TomlGetNumber(Config, "shm_key", SHMKey, INT_MIN, INT_MAX);
+
+	if (const toml::table *World = TomlGetTable(Config, "world")) {
+		TomlCheckKeys(*World, "[world]", {"name", "state"});
+		TomlGetString(*World, "name", WorldName, sizeof(WorldName));
+		char State[30];
+		if (TomlGetString(*World, "state", State, sizeof(State))) {
+			if (strcmp(State, "private") == 0) {
+				PrivateWorld = true;
+			} else if (strcmp(State, "public") == 0) {
+				PrivateWorld = false;
+			} else {
+				TomlError(World->get("state")->source(), "state must be \"public\" or \"private\"");
+			}
+		}
+	}
+
+	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {
+		TomlCheckKeys(*Paths, "[paths]",
+				{"bin", "data", "map", "origmap", "monster", "npc", "user", "log", "save"});
+		std::string Folder = FolderOf(FileName);
+		ReadPath(*Paths, "bin", Folder, BINPATH);
+		ReadPath(*Paths, "data", Folder, DATAPATH);
+		ReadPath(*Paths, "map", Folder, MAPPATH);
+		ReadPath(*Paths, "origmap", Folder, ORIGMAPPATH);
+		ReadPath(*Paths, "monster", Folder, MONSTERPATH);
+		ReadPath(*Paths, "npc", Folder, NPCPATH);
+		ReadPath(*Paths, "user", Folder, USERPATH);
+		ReadPath(*Paths, "log", Folder, LOGPATH);
+		ReadPath(*Paths, "save", Folder, SAVEPATH);
+	}
+
+	if (const toml::array *QueryManagers = TomlGetArray(Config, "query_manager")) {
+		for (const toml::node &Node : *QueryManagers) {
+			ReadQueryManager(Node);
+		}
+	}
+}
+
+void ReadConfig(const char *FileName) {
+	char DefaultFileName[4096];
+	if (FileName == nullptr) {
+		strcpy(DefaultFileName, "config.toml");
+		if (getenv("HOME") != nullptr) {
+			snprintf(DefaultFileName, sizeof(DefaultFileName), "%s/config.toml", getenv("HOME"));
+		}
+		if (getenv("home") != nullptr) {
+			snprintf(DefaultFileName, sizeof(DefaultFileName), "%s/config.toml", getenv("home"));
+		}
+		FileName = DefaultFileName;
+	}
+
+	if (!FileExists(const_cast<char *>(FileName))) {
+		static char ErrorText[4096 + 32];
+		snprintf(ErrorText, sizeof(ErrorText), "cannot find config-file %s", FileName);
+		throw static_cast<const char *>(ErrorText);
+	}
+
+	LoadConfig(FileName);
 }

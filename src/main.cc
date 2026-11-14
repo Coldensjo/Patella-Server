@@ -1,6 +1,7 @@
 // main.cc: the game server's start and its main loop. main reads the command
-// line, makes the server a daemon if asked and runs InitAll, LaunchGame and
-// ExitAll; when the game ends for a reboot it starts BINPATH/reboot-daily.
+// line ("daemon", "nofork", "--config FILE"), makes the server a daemon if
+// asked and runs InitAll, LaunchGame and ExitAll; when the game ends for a
+// reboot it starts BINPATH/reboot-daily.
 // LaunchGame waits for SIGUSR1 (data from the connections) and SIGALRM (the
 // beat) and advances the game with AdvanceGame. Here too: the signal
 // handlers, the beat's timer, the PID file (LockGame, UnlockGame) and the
@@ -427,9 +428,9 @@ void LoadWorldConfig() {
 			HelpGameAddress[0], HelpGameAddress[1], HelpGameAddress[2], HelpGameAddress[3]);
 }
 
-void InitAll() {
+void InitAll(const char *ConfigFile) {
 	try {
-		ReadConfig();
+		ReadConfig(ConfigFile);
 		SetQueryManagerLoginData(APPLICATION_GAME, WorldName);
 		LoadWorldConfig();
 		InitSHM(!BeADaemon);
@@ -535,6 +536,7 @@ int DaemonInit(bool NoFork) {
 
 int main(int argc, char **argv) {
 	bool NoFork = false;
+	const char *ConfigFile = nullptr;
 
 	BeADaemon = false;
 	Reboot = true;
@@ -544,6 +546,14 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[i], "nofork") == 0) {
 			NoFork = true;
+		}
+		if (strcmp(argv[i], "--config") == 0) {
+			if (i + 1 >= argc) {
+				fprintf(stderr, "game: --config needs a file name\n");
+				return 2;
+			}
+			i++;
+			ConfigFile = argv[i];
 		}
 	}
 
@@ -557,7 +567,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	InitAll();
+	InitAll(ConfigFile);
 	atexit(ExitAll);
 
 	try {
