@@ -72,6 +72,9 @@ private:
 	void handleEvictFreeAccounts(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleEvictDeletedCharacters(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleEvictExGuildleaders(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleLoadPlayerData(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleSavePlayerData(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void requirePlayerDataWorld(uint32_t characterId, uint32_t worldId);
 
 	Storage &Store;
 	Clock Now;

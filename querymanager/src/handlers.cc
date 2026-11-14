@@ -88,9 +88,11 @@ std::vector<uint8_t> Dispatcher::handle(Session &session, const std::vector<uint
 	const char *world = session.worldName.empty() ? "-" : session.worldName.c_str();
 	unsigned long long conn = static_cast<unsigned long long>(session.connectionId);
 
+	// The login requests carry passwords and the player data requests a
+	// player's data; their bytes stay out of the log.
+	bool secret = type == QUERY_LOGIN || type == QUERY_LOGIN_GAME || type == QUERY_LOGIN_ACCOUNT
+		|| type == QUERY_LOAD_PLAYER_DATA || type == QUERY_SAVE_PLAYER_DATA;
 	if (logLevel() >= LogLevel::Debug) {
-		// The login requests carry passwords; their bytes stay out of the log.
-		bool secret = type == QUERY_LOGIN || type == QUERY_LOGIN_GAME || type == QUERY_LOGIN_ACCOUNT;
 		logMessage(LogLevel::Debug, "conn %llu %s request type=%u size=%zu data=%s", conn, world,
 			static_cast<unsigned>(type), request.size(),
 			secret ? "(not logged)" : hexDump(request, 64).c_str());
@@ -162,7 +164,7 @@ std::vector<uint8_t> Dispatcher::handle(Session &session, const std::vector<uint
 	}
 	if (logLevel() >= LogLevel::Debug) {
 		logMessage(LogLevel::Debug, "conn %llu %s response size=%zu data=%s", conn, world,
-			response.size(), hexDump(response, 64).c_str());
+			response.size(), secret ? "(not logged)" : hexDump(response, 64).c_str());
 	}
 	return response;
 }
@@ -196,6 +198,8 @@ void Dispatcher::dispatch(Session &session, uint8_t type, ReadBuffer &in, WriteB
 	case QUERY_EVICT_FREE_ACCOUNTS: handleEvictFreeAccounts(session, in, out); break;
 	case QUERY_EVICT_DELETED_CHARACTERS: handleEvictDeletedCharacters(session, in, out); break;
 	case QUERY_EVICT_EX_GUILDLEADERS: handleEvictExGuildleaders(session, in, out); break;
+	case QUERY_LOAD_PLAYER_DATA: handleLoadPlayerData(session, in, out); break;
+	case QUERY_SAVE_PLAYER_DATA: handleSavePlayerData(session, in, out); break;
 	default:
 		// The catalogue says "implemented" but there is no case for it.
 		throw RequestFailed("no handler");
@@ -947,6 +951,63 @@ void Dispatcher::handleEvictExGuildleaders(Session &session, ReadBuffer &in, Wri
 		out.writeWord(houseId);
 	}
 	Detail = format("guildhouses=%u evictions=%zu", static_cast<unsigned>(count), evictions.size());
+}
+
+// The player data requests may name a character of the session's world, or
+// one the characters table does not know (the game saves what it loaded, also
+// for a house owner it was not told about); not one of another world.
+void Dispatcher::requirePlayerDataWorld(uint32_t characterId, uint32_t worldId) {
+	std::optional<CharacterRecord> character = Store.findCharacter(characterId);
+	if (character && character->worldId != worldId) {
+		throw RequestFailed(format("character %u belongs to another world", characterId));
+	}
+}
+
+// Query 54, loadPlayerData. This project's own: LoadPlayerData
+// (src/dbfuncs.cc) sends it on one of the game's player data connections
+// when it needs a character's data that is not in its player data pool: at
+// login, for a house owner, for mail to an offline character.
+//   request:  quad CharacterID
+//   response: flag Stored, then if Stored the record of playerdata.hh
+// Stored is false for a character with no player data; the game starts it as
+// a new character then, as it did for a missing player file. Any failure is
+// STATUS_FAILED, on which the game refuses the login: a character must never
+// start as new because its data could not be read.
+void Dispatcher::handleLoadPlayerData(Session &session, ReadBuffer &in, WriteBuffer &out) {
+	uint32_t characterId = in.readQuad();
+	uint32_t worldId = requireWorld(session);
+	requirePlayerDataWorld(characterId, worldId);
+	std::optional<PlayerData> data = Store.loadPlayerData(characterId);
+	out.writeByte(STATUS_OK);
+	out.writeFlag(data.has_value());
+	if (data) {
+		writePlayerData(out, *data);
+	}
+	Detail = format("character=%u %s", characterId, data ? "stored" : "none stored");
+}
+
+// Query 55, savePlayerData. This project's own: SavePlayerData
+// (src/dbfuncs.cc) sends it on one of the game's player data connections
+// when it writes a character's data back: from the periodic save of the
+// writer thread, when a pool slot is reused, and when the game shuts down.
+//   request:  quad CharacterID, then the record of playerdata.hh
+//   response: status only
+// The record replaces what was stored. If the game gets no STATUS_OK, it
+// keeps the record in a file of its own and sends it again later (see
+// src/dbfuncs.cc).
+void Dispatcher::handleSavePlayerData(Session &session, ReadBuffer &in, WriteBuffer &out) {
+	PlayerData data;
+	data.characterId = in.readQuad();
+	readPlayerData(in, data);
+	uint32_t worldId = requireWorld(session);
+	if (data.characterId == 0) {
+		throw RequestFailed("character id 0");
+	}
+	requirePlayerDataWorld(data.characterId, worldId);
+	Store.savePlayerData(data);
+	out.writeByte(STATUS_OK);
+	Detail = format("character=%u skills=%zu depots=%zu", data.characterId, data.skills.size(),
+		data.depots.size());
 }
 
 } // namespace qm

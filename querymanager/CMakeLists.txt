@@ -6,6 +6,7 @@ find_package(Threads REQUIRED)
 
 # Protocol layer: framing, typed readers/writers, query catalogue. No storage, no sockets.
 add_library(qm_protocol STATIC
+	src/playerdata.cc
 	src/protocol.cc
 	src/text.cc
 )

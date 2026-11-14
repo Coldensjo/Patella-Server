@@ -13,8 +13,9 @@ namespace qm {
 
 namespace {
 
-// Version of the schema below, stored in meta.schema_version.
-const int SchemaVersion = 1;
+// Version of the schema below, stored in meta.schema_version. 2 added the
+// player data (PlayerDataSchema); migrate() brings a version 1 database up.
+const int SchemaVersion = 2;
 
 // Table and column names follow the SQL statements the game writes to its
 // house log for the operator ("on reset: ..." in src/houses.cc): tables
@@ -180,6 +181,99 @@ const char *const Schema =
 	"	banish INTEGER NOT NULL,"
 	"	time INTEGER NOT NULL"
 	");";
+
+// The player data (playerdata.hh, loadPlayerData and savePlayerData), which
+// the game once kept in its player files. Keyed by character id alone, like
+// the files, and without a reference to characters: the game saves what it
+// loaded, also for a house owner the characters table does not know. The
+// numbers are the game's int values (negative ones stay negative); times are
+// Unix seconds. One row per character in player_data, the lists in tables of
+// their own; a list entry the game does not save (a skill it never set, a
+// spell not known, a quest value of 0) has no row. The item texts (inventory,
+// player_depots.content) are the text the player file had for the objects.
+const char *const PlayerDataSchema =
+	// The outfit columns: *_outfit is the outfit id; *_object_type the
+	// object the character looks like when that id is 0, the colors
+	// (*_head, *_body, *_legs, *_feet) those of any other outfit.
+	"CREATE TABLE player_data ("
+	"	character_id INTEGER PRIMARY KEY,"
+	"	name TEXT NOT NULL,"
+	"	race INTEGER NOT NULL,"
+	"	profession INTEGER NOT NULL,"
+	"	original_outfit INTEGER NOT NULL,"
+	"	original_object_type INTEGER NOT NULL DEFAULT 0,"
+	"	original_head INTEGER NOT NULL DEFAULT 0,"
+	"	original_body INTEGER NOT NULL DEFAULT 0,"
+	"	original_legs INTEGER NOT NULL DEFAULT 0,"
+	"	original_feet INTEGER NOT NULL DEFAULT 0,"
+	"	current_outfit INTEGER NOT NULL,"
+	"	current_object_type INTEGER NOT NULL DEFAULT 0,"
+	"	current_head INTEGER NOT NULL DEFAULT 0,"
+	"	current_body INTEGER NOT NULL DEFAULT 0,"
+	"	current_legs INTEGER NOT NULL DEFAULT 0,"
+	"	current_feet INTEGER NOT NULL DEFAULT 0,"
+	"	last_login INTEGER NOT NULL,"
+	"	last_logout INTEGER NOT NULL,"
+	"	start_x INTEGER NOT NULL,"
+	"	start_y INTEGER NOT NULL,"
+	"	start_z INTEGER NOT NULL,"
+	"	pos_x INTEGER NOT NULL,"
+	"	pos_y INTEGER NOT NULL,"
+	"	pos_z INTEGER NOT NULL,"
+	"	playerkiller_end INTEGER NOT NULL,"
+	"	inventory TEXT NOT NULL"
+	");"
+
+	// The skills the game has set (TPlayerData's Minimum is not INT_MIN).
+	"CREATE TABLE player_skills ("
+	"	character_id INTEGER NOT NULL,"
+	"	skill_nr INTEGER NOT NULL,"
+	"	actual INTEGER NOT NULL,"
+	"	maximum INTEGER NOT NULL,"
+	"	minimum INTEGER NOT NULL,"
+	"	delta_act INTEGER NOT NULL,"
+	"	magic_delta_act INTEGER NOT NULL,"
+	"	cycle INTEGER NOT NULL,"
+	"	max_cycle INTEGER NOT NULL,"
+	"	count INTEGER NOT NULL,"
+	"	max_count INTEGER NOT NULL,"
+	"	add_level INTEGER NOT NULL,"
+	"	experience INTEGER NOT NULL,"
+	"	factor_percent INTEGER NOT NULL,"
+	"	next_level INTEGER NOT NULL,"
+	"	delta INTEGER NOT NULL,"
+	"	PRIMARY KEY (character_id, skill_nr)"
+	") WITHOUT ROWID;"
+
+	"CREATE TABLE player_spells ("
+	"	character_id INTEGER NOT NULL,"
+	"	spell_nr INTEGER NOT NULL,"
+	"	PRIMARY KEY (character_id, spell_nr)"
+	") WITHOUT ROWID;"
+
+	"CREATE TABLE player_quest_values ("
+	"	character_id INTEGER NOT NULL,"
+	"	quest_nr INTEGER NOT NULL,"
+	"	value INTEGER NOT NULL,"
+	"	PRIMARY KEY (character_id, quest_nr)"
+	") WITHOUT ROWID;"
+
+	// The times of the character's unjustified kills; position 0 is the
+	// oldest. The game keeps the last 20 and saves those of the last 30 days.
+	"CREATE TABLE player_murders ("
+	"	character_id INTEGER NOT NULL,"
+	"	position INTEGER NOT NULL,"
+	"	time INTEGER NOT NULL,"
+	"	PRIMARY KEY (character_id, position)"
+	") WITHOUT ROWID;"
+
+	// The depots that have contents (0 to 8, the town depots of map.toml).
+	"CREATE TABLE player_depots ("
+	"	character_id INTEGER NOT NULL,"
+	"	depot_nr INTEGER NOT NULL,"
+	"	content TEXT NOT NULL,"
+	"	PRIMARY KEY (character_id, depot_nr)"
+	") WITHOUT ROWID;";
 
 class Stmt {
 public:
@@ -381,6 +475,7 @@ void SqliteStorage::createSchema() {
 		exec("BEGIN IMMEDIATE");
 		try {
 			exec(Schema);
+			exec(PlayerDataSchema);
 			Stmt stmt(Db, "INSERT INTO meta (key, value) VALUES ('schema_version', ?)");
 			stmt.bind(1, SchemaVersion).run();
 		} catch (...) {
@@ -390,10 +485,37 @@ void SqliteStorage::createSchema() {
 		exec("COMMIT");
 		return;
 	}
-	Stmt stmt(Db, "SELECT value FROM meta WHERE key = 'schema_version'");
-	if (!stmt.step() || stmt.columnInt(0) != SchemaVersion) {
+	int64_t version = 0;
+	{
+		Stmt stmt(Db, "SELECT value FROM meta WHERE key = 'schema_version'");
+		if (stmt.step()) {
+			version = stmt.columnInt(0);
+		}
+	}
+	if (version == SchemaVersion) {
+		return;
+	}
+	if (version < 1 || version > SchemaVersion) {
 		throw StorageError("database has a different schema version than this program");
 	}
+	migrate(version);
+}
+
+// Brings a database of an older schema version up to SchemaVersion in one
+// transaction: either every step is applied or none.
+void SqliteStorage::migrate(int64_t version) {
+	exec("BEGIN IMMEDIATE");
+	try {
+		if (version < 2) {
+			exec(PlayerDataSchema);
+		}
+		Stmt stmt(Db, "UPDATE meta SET value = ? WHERE key = 'schema_version'");
+		stmt.bind(1, SchemaVersion).run();
+	} catch (...) {
+		sqlite3_exec(Db, "ROLLBACK", nullptr, nullptr, nullptr);
+		throw;
+	}
+	exec("COMMIT");
 }
 
 void SqliteStorage::begin() {
@@ -943,6 +1065,198 @@ void SqliteStorage::excludeFromAuctions(uint32_t worldId, uint32_t characterId, 
 	Stmt stmt(Db, "INSERT INTO auction_exclusions (world_id, character_id, banish, time)"
 		" VALUES (?, ?, ?, ?)");
 	stmt.bind(1, worldId).bind(2, characterId).bind(3, banish ? 1 : 0).bind(4, now).run();
+}
+
+// --- player data
+
+namespace {
+
+const char *const PlayerDataColumns =
+	"name, race, profession,"
+	" original_outfit, original_object_type, original_head, original_body, original_legs, original_feet,"
+	" current_outfit, current_object_type, current_head, current_body, current_legs, current_feet,"
+	" last_login, last_logout, start_x, start_y, start_z, pos_x, pos_y, pos_z, playerkiller_end, inventory";
+
+// The outfit from its six columns, the first at `first`.
+void readOutfitColumns(Stmt &stmt, int first, PlayerOutfit &outfit) {
+	outfit = PlayerOutfit();
+	outfit.id = static_cast<int32_t>(stmt.columnInt(first));
+	if (outfit.id == 0) {
+		outfit.objectType = static_cast<uint16_t>(stmt.columnInt(first + 1));
+	} else {
+		for (int i = 0; i < 4; i++) {
+			outfit.colors[i] = static_cast<uint8_t>(stmt.columnInt(first + 2 + i));
+		}
+	}
+}
+
+void bindOutfitColumns(Stmt &stmt, int first, const PlayerOutfit &outfit) {
+	stmt.bind(first, outfit.id);
+	stmt.bind(first + 1, outfit.id == 0 ? outfit.objectType : 0);
+	for (int i = 0; i < 4; i++) {
+		stmt.bind(first + 2 + i, outfit.id != 0 ? outfit.colors[i] : 0);
+	}
+}
+
+int32_t columnInt32(Stmt &stmt, int column) {
+	return static_cast<int32_t>(stmt.columnInt(column));
+}
+
+} // namespace
+
+std::optional<PlayerData> SqliteStorage::loadPlayerData(uint32_t characterId) {
+	PlayerData data;
+	data.characterId = characterId;
+	{
+		Stmt stmt(Db, (std::string("SELECT ") + PlayerDataColumns
+			+ " FROM player_data WHERE character_id = ?").c_str());
+		stmt.bind(1, characterId);
+		if (!stmt.step()) {
+			return std::nullopt;
+		}
+		data.name = stmt.columnText(0);
+		data.race = columnInt32(stmt, 1);
+		data.profession = columnInt32(stmt, 2);
+		readOutfitColumns(stmt, 3, data.originalOutfit);
+		readOutfitColumns(stmt, 9, data.currentOutfit);
+		data.lastLogin = columnInt32(stmt, 15);
+		data.lastLogout = columnInt32(stmt, 16);
+		data.startX = columnInt32(stmt, 17);
+		data.startY = columnInt32(stmt, 18);
+		data.startZ = columnInt32(stmt, 19);
+		data.posX = columnInt32(stmt, 20);
+		data.posY = columnInt32(stmt, 21);
+		data.posZ = columnInt32(stmt, 22);
+		data.playerkillerEnd = columnInt32(stmt, 23);
+		data.inventory = stmt.columnText(24);
+	}
+	{
+		Stmt stmt(Db, "SELECT skill_nr, actual, maximum, minimum, delta_act, magic_delta_act, cycle, max_cycle,"
+			" count, max_count, add_level, experience, factor_percent, next_level, delta"
+			" FROM player_skills WHERE character_id = ? ORDER BY skill_nr");
+		stmt.bind(1, characterId);
+		while (stmt.step()) {
+			PlayerSkill skill;
+			skill.number = static_cast<uint8_t>(stmt.columnInt(0));
+			skill.actual = columnInt32(stmt, 1);
+			skill.maximum = columnInt32(stmt, 2);
+			skill.minimum = columnInt32(stmt, 3);
+			skill.deltaAct = columnInt32(stmt, 4);
+			skill.magicDeltaAct = columnInt32(stmt, 5);
+			skill.cycle = columnInt32(stmt, 6);
+			skill.maxCycle = columnInt32(stmt, 7);
+			skill.count = columnInt32(stmt, 8);
+			skill.maxCount = columnInt32(stmt, 9);
+			skill.addLevel = columnInt32(stmt, 10);
+			skill.experience = columnInt32(stmt, 11);
+			skill.factorPercent = columnInt32(stmt, 12);
+			skill.nextLevel = columnInt32(stmt, 13);
+			skill.delta = columnInt32(stmt, 14);
+			data.skills.push_back(skill);
+		}
+	}
+	{
+		Stmt stmt(Db, "SELECT spell_nr FROM player_spells WHERE character_id = ? ORDER BY spell_nr");
+		stmt.bind(1, characterId);
+		while (stmt.step()) {
+			data.spells.push_back(static_cast<uint8_t>(stmt.columnInt(0)));
+		}
+	}
+	{
+		Stmt stmt(Db, "SELECT quest_nr, value FROM player_quest_values WHERE character_id = ?"
+			" ORDER BY quest_nr");
+		stmt.bind(1, characterId);
+		while (stmt.step()) {
+			PlayerQuestValue quest;
+			quest.number = static_cast<uint16_t>(stmt.columnInt(0));
+			quest.value = columnInt32(stmt, 1);
+			data.questValues.push_back(quest);
+		}
+	}
+	{
+		Stmt stmt(Db, "SELECT time FROM player_murders WHERE character_id = ? ORDER BY position");
+		stmt.bind(1, characterId);
+		while (stmt.step()) {
+			data.murders.push_back(columnInt32(stmt, 0));
+		}
+	}
+	{
+		Stmt stmt(Db, "SELECT depot_nr, content FROM player_depots WHERE character_id = ? ORDER BY depot_nr");
+		stmt.bind(1, characterId);
+		while (stmt.step()) {
+			PlayerDepot depot;
+			depot.number = static_cast<uint8_t>(stmt.columnInt(0));
+			depot.content = stmt.columnText(1);
+			data.depots.push_back(depot);
+		}
+	}
+	return data;
+}
+
+void SqliteStorage::savePlayerData(const PlayerData &data) {
+	uint32_t id = data.characterId;
+	for (const char *table : {"player_skills", "player_spells", "player_quest_values", "player_murders",
+			"player_depots"}) {
+		Stmt stmt(Db, (std::string("DELETE FROM ") + table + " WHERE character_id = ?").c_str());
+		stmt.bind(1, id).run();
+	}
+	{
+		Stmt stmt(Db, (std::string("INSERT OR REPLACE INTO player_data (character_id, ") + PlayerDataColumns
+			+ ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").c_str());
+		stmt.bind(1, id).bindText(2, data.name).bind(3, data.race).bind(4, data.profession);
+		bindOutfitColumns(stmt, 5, data.originalOutfit);
+		bindOutfitColumns(stmt, 11, data.currentOutfit);
+		stmt.bind(17, data.lastLogin).bind(18, data.lastLogout).bind(19, data.startX).bind(20, data.startY)
+			.bind(21, data.startZ).bind(22, data.posX).bind(23, data.posY).bind(24, data.posZ)
+			.bind(25, data.playerkillerEnd).bindText(26, data.inventory).run();
+	}
+	if (!data.skills.empty()) {
+		Stmt stmt(Db, "INSERT INTO player_skills (character_id, skill_nr, actual, maximum, minimum, delta_act,"
+			" magic_delta_act, cycle, max_cycle, count, max_count, add_level, experience, factor_percent,"
+			" next_level, delta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+		for (const PlayerSkill &skill : data.skills) {
+			stmt.bind(1, id).bind(2, skill.number).bind(3, skill.actual).bind(4, skill.maximum)
+				.bind(5, skill.minimum).bind(6, skill.deltaAct).bind(7, skill.magicDeltaAct).bind(8, skill.cycle)
+				.bind(9, skill.maxCycle).bind(10, skill.count).bind(11, skill.maxCount).bind(12, skill.addLevel)
+				.bind(13, skill.experience).bind(14, skill.factorPercent).bind(15, skill.nextLevel)
+				.bind(16, skill.delta).run();
+			stmt.reset();
+		}
+	}
+	if (!data.spells.empty()) {
+		Stmt stmt(Db, "INSERT INTO player_spells (character_id, spell_nr) VALUES (?, ?)");
+		for (uint8_t spell : data.spells) {
+			stmt.bind(1, id).bind(2, spell).run();
+			stmt.reset();
+		}
+	}
+	if (!data.questValues.empty()) {
+		Stmt stmt(Db, "INSERT INTO player_quest_values (character_id, quest_nr, value) VALUES (?, ?, ?)");
+		for (const PlayerQuestValue &quest : data.questValues) {
+			stmt.bind(1, id).bind(2, quest.number).bind(3, quest.value).run();
+			stmt.reset();
+		}
+	}
+	if (!data.murders.empty()) {
+		Stmt stmt(Db, "INSERT INTO player_murders (character_id, position, time) VALUES (?, ?, ?)");
+		for (size_t i = 0; i < data.murders.size(); i++) {
+			stmt.bind(1, id).bind(2, static_cast<int64_t>(i)).bind(3, data.murders[i]).run();
+			stmt.reset();
+		}
+	}
+	if (!data.depots.empty()) {
+		Stmt stmt(Db, "INSERT INTO player_depots (character_id, depot_nr, content) VALUES (?, ?, ?)");
+		for (const PlayerDepot &depot : data.depots) {
+			stmt.bind(1, id).bind(2, depot.number).bindText(3, depot.content).run();
+			stmt.reset();
+		}
+	}
+}
+
+bool SqliteStorage::hasPlayerData(uint32_t characterId) {
+	Stmt stmt(Db, "SELECT 1 FROM player_data WHERE character_id = ?");
+	stmt.bind(1, characterId);
+	return stmt.step();
 }
 
 } // namespace qm

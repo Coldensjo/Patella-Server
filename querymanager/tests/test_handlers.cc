@@ -5,6 +5,10 @@
 #include "sqlite_storage.hh"
 #include "test.hh"
 
+#include <sqlite3.h>
+#include <unistd.h>
+
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -1043,6 +1047,196 @@ void testRejectedRequests() {
 	CHECK(f.call(request(QUERY_LOAD_WORLD_CONFIG))[0] == STATUS_OK);
 }
 
+// Made-up player data with every kind of field, negative numbers and item
+// text with ISO-8859-1 letters and line breaks.
+PlayerData samplePlayerData(uint32_t characterId) {
+	PlayerData data;
+	data.characterId = characterId;
+	data.name = "M\xE4" "de Up";
+	data.race = 1;
+	data.profession = 12;
+	data.originalOutfit.id = 130;
+	data.originalOutfit.colors[0] = 78;
+	data.originalOutfit.colors[1] = 69;
+	data.originalOutfit.colors[2] = 58;
+	data.originalOutfit.colors[3] = 76;
+	data.currentOutfit.id = 0;
+	data.currentOutfit.objectType = 3058;
+	data.lastLogin = 1146000000;
+	data.lastLogout = 1146003600;
+	data.startX = 32369;
+	data.startY = 32241;
+	data.startZ = 7;
+	data.posX = 32370;
+	data.posY = 32242;
+	data.posZ = 6;
+	data.playerkillerEnd = -1;
+	PlayerSkill level;
+	level.number = 0;
+	level.actual = 8;
+	level.maximum = 8;
+	level.minimum = 1;
+	level.experience = 4200;
+	level.delta = -3;
+	PlayerSkill fist;
+	fist.number = 7;
+	fist.actual = 10;
+	fist.nextLevel = 50;
+	fist.factorPercent = 150;
+	data.skills = {level, fist};
+	data.spells = {1, 22, 255};
+	PlayerQuestValue quest;
+	quest.number = 499;
+	quest.value = -7;
+	data.questValues = {quest};
+	data.murders = {1146000100, 1146000200};
+	data.inventory = "{1 Content={3355},\n               3 Content={1987 Content={3031 Amount=12, "
+		"2820 String=\"Gr\xFC\xDF \\\"dich\\\"\"}}}";
+	PlayerDepot depot;
+	depot.number = 2;
+	depot.content = "{2590 Content={2594}}";
+	data.depots = {depot};
+	return data;
+}
+
+WriteBuffer savePlayerDataRequest(const PlayerData &data) {
+	WriteBuffer buffer = request(QUERY_SAVE_PLAYER_DATA);
+	buffer.writeQuad(data.characterId);
+	writePlayerData(buffer, data);
+	return buffer;
+}
+
+WriteBuffer loadPlayerDataRequest(uint32_t characterId) {
+	WriteBuffer buffer = request(QUERY_LOAD_PLAYER_DATA);
+	buffer.writeQuad(characterId);
+	return buffer;
+}
+
+void testPlayerData() {
+	Fixture f;
+	f.login();
+	f.addCharacter(500, "Made Up");
+
+	// Nothing stored: OK with the flag clear.
+	std::vector<uint8_t> response = f.call(loadPlayerDataRequest(500));
+	CHECK(response == std::vector<uint8_t>({STATUS_OK, 0}));
+
+	PlayerData data = samplePlayerData(500);
+	CHECK(isOk(f.call(savePlayerDataRequest(data))));
+	CHECK(f.storage.hasPlayerData(500));
+	response = f.call(loadPlayerDataRequest(500));
+	CHECK(response.size() > 2 && response[0] == STATUS_OK && response[1] == 1);
+	if (response.size() > 2) {
+		ReadBuffer in(response.data() + 2, response.size() - 2);
+		PlayerData loaded;
+		loaded.characterId = 500;
+		readPlayerData(in, loaded);
+		CHECK(in.eof());
+		CHECK(loaded == data);
+	}
+	// The response carries exactly the bytes of the saved record.
+	WriteBuffer record;
+	writePlayerData(record, data);
+	CHECK(std::vector<uint8_t>(response.begin() + 2, response.end()) == record.data());
+
+	// A save replaces everything, the lists too.
+	PlayerData smaller = data;
+	smaller.skills.resize(1);
+	smaller.spells.clear();
+	smaller.questValues.clear();
+	smaller.murders = {5};
+	smaller.depots.clear();
+	smaller.inventory = "{}";
+	smaller.currentOutfit = data.originalOutfit;
+	CHECK(isOk(f.call(savePlayerDataRequest(smaller))));
+	CHECK(f.storage.loadPlayerData(500) == smaller);
+
+	// A character the characters table does not know may have player data
+	// (the game saves what it loaded for any house owner).
+	PlayerData unknown = samplePlayerData(777);
+	CHECK(isOk(f.call(savePlayerDataRequest(unknown))));
+	CHECK(f.storage.loadPlayerData(777) == unknown);
+
+	// Not one of another world, and not character 0.
+	CharacterRecord stranger;
+	stranger.id = 600;
+	stranger.worldId = f.otherWorldId;
+	stranger.name = "Made Up Stranger";
+	f.storage.putCharacter(stranger);
+	CHECK(isFailed(f.call(savePlayerDataRequest(samplePlayerData(600)))));
+	CHECK(isFailed(f.call(loadPlayerDataRequest(600))));
+	CHECK(!f.storage.hasPlayerData(600));
+	CHECK(isFailed(f.call(savePlayerDataRequest(samplePlayerData(0)))));
+
+	// A record that ends early is refused and changes nothing.
+	WriteBuffer truncated = request(QUERY_SAVE_PLAYER_DATA);
+	truncated.writeQuad(500);
+	truncated.writeString("Made Up");
+	CHECK(isFailed(f.call(truncated)));
+	CHECK(f.storage.loadPlayerData(500) == smaller);
+
+	// Only a game server (a session bound to a world) may ask.
+	Fixture g;
+	g.storage.setApplicationPassword(APPLICATION_LOGIN, "login");
+	WriteBuffer login = request(QUERY_LOGIN);
+	login.writeByte(APPLICATION_LOGIN);
+	login.writeString("login");
+	CHECK(isOk(g.call(login)));
+	CHECK(isFailed(g.call(loadPlayerDataRequest(500))));
+}
+
+// A database of schema version 1 (before the player data) is brought up to
+// date when it is opened, and keeps what it had.
+void testSchemaMigration() {
+	char path[] = "/tmp/qm_test_migration_XXXXXX";
+	int fd = mkstemp(path);
+	CHECK(fd >= 0);
+	if (fd < 0) {
+		return;
+	}
+	close(fd);
+	{
+		SqliteStorage storage(path);
+		WorldConfig config;
+		uint32_t worldId = storage.putWorld("Testia", config, false);
+		CharacterRecord character;
+		character.id = 9;
+		character.worldId = worldId;
+		character.name = "Made Up Old";
+		storage.putCharacter(character);
+	}
+	// Turn it into a version 1 database.
+	sqlite3 *db = nullptr;
+	CHECK(sqlite3_open(path, &db) == SQLITE_OK);
+	CHECK(sqlite3_exec(db, "DROP TABLE player_data; DROP TABLE player_skills; DROP TABLE player_spells;"
+		" DROP TABLE player_quest_values; DROP TABLE player_murders; DROP TABLE player_depots;"
+		" UPDATE meta SET value = '1' WHERE key = 'schema_version'", nullptr, nullptr, nullptr) == SQLITE_OK);
+	sqlite3_close(db);
+	{
+		SqliteStorage storage(path);
+		CHECK(storage.findCharacter(9).has_value());
+		CHECK(storage.countRows("player_data") == 0);
+		PlayerData data = samplePlayerData(9);
+		storage.savePlayerData(data);
+		CHECK(storage.loadPlayerData(9) == data);
+	}
+	db = nullptr;
+	CHECK(sqlite3_open(path, &db) == SQLITE_OK);
+	sqlite3_stmt *stmt = nullptr;
+	CHECK(sqlite3_prepare_v2(db, "SELECT value FROM meta WHERE key = 'schema_version'", -1, &stmt, nullptr)
+		== SQLITE_OK);
+	CHECK(sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) == 2);
+	sqlite3_finalize(stmt);
+	// A version this program does not know is refused.
+	CHECK(sqlite3_exec(db, "UPDATE meta SET value = '3' WHERE key = 'schema_version'", nullptr, nullptr,
+		nullptr) == SQLITE_OK);
+	sqlite3_close(db);
+	CHECK_THROWS(SqliteStorage storage(path), StorageError);
+	for (const char *suffix : {"", "-wal", "-shm"}) {
+		std::remove((std::string(path) + suffix).c_str());
+	}
+}
+
 void testStorageBasics() {
 	SqliteStorage storage(":memory:");
 	WorldConfig config;
@@ -1108,6 +1302,8 @@ void all() {
 	testTransfers();
 	testEvictions();
 	testRejectedRequests();
+	testPlayerData();
+	testSchemaMigration();
 	testStorageBasics();
 }
 
