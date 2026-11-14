@@ -20,7 +20,6 @@
 #include "crskill.hh"
 
 struct TSkillLevel : public TSkill {
-	// inline  crskill.c:34
 	TSkillLevel(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual void Increase(int Amount);
 	virtual void Decrease(int Amount);
@@ -30,7 +29,6 @@ private:
 };
 
 struct TSkillProbe : public TSkill {
-	// inline  crskill.c:44
 	TSkillProbe(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual void Increase(int Amount);
 	virtual void Decrease(int Amount);
@@ -45,13 +43,11 @@ private:
 };
 
 struct TSkillAdd : public TSkill {
-	// inline  crskill.c:59
 	TSkillAdd(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual void Advance(int Range);
 };
 
 struct TSkillPoison : public TSkill {
-	// inline  crskill.c:66
 	TSkillPoison(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int additionalvalue);
 	virtual bool Process();
@@ -61,28 +57,24 @@ private:
 };
 
 struct TSkillBurning : public TSkill {
-	// inline  crskill.c:76
 	TSkillBurning(int nr, TCreature *cr) : TSkill(nr, cr) {}
 private:
 	virtual void Event(int);
 };
 
 struct TSkillEnergy : public TSkill {
-	// inline  crskill.c:83
 	TSkillEnergy(int nr, TCreature *cr) : TSkill(nr, cr) {}
 private:
 	virtual void Event(int);
 };
 
 struct TSkillFed : public TSkill {
-	// inline  crskill.c:90
 	TSkillFed(int nr, TCreature *cr) : TSkill(nr, cr) {}
 private:
 	virtual void Event(int);
 };
 
 struct TSkillIllusion : public TSkill {
-	// inline  crskill.c:97
 	TSkillIllusion(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 private:
@@ -90,7 +82,6 @@ private:
 };
 
 struct TSkillLight : public TSkill {
-	// inline  crskill.c:105
 	TSkillLight(int nr, TCreature *cr) : TSkill(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 private:
@@ -98,19 +89,16 @@ private:
 };
 
 struct TSkillHitpoints : public TSkillAdd {
-	// inline  crskill.c:113
 	TSkillHitpoints(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 };
 
 struct TSkillMana : public TSkillAdd {
-	// inline  crskill.c:119
 	TSkillMana(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 };
 
 struct TSkillSoulpoints : public TSkillAdd {
-	// inline  crskill.c:125
 	TSkillSoulpoints(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 	virtual int TimerValue() { return (Cycle - 1) * MaxCount + Count; }
@@ -118,7 +106,6 @@ struct TSkillSoulpoints : public TSkillAdd {
 };
 
 struct TSkillGoStrength : public TSkillAdd {
-	// inline  crskill.c:133
 	TSkillGoStrength(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 private:
@@ -126,7 +113,6 @@ private:
 };
 
 struct TSkillCarryStrength : public TSkillAdd {
-	// inline  crskill.c:141
 	TSkillCarryStrength(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
 };
@@ -148,7 +134,7 @@ static long double __cmath_power(double __x_, unsigned int __n) {
 	return __y;
 }
 
-// inline  cmath  (std::__pow_helper<double>, the body of pow(double, int))
+// std::__pow_helper<double> of the same libstdc++, the body of pow(double, int).
 static long double __pow_helper(double __x, int __n) {
 	return __n < 0
 		? 1.0L / __cmath_power(__x, -__n)

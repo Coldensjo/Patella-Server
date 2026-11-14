@@ -58,14 +58,14 @@ struct TPlayerIndexLeafNode : public TPlayerIndexNode {
 	TPlayerIndexEntry Entry[10];
 };
 
-vector<TPlayer *> PlayerList(0, 100, 10, nullptr);	// crplayer.c:59
-int FirstFreePlayer;	// crplayer.c:60
-Semaphore PlayerMutex(1);	// crplayer.c:61
-TPlayerData PlayerDataPool[2000];	// crplayer.c:63
-Semaphore PlayerDataPoolMutex(1);	// crplayer.c:64
-store<TPlayerIndexInternalNode, 100> PlayerIndexInternalNodes;	// crplayer.c:66
-store<TPlayerIndexLeafNode, 100> PlayerIndexLeafNodes;	// crplayer.c:67
-TPlayerIndexInternalNode PlayerIndexHead;	// crplayer.c:68
+vector<TPlayer *> PlayerList(0, 100, 10, nullptr);
+int FirstFreePlayer;
+Semaphore PlayerMutex(1);
+TPlayerData PlayerDataPool[2000];
+Semaphore PlayerDataPoolMutex(1);
+store<TPlayerIndexInternalNode, 100> PlayerIndexInternalNodes;
+store<TPlayerIndexLeafNode, 100> PlayerIndexLeafNodes;
+TPlayerIndexInternalNode PlayerIndexHead;
 
 int GetNumberOfPlayers() {
 	return FirstFreePlayer;

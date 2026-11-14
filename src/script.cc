@@ -12,7 +12,7 @@
 // unbounded with sprintf in the binary-file classes, truncating with snprintf
 // in the script-file classes.
 
-static char ErrorString[100];	// script.c:14
+static char ErrorString[100];
 
 void SaveFile(char *Filename) {
 	if (Filename == nullptr) {

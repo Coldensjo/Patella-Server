@@ -26,7 +26,6 @@
 
 struct THouseGuest {
 	char Name[60];
-	// inline  houses.c:31
 	operator char *() { return Name; }
 };
 
@@ -66,20 +65,19 @@ struct THouse {
 	vector<THouseGuest> Guest;
 	int Guests;
 	int Help;
-	// inline  houses.c:67
 	THouse() : Subowner(0, 4, 5), Guest(0, 9, 10) {}
 };
 
-vector<THouseArea> HouseArea(0, 99, 50);	// houses.c:71
-int HouseAreas;	// houses.c:72
-vector<THouse> House(0, 99, 100);	// houses.c:73
-int Houses;	// houses.c:74
-int MaxHouseX;	// houses.c:75
-int MaxHouseY;	// houses.c:75
-static TQueryManagerConnection *QueryManagerConnection;	// houses.c:76
-int PaymentExtension;	// houses.c:77
-vector<THelpDepot> HelpDepot(1, 10, 10);	// houses.c:78
-int HelpDepots;	// houses.c:79
+vector<THouseArea> HouseArea(0, 99, 50);
+int HouseAreas;
+vector<THouse> House(0, 99, 100);
+int Houses;
+int MaxHouseX;
+int MaxHouseY;
+static TQueryManagerConnection *QueryManagerConnection;
+int PaymentExtension;
+vector<THelpDepot> HelpDepot(1, 10, 10);
+int HelpDepots;
 
 // The original declares exception specifications: throw(RESULT) on
 // ShowSubownerList, ShowGuestList, ChangeSubowners, ChangeGuests, both

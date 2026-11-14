@@ -3,8 +3,8 @@
 
 #include "time.hh"
 
-uint32_t RoundNr = 0;	// time.c:12
-uint32_t ServerMilliseconds = 0;	// time.c:13
+uint32_t RoundNr = 0;
+uint32_t ServerMilliseconds = 0;
 
 // time_t was a 32-bit long in the original; time() is narrowed to that width
 // wherever it is stored.

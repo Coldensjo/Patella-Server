@@ -102,9 +102,9 @@ char SpellSyllable[51][6] = {
 	"",
 	"",
 	"",
-};	// magic.c:109
-TCircle Circle[10];	// magic.c:124
-TSpellList SpellList[256];	// magic.c:125
+};
+TCircle Circle[10];
+TSpellList SpellList[256];
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckMagicItem,
 // CheckRing, CheckAffectedPlayers, CheckMana and every spell function from

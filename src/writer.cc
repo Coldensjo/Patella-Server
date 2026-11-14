@@ -142,23 +142,23 @@ void GetOrder(TWriterThreadOrderType &OrderType, void *&Data);
 void InsertReply(TWriterThreadReplyType ReplyType, void *Data);
 bool GetReply(TWriterThreadReplyType &ReplyType, void *&Data);
 
-static Thread ProtocolThread = 0;	// writer.c:137
-static Thread WriterThread = 0;	// writer.c:138
-static TQueryManagerConnection *QueryManagerConnection = nullptr;	// writer.c:139
-static TProtocolThreadOrder ProtocolBuffer[1000];	// writer.c:144
-static TWriterThreadOrder OrderBuffer[2000];	// writer.c:145
-static TWriterThreadReply ReplyBuffer[100];	// writer.c:146
-static int ProtocolPointerWrite;	// writer.c:147
-static int ProtocolPointerRead;	// writer.c:148
-static int OrderPointerWrite;	// writer.c:149
-static int OrderPointerRead;	// writer.c:150
-static int ReplyPointerWrite;	// writer.c:151
-static int ReplyPointerRead;	// writer.c:152
-static Semaphore ProtocolMutex(1);	// writer.c:154
-static Semaphore ProtocolBufferEmpty(1000);	// writer.c:155
-static Semaphore ProtocolBufferFull(0);	// writer.c:156
-static Semaphore OrderBufferEmpty(2000);	// writer.c:157
-static Semaphore OrderBufferFull(0);	// writer.c:158
+static Thread ProtocolThread = 0;
+static Thread WriterThread = 0;
+static TQueryManagerConnection *QueryManagerConnection = nullptr;
+static TProtocolThreadOrder ProtocolBuffer[1000];
+static TWriterThreadOrder OrderBuffer[2000];
+static TWriterThreadReply ReplyBuffer[100];
+static int ProtocolPointerWrite;
+static int ProtocolPointerRead;
+static int OrderPointerWrite;
+static int OrderPointerRead;
+static int ReplyPointerWrite;
+static int ReplyPointerRead;
+static Semaphore ProtocolMutex(1);
+static Semaphore ProtocolBufferEmpty(1000);
+static Semaphore ProtocolBufferFull(0);
+static Semaphore OrderBufferEmpty(2000);
+static Semaphore OrderBufferFull(0);
 
 void InitProtocol() {
 	ProtocolPointerWrite = 0;

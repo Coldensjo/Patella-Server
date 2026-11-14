@@ -36,16 +36,16 @@
 // so an exception of another type now propagates instead of ending in
 // std::unexpected().
 
-TCreature *HashList[1000];	// crmain.c:31
-vector<TCreature *> CreatureList(0, 10000, 1000, nullptr);	// crmain.c:32
-int FirstFreeCreature;	// crmain.c:33
-TRaceData RaceData[512];	// crmain.c:34
-uint32_t NextCreatureID;	// crmain.c:35
-priority_queue<uint32_t, uint32_t> ToDoQueue(5000, 1000);	// crmain.c:36
-priority_queue<uint32_t, TAttackWave *> AttackWaveQueue(100, 100);	// crmain.c:37
-matrix<uint32_t> *FirstChainCreature;	// crmain.c:160
-int KilledCreatures[512];	// crmain.c:323
-int KilledPlayers[512];	// crmain.c:324
+TCreature *HashList[1000];
+vector<TCreature *> CreatureList(0, 10000, 1000, nullptr);
+int FirstFreeCreature;
+TRaceData RaceData[512];
+uint32_t NextCreatureID;
+priority_queue<uint32_t, uint32_t> ToDoQueue(5000, 1000);
+priority_queue<uint32_t, TAttackWave *> AttackWaveQueue(100, 100);
+matrix<uint32_t> *FirstChainCreature;
+int KilledCreatures[512];
+int KilledPlayers[512];
 
 TCreature *GetCreature(uint32_t id) {
 	if (id == 0) {

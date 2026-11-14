@@ -56,16 +56,16 @@ void GetOrder(TReaderThreadOrderType &OrderType, int &SectorX, int &SectorY, int
 void InsertReply(TReaderThreadReplyType ReplyType, int SectorX, int SectorY, int SectorZ, unsigned char *Data, int Size);
 bool GetReply(TReaderThreadReplyType &ReplyType, int &SectorX, int &SectorY, int &SectorZ, unsigned char *&Data, int &Size);
 
-static Thread ReaderThread = 0;	// reader.c:60
-static TReaderThreadOrder OrderBuffer[200];	// reader.c:50
-static TReaderThreadReply ReplyBuffer[200];	// reader.c:51
-static int OrderPointerWrite;	// reader.c:52
-static int OrderPointerRead;	// reader.c:53
-static int ReplyPointerWrite;	// reader.c:54
-static int ReplyPointerRead;	// reader.c:55
-static Semaphore OrderBufferEmpty(200);	// reader.c:57
-static Semaphore OrderBufferFull(0);	// reader.c:58
-static TDynamicWriteBuffer HelpBuffer(65536);	// reader.c:61
+static Thread ReaderThread = 0;
+static TReaderThreadOrder OrderBuffer[200];
+static TReaderThreadReply ReplyBuffer[200];
+static int OrderPointerWrite;
+static int OrderPointerRead;
+static int ReplyPointerWrite;
+static int ReplyPointerRead;
+static Semaphore OrderBufferEmpty(200);
+static Semaphore OrderBufferFull(0);
+static TDynamicWriteBuffer HelpBuffer(65536);
 
 void InitReaderBuffers() {
 	OrderPointerWrite = 0;

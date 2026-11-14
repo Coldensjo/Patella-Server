@@ -32,10 +32,10 @@
 const int PINGTIME = 30;
 const int IDLETIME = 900;
 
-TConnection Connections[1100];	// connections.c:32
-TConnection *FirstSendingConnection;	// connections.c:33
-Semaphore ConnectionMutex(1);	// connections.c:34
-int ConnectionIterator;	// connections.c:515
+TConnection Connections[1100];
+TConnection *FirstSendingConnection;
+Semaphore ConnectionMutex(1);
+int ConnectionIterator;
 
 TConnection::TConnection() {
 	Free();

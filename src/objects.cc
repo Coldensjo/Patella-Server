@@ -87,7 +87,7 @@ char FlagNames[66][20] = {
 	"Disguise",
 	"ShowDetail",
 	"Special",
-};	// objects.c:19
+};
 char TypeAttributeNames[62][30] = {
 	"Waypoints",
 	"Capacity",
@@ -151,7 +151,7 @@ char TypeAttributeNames[62][30] = {
 	"Elevation",
 	"DisguiseTarget",
 	"Meaning",
-};	// objects.c:32
+};
 FLAG TypeAttributeFlags[62] = {
 	BANK, CONTAINER, CHANGEUSE, KEYDOOR,
 	NAMEDOOR, LEVELDOOR, QUESTDOOR, FOOD,
@@ -169,19 +169,19 @@ FLAG TypeAttributeFlags[62] = {
 	WAND, AMMO, AMMO, AMMO,
 	AMMO, AMMO, ARMOR, HEIGHT,
 	DISGUISE, BANK,
-};	// objects.c:45
+};
 FLAG InstanceAttributeFlags[18] = {
 	CONTAINER, CHEST, CUMULATIVE, KEY,
 	KEYDOOR, LEVELDOOR, QUESTDOOR, QUESTDOOR,
 	RUNE, TEXT, TEXT, LIQUIDCONTAINER,
 	LIQUIDPOOL, TELEPORTABSOLUTE, MAGICFIELD, EXPIRE,
 	EXPIRESTOP, WEAROUT,
-};	// objects.c:57
-vector<TObjectType> ObjectTypes(0, 5000, 1000);	// objects.c:72
-ObjectType SpecialObjects[49];	// objects.c:74
-unsigned char OldGroup[8192];	// objects.c:182
-unsigned char OldNumber[8192];	// objects.c:183
-int NewType[65536];	// objects.c:184
+};
+vector<TObjectType> ObjectTypes(0, 5000, 1000);
+ObjectType SpecialObjects[49];
+unsigned char OldGroup[8192];
+unsigned char OldNumber[8192];
+int NewType[65536];
 
 int GetFlagByName(char *Name) {
 	for (int i = 0; i < FLAGS; i++) {

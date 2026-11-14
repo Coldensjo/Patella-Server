@@ -23,8 +23,8 @@ struct TDynamicStringTableBlock {
 	char Text[32768];
 };
 
-list<TStaticStringTableBlock> StaticStringTable;	// strings.c:33
-list<TDynamicStringTableBlock> DynamicStringTable;	// strings.c:34
+list<TStaticStringTableBlock> StaticStringTable;
+list<TDynamicStringTableBlock> DynamicStringTable;
 
 const char *AddStaticString(const char *String) {
 	int Length = static_cast<int>(strlen(String));

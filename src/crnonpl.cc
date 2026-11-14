@@ -57,7 +57,6 @@ struct TNode {
 };
 
 struct TCondition {
-	// inline  crnonpl.c:56
 	TCondition() { Type = 0; Text = 0; }
 	bool set(int Type, void *Data);
 	void clear();
@@ -69,7 +68,6 @@ struct TCondition {
 };
 
 struct TAction {
-	// inline  crnonpl.c:68
 	TAction() { Type = 0; Text = 0; }
 	bool set(int Type, void *Data, void *Data2, void *Data3, void *Data4);
 	void clear();
@@ -176,12 +174,12 @@ private:
 	uint32_t Target;
 };
 
-vector<TNonplayer *> NonplayerList(0, 10000, 1000, nullptr);	// crnonpl.c:174
-int FirstFreeNonplayer;	// crnonpl.c:175
-int CurrentNonplayer;	// crnonpl.c:176
-vector<TMonsterhome> Monsterhome(1, 5000, 1000);	// crnonpl.c:177
-int Monsterhomes;	// crnonpl.c:178
-store<TNode, 256> *NodeTable;	// crnonpl.c:179
+vector<TNonplayer *> NonplayerList(0, 10000, 1000, nullptr);
+int FirstFreeNonplayer;
+int CurrentNonplayer;
+vector<TMonsterhome> Monsterhome(1, 5000, 1000);
+int Monsterhomes;
+store<TNode, 256> *NodeTable;
 
 // Data stays as the store hands it out.
 TNode *NewNode(int op, TNode *left, TNode *right) {

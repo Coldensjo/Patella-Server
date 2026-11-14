@@ -41,11 +41,11 @@
 #include "receiving.hh"
 #include "main.hh"
 
-bool BeADaemon;	// main.c:39
-int SigUsr1Counter;	// main.c:40
-int SigAlarmCounter;	// main.c:41
-bool SaveMapOn;	// main.c:42
-bool Reboot;	// main.c:43
+bool BeADaemon;
+int SigUsr1Counter;
+int SigAlarmCounter;
+bool SaveMapOn;
+bool Reboot;
 
 void ProcessCommand() {
 	int Command = GetCommand();

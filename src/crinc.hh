@@ -49,7 +49,6 @@ struct TItemData {
 	ObjectType Type;
 	int Maximum;
 	int Probability;
-	// inline  crinc.h:51
 	TItemData() {}
 };
 

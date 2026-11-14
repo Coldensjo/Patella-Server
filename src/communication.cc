@@ -51,29 +51,29 @@ struct TWaitinglistEntry {
 
 static int TERMINALVERSION[3] = {
 	770, 770, 770,
-};	// communication.c:39
-int TCPSocket;	// communication.c:52
-Thread AcceptorThread;	// communication.c:53
-pid_t AcceptorThreadPID;	// communication.c:54
-int ActiveConnections;	// communication.c:55
-Semaphore CommunicationThreadMutex(1);	// communication.c:56
-bool UseOwnStacks;	// communication.c:57
-unsigned char CommunicationThreadStacks[72089600];	// communication.c:58
-pid_t LastUsingCommunicationThread[1100];	// communication.c:59
-int FreeCommunicationThreadStacks[1100];	// communication.c:60
-int NumberOfFreeCommunicationThreadStacks;	// communication.c:61
-TRSAPrivateKey PrivateKey;	// communication.c:62
-Semaphore RSAMutex(1);	// communication.c:63
-TQueryManagerConnectionPool QueryManagerConnectionPool(10);	// communication.c:66
-int LoadHistory[360];	// communication.c:69
-int LoadHistoryPointer;	// communication.c:70
-int TotalLoad;	// communication.c:71
-int TotalSend;	// communication.c:71
-int TotalRecv;	// communication.c:71
-uint32_t LagEnd;	// communication.c:72
-uint32_t EarliestFreeAccountAdmissionRound;	// communication.c:73
-store<TWaitinglistEntry, 100> Waitinglist;	// communication.c:76
-TWaitinglistEntry *WaitinglistHead;	// communication.c:77
+};
+int TCPSocket;
+Thread AcceptorThread;
+pid_t AcceptorThreadPID;
+int ActiveConnections;
+Semaphore CommunicationThreadMutex(1);
+bool UseOwnStacks;
+unsigned char CommunicationThreadStacks[72089600];
+pid_t LastUsingCommunicationThread[1100];
+int FreeCommunicationThreadStacks[1100];
+int NumberOfFreeCommunicationThreadStacks;
+TRSAPrivateKey PrivateKey;
+Semaphore RSAMutex(1);
+TQueryManagerConnectionPool QueryManagerConnectionPool(10);
+int LoadHistory[360];
+int LoadHistoryPointer;
+int TotalLoad;
+int TotalSend;
+int TotalRecv;
+uint32_t LagEnd;
+uint32_t EarliestFreeAccountAdmissionRound;
+store<TWaitinglistEntry, 100> Waitinglist;
+TWaitinglistEntry *WaitinglistHead;
 
 // Not in the original: the login time-out timer of each communication
 // thread, which stands in for the per-thread alarm() of LinuxThreads, and

@@ -32,7 +32,6 @@
 // std::unexpected().
 
 struct TShortwayPoint {
-	// inline  cract.c:34
 	TShortwayPoint() {
 		Waylength = -1;
 		Heuristic = -1;

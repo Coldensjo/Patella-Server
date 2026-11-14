@@ -76,37 +76,37 @@ char InstanceAttributeNames[18][30] = {
 	"RemainingExpireTime",
 	"SavedExpireTime",
 	"RemainingUses",
-};	// map.c:38
-matrix3d<TSector *> *Sector;	// map.c:81
-TObjectBlock **ObjectBlock;	// map.c:82
-TObject *FirstFreeObject;	// map.c:83
-uintptr_t *HashTableData;	// map.c:84
-unsigned char *HashTableType;	// map.c:85
-int HashTableSize;	// map.c:86
-uint32_t HashTableMask;	// map.c:87
-int HashTableFree;	// map.c:88
-int ObjectCounter;	// map.c:89
-vector<TCronEntry> CronEntry(0, 256, 256);	// map.c:90
-int CronHashTable[2047];	// map.c:91
-int CronEntries;	// map.c:92
-int OBCount;	// map.c:93
-int SectorXMin;	// map.c:94
-int SectorXMax;	// map.c:95
-int SectorYMin;	// map.c:96
-int SectorYMax;	// map.c:97
-int SectorZMin;	// map.c:98
-int SectorZMax;	// map.c:99
-int RefreshedCylinders;	// map.c:100
-vector<TDepotInfo> DepotInfo(0, 4, 5);	// map.c:101
-vector<TMark> Mark(0, 4, 5);	// map.c:102
-int Marks;	// map.c:103
-int NewbieStartPositionX;	// map.c:104
-int NewbieStartPositionY;	// map.c:105
-int NewbieStartPositionZ;	// map.c:106
-int VeteranStartPositionX;	// map.c:107
-int VeteranStartPositionY;	// map.c:108
-int VeteranStartPositionZ;	// map.c:109
-static TDynamicWriteBuffer HelpBuffer(65536);	// map.c:110
+};
+matrix3d<TSector *> *Sector;
+TObjectBlock **ObjectBlock;
+TObject *FirstFreeObject;
+uintptr_t *HashTableData;
+unsigned char *HashTableType;
+int HashTableSize;
+uint32_t HashTableMask;
+int HashTableFree;
+int ObjectCounter;
+vector<TCronEntry> CronEntry(0, 256, 256);
+int CronHashTable[2047];
+int CronEntries;
+int OBCount;
+int SectorXMin;
+int SectorXMax;
+int SectorYMin;
+int SectorYMax;
+int SectorZMin;
+int SectorZMax;
+int RefreshedCylinders;
+vector<TDepotInfo> DepotInfo(0, 4, 5);
+vector<TMark> Mark(0, 4, 5);
+int Marks;
+int NewbieStartPositionX;
+int NewbieStartPositionY;
+int NewbieStartPositionZ;
+int VeteranStartPositionX;
+int VeteranStartPositionY;
+int VeteranStartPositionZ;
+static TDynamicWriteBuffer HelpBuffer(65536);
 
 TObject &AccessObject(Object Obj) {
 	if (Obj == NONE) {

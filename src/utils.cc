@@ -12,9 +12,9 @@
 
 #include "utils.hh"
 
-TPrintFunction *PrintFunction = nullptr;	// utils.c:15
-TErrorFunction *ErrorFunction = nullptr;	// utils.c:16
-char StandardLogfile[4096] = "";	// utils.c:17
+TPrintFunction *PrintFunction = nullptr;
+TErrorFunction *ErrorFunction = nullptr;
+char StandardLogfile[4096] = "";
 
 void SetPrintFunction(TPrintFunction *Function) {
 	PrintFunction = Function;

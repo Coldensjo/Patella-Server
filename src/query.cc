@@ -21,8 +21,8 @@
 #include "query.hh"
 #include "utils.hh"
 
-int ApplicationType;	// query.c:85
-char LoginData[30];	// query.c:86
+int ApplicationType;
+char LoginData[30];
 
 void SetQueryManagerLoginData(int Type, char *Data) {
 	ApplicationType = Type;

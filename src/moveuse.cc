@@ -150,7 +150,6 @@ struct TMoveUseRule {
 struct TMoveUseDatabase {
 	vector<TMoveUseRule> Rules;
 	int NumberOfRules;
-	// inline  moveuse.c:88
 	TMoveUseDatabase() : Rules(1, 100, 100) { NumberOfRules = 0; }
 };
 
@@ -166,13 +165,13 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp);
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2);
 
-vector<TMoveUseCondition> MoveUseConditions(1, 1000, 1000);	// moveuse.c:99
-int NumberOfMoveUseConditions;	// moveuse.c:100
-vector<TMoveUseAction> MoveUseActions(1, 1000, 1000);	// moveuse.c:101
-int NumberOfMoveUseActions;	// moveuse.c:102
-TMoveUseDatabase MoveUseDatabases[5];	// moveuse.c:103
-vector<TDelayedMail> DelayedMail(0, 10, 10);	// moveuse.c:104
-int DelayedMails;	// moveuse.c:105
+vector<TMoveUseCondition> MoveUseConditions(1, 1000, 1000);
+int NumberOfMoveUseConditions;
+vector<TMoveUseAction> MoveUseActions(1, 1000, 1000);
+int NumberOfMoveUseActions;
+TMoveUseDatabase MoveUseDatabases[5];
+vector<TDelayedMail> DelayedMail(0, 10, 10);
+int DelayedMails;
 
 // The original declares exception specifications: throw(RESULT) on
 // ChangeObject, LoadDepotBox, SaveDepotBox, SendMail, UseContainer, UseChest,

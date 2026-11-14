@@ -30,10 +30,9 @@
 
 const int OBJECTS_PER_POINT = 10;
 
-static const int OBJECTS_PER_CONTAINER = 36;	// sending.c:28
-static int Skip = -1;	// sending.c:208
+static const int OBJECTS_PER_CONTAINER = 36;
+static int Skip = -1;
 
-// inline  sending.c:111
 static inline void SendByte(TConnection *Connection, unsigned char Value) {
 	if (Connection->NextToWrite < Connection->NextToSend + (int)sizeof(Connection->OutData)) {
 		Connection->OutData[Connection->NextToWrite % (int)sizeof(Connection->OutData)] = Value;
@@ -43,7 +42,6 @@ static inline void SendByte(TConnection *Connection, unsigned char Value) {
 	}
 }
 
-// inline  sending.c:124
 static inline void SendWord(TConnection *Connection, unsigned short Value) {
 	if (Connection->NextToWrite < Connection->NextToSend + (int)sizeof(Connection->OutData) - 1) {
 		Connection->OutData[Connection->NextToWrite % (int)sizeof(Connection->OutData)] = (unsigned char)Value;
@@ -54,7 +52,6 @@ static inline void SendWord(TConnection *Connection, unsigned short Value) {
 	}
 }
 
-// inline  sending.c:139
 static inline void SendQuad(TConnection *Connection, uint32_t Value) {
 	if (Connection->NextToWrite < Connection->NextToSend + (int)sizeof(Connection->OutData) - 3) {
 		Connection->OutData[Connection->NextToWrite % (int)sizeof(Connection->OutData)] = (unsigned char)Value;
@@ -93,7 +90,6 @@ static inline void SendText(TConnection *Connection, const char *Text, int Lengt
 	Connection->NextToWrite += Length;
 }
 
-// inline  sending.c:183
 static inline void SendString(TConnection *Connection, const char *String) {
 	if (String == nullptr) {
 		error("SendString: String ist NULL.\n");
@@ -107,7 +103,6 @@ static inline void SendString(TConnection *Connection, const char *String) {
 	}
 }
 
-// inline  sending.c:198
 static inline void SendObjectType(TConnection *Connection, Object Obj) {
 	if (Obj.getFlag(DISGUISE)) {
 		SendWord(Connection, (unsigned short)Obj.getAttribute(DISGUISETARGET));

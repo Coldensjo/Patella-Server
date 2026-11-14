@@ -76,15 +76,15 @@ struct TParty {
 	}
 };
 
-int Channels = 8;	// operate.c:2159
-int StatementID = 0;	// operate.c:2507
-int Parties = 0;	// operate.c:2667
-vector<TChannel> Channel(0, 18, 10);	// operate.c:2158
-int CurrentChannelID;	// operate.c:2160
-int CurrentSubscriberNumber;	// operate.c:2161
-fifo<TStatement> Statements(1024);	// operate.c:2508
-fifo<TListener> Listeners(1024);	// operate.c:2509
-vector<TParty> Party(0, 100, 50);	// operate.c:2666
+int Channels = 8;
+int StatementID = 0;
+int Parties = 0;
+vector<TChannel> Channel(0, 18, 10);
+int CurrentChannelID;
+int CurrentSubscriberNumber;
+fifo<TStatement> Statements(1024);
+fifo<TListener> Listeners(1024);
+vector<TParty> Party(0, 100, 50);
 
 // CheckTopMoveObject through both CheckWeight overloads, Create, Copy, Move,
 // Merge, both Change overloads, Delete, Empty and Look are declared
