@@ -145,7 +145,10 @@ is read only by `querymanager-seed`, to find the files to import.
 When a save does not reach the query manager, the game keeps the data in the
 save folder (`[paths] save`) as `playerdata-<id>.rec` and logs where. It sends
 that file before it loads the character again and at its next start; the next
-successful save makes it obsolete. While the file cannot be sent, the
+successful save makes it obsolete. A query manager that takes the connection
+but does not answer makes a save wait 30 seconds; after such a save the game
+keeps its saves in files at once for a minute, so that saving many characters
+(at shutdown, say) does not take hours. While the file cannot be sent, the
 character cannot log in: a load that fails refuses the login, so that a
 character never starts as new because its data could not be read.
 

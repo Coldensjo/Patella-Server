@@ -5,6 +5,7 @@
 // (TOutfit). The game once kept this data in its player files,
 // usr/NN/<id>.usr; their reader and writer are in tools/convert now.
 
+#include <atomic>
 #include <cctype>
 #include <cerrno>
 #include <climits>
@@ -48,6 +49,22 @@ static const uint32_t MAX_ITEM_TEXT = PLAYERDATA_BUFFER_SIZE;
 
 // The times SavePlayerData keeps of the murders: those of the last 30 days.
 static const int MURDER_MEMORY = 2592000;
+
+// A query manager that takes the connection but does not answer (frozen,
+// overloaded) costs every request the 30 s of its timeout, and the saves of
+// all dirty slots one after the other (the writer's periodic save,
+// ExitPlayerPool at shutdown) would take hours. So once a save has failed
+// after SAVE_HANG_TIME seconds or more, SavePlayerData keeps the records in
+// their files at once for SAVE_PAUSE seconds, without asking the query
+// manager; the character's next load or the next start sends them. A query
+// manager that is down refuses the connection at once and causes no pause.
+static const int SAVE_HANG_TIME = 5;
+static const int SAVE_PAUSE = 60;
+static std::atomic<long> SavePausedUntil(0);
+
+static bool SavesPaused() {
+	return (long)time(nullptr) < SavePausedUntil.load();
+}
 
 void TOutfit::load(TReadScriptFile &Script) {
 	Script.readSymbol('(');
@@ -645,10 +662,21 @@ bool SavePlayerData(TPlayerData *Slot) {
 	}
 
 	int Result = -1;
-	{
-		TQueryManagerPoolConnection Connection(&PlayerDataConnections);
-		if (Connection.operator->() != nullptr) {
-			Result = Connection->savePlayerData(Slot->CharacterID, Record.getData(), Record.getDataSize());
+	time_t Start = time(nullptr);
+	if (!SavesPaused()) {
+		{
+			TQueryManagerPoolConnection Connection(&PlayerDataConnections);
+			// The pause may have begun while this thread waited for the
+			// connection.
+			if (Connection.operator->() != nullptr && !SavesPaused()) {
+				Result = Connection->savePlayerData(Slot->CharacterID, Record.getData(), Record.getDataSize());
+			}
+		}
+
+		if (Result != 0 && time(nullptr) - Start >= SAVE_HANG_TIME && !SavesPaused()) {
+			SavePausedUntil = (long)time(nullptr) + SAVE_PAUSE;
+			error("SavePlayerData: The query manager did not answer for %d seconds; player data is kept in files for the next %d seconds.\n",
+					(int)(time(nullptr) - Start), SAVE_PAUSE);
 		}
 	}
 

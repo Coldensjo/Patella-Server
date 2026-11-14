@@ -5,10 +5,12 @@
 // of the file (ReadPlayerFileRecord); the item text in the database must be
 // the file's; a character without data starts as a new one; and a save while
 // the query manager is gone must keep the data in a file under the save path
-// that the next load or start sends, while a load in that time must refuse.
-// The query manager runs in this process, on a port the system chooses, with
-// a database in a temporary folder.
+// that the next load or start sends, while a load in that time must refuse;
+// after a save that waited for a query manager that does not answer, the next
+// saves keep their records at once. The query manager runs in this process,
+// on a port the system chooses, with a database in a temporary folder.
 
+#include <arpa/inet.h>
 #include <atomic>
 #include <cerrno>
 #include <climits>
@@ -17,7 +19,10 @@
 #include <ctime>
 #include <memory>
 #include <optional>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 #include "config.hh"
@@ -491,10 +496,39 @@ void Run(const fs::path &Root) {
 		CHECK(!LoadPlayerData(Loaded.get()));
 		CHECK(Loaded->Inventory == nullptr);
 	}
+
+	// A query manager that takes the connection and does not answer (a
+	// socket that listens and never accepts): the first save waits for the
+	// timeout and keeps its record; the next one keeps its record at once
+	// instead of waiting too. This step takes about 30 s.
+	Manager.stop();
+	int Hung = socket(AF_INET, SOCK_STREAM, 0);
+	int One = 1;
+	setsockopt(Hung, SOL_SOCKET, SO_REUSEADDR, &One, sizeof(One));
+	sockaddr_in Address;
+	memset(&Address, 0, sizeof(Address));
+	Address.sin_family = AF_INET;
+	Address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	Address.sin_port = htons(Manager.Port);
+	CHECK(bind(Hung, reinterpret_cast<sockaddr *>(&Address), sizeof(Address)) == 0 && listen(Hung, 16) == 0);
+	{
+		CHECK(!fs::exists(Kept));
+		time_t Start = time(nullptr);
+		CHECK(SavePlayerData(Moved.get()));
+		CHECK(time(nullptr) - Start >= 5);
+		CHECK(fs::is_regular_file(Kept));
+		TSlot Other = Copy(*Sorcerer);
+		Start = time(nullptr);
+		CHECK(SavePlayerData(Other.get()));
+		// Well below the 30 s of a request that waits (the kept file's fsync
+		// may take a few seconds on a busy disk).
+		CHECK(time(nullptr) - Start < 20);
+		CHECK(fs::is_regular_file(Root / "save" / "playerdata-5678.rec"));
+	}
+	close(Hung);
 	SetErrorFunction(nullptr);
 
 	ExitPlayerData();
-	Manager.stop();
 }
 
 } // namespace
