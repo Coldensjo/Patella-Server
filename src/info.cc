@@ -980,7 +980,7 @@ bool SearchFlightField(uint32_t FugitiveID, uint32_t PursuerID, int &x, int &y, 
 	}
 
 	if (Fugitive->posz != Pursuer->posz) {
-		error("SearchFlightField: Fugitive and pursuer are on different levels.\n");
+		error("SearchFlightField: Fugitive and pursuer are on different floors.\n");
 		return false;
 	}
 
