@@ -44,3 +44,16 @@ else()
 	target_include_directories(rsa_private_key INTERFACE ${RSA_KEY_DIR})
 	add_dependencies(rsa_private_key rsa_key)
 endif()
+
+# Reading, checking and writing key files (src/rsakeyfile.hh): round trips,
+# PKCS#8, and the files that must be refused. The keys are made when the test
+# runs.
+add_executable(keygen_test_rsakeyfile
+	tests/test_rsakeyfile.cc
+	${PROJECT_SOURCE_DIR}/src/rsakeyfile.cc
+	${PROJECT_SOURCE_DIR}/src/vlong.cc
+)
+target_include_directories(keygen_test_rsakeyfile PRIVATE ${PROJECT_SOURCE_DIR}/src
+	${PROJECT_SOURCE_DIR}/querymanager/tests)
+target_compile_options(keygen_test_rsakeyfile PRIVATE -fwrapv -fno-strict-aliasing)
+add_test(NAME keygen_rsakeyfile COMMAND keygen_test_rsakeyfile)
