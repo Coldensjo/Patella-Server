@@ -4,10 +4,11 @@ A C++ rebuild of the 2006 Tibia game server (`bin/game`), with its own query
 manager (SQLite) and a login server for 7.72 clients.
 
 This repository contains no CipSoft files apart from what `data/` holds: the
-original installation's config and object types, converted to TOML, and its
-original map (`origmap.zip`, unzipped into the folder `[paths] origmap` names;
-start `map/` as a copy of it). To run the server you still need your own copy
-of the original installation for the rest (data files, monsters, NPCs).
+original installation's config, object types and circles and the original
+game's spell table, converted to TOML, and its original map (`origmap.zip`,
+unzipped into the folder `[paths] origmap` names; start `map/` as a copy of
+it). To run the server you still need your own copy of the original
+installation for the rest (data files, monsters, NPCs).
 
 ## Build
 
@@ -43,6 +44,19 @@ original installation's `dat/objects.srv` converted with
 installation's data folder. The comments at its top explain the fields. Keep
 `objects.srv` there too: the original operator tools (`highscores`,
 `deloldusr`, `mgrep`, `ugrep`, `tempel`) still read it.
+
+## Spells and circles
+
+The game reads its spells (name, words, level, mana, soul points, flags and the
+rune a rune spell makes) from `spells.toml` and the circles, the area shapes
+the spells hit, from `circles.toml`, both in its data folder. What a spell does
+stays in the code, which knows the spells by their numbers. `data/spells.toml`
+is the spell table the game had in its code, written with
+`patella-convert spells spells.toml`; `data/circles.toml` is the original
+installation's `dat/circles.dat` converted with
+`patella-convert circles circles.dat circles.toml`. Copy both into the
+installation's data folder. The comments at the top of each file explain the
+fields.
 
 ## License
 

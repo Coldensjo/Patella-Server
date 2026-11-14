@@ -22,6 +22,7 @@ add_executable(game
 	info.cc
 	moveuse.cc
 	magic.cc
+	magicdata.cc
 	operate.cc
 	crmain.cc
 	crplayer.cc

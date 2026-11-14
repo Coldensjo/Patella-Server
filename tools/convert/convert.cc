@@ -12,20 +12,36 @@
 //   patella-convert items OBJECTS_SRV OUTPUT
 //     The object types: objects.srv to items.toml, which belongs in the
 //     installation's data folder. OUTPUT "-" is standard output.
+//
+//   patella-convert circles CIRCLES_DAT OUTPUT
+//     The circles, the area shapes of the spells: circles.dat to circles.toml,
+//     which belongs in the installation's data folder. OUTPUT "-" is standard
+//     output.
+//
+//   patella-convert spells OUTPUT
+//     The spells: the spell table the game had in its code (its old
+//     InitSpells, compiled into patella-convert) to spells.toml, which belongs
+//     in the installation's data folder. OUTPUT "-" is standard output.
 
 #include <cstdio>
 #include <cstring>
 #include <string>
 
+#include "circles_dat.hh"
+#include "circles_writer.hh"
 #include "config_writer.hh"
 #include "items_writer.hh"
 #include "objects_srv.hh"
+#include "spells_reference.hh"
+#include "spells_writer.hh"
 #include "tibia_config.hh"
 #include "tomlwrite.hh"
 
 static int Usage() {
 	fprintf(stderr, "usage: patella-convert config [--base DIR] TIBIA OUTPUT\n"
-			"       patella-convert items OBJECTS_SRV OUTPUT\n");
+			"       patella-convert items OBJECTS_SRV OUTPUT\n"
+			"       patella-convert circles CIRCLES_DAT OUTPUT\n"
+			"       patella-convert spells OUTPUT\n");
 	return 2;
 }
 
@@ -69,6 +85,26 @@ static int ConvertItems(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertCircles(int argc, char **argv) {
+	if (argc != 2 || (argv[0][0] == '-' && argv[0][1] != 0)) {
+		return Usage();
+	}
+
+	ReadCirclesDat(argv[0]);
+	WriteTextFile(argv[1], CirclesToToml());
+	return 0;
+}
+
+static int ConvertSpells(int argc, char **argv) {
+	if (argc != 1 || (argv[0][0] == '-' && argv[0][1] != 0)) {
+		return Usage();
+	}
+
+	InitReferenceSpells();
+	WriteTextFile(argv[0], SpellsToToml());
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		return Usage();
@@ -80,6 +116,12 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[1], "items") == 0) {
 			return ConvertItems(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "circles") == 0) {
+			return ConvertCircles(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "spells") == 0) {
+			return ConvertSpells(argc - 2, argv + 2);
 		}
 	} catch (const char *Text) {
 		fprintf(stderr, "patella-convert: %s\n", Text);
