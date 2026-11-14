@@ -59,7 +59,6 @@ struct TWriteScriptFile {
 	~TWriteScriptFile();
 	void open(char *FileName);
 	void close();
-	void error(char *Text);
 	void writeLn();
 	void writeText(char *Text);
 	void writeString(char *Text);

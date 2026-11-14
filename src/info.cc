@@ -362,14 +362,6 @@ Object GetTopObject(int x, int y, int z, bool Move) {
 	return Obj;
 }
 
-Object GetContainer(uint32_t CreatureID, int x, int y, int z) {
-	if (x == POSITION_NOT_ON_MAP) {
-		return GetBodyContainer(CreatureID, y);
-	}
-
-	return GetMapContainer(x, y, z);
-}
-
 Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType Type) {
 	Object Obj;
 	if (x == POSITION_NOT_ON_MAP) {

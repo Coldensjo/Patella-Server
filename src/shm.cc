@@ -89,15 +89,6 @@ void EndGame() {
 	SHM->GameState = GAME_ENDING;
 }
 
-bool LoginAllowed() {
-	if (SHM == nullptr) {
-		error("IsLoginAllowed: SharedMemory existiert nicht.\n");
-		return false;
-	}
-
-	return SHM->GameState == GAME_RUNNING;
-}
-
 bool GameRunning() {
 	if (SHM == nullptr) {
 		error("GameRunning: SharedMemory existiert nicht.\n");
@@ -181,23 +172,6 @@ void PrintHandler(int Level, char *Text) {
 	}
 }
 
-int GetPrintlogPosition() {
-	if (SHM == nullptr) {
-		return 0;
-	}
-
-	return SHM->PrintBufferPosition;
-}
-
-char *GetPrintlogLine(int Line) {
-	// Only the upper bound is checked, as in the original.
-	if (SHM == nullptr || Line >= PRINTBUFFERENTRIES) {
-		return nullptr;
-	}
-
-	return SHM->PrintBuffer[Line];
-}
-
 void IncrementObjectCounter() {
 	if (SHM != nullptr) {
 		SHM->ObjectCounter++;
@@ -208,14 +182,6 @@ void DecrementObjectCounter() {
 	if (SHM != nullptr) {
 		SHM->ObjectCounter--;
 	}
-}
-
-uint32_t GetObjectCounter() {
-	if (SHM == nullptr) {
-		return 0;
-	}
-
-	return SHM->ObjectCounter;
 }
 
 void IncrementPlayersOnline() {
@@ -262,14 +228,6 @@ void SetRoundNr(uint32_t RoundNr) {
 	if (SHM != nullptr) {
 		SHM->RoundNr = RoundNr;
 	}
-}
-
-uint32_t GetRoundNr() {
-	if (SHM == nullptr) {
-		return 0;
-	}
-
-	return SHM->RoundNr;
 }
 
 void SetCommand(int Command, char *Text) {
@@ -397,13 +355,4 @@ void ExitSHM() {
 	SetPrintFunction(nullptr);
 	DetachSHM();
 	DeleteSHM();
-}
-
-void InitSHMExtern(bool Verbose) {
-	VerboseOutput = Verbose;
-	AttachSHM();
-}
-
-void ExitSHMExtern() {
-	DetachSHM();
 }

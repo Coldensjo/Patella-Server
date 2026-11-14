@@ -389,13 +389,6 @@ void SendResult(TConnection *Connection, RESULT r) {
 	}
 }
 
-void SendRefresh(TConnection *Connection) {
-	SendFullScreen(Connection);
-	SendAmbiente(Connection);
-	SendPlayerData(Connection);
-	SendPlayerSkills(Connection);
-}
-
 void SendInitGame(TConnection *Connection, uint32_t id) {
 	if (!BeginSendData(Connection)) {
 		return;

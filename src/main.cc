@@ -281,16 +281,6 @@ void DefaultHandler(int signo) {
 	Reboot = false;
 }
 
-void ErrorHandler(int signo) {
-	char s[128];
-
-	snprintf(s, sizeof(s), "SigNr. %d: %s", signo, sigdescr_np(signo));
-	error("ErrorHandler: %s\n", s);
-	EndGame();
-	LogoutAllPlayers();
-	exit(1);
-}
-
 void InitSignalHandler() {
 	int count = 0;
 
@@ -360,9 +350,6 @@ void InitSignalHandler() {
 
 	// 21 handlers are set up; the original prints 28 as the expected number.
 	print(1, "InitSignalHandler: %d Signalhandler eingerichtet (Soll=%d)\n", count, 28);
-}
-
-void ExitSignalHandler() {
 }
 
 void UnlockGame() {

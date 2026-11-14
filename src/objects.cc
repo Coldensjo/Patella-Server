@@ -374,20 +374,6 @@ ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
 	return ObjectType(Type);
 }
 
-void GetOldObjectType(ObjectType Type, unsigned char &Group, unsigned char &Number) {
-	if (!in(Type.getTypeID(), ObjectTypes.low(), ObjectTypes.high())) {
-		error("GetOldObjectType: Ung\xfcltiger Typ %d.\n", Type.getTypeID());
-		return;
-	}
-
-	Group = OldGroup[Type.getTypeID()];
-	Number = OldNumber[Type.getTypeID()];
-}
-
-bool ObjectTypeExists(unsigned char Group, unsigned char Number) {
-	return NewType[Group * 256 + Number] >= 0;
-}
-
 void ObjectType::setTypeID(int _TypeID) {
 	if (!in(_TypeID, ObjectTypes.low(), ObjectTypes.high())) {
 		error("ObjectType::setTypeID: Ung\xfcltiger Typ %d.\n", _TypeID);

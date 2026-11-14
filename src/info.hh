@@ -213,7 +213,6 @@ int ObjectDistance(Object Obj1, Object Obj2);
 Object GetBodyContainer(uint32_t CreatureID, int Position);
 Object GetBodyObject(uint32_t CreatureID, int Position);
 Object GetTopObject(int x, int y, int z, bool Move);
-Object GetContainer(uint32_t CreatureID, int x, int y, int z);
 Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType Type);
 Object GetRowObject(Object Obj, ObjectType Type, uint32_t Value, bool Recurse);
 Object GetInventoryObject(uint32_t CreatureID, ObjectType Type, uint32_t Value);

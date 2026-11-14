@@ -686,18 +686,6 @@ void TWriteScriptFile::close() {
 	File = nullptr;
 }
 
-void TWriteScriptFile::error(char *Text) {
-	if (File != nullptr) {
-		if (fclose(File) != 0) {
-			::error("TWriteScriptFile::error: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
-		}
-	}
-	File = nullptr;
-
-	snprintf(ErrorString, sizeof(ErrorString), "error in script-file \"%s\", line %d: %s", Filename, Line, Text);
-	throw ErrorString;
-}
-
 void TWriteScriptFile::writeLn() {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::writeLn: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");

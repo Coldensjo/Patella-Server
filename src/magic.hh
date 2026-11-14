@@ -96,7 +96,6 @@ void CheckSpellbook(TCreature *cr, int SpellNr);
 void CheckAccount(TCreature *cr, int SpellNr);
 void CheckLevel(TCreature *cr, int SpellNr);
 void CheckRuneLevel(TCreature *cr, int SpellNr);
-void CheckMagicItem(TCreature *cr, ObjectType Type);
 void CheckRing(TCreature *cr, int);
 void CheckAffectedPlayers(TCreature *cr, int x, int y, int z);
 void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay);

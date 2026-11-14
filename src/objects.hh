@@ -281,8 +281,6 @@ int GetTypeAttributeByName(char *Name);
 void LoadObjects();
 void LoadConversionList();
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number);
-void GetOldObjectType(ObjectType Type, unsigned char &Group, unsigned char &Number);
-bool ObjectTypeExists(unsigned char Group, unsigned char Number);
 bool ObjectTypeExists(int TypeID);
 ObjectType GetSpecialObject(SPECIALMEANING Meaning);
 ObjectType GetObjectTypeByName(char *SearchName, bool Movable);

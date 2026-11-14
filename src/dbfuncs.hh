@@ -92,6 +92,5 @@ void PlayerDataPath(uint32_t CharacterID, char *Extension, char *Path);
 bool PlayerDataExists(uint32_t CharacterID);
 bool LoadPlayerData(TPlayerData *Slot);
 void SavePlayerData(TPlayerData *Slot);
-void UnlinkPlayerData(uint32_t CharacterID);
 
 #endif

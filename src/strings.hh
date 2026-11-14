@@ -20,8 +20,6 @@ char *SearchForNumber(int Count, char *Text);
 bool MatchString(char *Pattern, char *String);
 void AddSlashes(char *Destination, const char *Source);
 void Trim(char *Text);
-void Trim(char *Destination, char *Source);
-void ChangeWildcards(char *String);
 char *Capitals(char *Text);
 void InitStrings();
 void ExitStrings();

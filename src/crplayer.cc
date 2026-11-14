@@ -279,14 +279,6 @@ void CreatePlayerList(bool Online) {
 	}
 }
 
-void PrintPlayerPositions() {
-	for (int i = 0; i < FirstFreePlayer; i++) {
-		TPlayer *Player = PlayerList(i);
-		Log("players", "[%d,%d,%d] %d %d\n", Player->posx, Player->posy, Player->posz,
-				Player->Skills[SKILL_LEVEL]->Get(), Player->GetActiveProfession());
-	}
-}
-
 void LoadDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 	if (PlayerData == nullptr) {
 		error("LoadDepot: PlayerData ist NULL.\n");
@@ -911,16 +903,6 @@ void InitPlayerIndex() {
 	}
 
 	delete Connection;
-}
-
-bool PlayerExists(char *Name) {
-	if (Name == nullptr) {
-		error("PlayerExists: Name ist NULL.\n");
-		return false;
-	}
-
-	TPlayerIndexEntry *Entry = SearchPlayerIndex(Name);
-	return Entry != nullptr;
 }
 
 uint32_t GetCharacterID(char *Name) {

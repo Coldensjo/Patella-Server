@@ -499,47 +499,6 @@ void Trim(char *Text) {
 	}
 }
 
-void Trim(char *Destination, char *Source) {
-	if (Source == nullptr) {
-		error("Trim: Source ist NULL.\n");
-		return;
-	}
-
-	if (Destination == nullptr) {
-		error("Trim: Destination ist NULL.\n");
-		return;
-	}
-
-	int i = 0;
-	while (Source[i] != 0 && isSpace(Source[i])) {
-		i++;
-	}
-
-	strcpy(Destination, Source + i);
-
-	i = static_cast<int>(strlen(Destination));
-	while (i > 0 && isSpace(Destination[i - 1])) {
-		Destination[i - 1] = 0;
-		i--;
-	}
-}
-
-void ChangeWildcards(char *String) {
-	if (String == nullptr) {
-		error("ChangeWildcards: String ist NULL.\n");
-		return;
-	}
-
-	for (unsigned int i = 0; i < strlen(String); i++) {
-		if (String[i] == '*') {
-			String[i] = '%';
-		}
-		if (String[i] == '?') {
-			String[i] = '_';
-		}
-	}
-}
-
 char *Capitals(char *Text) {
 	bool start = true;
 	for (int i = 0; i < static_cast<int>(strlen(Text)); i++) {
