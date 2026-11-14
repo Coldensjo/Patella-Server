@@ -1,8 +1,9 @@
-r"""Prove what kind of change the sources went through: only comments, or only names. And rename.
+r"""Prove what kind of change the sources went through: only comments, only names or only texts. And rename.
 
 Usage, from any folder (the checkout is the one this file is in):
   python -I tools/source_check.py comments [<old> [<new>]]
   python -I tools/source_check.py names [<old> [<new>]] Old=New [Old=New ...]
+  python -I tools/source_check.py texts [<old> [<new>]]
   python -I tools/source_check.py rename Old=New [Old=New ...]
 
 <old> is a commit, HEAD when left out. <new> is a commit too; left out, it is the working tree. The sources are the
@@ -18,15 +19,23 @@ names     Every source of <new> is <old>'s with the names replaced, white space 
           name is mapped to its new one (in code, comments and strings alike). White space counts inside a string or
           character literal, and between the tokens of a preprocessor directive and at its end. No new name is in
           <old>, and no old name is left in <new>. Added, deleted and renamed sources fail.
+texts     Every source that differs between <old> and <new> differs in nothing but its string literals: the same
+          code tokens (white space apart, as in names; character literals count as code) once the comments are
+          dropped, and string literals in the same places, a run of adjacent literals ("a" "b") being one text. Each
+          changed text is listed with its file:line, as written before and after, for a reviewer to read. A text
+          whose printf conversions (%d, %-4s, %%, ...) or number of \n are not the same as before fails. The sources
+          here include tools/convert/. Changed comments are named, not checked (comments checks them). Added,
+          deleted and renamed sources fail; changed files that are not sources are listed and not checked.
 rename    Replaces each old name, as a whole word, in every source of the working tree: code, comments and strings.
           The replacements inside string literals are listed, since a text the player sees may be among them.
 
-Neither check proves that the binaries are the same (a moved line changes __LINE__ in the tests, a renamed class its
-type name); tools/repro_check.py does.
+None of the checks proves that the binaries are the same (a moved line changes __LINE__ in the tests, a renamed class
+its type name); tools/repro_check.py does.
 
 Exit code 0: the check holds. 1: it does not (each finding is printed), or a command failed.
 """
 
+import bisect
 import os
 import re
 import shutil
@@ -38,6 +47,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GIT = "git" if os.name == "nt" else next((p for p in (shutil.which("git.exe"), "/mnt/c/Program Files/Git/cmd/git.exe")
 	if p and os.path.isfile(p)), "git.exe")
 FOLDERS = ("src", "querymanager", "loginserver", "keygen")
+# texts also covers the converter, whose readers of the old data files log the game's texts.
+TEXT_FOLDERS = FOLDERS + ("tools/convert",)
+# A printf conversion: flags, width, precision, length and the conversion character.
+CONVERSION = re.compile(r"%[-+ #0']*(?:\d+|\*)?(?:\.(?:\d+|\*)?)?(?:hh|h|ll|l|j|z|t|L|q)?[diouxXeEfFgGaAcspn%]")
 RAW_STRING = re.compile(r'R"([^()\\ ]{0,16})\(')
 ENCODING_PREFIX = re.compile(r"(?:^|[^A-Za-z0-9_])(?:u8|u|U|L)$")
 # An identifier, a number with its suffix, a run of white space, or any other single character.
@@ -174,9 +187,110 @@ def git(*arguments, binary=False):
 	return result.stdout if binary else result.stdout.decode("utf-8")
 
 
-def is_source(path):
+def literals(text):
+	"""The text's code tokens without its comments, and its string literals, white space as in tokens(): a list of
+	[kind, token, line], kind "code" or "string". A run of adjacent string literals (only white space or comments
+	between) is one "string" item whose token is the list of its literals. A character literal is a code token. The
+	line is the item's first line in the text as written (before lines ended by a backslash are joined)."""
+	joined = SPLICE.sub("", text)
+	splices = []
+	removed = 0
+	for match in SPLICE.finditer(text):
+		splices.append(match.start() - removed)
+		removed += len(match.group(0))
+	counted = {"position": 0, "newlines": 0}
+
+	def line(position):
+		counted["newlines"] += joined.count("\n", counted["position"], position)
+		counted["position"] = position
+		return counted["newlines"] + bisect.bisect_right(splices, position) + 1
+
+	found = []
+	state = {"line start": True, "directive": False, "space": False}
+
+	def add(kind, token, position):
+		if state["line start"] and token in ("#", "%:"):
+			state["directive"] = True
+		elif state["directive"] and state["space"]:
+			found.append(["code", " ", line(position)])
+		state["line start"] = state["space"] = False
+		found.append([kind, token, line(position)])
+
+	def code(segment, offset):
+		for match in CODE_TOKEN.finditer(segment):
+			t = match.group(0)
+			if not t.isspace():
+				add("code", t, offset + match.start())
+				continue
+			if "\n" in t:
+				if state["directive"]:
+					found.append(["code", "\n", line(offset + match.start())])
+					state["directive"] = False
+				state["line start"] = True
+			state["space"] = True
+
+	last = 0
+	for start, end, kind in spans(joined):
+		code(joined[last:start], last)
+		last = end
+		literal = joined[start:end]
+		if kind == "comment":
+			state["space"] = True
+		elif kind == "char":
+			add("code", literal, start)
+		else:
+			# A raw literal keeps its R here, for text_parts (the R is a code token before it too).
+			if start > 0 and joined[start - 1] == "R" and RAW_STRING.match(joined, start - 1):
+				literal = "R" + literal
+			if found and found[-1][0] == "string":
+				# Only white space and comments since the last literal, or a code token would be last.
+				found[-1][1].append(literal)
+			else:
+				add("string", [literal], start)
+	code(joined[last:], last)
+	return found
+
+
+def comment_words(text):
+	"""The words of the text's comments, in order."""
+	joined = SPLICE.sub("", text)
+	return [w for start, end, kind in spans(joined) if kind == "comment" for w in joined[start:end].split()]
+
+
+def text_parts(pieces):
+	"""The characters of a run of string literals as written, escapes not decoded, without quotes and prefixes."""
+	parts = []
+	for piece in pieces:
+		quote = piece.index('"')
+		raw = RAW_STRING.match(piece, quote - 1) if quote > 0 else None
+		if raw:
+			parts.append(piece[raw.end():len(piece) - len(raw.group(1)) - 2])
+		else:
+			parts.append(piece[quote + 1:-1] if len(piece) > quote + 1 and piece.endswith('"') else piece[quote + 1:])
+	return "".join(parts)
+
+
+def conversions(pieces):
+	"""The printf conversions of a run of string literals, in order, as written."""
+	return CONVERSION.findall(text_parts(pieces))
+
+
+def newlines(pieces):
+	"""The number of line ends in a run of string literals: \\n escapes, and the line ends of a raw literal."""
+	count = 0
+	for piece in pieces:
+		quote = piece.index('"')
+		if quote > 0 and RAW_STRING.match(piece, quote - 1):
+			count += text_parts([piece]).count("\n")
+		else:
+			count += sum(1 for escape in re.findall(r"\\(.)", text_parts([piece]), re.DOTALL) if escape == "n")
+	return count
+
+
+def is_source(path, folders=FOLDERS):
 	parts = path.split("/")
-	return parts[0] in FOLDERS and "extern" not in parts[1:-1] and path.endswith((".cc", ".hh", ".h"))
+	return any(path.startswith(folder + "/") for folder in folders) and "extern" not in parts[1:-1] \
+		and path.endswith((".cc", ".hh", ".h"))
 
 
 def read(commit, path):
@@ -302,6 +416,66 @@ def check_names(arguments):
 	return 0
 
 
+def check_texts(arguments):
+	old, new, names = commits_and_names(arguments, 2)
+	if names:
+		raise CheckError("texts takes no names")
+	bad = 0
+	checked = 0
+	texts = 0
+	skipped = []
+	commented = []
+	for status, path in changed(old, new):
+		if not is_source(path, TEXT_FOLDERS):
+			skipped.append(path)
+			continue
+		checked += 1
+		if status != "M":
+			print("NOT A MODIFICATION (%s): %s" % (status, path))
+			bad += 1
+			continue
+		was_text = read(old, path)
+		now_text = read(new, path)
+		was = literals(was_text)
+		now = literals(now_text)
+		was_code = [(kind, token if kind == "code" else None) for kind, token, _ in was]
+		now_code = [(kind, token if kind == "code" else None) for kind, token, _ in now]
+		if was_code != now_code:
+			i = next((k for k, (x, y) in enumerate(zip(was_code, now_code)) if x != y), min(len(was), len(now)))
+			show = lambda items: " ".join(repr(t if k == "code" else " ".join(t)) for k, t, _ in items[i:i + 6])
+			print("CODE DIFFERS: %s:%s\n  was: %s\n  is:  %s" % (path, now[i][2] if i < len(now) else "end", show(was),
+				show(now)))
+			bad += 1
+			continue
+		if comment_words(was_text) != comment_words(now_text):
+			commented.append(path)
+		for (_, before, was_line), (_, after, line) in zip(was, now):
+			if before == after:
+				continue
+			texts += 1
+			problems = []
+			if conversions(before) != conversions(after):
+				problems.append("FORMAT CHANGED: %s -> %s" % (" ".join(conversions(before)) or "none",
+					" ".join(conversions(after)) or "none"))
+			if newlines(before) != newlines(after):
+				problems.append("LINE ENDS CHANGED: %d -> %d" % (newlines(before), newlines(after)))
+			moved = "" if line == was_line else " (was line %d)" % was_line
+			print("%s:%d%s\n  was: %s\n  is:  %s" % (path, line, moved, " ".join(before), " ".join(after)))
+			for problem in problems:
+				print("  %s" % problem)
+			bad += len(problems)
+	for path in commented:
+		print("comments differ too (not checked here): %s" % path)
+	for path in skipped:
+		print("not checked (not a source): %s" % path)
+	if bad:
+		print("texts: %d problems in %d changed sources (%d changed texts)" % (bad, checked, texts))
+		return 1
+	print("texts: %d changed sources, the same code in each; %d texts changed, each with the same printf conversions "
+		"and line ends" % (checked, texts))
+	return 0
+
+
 def rename(arguments):
 	_, _, names = commits_and_names(arguments, 0)
 	if not names:
@@ -326,7 +500,7 @@ def rename(arguments):
 
 
 def main(argv):
-	commands = {"comments": check_comments, "names": check_names, "rename": rename}
+	commands = {"comments": check_comments, "names": check_names, "texts": check_texts, "rename": rename}
 	if not argv or argv[0] in ("-h", "--help") or argv[0] not in commands:
 		print(__doc__)
 		return 0 if argv and argv[0] in ("-h", "--help") else 2
