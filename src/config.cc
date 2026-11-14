@@ -11,10 +11,6 @@
 
 static const char PasswordKey[9] = "Pm-,o%yD";
 
-// The query managers the config may list (QUERY_MANAGER, declared in
-// query.hh with the same size).
-const int MAX_QUERY_MANAGERS = 10;
-
 char BINPATH[4096];
 char DATAPATH[4096];
 char LOGPATH[4096];

@@ -179,10 +179,6 @@ FLAG InstanceAttributeFlags[INSTANCEATTRIBUTES] = {
 };
 vector<TObjectType> ObjectTypes(0, 5000, 1000);
 
-// The size of the conversion tables of conversion.lst: the type numbers 0 to
-// 8191 can have an old group and number (OldGroup, OldNumber).
-const int CONVERSION_TYPES = 8192;
-
 ObjectType SpecialObjects[SPECIALMEANINGS];
 unsigned char OldGroup[CONVERSION_TYPES];
 unsigned char OldNumber[CONVERSION_TYPES];

@@ -106,8 +106,6 @@ uint32_t HashTableMask;
 int HashTableFree;
 int ObjectCounter;
 vector<TCronEntry> CronEntry(0, 256, 256);
-// The size of CronHashTable, which chains the cron entries by object number.
-const int CRON_HASH_TABLE_SIZE = 2047;
 int CronHashTable[CRON_HASH_TABLE_SIZE];
 int CronEntries;
 int OBCount;

@@ -30,9 +30,6 @@
 #include "TXTEASymmetricKey.hh"
 #include "crmain.hh"
 
-// The size of HashList: a creature is in the list of its ID modulo this.
-const int HASH_LIST_SIZE = 1000;
-
 // The width and height in fields of a block of FirstChainCreature, which
 // chains the creatures in each block (two blocks per sector side, see InitCr).
 const int CHAIN_BLOCK_SIZE = 16;

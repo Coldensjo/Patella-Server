@@ -42,20 +42,6 @@
 #include "shm.hh"
 #include "writer.hh"
 
-// The communication threads that can run at once, one for each connection:
-// the number of own stacks, and the limit of ActiveConnections without them.
-const int MAX_COMMUNICATION_THREADS = 1100;
-
-// The stack of one communication thread, an own one or the thread library's.
-const int COMMUNICATION_THREAD_STACK_SIZE = 65536;
-
-// The size of TConnection::OutData, the ring buffer SendData sends from.
-const int OUT_DATA_SIZE = 16384;
-
-// The entries of LoadHistory, the received bytes per player of the last
-// NetLoadCheck calls.
-const int LOAD_HISTORY_SIZE = 360;
-
 struct TWaitinglistEntry {
 	TWaitinglistEntry *Next;
 	char Name[30];

@@ -47,6 +47,17 @@ int HandleConnection(void *Data);
 bool OpenSocket();
 int AcceptorThreadLoop(void *);
 void CheckThreadlibVersion();
+// The communication threads that can run at once, one for each connection:
+// the number of own stacks, and the limit of ActiveConnections without them.
+const int MAX_COMMUNICATION_THREADS = 1100;
+
+// The stack of one communication thread, an own one or the thread library's.
+const int COMMUNICATION_THREAD_STACK_SIZE = 65536;
+
+// The entries of LoadHistory, the received bytes per player of the last
+// NetLoadCheck calls.
+const int LOAD_HISTORY_SIZE = 360;
+
 void InitCommunication();
 void ExitCommunication();
 
@@ -56,14 +67,14 @@ extern pid_t AcceptorThreadPID;
 extern int ActiveConnections;
 extern Semaphore CommunicationThreadMutex;
 extern bool UseOwnStacks;
-extern unsigned char CommunicationThreadStacks[72089600];
-extern pid_t LastUsingCommunicationThread[1100];
-extern int FreeCommunicationThreadStacks[1100];
+extern unsigned char CommunicationThreadStacks[MAX_COMMUNICATION_THREADS * COMMUNICATION_THREAD_STACK_SIZE];
+extern pid_t LastUsingCommunicationThread[MAX_COMMUNICATION_THREADS];
+extern int FreeCommunicationThreadStacks[MAX_COMMUNICATION_THREADS];
 extern int NumberOfFreeCommunicationThreadStacks;
 extern TRSAPrivateKey PrivateKey;
 extern Semaphore RSAMutex;
 extern TQueryManagerConnectionPool QueryManagerConnectionPool;
-extern int LoadHistory[360];
+extern int LoadHistory[LOAD_HISTORY_SIZE];
 extern int LoadHistoryPointer;
 extern int TotalLoad;
 extern int TotalSend;

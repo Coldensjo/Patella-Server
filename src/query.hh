@@ -90,6 +90,9 @@ const int LOGIN_ALREADY_ONLINE = 13;
 const int LOGIN_NOT_GAMEMASTER = 14;
 const int LOGIN_WRONG_ACCOUNT = 15;
 
+// The query managers the config may list (QUERY_MANAGER, config.cc).
+const int MAX_QUERY_MANAGERS = 10;
+
 struct TQueryManagerSettings {
 	char Host[50];
 	int Port;
@@ -99,7 +102,7 @@ struct TQueryManagerSettings {
 const int MAX_NUMBER_OF_QUERYMANAGERS = 10;
 
 extern int NumberOfQueryManagers;
-extern TQueryManagerSettings QUERY_MANAGER[10];
+extern TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
 struct TQueryManagerConnection {
 	// The default is what TQueryManagerConnectionPool::init passes to every

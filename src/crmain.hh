@@ -14,6 +14,9 @@ struct TOutfit;
 // races are 1 to 511, 0 is none.
 const int MAX_RACES = 512;
 
+// The size of HashList: a creature is in the list of its ID modulo this.
+const int HASH_LIST_SIZE = 1000;
+
 // The race RaiseDead and MassRaiseDead create (skeleton.mon).
 const int RACE_SKELETON = 33;
 
@@ -51,13 +54,13 @@ void ProcessMonsterRaids();
 void InitCr();
 void ExitCr();
 
-extern TCreature *HashList[1000];
+extern TCreature *HashList[HASH_LIST_SIZE];
 extern vector<TCreature *> CreatureList;
 extern int FirstFreeCreature;
 extern uint32_t NextCreatureID;
 extern priority_queue<uint32_t, TAttackWave *> AttackWaveQueue;
 extern matrix<uint32_t> *FirstChainCreature;
-extern int KilledCreatures[512];
-extern int KilledPlayers[512];
+extern int KilledCreatures[MAX_RACES];
+extern int KilledPlayers[MAX_RACES];
 
 #endif

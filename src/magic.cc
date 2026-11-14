@@ -62,9 +62,6 @@ struct TSpellList {
 	int Amount;
 };
 
-// The size of SpellSyllable: the syllables 1 to 50 (0 is the empty one).
-const int MAX_SYLLABLES = 51;
-
 // The syllables CheckForSpell and FindSpell look at by number: the first
 // syllable of a spell is its class (al: character rights, ad: runes, ex and
 // ut: spells cast at once, om: account rights), and "para" stands for a word

@@ -33,11 +33,6 @@
 const int PINGTIME = 30;
 const int IDLETIME = 900;
 
-// The size of the connection table (Connections, declared in connections.hh
-// with the number) and of a connection's KnownCreatureTable.
-const int MAX_CONNECTIONS = 1100;
-const int MAX_KNOWN_CREATURES = 150;
-
 TConnection Connections[MAX_CONNECTIONS];
 TConnection *FirstSendingConnection;
 Semaphore ConnectionMutex(1);

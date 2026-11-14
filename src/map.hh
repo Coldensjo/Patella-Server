@@ -74,6 +74,9 @@ const int MAPFLAG_PROTECTIONZONE = 4;
 const int END_OF_OBJECTS = 0xFFFF;
 const int END_OF_ATTRIBUTES = 0xFF;
 
+// The size of CronHashTable, which chains the cron entries by object number.
+const int CRON_HASH_TABLE_SIZE = 2047;
+
 extern int SectorXMin;
 extern int SectorXMax;
 extern int SectorYMin;
@@ -150,7 +153,7 @@ void ReadMapConfig();
 void InitMap();
 void ExitMap(bool save);
 
-extern char InstanceAttributeNames[18][30];
+extern char InstanceAttributeNames[INSTANCEATTRIBUTES][30];
 extern matrix3d<TSector *> *Sector;
 extern TObjectBlock **ObjectBlock;
 extern TObject *FirstFreeObject;
@@ -161,7 +164,7 @@ extern uint32_t HashTableMask;
 extern int HashTableFree;
 extern int ObjectCounter;
 extern vector<TCronEntry> CronEntry;
-extern int CronHashTable[2047];
+extern int CronHashTable[CRON_HASH_TABLE_SIZE];
 extern int CronEntries;
 extern int OBCount;
 extern vector<TDepotInfo> DepotInfo;
