@@ -72,12 +72,12 @@ private:
 TShortway::TShortway(TCreature *cr, int VisibleX, int VisibleY) {
 	Map = nullptr;
 	if (cr == nullptr) {
-		error("TShortway::TShortway: \xdc" "bergebene Kreatur ist NULL.\n");
+		error("TShortway::TShortway: Given creature is NULL.\n");
 		return;
 	}
 
 	if (VisibleX < 1 || VisibleY < 1 || VisibleX > 100 || VisibleY > 100) {
-		error("TShortway::TShortway: Ung\xfcltiger Sichtbarkeitsbereich %d*%d.\n", VisibleX, VisibleY);
+		error("TShortway::TShortway: Invalid visibility range %d*%d.\n", VisibleX, VisibleY);
 		return;
 	}
 
@@ -104,7 +104,7 @@ void TShortway::FillMap() {
 			if (Obj.exists() && Obj.getFlag(BANK) && !Obj.getFlag(UNPASS)) {
 				Waypoints = Obj.getAttribute(WAYPOINTS);
 				if (Waypoints == 0) {
-					error("TShortway::FillMap: Ung\xfcltiger Wegpunkte-Wert %d f\xfcr Bank %d.\n",
+					error("TShortway::FillMap: Invalid waypoint value %d for bank %d.\n",
 							Waypoints, Obj.getObjectType().getTypeID());
 					Waypoints = -1;
 				}
@@ -150,7 +150,7 @@ void TShortway::ClearMap() {
 
 bool TShortway::Calculate(int DestX, int DestY, bool MustReach, int MaxSteps) {
 	if (Map == nullptr) {
-		error("TShortway::Calculate: Karte existiert nicht.\n");
+		error("TShortway::Calculate: Map does not exist.\n");
 		return false;
 	}
 
@@ -193,7 +193,7 @@ bool TShortway::Calculate(int DestX, int DestY, bool MustReach, int MaxSteps) {
 
 void TShortway::Expand(TShortwayPoint *Node) {
 	if (Node == nullptr) {
-		error("TShortway::Expand: \xdc" "bergebener Knoten ist NULL.\n");
+		error("TShortway::Expand: Given node is NULL.\n");
 		return;
 	}
 
@@ -239,7 +239,7 @@ void TShortway::Expand(TShortwayPoint *Node) {
 					if (Search->NextToExpand != nullptr) {
 						Search->NextToExpand = Dest->NextToExpand;
 					} else {
-						error("TShortway::Expand: Knoten steht nicht in der ExpandList.\n");
+						error("TShortway::Expand: Node is not in the ExpandList.\n");
 					}
 				}
 			}
@@ -282,7 +282,7 @@ bool TCreature::SetOnMap() {
 
 	Object Obj = GetMapContainer(posx, posy, posz);
 	if (Obj == NONE) {
-		error("TCreature::SetOnMap: Kartencontainer f\xfcr Punkt [%d,%d,%d] existiert nicht.\n",
+		error("TCreature::SetOnMap: Map container for point [%d,%d,%d] does not exist.\n",
 				posx, posy, posz);
 		return false;
 	}
@@ -290,7 +290,7 @@ bool TCreature::SetOnMap() {
 	try {
 		Create(Obj, ObjectType(TYPEID_CREATURE), ID);
 	} catch (RESULT r) {
-		error("TCreature::SetOnMap: Kann Kreatur nicht setzen ([%d,%d,%d] - Exception %d).\n",
+		error("TCreature::SetOnMap: Cannot place creature ([%d,%d,%d] - Exception %d).\n",
 				posx, posy, posz, r);
 		CrObject = NONE;
 		if (Type == PLAYER) {
@@ -378,7 +378,7 @@ void TCreature::Rotate(unsigned char Dir) {
 
 void TCreature::Rotate(TCreature *Target) {
 	if (Target == nullptr) {
-		error("TCreature::Rotate: Target ist NULL.\n");
+		error("TCreature::Rotate: Target is NULL.\n");
 		return;
 	}
 
@@ -468,7 +468,7 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 
 	if (zy < FIRST_BODY_POSITION || (zy > LAST_BODY_POSITION && zy < POSITION_CONTAINER_BASE)
 			|| zy > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1) {
-		error("TCreature::Move: Ung\xfcltiger Containercode %d.\n", zy);
+		error("TCreature::Move: Invalid container code %d.\n", zy);
 		throw ERROR;
 	}
 
@@ -537,7 +537,7 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 
 void TCreature::Trade(Object Obj, uint32_t PartnerID) {
 	if (Type != PLAYER) {
-		error("TCreature::Trade: Nur Spieler k\xf6nnen handeln.\n");
+		error("TCreature::Trade: Only players can trade.\n");
 		throw ERROR;
 	}
 
@@ -725,7 +725,7 @@ void TCreature::NotifyGo() {
 			}
 
 			if (!Con.exists()) {
-				error("TCreature::NotifyGo: OpenContainer existiert nicht. (%s, [%d,%d,%d]->[%d,%d,%d])\n",
+				error("TCreature::NotifyGo: OpenContainer does not exist. (%s, [%d,%d,%d]->[%d,%d,%d])\n",
 						Name, oldx, oldy, oldz, posx, posy, posz);
 				self->SetOpenContainer(con, NONE);
 				SendCloseContainer(GetConnection(), con);
@@ -738,10 +738,10 @@ void TCreature::NotifyGo() {
 		if (self->TradeObject != NONE) {
 			TPlayer *Partner = GetPlayer(self->TradePartner);
 			if (!self->TradeObject.exists()) {
-				error("TCreature::NotifyGo: Handelsobjekt existiert nicht mehr.\n");
-				error("# H\xe4ndler %s an [%d,%d,%d]\n", Name, posx, posy, posz);
+				error("TCreature::NotifyGo: Trade object no longer exists.\n");
+				error("# Trader %s at [%d,%d,%d]\n", Name, posx, posy, posz);
 				if (Partner != nullptr) {
-					error("# Partner %s an [%d,%d,%d]\n",
+					error("# Partner %s at [%d,%d,%d]\n",
 							Partner->Name, Partner->posx, Partner->posy, Partner->posz);
 				}
 			}
@@ -763,7 +763,7 @@ void TCreature::NotifyGo() {
 	}
 
 	if (Obj == NONE) {
-		error("TCreature::NotifyGo: Auf Feld [%d,%d,%d] befindet sich kein Bank.\n", posx, posy, posz);
+		error("TCreature::NotifyGo: No bank on field [%d,%d,%d].\n", posx, posy, posz);
 		return;
 	}
 
@@ -814,8 +814,8 @@ void TCreature::NotifyChangeInventory() {
 	}
 
 	if (!CrObject.exists()) {
-		error("TCreature::NotifyChangeInventory: Kreatur-Objekt existiert nicht.\n");
-		error("# Kreatur: %s, Position: %d/%d/%d.\n", Name, posx, posy, posz);
+		error("TCreature::NotifyChangeInventory: Creature object does not exist.\n");
+		error("# Creature: %s, position: %d/%d/%d.\n", Name, posx, posy, posz);
 		return;
 	}
 
@@ -836,7 +836,7 @@ void TCreature::NotifyChangeInventory() {
 		}
 
 		if (!Obj.getFlag(CLOTHES)) {
-			error("TCreature::NotifyChangeInventory: Objekt %d hat SKILLBOOST, aber nicht CLOTHES.\n",
+			error("TCreature::NotifyChangeInventory: Object %d has SKILLBOOST, but not CLOTHES.\n",
 					Obj.getObjectType().getTypeID());
 			continue;
 		}
@@ -848,7 +848,7 @@ void TCreature::NotifyChangeInventory() {
 		// Quirk: a negative skill number is not rejected.
 		int SkillNr = Obj.getAttribute(SKILLNUMBER);
 		if (SkillNr > MAX_SKILLS - 1) {
-			error("TCreature::NotifyChangeInventory: Objekt %d hat ung\xfcltige SKILLNUMBER %d.\n",
+			error("TCreature::NotifyChangeInventory: Object %d has invalid SKILLNUMBER %d.\n",
 					Obj.getObjectType().getTypeID(), SkillNr);
 			continue;
 		}
@@ -1026,9 +1026,9 @@ again:
 
 			case TDTalk:
 				if (TD.Talk.Text == 0) {
-					error("TCreature::Execute: TD.Text ist Null bei %s.\n", Name);
+					error("TCreature::Execute: TD.Text is Null for %s.\n", Name);
 				} else if (GetDynamicString(TD.Talk.Text) == nullptr) {
-					error("TCreature::Execute: Text ist NULL bei %s.\n", Name);
+					error("TCreature::Execute: Text is NULL for %s.\n", Name);
 				}
 
 				Talk(ID, TD.Talk.Mode, GetDynamicString(TD.Talk.Addressee),
@@ -1168,12 +1168,12 @@ void TCreature::ToDoTalk(int Mode, char *Addressee, char *Text, bool CheckSpammi
 	TD.Talk.CheckSpamming = CheckSpamming;
 	TD.Talk.Mode = Mode;
 	if (Text == nullptr) {
-		error("TCreature::ToDoTalk: Text ist NULL bei %s.\n", Name);
+		error("TCreature::ToDoTalk: Text is NULL for %s.\n", Name);
 	}
 
 	TD.Talk.Text = AddDynamicString(Text);
 	if (TD.Talk.Text == 0) {
-		error("TCreature::ToDoTalk: TD.Text ist Null bei %s.\n", Name);
+		error("TCreature::ToDoTalk: TD.Text is Null for %s.\n", Name);
 	}
 
 	ToDoAdd(TD);
@@ -1274,7 +1274,7 @@ void TCreature::ToDoMove(int sx, int sy, int sz, ObjectType Type, unsigned char 
 		Dest.getAttribute(WAYPOINTS);
 		TCreature *cr = GetCreature(Obj);
 		if (cr == nullptr) {
-			error("TCreature::ToDoMove: Kreatur existiert nicht.\n");
+			error("TCreature::ToDoMove: Creature does not exist.\n");
 			throw ERROR;
 		}
 
@@ -1335,12 +1335,12 @@ void TCreature::ToDoTrade(int x, int y, int z, ObjectType Type, unsigned char RN
 	}
 
 	if (Obj.isCreature()) {
-		error("TCreature::ToDoTrade: Objekt ist eine Kreatur.\n");
+		error("TCreature::ToDoTrade: Object is a creature.\n");
 		throw ERROR;
 	}
 
 	if (TradePartner == 0) {
-		error("TCreature::ToDoTrade: Handelspartner ist Null.\n");
+		error("TCreature::ToDoTrade: Trade partner is Null.\n");
 		throw ERROR;
 	}
 
@@ -1350,7 +1350,7 @@ void TCreature::ToDoTrade(int x, int y, int z, ObjectType Type, unsigned char RN
 	}
 
 	if (Partner->Type != PLAYER) {
-		error("TCreature::ToDoTrade: Handelspartner von %s ist kein Spieler.\n", Name);
+		error("TCreature::ToDoTrade: Trade partner of %s is not a player.\n", Name);
 		throw ERROR;
 	}
 

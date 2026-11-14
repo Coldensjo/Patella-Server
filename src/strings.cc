@@ -47,7 +47,7 @@ list<TDynamicStringTableBlock> DynamicStringTable;
 const char *AddStaticString(const char *String) {
 	int Length = static_cast<int>(strlen(String));
 	if (Length >= STATIC_STRING_BLOCK_SIZE) {
-		error("AddStaticString: String zu lang (%d).\n", Length);
+		error("AddStaticString: String too long (%d).\n", Length);
 		return nullptr;
 	}
 
@@ -77,7 +77,7 @@ const char *AddStaticString(const char *String) {
 uint32_t AddDynamicString(char *String) {
 	int Length = static_cast<int>(strlen(String));
 	if (Length >= DYNAMIC_STRING_BLOCK_SIZE) {
-		error("AddDynamicString: String zu lang (%d)\n", Length);
+		error("AddDynamicString: String too long (%d)\n", Length);
 		return 0;
 	}
 
@@ -117,7 +117,7 @@ uint32_t AddDynamicString(char *String) {
 	}
 
 	if (pos == -1) {
-		error("AddDynamicString: Keinen freien Platz gefunden.\n");
+		error("AddDynamicString: No free space found.\n");
 		return 0;
 	}
 
@@ -145,13 +145,13 @@ char *GetDynamicString(uint32_t Number) {
 	}
 
 	if (iter() == nullptr) {
-		error("GetDynamicString: Block f\xfcr String %u existiert nicht\n", Number + 1);
+		error("GetDynamicString: Block for string %u does not exist\n", Number + 1);
 		return nullptr;
 	}
 
 	TDynamicStringTableBlock *p = *iter;
 	if (p->EntryType[pos] != DYNAMIC_STRING_USED) {
-		error("GetDynamicString: Eintrag f\xfcr String %u existiert nicht\n", Number + 1);
+		error("GetDynamicString: Entry for string %u does not exist\n", Number + 1);
 		return nullptr;
 	}
 
@@ -174,13 +174,13 @@ void DeleteDynamicString(uint32_t Number) {
 	}
 
 	if (iter() == nullptr) {
-		error("DeleteDynamicString: Block f\xfcr String %u existiert nicht\n", Number + 1);
+		error("DeleteDynamicString: Block for string %u does not exist\n", Number + 1);
 		return;
 	}
 
 	TDynamicStringTableBlock *p = *iter;
 	if (p->EntryType[pos] != DYNAMIC_STRING_USED) {
-		error("DeleteDynamicString: Eintrag f\xfcr String %u existiert nicht\n", Number + 1);
+		error("DeleteDynamicString: Entry for string %u does not exist\n", Number + 1);
 		return;
 	}
 
@@ -203,7 +203,7 @@ void CleanupDynamicStrings() {
 				p->TotalTextLength -= Length;
 				p->EntryType[i] = DYNAMIC_STRING_FREE;
 				if (Offset + Length > DYNAMIC_STRING_BLOCK_SIZE) {
-					error("CleanupDynamicStrings: Stringende fehlt\n");
+					error("CleanupDynamicStrings: String end missing\n");
 					continue;
 				}
 
@@ -240,7 +240,7 @@ char *Plural(const char *s, int Count) {
 
 	ObjectNameString[0] = 0;
 	if (s == nullptr) {
-		error("Plural: \xdc" "bergebener String existiert nicht.\n");
+		error("Plural: Given string does not exist.\n");
 		return ObjectNameString;
 	}
 
@@ -328,12 +328,12 @@ cont:
 
 char *SearchForWord(char *Pattern, char *Text) {
 	if (Pattern == nullptr || Pattern[0] == 0) {
-		error("SearchForWord: \xdc" "bergebenes Suchwort existiert nicht.\n");
+		error("SearchForWord: Given search word does not exist.\n");
 		return nullptr;
 	}
 
 	if (Text == nullptr) {
-		error("SearchForWord: \xdc" "bergebener Text existiert nicht.\n");
+		error("SearchForWord: Given text does not exist.\n");
 		return nullptr;
 	}
 
@@ -376,12 +376,12 @@ char *SearchForWord(char *Pattern, char *Text) {
 
 char *SearchForNumber(int Count, char *Text) {
 	if (Count < 1) {
-		error("SearchForNumber: Illegale Suchnummer %d.\n", Count);
+		error("SearchForNumber: Illegal search number %d.\n", Count);
 		return nullptr;
 	}
 
 	if (Text == nullptr) {
-		error("SearchForNumber: \xdc" "bergebener Text existiert nicht.\n");
+		error("SearchForNumber: Given text does not exist.\n");
 		return nullptr;
 	}
 
@@ -419,12 +419,12 @@ char *SearchForNumber(int Count, char *Text) {
 
 bool MatchString(char *Pattern, char *String) {
 	if (Pattern == nullptr) {
-		error("MatchString: Pattern ist NULL.\n");
+		error("MatchString: Pattern is NULL.\n");
 		return false;
 	}
 
 	if (String == nullptr) {
-		error("MatchString: String ist NULL.\n");
+		error("MatchString: String is NULL.\n");
 		return false;
 	}
 
@@ -460,12 +460,12 @@ bool MatchString(char *Pattern, char *String) {
 
 void AddSlashes(char *Destination, const char *Source) {
 	if (Source == nullptr) {
-		error("AddSlashes: Source ist NULL.\n");
+		error("AddSlashes: Source is NULL.\n");
 		return;
 	}
 
 	if (Destination == nullptr) {
-		error("AddSlashes: Destination ist NULL.\n");
+		error("AddSlashes: Destination is NULL.\n");
 		return;
 	}
 
@@ -483,7 +483,7 @@ void AddSlashes(char *Destination, const char *Source) {
 
 void Trim(char *Text) {
 	if (Text == nullptr) {
-		error("Trim: Text ist NULL.\n");
+		error("Trim: Text is NULL.\n");
 		return;
 	}
 

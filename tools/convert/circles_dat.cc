@@ -21,7 +21,7 @@ void ReadCirclesDat(const char *FileName) {
 
 	IN.open(FileName);
 	if (IN.fail()) {
-		error("InitCircles: Kann Datei %s nicht \xf6" "ffnen.\n", FileName);
+		error("InitCircles: Cannot open file %s.\n", FileName);
 		throw "Cannot open \"circles.dat\"";
 	}
 
@@ -29,7 +29,7 @@ void ReadCirclesDat(const char *FileName) {
 	IN >> Y;
 	IN >> Center;
 	if (X < 1 || X > 21 || Y < 1 || Y > 21) {
-		error("InitCircles: Ung\xfcltiges Dateiformat.\n");
+		error("InitCircles: Invalid file format.\n");
 		throw "Cannot process \"circles.dat\"";
 	}
 

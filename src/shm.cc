@@ -65,7 +65,7 @@ Semaphore LogfileMutex(1);
 
 void StartGame() {
 	if (SHM == nullptr) {
-		error("StartGame: SharedMemory existiert nicht.\n");
+		error("StartGame: SharedMemory does not exist.\n");
 		return;
 	}
 
@@ -76,7 +76,7 @@ void StartGame() {
 
 void CloseGame() {
 	if (SHM == nullptr) {
-		error("CloseGame: SharedMemory existiert nicht.\n");
+		error("CloseGame: SharedMemory does not exist.\n");
 		return;
 	}
 
@@ -87,7 +87,7 @@ void CloseGame() {
 
 void EndGame() {
 	if (SHM == nullptr) {
-		error("EndGame: SharedMemory existiert nicht.\n");
+		error("EndGame: SharedMemory does not exist.\n");
 		return;
 	}
 
@@ -96,7 +96,7 @@ void EndGame() {
 
 bool GameRunning() {
 	if (SHM == nullptr) {
-		error("GameRunning: SharedMemory existiert nicht.\n");
+		error("GameRunning: SharedMemory does not exist.\n");
 		return false;
 	}
 
@@ -107,7 +107,7 @@ bool GameRunning() {
 
 bool GameStarting() {
 	if (SHM == nullptr) {
-		error("GameStarting: SharedMemory existiert nicht.\n");
+		error("GameStarting: SharedMemory does not exist.\n");
 		return false;
 	}
 
@@ -116,7 +116,7 @@ bool GameStarting() {
 
 bool GameEnding() {
 	if (SHM == nullptr) {
-		error("GameEnding: SharedMemory existiert nicht.\n");
+		error("GameEnding: SharedMemory does not exist.\n");
 		return false;
 	}
 
@@ -145,7 +145,7 @@ void ErrorHandler(char *Text) {
 
 		SHM->Errors++;
 		if (SHM->Errors == MAX_LOGGED_ERRORS) {
-			Log("error", "Zu viele Fehler. Keine weitere Protokollierung.\n");
+			Log("error", "Too many errors. No further logging.\n");
 		}
 	}
 }
@@ -267,7 +267,7 @@ bool DeleteSHM() {
 	int SHMID = shmget(SHMKey, 0, 0);
 	if (SHMID == -1) {
 		if (VerboseOutput) {
-			puts("DeleteSHM: SharedMemory existiert nicht.");
+			puts("DeleteSHM: SharedMemory does not exist.");
 		}
 		return true;
 	}
@@ -275,7 +275,7 @@ bool DeleteSHM() {
 	int retval = shmctl(SHMID, IPC_RMID, nullptr);
 	if (retval == -1) {
 		if (VerboseOutput) {
-			puts("DeleteSHM: Kann SharedMemory nicht l\xf6schen.");
+			puts("DeleteSHM: Cannot delete SharedMemory.");
 		}
 		return false;
 	}
@@ -298,7 +298,7 @@ again:
 		}
 
 		if (VerboseOutput) {
-			printf("CreateSHM: Kann SharedMemory nicht anlegen (Fehler %d).\n", errno);
+			printf("CreateSHM: Cannot create SharedMemory (error %d).\n", errno);
 		}
 		throw "Cannot create SharedMemory";
 	}
@@ -308,7 +308,7 @@ void AttachSHM() {
 	int SHMID = shmget(SHMKey, sizeof(TSharedMemory), 0);
 	if (SHMID == -1) {
 		if (VerboseOutput) {
-			puts("AttachSHM: Kann SharedMemory nicht fassen.");
+			puts("AttachSHM: Cannot get SharedMemory.");
 		}
 		SHM = nullptr;
 		throw "Cannot get SharedMemory";
@@ -317,7 +317,7 @@ void AttachSHM() {
 	SHM = static_cast<TSharedMemory *>(shmat(SHMID, nullptr, 0));
 	if (SHM == reinterpret_cast<TSharedMemory *>(-1)) {
 		if (VerboseOutput) {
-			puts("AttachSHM: Kann SharedMemory nicht anbinden.");
+			puts("AttachSHM: Cannot attach SharedMemory.");
 		}
 		SHM = nullptr;
 		throw "Cannot attach SharedMemory";
@@ -328,7 +328,7 @@ void DetachSHM() {
 	if (SHM != nullptr) {
 		int result = shmdt(SHM);
 		if (result == -1 && VerboseOutput) {
-			puts("DetachSHM: Kann SharedMemory nicht l\xf6schen.");
+			puts("DetachSHM: Cannot delete SharedMemory.");
 		}
 		SHM = nullptr;
 	}

@@ -92,7 +92,7 @@ extern TErrorFunction *ErrorFunction;
 template<class T>
 void RandomShuffle(T *Buffer, int Size) {
 	if (Buffer == nullptr) {
-		error("RandomShuffle: Buffer ist NULL.\n");
+		error("RandomShuffle: Buffer is NULL.\n");
 		return;
 	}
 

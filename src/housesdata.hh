@@ -63,7 +63,7 @@ typedef void THouseFieldFunction(int x, int y, int z, unsigned short HouseID);
 // MaxHouseX and MaxHouseY start from 0; each house gets its area's depot,
 // Rent = the area's SQMPrice * Size + rent_offset, NoAuction false and no
 // owner, subowners or guests, and SetField is called for each of its fields.
-// Logs "LoadHouses: Ausgang ... nicht gesetzt." for an exit or a center with
+// Logs "LoadHouses: Exit for house ... not set." for an exit or a center with
 // x 0, as the old reader did. Throws a const char *
 // "<file>:<line>:<column>: <what>" for what is wrong with it.
 void ReadHouseData(const toml::table &File, THouseFieldFunction *SetField);

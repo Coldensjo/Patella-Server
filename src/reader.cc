@@ -82,7 +82,7 @@ void InitReaderBuffers() {
 
 void InsertOrder(TReaderThreadOrderType OrderType, int SectorX, int SectorY, int SectorZ, uint32_t CharacterID) {
 	if (OrderPointerWrite - OrderPointerRead >= ORDER_BUFFER_SIZE) {
-		error("InsertOrder (Reader): Order-Puffer ist voll => Vergr\xf6\xdf" "ern.\n");
+		error("InsertOrder (Reader): Order buffer is full => enlarge.\n");
 	}
 
 	OrderBufferEmpty.down();
@@ -108,7 +108,7 @@ void GetOrder(TReaderThreadOrderType &OrderType, int &SectorX, int &SectorY, int
 
 void InsertReply(TReaderThreadReplyType ReplyType, int SectorX, int SectorY, int SectorZ, unsigned char *Data, int Size) {
 	while (ReplyPointerWrite - ReplyPointerRead >= REPLY_BUFFER_SIZE) {
-		error("InsertReply (Reader): Puffer ist voll; warte...\n");
+		error("InsertReply (Reader): Buffer is full; waiting...\n");
 		DelayThread(5, 0);
 	}
 
@@ -209,7 +209,7 @@ void ProcessLoadSectorOrder(int SectorX, int SectorY, int SectorZ) {
 			InsertReply(REPLY_SECTORDATA, SectorX, SectorY, SectorZ, Data, DataSize);
 		}
 	} catch (const char *s) {
-		error("ProcessLoadSectorOrder: Fehler beim Laden der Datei (%s).\n", s);
+		error("ProcessLoadSectorOrder: Error while loading the file (%s).\n", s);
 	}
 }
 
@@ -217,7 +217,7 @@ void ProcessLoadCharacterOrder(uint32_t CharacterID) {
 again:
 	TPlayerData *PlayerData = AssignPlayerPoolSlot(CharacterID, true);
 	if (PlayerData == nullptr) {
-		error("ProcessLoadCharacterOrder: Kann keinen Slot f\xfcr Spielerdaten zuweisen.\n");
+		error("ProcessLoadCharacterOrder: Cannot assign a slot for player data.\n");
 		return;
 	}
 
@@ -257,7 +257,7 @@ int ReaderThreadLoop(void *) {
 				break;
 
 			default:
-				error("ReaderThreadLoop: Unbekanntes Kommando %d.\n", OrderType);
+				error("ReaderThreadLoop: Unknown command %d.\n", OrderType);
 				break;
 		}
 	}
@@ -301,7 +301,7 @@ void ProcessReaderThreadReplies(TRefreshSectorFunction *RefreshSector, TSendMail
 				break;
 
 			default:
-				error("ProcessReaderThreadReplies: Unbekannte R\xfc" "ckmeldung %d.\n", ReplyType);
+				error("ProcessReaderThreadReplies: Unknown reply %d.\n", ReplyType);
 				break;
 		}
 	}

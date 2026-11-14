@@ -23,7 +23,7 @@ static char ErrorString[100];
 
 void SaveFile(char *Filename) {
 	if (Filename == nullptr) {
-		error("SaveFile: Filename ist NULL.\n");
+		error("SaveFile: Filename is NULL.\n");
 		return;
 	}
 
@@ -33,13 +33,13 @@ void SaveFile(char *Filename) {
 
 	FILE *Source = fopen(Filename, "rb");
 	if (Source == nullptr) {
-		error("SaveFile: Quelldatei %s existiert nicht.\n", Filename);
+		error("SaveFile: Source file %s does not exist.\n", Filename);
 		return;
 	}
 
 	FILE *Dest = fopen(BackupFilename, "wb");
 	if (Dest == nullptr) {
-		error("SaveFile: Kann Zieldatei %s nicht anlegen.\n", BackupFilename);
+		error("SaveFile: Cannot create target file %s.\n", BackupFilename);
 		return;
 	}
 
@@ -49,16 +49,16 @@ void SaveFile(char *Filename) {
 
 	unsigned char Buffer[Size];
 	if (fread(Buffer, 1, Size, Source) != Size) {
-		error("SaveFile: Fehler beim Lesen der Quelldatei %s.\n", Filename);
+		error("SaveFile: Error while reading the source file %s.\n", Filename);
 	} else if (fwrite(Buffer, 1, Size, Dest) != Size) {
-		error("SaveFile: Fehler beim Schreiben der Zieldatei %s.\n", Filename);
+		error("SaveFile: Error while writing the target file %s.\n", Filename);
 	}
 
 	if (fclose(Source) != 0) {
-		error("SaveFile: Fehler %d beim Schlie\xdf" "en der Quelldatei.\n", errno);
+		error("SaveFile: Error %d while closing the source file.\n", errno);
 	}
 	if (fclose(Dest) != 0) {
-		error("SaveFile: Fehler %d beim Schlie\xdf" "en der Zieldatei.\n", errno);
+		error("SaveFile: Error %d while closing the target file.\n", errno);
 	}
 }
 
@@ -69,7 +69,7 @@ TReadScriptFile::TReadScriptFile() {
 
 TReadScriptFile::~TReadScriptFile() {
 	if (RecursionDepth != -1) {
-		::error("TReadScriptFile::~TReadScriptFile: Datei ist noch offen.\n");
+		::error("TReadScriptFile::~TReadScriptFile: File is still open.\n");
 		while (RecursionDepth != -1) {
 			close();
 		}
@@ -79,7 +79,7 @@ TReadScriptFile::~TReadScriptFile() {
 void TReadScriptFile::open(char *FileName) {
 	RecursionDepth++;
 	if (RecursionDepth == MAXIMUMRECURSIONDEPTH) {
-		::error("TReadScriptFile::open: Rekursionstiefe zu gro\xdf.\n");
+		::error("TReadScriptFile::open: Recursion depth too large.\n");
 		throw "Recursion depth too high";
 	}
 
@@ -98,8 +98,8 @@ void TReadScriptFile::open(char *FileName) {
 	File[RecursionDepth] = fopen(Filename[RecursionDepth], "rb");
 	if (File[RecursionDepth] == nullptr) {
 		int ErrorCode = errno;
-		::error("TReadScriptFile::open: Kann Datei %s nicht \xf6" "ffnen.\n", Filename[RecursionDepth]);
-		::error("Fehler %d: %s.\n", ErrorCode, strerror(ErrorCode));
+		::error("TReadScriptFile::open: Cannot open file %s.\n", Filename[RecursionDepth]);
+		::error("Error %d: %s.\n", ErrorCode, strerror(ErrorCode));
 		RecursionDepth--;
 		throw "Cannot open script-file";
 	}
@@ -109,12 +109,12 @@ void TReadScriptFile::open(char *FileName) {
 
 void TReadScriptFile::close() {
 	if (RecursionDepth == -1) {
-		::error("TReadScriptFile::close: Keine Datei offen.\n");
+		::error("TReadScriptFile::close: No file open.\n");
 		return;
 	}
 
 	if (fclose(File[RecursionDepth]) != 0) {
-		::error("TReadScriptFile::close: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+		::error("TReadScriptFile::close: Error %d while closing the file.\n", errno);
 	}
 	RecursionDepth--;
 }
@@ -138,7 +138,7 @@ void TReadScriptFile::error(char *Text) {
 
 void TReadScriptFile::nextToken() {
 	if (RecursionDepth == -1) {
-		::error("TReadScriptFile::nextToken: Kein Skript zum Lesen ge\xf6" "ffnet.\n");
+		::error("TReadScriptFile::nextToken: No script opened for reading.\n");
 		Token = ENDOFFILE;
 		return;
 	}
@@ -532,7 +532,7 @@ again:
 			goto again;
 
 		default:
-			::error("TReadScriptFile::nextToken: Ung\xfcltiger Zustand.\n");
+			::error("TReadScriptFile::nextToken: Invalid state.\n");
 			State = 0;
 			break;
 		}
@@ -653,18 +653,18 @@ TWriteScriptFile::TWriteScriptFile() {
 
 TWriteScriptFile::~TWriteScriptFile() {
 	if (File != nullptr) {
-		::error("TWriteScriptFile::~TWriteScriptFile: Datei %s ist noch offen.\n", Filename);
+		::error("TWriteScriptFile::~TWriteScriptFile: File %s is still open.\n", Filename);
 		if (fclose(File) != 0) {
-			::error("TWriteScriptFile::~TWriteScriptFile: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TWriteScriptFile::~TWriteScriptFile: Error %d while closing the file.\n", errno);
 		}
 	}
 }
 
 void TWriteScriptFile::open(char *FileName) {
 	if (File != nullptr) {
-		::error("TWriteScriptFile::open: Altes Skript ist noch offen.\n");
+		::error("TWriteScriptFile::open: Old script is still open.\n");
 		if (fclose(File) != 0) {
-			::error("TWriteScriptFile::open: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TWriteScriptFile::open: Error %d while closing the file.\n", errno);
 		}
 		File = nullptr;
 	}
@@ -672,8 +672,8 @@ void TWriteScriptFile::open(char *FileName) {
 	File = fopen(FileName, "wb");
 	if (File == nullptr) {
 		int ErrorCode = errno;
-		::error("TWriteScriptFile: Kann Datei %s nicht anlegen.\n", FileName);
-		::error("Fehler %d: %s.\n", ErrorCode, strerror(ErrorCode));
+		::error("TWriteScriptFile: Cannot create file %s.\n", FileName);
+		::error("Error %d: %s.\n", ErrorCode, strerror(ErrorCode));
 		throw "Cannot create script-file";
 	}
 
@@ -682,19 +682,19 @@ void TWriteScriptFile::open(char *FileName) {
 
 void TWriteScriptFile::close() {
 	if (File == nullptr) {
-		::error("TWriteScriptFile::close: Kein Skript offen.\n");
+		::error("TWriteScriptFile::close: No script open.\n");
 		return;
 	}
 
 	if (fclose(File) != 0) {
-		::error("TWriteScriptFile::close: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+		::error("TWriteScriptFile::close: Error %d while closing the file.\n", errno);
 	}
 	File = nullptr;
 }
 
 void TWriteScriptFile::writeLn() {
 	if (File == nullptr) {
-		::error("TWriteScriptFile::writeLn: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
+		::error("TWriteScriptFile::writeLn: No script opened for writing.\n");
 		throw "Cannot write linefeed";
 	}
 
@@ -703,12 +703,12 @@ void TWriteScriptFile::writeLn() {
 
 void TWriteScriptFile::writeText(char *Text) {
 	if (File == nullptr) {
-		::error("TWriteScriptFile::writeText: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
+		::error("TWriteScriptFile::writeText: No script opened for writing.\n");
 		throw "Cannot write text";
 	}
 
 	if (Text == nullptr) {
-		::error("TWriteScriptFile::writeText: Text ist NULL.\n");
+		::error("TWriteScriptFile::writeText: Text is NULL.\n");
 		throw "Cannot write text";
 	}
 
@@ -720,12 +720,12 @@ void TWriteScriptFile::writeText(char *Text) {
 
 void TWriteScriptFile::writeString(char *Text) {
 	if (File == nullptr) {
-		::error("TWriteScriptFile::writeString: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
+		::error("TWriteScriptFile::writeString: No script opened for writing.\n");
 		throw "Cannot write string";
 	}
 
 	if (Text == nullptr) {
-		::error("TWriteScriptFile::writeString: Text ist NULL.\n");
+		::error("TWriteScriptFile::writeString: Text is NULL.\n");
 		throw "Cannot write string";
 	}
 
@@ -747,7 +747,7 @@ void TWriteScriptFile::writeString(char *Text) {
 
 void TWriteScriptFile::writeNumber(int Number) {
 	if (File == nullptr) {
-		::error("TWriteScriptFile::writeNumber: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
+		::error("TWriteScriptFile::writeNumber: No script opened for writing.\n");
 		throw "Cannot write number";
 	}
 
@@ -758,17 +758,17 @@ void TWriteScriptFile::writeNumber(int Number) {
 
 void TWriteScriptFile::writeBytesequence(unsigned char *Sequence, int Length) {
 	if (File == nullptr) {
-		::error("TWriteScriptFile::writeBytesequence: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
+		::error("TWriteScriptFile::writeBytesequence: No script opened for writing.\n");
 		throw "Cannot write bytesequence";
 	}
 
 	if (Sequence == nullptr) {
-		::error("TWriteScriptFile::writeBytesequence: Sequence ist NULL.\n");
+		::error("TWriteScriptFile::writeBytesequence: Sequence is NULL.\n");
 		throw "Cannot write bytesequence";
 	}
 
 	if (Length <= 0) {
-		::error("TWriteScriptFile::writeBytesequence: Ung\xfcltige Sequenzl\xe4nge.\n");
+		::error("TWriteScriptFile::writeBytesequence: Invalid sequence length.\n");
 		throw "Cannot write bytesequence";
 	}
 
@@ -782,12 +782,12 @@ void TWriteScriptFile::writeBytesequence(unsigned char *Sequence, int Length) {
 
 void TWriteScriptFile::writeCoordinate(int x, int y, int z) {
 	if (File == nullptr) {
-		::error("TWriteScriptFile::writeCoordinate: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
+		::error("TWriteScriptFile::writeCoordinate: No script opened for writing.\n");
 		throw "Cannot write coordinate";
 	}
 
 	if (x < 0 || y < 0 || z < 0) {
-		::error("TWriteScriptFile::writeCoordinate: Ung\xfcltige Koordinaten [%d,%d,%d].\n", x, y, z);
+		::error("TWriteScriptFile::writeCoordinate: Invalid coordinates [%d,%d,%d].\n", x, y, z);
 		throw "Invalid coordinates";
 	}
 
@@ -802,9 +802,9 @@ TReadBinaryFile::TReadBinaryFile() {
 
 TReadBinaryFile::~TReadBinaryFile() {
 	if (File != nullptr) {
-		::error("TReadBinaryFile::~TReadBinaryFile: Datei %s ist noch offen.\n", Filename);
+		::error("TReadBinaryFile::~TReadBinaryFile: File %s is still open.\n", Filename);
 		if (fclose(File) != 0) {
-			::error("TReadBinaryFile::~TReadBinaryFile: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TReadBinaryFile::~TReadBinaryFile: Error %d while closing the file.\n", errno);
 		}
 	}
 }
@@ -827,8 +827,8 @@ void TReadBinaryFile::open(char *FileName) {
 void TReadBinaryFile::close() {
 	if (fclose(File) != 0) {
 		int ErrorCode = errno;
-		::error("TReadBinaryFile::close: Fehler beim Schlie\xdf" "en der Datei.\n");
-		::error("# Datei: %s, Fehlercode: %d (%s)\n", Filename, ErrorCode, strerror(ErrorCode));
+		::error("TReadBinaryFile::close: Error while closing the file.\n");
+		::error("# File: %s, error code: %d (%s)\n", Filename, ErrorCode, strerror(ErrorCode));
 	}
 	File = nullptr;
 }
@@ -862,7 +862,7 @@ int TReadBinaryFile::getPosition() {
 void TReadBinaryFile::error(char *Text) {
 	if (File != nullptr) {
 		if (fclose(File) != 0) {
-			::error("TReadBinaryFile::error: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TReadBinaryFile::error: Error %d while closing the file.\n", errno);
 		}
 	}
 	File = nullptr;
@@ -876,11 +876,11 @@ unsigned char TReadBinaryFile::readByte() {
 	int Result = (int)fread(&Help, 1, 1, File);
 	if (Result != 1) {
 		int ErrorCode = errno;
-		::error("TReadBinaryFile::readByte: Fehler beim Lesen eines Bytes\n");
-		::error("# Datei: %s, Position: %d, R\xfc" "ckgabewert: %d, Fehlercode: %d (%s)\n",
+		::error("TReadBinaryFile::readByte: Error while reading a byte\n");
+		::error("# File: %s, position: %d, return value: %d, error code: %d (%s)\n",
 				Filename, (int)ftell(File), Result, ErrorCode, strerror(ErrorCode));
 		if (fclose(File) != 0) {
-			::error("TReadBinaryFile::readByte: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TReadBinaryFile::readByte: Error %d while closing the file.\n", errno);
 		}
 		File = nullptr;
 		SaveFile(Filename);
@@ -893,12 +893,12 @@ void TReadBinaryFile::readBytes(unsigned char *Buffer, int Count) {
 	int Result = (int)fread(Buffer, 1, Count, File);
 	if (Result != Count) {
 		int ErrorCode = errno;
-		::error("TReadBinaryFile::readBytes: Fehler beim Lesen von %d Bytes\n", Count);
-		::error("# Datei: %s, Position %d, R\xfc" "ckgabewert: %d, Fehlercode: %d (%s)\n",
+		::error("TReadBinaryFile::readBytes: Error while reading %d bytes\n", Count);
+		::error("# File: %s, position %d, return value: %d, error code: %d (%s)\n",
 				Filename, (int)ftell(File), Result, ErrorCode, strerror(ErrorCode));
 		if (fclose(File) != 0) {
 			// quirk: the message names readByte, not readBytes
-			::error("TReadBinaryFile::readByte: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TReadBinaryFile::readByte: Error %d while closing the file.\n", errno);
 		}
 		File = nullptr;
 		SaveFile(Filename);
@@ -928,9 +928,9 @@ TWriteBinaryFile::TWriteBinaryFile() {
 
 TWriteBinaryFile::~TWriteBinaryFile() {
 	if (File != nullptr) {
-		::error("TWriteBinaryFile::~TWriteBinaryFile: Datei %s ist noch offen.\n", Filename);
+		::error("TWriteBinaryFile::~TWriteBinaryFile: File %s is still open.\n", Filename);
 		if (fclose(File) != 0) {
-			::error("TWriteBinaryFile::~TWriteBinaryFile: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TWriteBinaryFile::~TWriteBinaryFile: Error %d while closing the file.\n", errno);
 		}
 	}
 }
@@ -943,8 +943,8 @@ void TWriteBinaryFile::open(char *FileName) {
 	File = fopen(FileName, "wb");
 	if (File == nullptr) {
 		int ErrorCode = errno;
-		::error("TWriteBinaryFile::open: Kann Datei %s nicht anlegen.\n", FileName);
-		::error("Fehler %d: %s.\n", ErrorCode, strerror(ErrorCode));
+		::error("TWriteBinaryFile::open: Cannot create file %s.\n", FileName);
+		::error("Error %d: %s.\n", ErrorCode, strerror(ErrorCode));
 		sprintf(ErrorString, "Cannot create file %s.", FileName);
 		throw ErrorString;
 	}
@@ -955,8 +955,8 @@ void TWriteBinaryFile::open(char *FileName) {
 void TWriteBinaryFile::close() {
 	if (fclose(File) != 0) {
 		int ErrorCode = errno;
-		::error("TWriteBinaryFile::close: Fehler beim Schlie\xdf" "en der Datei.\n");
-		::error("# Datei: %s, Fehlercode: %d (%s)\n", Filename, ErrorCode, strerror(ErrorCode));
+		::error("TWriteBinaryFile::close: Error while closing the file.\n");
+		::error("# File: %s, error code: %d (%s)\n", Filename, ErrorCode, strerror(ErrorCode));
 	}
 	File = nullptr;
 }
@@ -964,7 +964,7 @@ void TWriteBinaryFile::close() {
 void TWriteBinaryFile::error(char *Text) {
 	if (File != nullptr) {
 		if (fclose(File) != 0) {
-			::error("TWriteBinaryFile::error: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TWriteBinaryFile::error: Error %d while closing the file.\n", errno);
 		}
 	}
 	File = nullptr;
@@ -978,11 +978,11 @@ void TWriteBinaryFile::writeByte(unsigned char Number) {
 	int Result = (int)fwrite(&Help, 1, 1, File);
 	if (Result != 1) {
 		int ErrorCode = errno;
-		::error("TWriteBinaryFile::writeByte: Fehler beim Schreiben eines Bytes\n");
-		::error("# Datei: %s, R\xfc" "ckgabewert: %d, Fehlercode: %d (%s)\n",
+		::error("TWriteBinaryFile::writeByte: Error while writing a byte\n");
+		::error("# File: %s, return value: %d, error code: %d (%s)\n",
 				Filename, Result, ErrorCode, strerror(ErrorCode));
 		if (fclose(File) != 0) {
-			::error("TWriteBinaryFile::writeByte: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TWriteBinaryFile::writeByte: Error %d while closing the file.\n", errno);
 		}
 		File = nullptr;
 		SaveFile(Filename);
@@ -994,11 +994,11 @@ void TWriteBinaryFile::writeBytes(unsigned char *Buffer, int Count) {
 	int Result = (int)fwrite(Buffer, 1, Count, File);
 	if (Result != Count) {
 		int ErrorCode = errno;
-		::error("TWriteBinaryFile::writeBytes: Fehler beim Schreiben von %d Bytes\n", Count);
-		::error("# Datei: %s, R\xfc" "ckgabewert: %d, Fehlercode: %d (%s)\n",
+		::error("TWriteBinaryFile::writeBytes: Error while writing %d bytes\n", Count);
+		::error("# File: %s, return value: %d, error code: %d (%s)\n",
 				Filename, Result, ErrorCode, strerror(ErrorCode));
 		if (fclose(File) != 0) {
-			::error("TWriteBinaryFile::writeBytes: Fehler %d beim Schlie\xdf" "en der Datei.\n", errno);
+			::error("TWriteBinaryFile::writeBytes: Error %d while closing the file.\n", errno);
 		}
 		File = nullptr;
 		SaveFile(Filename);

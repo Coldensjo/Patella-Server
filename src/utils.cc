@@ -79,7 +79,7 @@ uint32_t TReadStream::readQuad() {
 
 void TReadStream::readString(char *Buffer, int MaxLength) {
 	if (Buffer == nullptr) {
-		error("TReadStream::readString: \xdc" "bergebener Puffer existiert nicht.\n");
+		error("TReadStream::readString: Given buffer does not exist.\n");
 		throw "internal error";
 	}
 
@@ -105,7 +105,7 @@ void TReadStream::readString(char *Buffer, int MaxLength) {
 
 void TReadStream::readBytes(unsigned char *Buffer, int Count) {
 	if (Buffer == nullptr) {
-		error("TReadStream::readBytes: \xdc" "bergebener Puffer existiert nicht.\n");
+		error("TReadStream::readBytes: Given buffer does not exist.\n");
 		throw "internal error";
 	}
 
@@ -147,7 +147,7 @@ void TWriteStream::writeString(char *s) {
 
 void TWriteStream::writeBytes(unsigned char *Buffer, int Count) {
 	if (Buffer == nullptr) {
-		error("TWriteStream::writeBytes: \xdc" "bergebener Puffer existiert nicht.\n");
+		error("TWriteStream::writeBytes: Given buffer does not exist.\n");
 		throw "internal error";
 	}
 
@@ -162,10 +162,10 @@ TReadBuffer::TReadBuffer(unsigned char *data, int size) {
 	Position = 0;
 
 	if (data == nullptr) {
-		error("TReadBuffer::TReadBuffer: data ist NULL.\n");
+		error("TReadBuffer::TReadBuffer: data is NULL.\n");
 		Size = 0;
 	} else if (size < 0) {
-		error("TReadBuffer::TReadBuffer: Ung\xfcltige Datengr\xf6\xdf" "e %d.\n", size);
+		error("TReadBuffer::TReadBuffer: Invalid data size %d.\n", size);
 		Size = 0;
 	}
 }
@@ -205,7 +205,7 @@ uint32_t TReadBuffer::readQuad() {
 
 void TReadBuffer::readBytes(unsigned char *Buffer, int Count) {
 	if (Buffer == nullptr) {
-		error("TReadBuffer::readBytes: \xdc" "bergebener Puffer existiert nicht.\n");
+		error("TReadBuffer::readBytes: Given buffer does not exist.\n");
 		throw "buffer not existing";
 	}
 
@@ -236,10 +236,10 @@ TWriteBuffer::TWriteBuffer(unsigned char *data, int size) {
 
 	// Unlike TReadBuffer, a negative size is only reported; Size keeps it.
 	if (data == nullptr) {
-		error("TWriteBuffer::TWriteBuffer: data ist NULL.\n");
+		error("TWriteBuffer::TWriteBuffer: data is NULL.\n");
 		Size = 0;
 	} else if (size < 0) {
-		error("TWriteBuffer::TWriteBuffer: Ung\xfcltige Datengr\xf6\xdf" "e %d.\n", size);
+		error("TWriteBuffer::TWriteBuffer: Invalid data size %d.\n", size);
 	}
 }
 
@@ -357,7 +357,7 @@ bool FileExists(char *FileName) {
 	}
 
 	if (errno != ENOENT) {
-		error("FileExists: Unerwarteter Fehlercode %d.\n", errno);
+		error("FileExists: Unexpected error code %d.\n", errno);
 	}
 	return false;
 }

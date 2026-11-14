@@ -46,7 +46,7 @@ namespace qm {
 
 // Status byte at the start of every response.
 // executeQuery returns it to the caller; 3 is also logged by executeQuery
-// itself ("Anfrage fehlgeschlagen"). Status 1 is followed by a u8 error code
+// itself ("Request failed"). Status 1 is followed by a u8 error code
 // in the requests that define error codes. No caller in the game server
 // handles 2.
 enum Status : uint8_t {
@@ -129,20 +129,20 @@ enum QueryType : uint8_t {
 // comes from the switch in PerformRegistration. Code 5 is in the valid range
 // but has no case there.
 enum LoginGameError : uint8_t {
-	LOGIN_CHARACTER_UNKNOWN = 1,        // "Spieler existiert nicht."
-	LOGIN_CHARACTER_DELETED = 2,        // "Spieler wurde geloescht."
-	LOGIN_WRONG_WORLD = 3,              // "Spieler lebt nicht auf dieser Welt."
-	LOGIN_NOT_INVITED = 4,              // "Spieler ist nicht eingeladen."
-	LOGIN_WRONG_PASSWORD = 6,           // "Falsches Passwort fuer Spieler %s"
+	LOGIN_CHARACTER_UNKNOWN = 1,        // "Player does not exist."
+	LOGIN_CHARACTER_DELETED = 2,        // "Player was deleted."
+	LOGIN_WRONG_WORLD = 3,              // "Player does not live on this world."
+	LOGIN_NOT_INVITED = 4,              // "Player is not invited."
+	LOGIN_WRONG_PASSWORD = 6,           // "Wrong password for player %s"
 	LOGIN_ACCOUNT_BLOCKED = 7,          // "Account disabled for five minutes."
-	LOGIN_ACCOUNT_DELETED = 8,          // "Account von Spieler %s wurde geloescht."
+	LOGIN_ACCOUNT_DELETED = 8,          // "Account of player %s was deleted."
 	LOGIN_IP_BLOCKED = 9,               // "IP address blocked for 30 minutes."
-	LOGIN_ACCOUNT_BANISHED = 10,        // "Account ist verbannt."
-	LOGIN_NAMELOCKED = 11,              // "Character muss umbenannt werden."
-	LOGIN_IP_BANISHED = 12,             // "IP-Adresse ist gesperrt."
-	LOGIN_ALREADY_ONLINE = 13,          // "Schon andere Charaktere desselben Accounts eingeloggt."
-	LOGIN_NOT_GAMEMASTER = 14,          // "Login mit Gamemaster-Client auf Nicht-Gamemaster-Account."
-	LOGIN_WRONG_ACCOUNT = 15,           // "Falsche Accountnummer %lu fuer %s."
+	LOGIN_ACCOUNT_BANISHED = 10,        // "Account is banished."
+	LOGIN_NAMELOCKED = 11,              // "Character must be renamed."
+	LOGIN_IP_BANISHED = 12,             // "IP address is blocked."
+	LOGIN_ALREADY_ONLINE = 13,          // "Other characters of the same account already logged in."
+	LOGIN_NOT_GAMEMASTER = 14,          // "Login with gamemaster client on non-gamemaster account."
+	LOGIN_WRONG_ACCOUNT = 15,           // "Wrong account number %lu for %s."
 };
 
 // Error codes that follow STATUS_ERROR in a loginAccount response. This

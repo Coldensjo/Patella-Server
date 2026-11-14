@@ -465,10 +465,10 @@ void LoadMoveUseRules(const char *FileName) {
 
 void LoadDataBase() {
 	char FileName[4096];
-	print(1, "Lade Move/Use-Datenbank ...\n");
+	print(1, "Loading move/use database ...\n");
 	sprintf(FileName, "%s/moveuse.toml", DATAPATH);
 	LoadMoveUseRules(FileName);
-	print(1, "Move/Use-Datenbank mit %d/%d/%d/%d/%d Regeln gelesen.\n",
+	print(1, "Move/use database read with %d/%d/%d/%d/%d rules.\n",
 			MoveUseDatabases[EVENT_USE].NumberOfRules, MoveUseDatabases[EVENT_MULTIUSE].NumberOfRules,
 			MoveUseDatabases[EVENT_MOVEMENT].NumberOfRules, MoveUseDatabases[EVENT_COLLISION].NumberOfRules,
 			MoveUseDatabases[EVENT_SEPARATION].NumberOfRules);

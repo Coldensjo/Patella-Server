@@ -190,7 +190,7 @@ public:
 	}
 	void deleteMin() {
 		if (Entries == 0) {
-			error("priority_queue::deleteMin: Warteschlange ist leer.\n");
+			error("priority_queue::deleteMin: Queue is empty.\n");
 			return;
 		}
 
@@ -245,7 +245,7 @@ matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax, T init) {
 	this->dx = xmax - xmin + 1;
 	this->dy = ymax - ymin + 1;
 	if (this->dx < 1 || this->dy < 1) {
-		error("matrix: Ungueltige Feldgroesse %d..%d, %d..%d.\n", xmin, xmax, ymin, ymax);
+		error("matrix: Invalid array size %d..%d, %d..%d.\n", xmin, xmax, ymin, ymax);
 		this->dx = 1;
 		this->dy = 1;
 	}
@@ -263,7 +263,7 @@ matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax) {
 	this->dx = xmax - xmin + 1;
 	this->dy = ymax - ymin + 1;
 	if (this->dx < 1 || this->dy < 1) {
-		error("matrix: Ungueltige Feldgroesse %d..%d, %d..%d.\n", xmin, xmax, ymin, ymax);
+		error("matrix: Invalid array size %d..%d, %d..%d.\n", xmin, xmax, ymin, ymax);
 		if (this->dx < 1) {
 			this->dx = 1;
 		}
@@ -285,7 +285,7 @@ T &matrix<T>::operator()(int x, int y) {
 	x -= xmin;
 	y -= ymin;
 	if (x < 0 || x >= dx || y < 0 || y >= dy) {
-		error("matrix::operator(): Ungueltiger Index %d/%d.\n", x + xmin, y + ymin);
+		error("matrix::operator(): Invalid index %d/%d.\n", x + xmin, y + ymin);
 		return entry[0];
 	}
 
@@ -301,7 +301,7 @@ matrix3d<T>::matrix3d(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax
 	this->dy = ymax - ymin + 1;
 	this->dz = zmax - zmin + 1;
 	if (this->dx < 1 || this->dy < 1 || this->dz < 1) {
-		error("matrix3d: Ungueltige Feldgroesse %d..%d, %d..%d, %d..%d.\n", xmin, xmax, ymin, ymax, zmin, zmax);
+		error("matrix3d: Invalid array size %d..%d, %d..%d, %d..%d.\n", xmin, xmax, ymin, ymax, zmin, zmax);
 		if (this->dx < 1) {
 			this->dx = 1;
 		}
@@ -330,7 +330,7 @@ T &matrix3d<T>::operator()(int x, int y, int z) {
 	y -= ymin;
 	z -= zmin;
 	if (x < 0 || x >= dx || y < 0 || y >= dy || z < 0 || z >= dz) {
-		error("matrix3d::operator(): Ungueltiger Index %d/%d/%d.\n", x + xmin, y + ymin, z + zmin);
+		error("matrix3d::operator(): Invalid index %d/%d/%d.\n", x + xmin, y + ymin, z + zmin);
 		return entry[0];
 	}
 
@@ -347,12 +347,12 @@ vector<T>::vector(int min, int max, int block, T init) {
 	this->initialized = true;
 	this->init = init;
 	if (this->space < 1) {
-		error("vector: Ungueltige Feldgroesse %d bis %d.\n", min, max);
+		error("vector: Invalid array size %d to %d.\n", min, max);
 		this->max = max;
 		this->space = 1;
 	}
 	if (block < 0) {
-		error("vector: Ungueltige Blockgroesse %d.\n", block);
+		error("vector: Invalid block size %d.\n", block);
 		this->block = 0;
 	}
 
@@ -371,12 +371,12 @@ vector<T>::vector(int min, int max, int block) {
 	this->block = block;
 	this->initialized = false;
 	if (this->space < 1) {
-		error("vector: Ungueltige Feldgroesse %d bis %d.\n", min, max);
+		error("vector: Invalid array size %d to %d.\n", min, max);
 		this->max = max;
 		this->space = 1;
 	}
 	if (block < 0) {
-		error("vector: Ungueltige Blockgroesse %d.\n", block);
+		error("vector: Invalid block size %d.\n", block);
 		this->block = 0;
 	}
 
@@ -457,7 +457,7 @@ listIterator<T>::listIterator() {
 template<class T>
 listnode<T> *listIterator<T>::operator++(int) {
 	if (actNode == nullptr) {
-		error("listIterator::operator++: Iterator ist NULL.\n");
+		error("listIterator::operator++: Iterator is NULL.\n");
 		return nullptr;
 	}
 
@@ -468,7 +468,7 @@ listnode<T> *listIterator<T>::operator++(int) {
 template<class T>
 T *listIterator<T>::operator*() {
 	if (actNode == nullptr) {
-		error("listIterator::operator*: Iterator ist NULL.\n");
+		error("listIterator::operator*: Iterator is NULL.\n");
 		return nullptr;
 	}
 
@@ -506,7 +506,7 @@ listnode<T> *list<T>::append() {
 template<class T>
 void list<T>::remove(listnode<T> *node) {
 	if (node == nullptr) {
-		error("list::remove: node ist NULL.\n");
+		error("list::remove: node is NULL.\n");
 		return;
 	}
 
@@ -593,7 +593,7 @@ T *fifo<T>::append() {
 template<class T>
 void fifo<T>::remove() {
 	if (Tail > Head) {
-		error("fifo::remove: Fifo ist leer.\n");
+		error("fifo::remove: Fifo is empty.\n");
 		return;
 	}
 

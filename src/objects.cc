@@ -546,7 +546,7 @@ void LoadConversionList() {
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
 	int Type = NewType[Group * 256 + Number];
 	if (Type == -1) {
-		error("GetNewObjectType: Objekttyp %d/%d existiert nicht.\n", Group, Number);
+		error("GetNewObjectType: Object type %d/%d does not exist.\n", Group, Number);
 		return ObjectType(0);
 	}
 	return ObjectType(Type);
@@ -554,7 +554,7 @@ ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
 
 void ObjectType::setTypeID(int _TypeID) {
 	if (!in(_TypeID, ObjectTypes.low(), ObjectTypes.high())) {
-		error("ObjectType::setTypeID: Ung\xfcltiger Typ %d.\n", _TypeID);
+		error("ObjectType::setTypeID: Invalid type %d.\n", _TypeID);
 		_TypeID = 0;
 	}
 	TypeID = _TypeID;
@@ -565,7 +565,7 @@ const char *ObjectType::getName(int Count) {
 	ObjectName[0] = 0;
 
 	if (isCreature()) {
-		error("ObjectType::getName: Der Kreaturtyp hat keinen Namen.\n");
+		error("ObjectType::getName: The creature type has no name.\n");
 		return nullptr;
 	}
 
@@ -587,7 +587,7 @@ bool ObjectType::getFlag(FLAG Flag) {
 
 uint32_t ObjectType::getAttribute(TYPEATTRIBUTE Attribute) {
 	if (!getFlag(TypeAttributeFlags[Attribute])) {
-		error("ObjectType::getAttribute: Typ %d hat kein Flag %d f\xfc" "r Attribut %d.\n",
+		error("ObjectType::getAttribute: Type %d has no flag %d for attribute %d.\n",
 				getTypeID(), TypeAttributeFlags[Attribute], Attribute);
 		return 0;
 	}
@@ -608,12 +608,12 @@ bool ObjectTypeExists(int TypeID) {
 
 ObjectType GetSpecialObject(SPECIALMEANING Meaning) {
 	if (!in(Meaning, 1, SPECIALMEANINGS)) {
-		error("GetSpecialObject: Ung\xfcltige Bedeutung %d.\n", Meaning);
+		error("GetSpecialObject: Invalid meaning %d.\n", Meaning);
 		return ObjectType(0);
 	}
 
 	if (SpecialObjects[Meaning] == ObjectType(0)) {
-		error("GetSpecialObject: Kein Objekttyp mit Bedeutung %d definiert.\n", Meaning);
+		error("GetSpecialObject: No object type with meaning %d defined.\n", Meaning);
 		return ObjectType(0);
 	}
 
@@ -622,7 +622,7 @@ ObjectType GetSpecialObject(SPECIALMEANING Meaning) {
 
 ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
 	if (SearchName == nullptr) {
-		error("GetObjectTypeByName: SearchName ist NULL.\n");
+		error("GetObjectTypeByName: SearchName is NULL.\n");
 		return ObjectType(0);
 	}
 

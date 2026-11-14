@@ -69,10 +69,10 @@ void ProcessCommand() {
 			if (CommandBuffer != nullptr) {
 				BroadcastMessage(TALK_ADMIN_MESSAGE, "%s", CommandBuffer);
 			} else {
-				error("ProcessCommand: Text f\xfcr Broadcast ist NULL.\n");
+				error("ProcessCommand: Text for broadcast is NULL.\n");
 			}
 		} else {
-			error("ProcessCommand: Unbekanntes Kommando %d.\n", Command);
+			error("ProcessCommand: Unknown command %d.\n", Command);
 		}
 		SetCommand(0, nullptr);
 	}
@@ -202,12 +202,12 @@ void AdvanceGame(int Delay) {
 	}
 
 	if (Delay > Beat) {
-		Log("lag", "Verz\xf6gerung %d msec.\n", Delay);
+		Log("lag", "Delay %d msec.\n", Delay);
 	}
 
 	if (Delay >= ROUND_DURATION) {
 		if (!Lag && RoundNr > 10) {
-			error("AdvanceGame: Keine Kreaturbewegung wegen Lag (Verz\xf6gerung: %d msec).\n", Delay);
+			error("AdvanceGame: No creature movement due to lag (delay: %d msec).\n", Delay);
 		}
 		Lag = true;
 	} else {
@@ -254,7 +254,7 @@ void SigHupHandler(int) {
 }
 
 void SigAbortHandler(int) {
-	print(1, "SigAbortHandler: schalte Writer-Thread ab.\n");
+	print(1, "SigAbortHandler: shutting down writer thread.\n");
 	AbortWriter();
 }
 
@@ -268,7 +268,7 @@ void DefaultHandler(int signo) {
 	// sigdescr_np gives the signal's description, the text sys_siglist[signo]
 	// held before glibc stopped exporting it.
 	snprintf(s, sizeof(s), "SigNr. %d: %s", signo, sigdescr_np(signo));
-	print(1, "DefaultHandler: Beende Game-Server (%s).\n", s);
+	print(1, "DefaultHandler: Stopping game server (%s).\n", s);
 
 	handler(SIGINT, SIG_IGN);
 	handler(SIGQUIT, SIG_IGN);
@@ -358,7 +358,7 @@ void InitSignalHandler() {
 	}
 
 	// Quirk: 21 handlers are set up, but the expected number printed is 28.
-	print(1, "InitSignalHandler: %d Signalhandler eingerichtet (Soll=%d)\n", count, 28);
+	print(1, "InitSignalHandler: %d signal handlers set up (expected=%d)\n", count, 28);
 }
 
 void UnlockGame() {
@@ -411,7 +411,7 @@ void LockGame() {
 void LoadWorldConfig() {
 	TQueryManagerConnection Connection;
 	if (!Connection.isConnected()) {
-		error("LoadWorldConfig: Kann nicht zum Query-Manager verbinden.\n");
+		error("LoadWorldConfig: Cannot connect to the query manager.\n");
 		throw "cannot connect to querymanager";
 	}
 
@@ -419,7 +419,7 @@ void LoadWorldConfig() {
 	int HelpGameAddress[4];
 	if (Connection.loadWorldConfig(HelpWorldType, RebootTime, HelpGameAddress, GamePort,
 			MaxPlayers, PremiumPlayerBuffer, MaxNewbies, PremiumNewbieBuffer) != 0) {
-		error("LoadWorldConfig: Kann Konfigurationsdaten nicht holen.\n");
+		error("LoadWorldConfig: Cannot fetch config data.\n");
 		throw "cannot load world config";
 	}
 
@@ -451,7 +451,7 @@ void InitAll(const char *ConfigFile) {
 		InitTime();
 		ApplyPatches();
 	} catch (const char *s) {
-		error("Initialisierungsfehler: %s\n", s);
+		error("Initialization error: %s\n", s);
 		exit(1);
 	}
 }
@@ -558,7 +558,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (!BeADaemon) {
-		puts("Tibia Game-Server\n(c) by CIP Productions, 2003.\n");
+		puts("Tibia game server\n(c) by CIP Productions, 2003.\n");
 	}
 
 	if (BeADaemon) {
@@ -573,16 +573,16 @@ int main(int argc, char **argv) {
 	try {
 		LaunchGame();
 	} catch (RESULT r) {
-		error("main: Nicht abgefangene Exception %d.\n", r);
+		error("main: Uncaught exception %d.\n", r);
 		Reboot = false;
 	} catch (const char *s) {
-		error("main: Nicht abgefangene Exception \"%s\".\n", s);
+		error("main: Uncaught exception \"%s\".\n", s);
 		Reboot = false;
 	} catch (std::exception &e) {
-		error("main: Nicht abgefangene Exception %s.\n", e.what());
+		error("main: Uncaught exception %s.\n", e.what());
 		Reboot = false;
 	} catch (...) {
-		error("main: Nicht abgefangene Exception unbekannten Typs.\n");
+		error("main: Uncaught exception of unknown type.\n");
 		Reboot = false;
 	}
 
@@ -593,12 +593,12 @@ int main(int argc, char **argv) {
 		sprintf(FileName, "%s/reboot-daily", BINPATH);
 		if (FileExists(FileName)) {
 			ExitAll();
-			print(1, "Starte Game-Server neu...\n");
+			print(1, "Restarting game server...\n");
 			execv(FileName, argv);
 		}
-		print(1, "Reboot-Skript existiert nicht.\n");
+		print(1, "Reboot script does not exist.\n");
 	} else {
-		print(1, "Beende Game-Server...\n");
+		print(1, "Stopping game server...\n");
 	}
 
 	return 0;

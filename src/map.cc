@@ -104,7 +104,7 @@ static TDynamicWriteBuffer HelpBuffer(65536);
 
 TObject &AccessObject(Object Obj) {
 	if (Obj == NONE) {
-		error("AccessObject: Ung\xfcltige Objektnummer Null.\n");
+		error("AccessObject: Invalid object number zero.\n");
 		return *(TObject *)HashTableData[0];
 	}
 
@@ -141,13 +141,13 @@ ObjectType Object::getObjectType() {
 uint32_t Object::getAttribute(INSTANCEATTRIBUTE Attribute) {
 	int Offset = getObjectType().getAttributeOffset(Attribute);
 	if (Offset == -1) {
-		error("Object::getAttribute: Flag f\xfcr Attribut %d bei Objekttyp %d nicht gesetzt.\n",
+		error("Object::getAttribute: Flag for attribute %d of object type %d not set.\n",
 				Attribute, getObjectType().getTypeID());
 		return 0;
 	}
 
 	if (!in(Offset, 0, 3)) {
-		error("Object::getAttribute: Ung\xfcltiger Offset %d f\xfcr Attribut %d bei Objekttyp %d.\n",
+		error("Object::getAttribute: Invalid offset %d for attribute %d of object type %d.\n",
 				Offset, Attribute, getObjectType().getTypeID());
 		return 0;
 	}
@@ -158,13 +158,13 @@ uint32_t Object::getAttribute(INSTANCEATTRIBUTE Attribute) {
 void Object::setAttribute(INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	int Offset = getObjectType().getAttributeOffset(Attribute);
 	if (Offset == -1) {
-		error("Object::setAttribute: Flag f\xfcr Attribut %d bei Objekttyp %d nicht gesetzt.\n",
+		error("Object::setAttribute: Flag for attribute %d of object type %d not set.\n",
 				Attribute, getObjectType().getTypeID());
 		return;
 	}
 
 	if (!in(Offset, 0, 3)) {
-		error("Object::setAttribute: Ung\xfcltiger Offset %d f\xfcr Attribut %d bei Objekttyp %d.\n",
+		error("Object::setAttribute: Invalid offset %d for attribute %d of object type %d.\n",
 				Offset, Attribute, getObjectType().getTypeID());
 		return;
 	}
@@ -190,7 +190,7 @@ Object Object::getContainer() {
 
 uint32_t Object::getCreatureID() {
 	if (!isCreature()) {
-		error("Object::getCreatureID: Objekt ist keine Kreatur.\n");
+		error("Object::getCreatureID: Object is not a creature.\n");
 		return 0;
 	}
 
@@ -199,7 +199,7 @@ uint32_t Object::getCreatureID() {
 
 void GetObjectCoordinates(Object Obj, int &x, int &y, int &z) {
 	if (!Obj.exists()) {
-		error("GetObjectCoordinates: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetObjectCoordinates: Given object does not exist.\n");
 		x = 0;
 		y = 0;
 		z = 0;
@@ -217,7 +217,7 @@ void GetObjectCoordinates(Object Obj, int &x, int &y, int &z) {
 
 unsigned char GetMapContainerFlags(Object Obj) {
 	if (!Obj.exists() || !Obj.isMapContainer()) {
-		error("GetMapContainerFlags: Objekt ist kein MapContainer.\n");
+		error("GetMapContainerFlags: Object is not a MapContainer.\n");
 		return 0;
 	}
 
@@ -275,7 +275,7 @@ void CronHeapify(int Position) {
 
 void CronSet(Object Obj, uint32_t Delay) {
 	if (!Obj.exists()) {
-		error("CronSet: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CronSet: Given object does not exist.\n");
 		return;
 	}
 
@@ -294,7 +294,7 @@ void CronSet(Object Obj, uint32_t Delay) {
 
 void CronDelete(int Position) {
 	if (!in(Position, 1, CronEntries)) {
-		error("CronDelete: Ung\xfcltige Position %d.\n", Position);
+		error("CronDelete: Invalid position %d.\n", Position);
 		return;
 	}
 
@@ -330,7 +330,7 @@ Object CronCheck() {
 
 uint32_t CronInfo(Object Obj, bool Delete) {
 	if (!Obj.exists()) {
-		error("CronInfo: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CronInfo: Given object does not exist.\n");
 		return 0;
 	}
 
@@ -340,7 +340,7 @@ uint32_t CronInfo(Object Obj, bool Delete) {
 	}
 
 	if (Position == -1) {
-		error("CronInfo: Objekt ist nicht im Cron-System eingetragen.\n");
+		error("CronInfo: Object is not registered in the cron system.\n");
 		return 0;
 	}
 
@@ -358,7 +358,7 @@ uint32_t CronInfo(Object Obj, bool Delete) {
 
 uint32_t CronStop(Object Obj) {
 	if (!Obj.exists()) {
-		error("CronStop: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CronStop: Given object does not exist.\n");
 		return 0;
 	}
 
@@ -367,7 +367,7 @@ uint32_t CronStop(Object Obj) {
 
 void CronExpire(Object Obj, int Delay) {
 	if (!Obj.exists()) {
-		error("CronExpire: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CronExpire: Given object does not exist.\n");
 		return;
 	}
 
@@ -382,7 +382,7 @@ void CronExpire(Object Obj, int Delay) {
 
 void CronChange(Object Obj, int NewDelay) {
 	if (!Obj.exists()) {
-		error("CronChange: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CronChange: Given object does not exist.\n");
 		return;
 	}
 
@@ -392,7 +392,7 @@ void CronChange(Object Obj, int NewDelay) {
 	}
 
 	if (Position == -1) {
-		error("CronChange: Objekt ist nicht im Cron-System eingetragen.\n");
+		error("CronChange: Object is not registered in the cron system.\n");
 		return;
 	}
 
@@ -402,17 +402,17 @@ void CronChange(Object Obj, int NewDelay) {
 
 Object SplitObject(Object Obj, int Count) {
 	if (!Obj.exists()) {
-		error("SplitObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("SplitObject: Given object does not exist.\n");
 		return NONE;
 	}
 
 	if (!Obj.getFlag(CUMULATIVE)) {
-		error("SplitObject: Objekt ist nicht kumulierbar.\n");
+		error("SplitObject: Object is not cumulative.\n");
 		return Obj;
 	}
 
 	if (Count <= 0 || Count > (int)Obj.getAttribute(AMOUNT)) {
-		error("SplitObject: Ung\xfcltiger Z\xe4hler %d.\n", Count);
+		error("SplitObject: Invalid count %d.\n", Count);
 		return Obj;
 	}
 
@@ -428,41 +428,41 @@ Object SplitObject(Object Obj, int Count) {
 
 void MergeObjects(Object Obj, Object Dest) {
 	if (!Obj.exists()) {
-		error("MergeObjects: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("MergeObjects: Given object does not exist.\n");
 		return;
 	}
 
 	if (!Dest.exists()) {
-		error("MergeObjects: \xdc" "bergebenes Ziel existiert nicht.\n");
+		error("MergeObjects: Given target does not exist.\n");
 		return;
 	}
 
 	if (Obj.getObjectType() != Dest.getObjectType()) {
-		error("MergeObjects: Objekttypen %d und %d sind nicht identisch.\n",
+		error("MergeObjects: Object types %d and %d are not identical.\n",
 				Obj.getObjectType().getTypeID(), Dest.getObjectType().getTypeID());
 		return;
 	}
 
 	if (!Obj.getFlag(CUMULATIVE)) {
 		// Quirk: the text has two %d and only one argument.
-		error("MergeObjects: Objekttyp %d/%d ist nicht kumulierbar.\n",
+		error("MergeObjects: Object type %d/%d is not cumulative.\n",
 				Obj.getObjectType().getTypeID());
 		return;
 	}
 
 	if (Obj.getAttribute(AMOUNT) == 0) {
-		error("MergeObjects: Objekt enth\xe4lt 0 Teile.\n");
+		error("MergeObjects: Object contains 0 pieces.\n");
 		Obj.setAttribute(AMOUNT, 1);
 	}
 
 	if (Dest.getAttribute(AMOUNT) == 0) {
-		error("MergeObjects: Zielobjekt enth\xe4lt 0 Teile.\n");
+		error("MergeObjects: Target object contains 0 pieces.\n");
 		Dest.setAttribute(AMOUNT, 1);
 	}
 
 	Dest.changeAttribute(AMOUNT, Obj.getAttribute(AMOUNT));
 	if (Dest.getAttribute(AMOUNT) > MAX_AMOUNT) {
-		error("MergeObjects: Neues Objekt enth\xe4lt mehr als 100 Teile.\n");
+		error("MergeObjects: New object contains more than 100 pieces.\n");
 		Dest.setAttribute(AMOUNT, MAX_AMOUNT);
 	}
 
@@ -471,12 +471,12 @@ void MergeObjects(Object Obj, Object Dest) {
 
 void MoveObject(Object Obj, Object Con) {
 	if (!Obj.exists()) {
-		error("MoveObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("MoveObject: Given object does not exist.\n");
 		return;
 	}
 
 	if (!Con.exists()) {
-		error("MoveObject: \xdc" "bergebener Zielcontainer existiert nicht.\n");
+		error("MoveObject: Given target container does not exist.\n");
 		return;
 	}
 
@@ -490,7 +490,7 @@ void ChangeObject(Object Obj, ObjectType Type) {
 	uint32_t SavedExpireTime = 0;
 
 	if (!Obj.exists()) {
-		error("ChangeObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("ChangeObject: Given object does not exist.\n");
 		return;
 	}
 
@@ -560,7 +560,7 @@ newObject:
 
 void ChangeObject(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	if (!Obj.exists()) {
-		error("ChangeObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("ChangeObject: Given object does not exist.\n");
 		return;
 	}
 
@@ -574,7 +574,7 @@ TObject *GetFreeObjectSlot() {
 
 	TObject *Help = FirstFreeObject;
 	if (Help == nullptr) {
-		error("GetFreeObjectSlot: Kein freier Platz mehr.\n");
+		error("GetFreeObjectSlot: No free space left.\n");
 		return nullptr;
 	}
 
@@ -588,7 +588,7 @@ TObject *GetFreeObjectSlot() {
 void ResizeHashTable() {
 	int NewSize = HashTableSize * 2;
 	int NewMask = NewSize - 1;
-	error("INFO: HashTabelle zu klein. Gr\xf6\xdf" "e wird verdoppelt auf %d.\n", NewSize);
+	error("INFO: Hash table too small. Doubling its size to %d.\n", NewSize);
 
 	uintptr_t *NewData = (uintptr_t *)malloc(NewSize * sizeof(uintptr_t));
 	unsigned char *NewType = (unsigned char *)malloc(NewSize);
@@ -610,7 +610,7 @@ void ResizeHashTable() {
 			NewType[nr] = HASHENTRY_IN_MEMORY;
 			NewData[nr] = (uintptr_t)Entry;
 		} else {
-			error("ResizeHashTable: Fehler beim Reorganisieren der HashTabelle.\n");
+			error("ResizeHashTable: Error while reorganizing the hash table.\n");
 		}
 	}
 
@@ -636,7 +636,7 @@ Object CreateObject() {
 
 	TObject *Help = GetFreeObjectSlot();
 	if (Help == nullptr) {
-		error("CreateObject: Kann Objekt nicht anlegen.\n");
+		error("CreateObject: Cannot create object.\n");
 		return NONE;
 	}
 
@@ -660,7 +660,7 @@ const int PRIORITY_OTHER = 5;
 
 int GetObjectPriority(Object Obj) {
 	if (!Obj.exists()) {
-		error("GetObjectPriority: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetObjectPriority: Given object does not exist.\n");
 		return 0x7FFFFFFF;
 	}
 
@@ -692,17 +692,17 @@ void PlaceObject(Object Obj, Object Con, bool Append) {
 	Object *pAddr;
 
 	if (!Obj.exists()) {
-		error("PlaceObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("PlaceObject: Given object does not exist.\n");
 		return;
 	}
 
 	if (!Con.exists()) {
-		error("PlaceObject: \xdc" "bergebener Container existiert nicht.\n");
+		error("PlaceObject: Given container does not exist.\n");
 		return;
 	}
 
 	if (!Con.getFlag(CONTAINER) && !Con.getFlag(CHEST)) {
-		error("PlaceObject: Con (%d) ist kein Container.\n", Con.getObjectType().getTypeID());
+		error("PlaceObject: Con (%d) is not a container.\n", Con.getObjectType().getTypeID());
 		return;
 	}
 
@@ -725,7 +725,7 @@ void PlaceObject(Object Obj, Object Con, bool Append) {
 						|| ObjPriority == PRIORITY_TOP)) {
 				int x, y, z;
 				GetObjectCoordinates(Con, x, y, z);
-				error("PlaceObject: Zwei %s-Objekte (%d und %d) auf Feld [%d,%d,%d].\n",
+				error("PlaceObject: Two %s objects (%d and %d) on field [%d,%d,%d].\n",
 						ObjPriority == PRIORITY_BANK ? "BANK" : (ObjPriority == PRIORITY_BOTTOM ? "BOTTOM" : "TOP"),
 						Obj.getObjectType().getTypeID(), Search.getObjectType().getTypeID(),
 						x, y, z);
@@ -752,7 +752,7 @@ void PlaceObject(Object Obj, Object Con, bool Append) {
 
 Object AppendObject(Object Con, ObjectType Type) {
 	if (!Con.exists()) {
-		error("AppendObject: \xdc" "bergebener Container existiert nicht.\n");
+		error("AppendObject: Given container does not exist.\n");
 		return NONE;
 	}
 
@@ -764,7 +764,7 @@ Object AppendObject(Object Con, ObjectType Type) {
 
 Object SetObject(Object Con, ObjectType Type, uint32_t CreatureID) {
 	if (!Con.exists()) {
-		error("SetObject: \xdc" "bergebener Container existiert nicht.\n");
+		error("SetObject: Given container does not exist.\n");
 		return NONE;
 	}
 
@@ -773,7 +773,7 @@ Object SetObject(Object Con, ObjectType Type, uint32_t CreatureID) {
 	PlaceObject(Obj, Con, false);
 	if (Obj.isCreature()) {
 		if (CreatureID == 0) {
-			error("SetObject: Ung\xfcltige Kreatur-ID.\n");
+			error("SetObject: Invalid creature ID.\n");
 		}
 
 		AccessObject(Obj).Attributes[1] = CreatureID;
@@ -784,17 +784,17 @@ Object SetObject(Object Con, ObjectType Type, uint32_t CreatureID) {
 
 Object CopyObject(Object Con, Object Source) {
 	if (!Source.exists()) {
-		error("CopyObject: Vorlage existiert nicht.\n");
+		error("CopyObject: Template does not exist.\n");
 		return NONE;
 	}
 
 	if (!Con.exists()) {
-		error("CopyObject: Zielcontainer existiert nicht.\n");
+		error("CopyObject: Target container does not exist.\n");
 		return NONE;
 	}
 
 	if (Source.isCreature()) {
-		error("CopyObject: Kreaturen d\xfcrfen nicht kopiert werden.\n");
+		error("CopyObject: Creatures must not be copied.\n");
 		return NONE;
 	}
 
@@ -824,7 +824,7 @@ Object CopyObject(Object Con, Object Source) {
 
 void PutFreeObjectSlot(TObject *Entry) {
 	if (Entry == nullptr) {
-		error("PutFreeObjectSlot: Entry ist NULL.\n");
+		error("PutFreeObjectSlot: Entry is NULL.\n");
 		return;
 	}
 
@@ -835,7 +835,7 @@ void PutFreeObjectSlot(TObject *Entry) {
 
 void CutObject(Object Obj) {
 	if (!Obj.exists()) {
-		error("CutObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CutObject: Given object does not exist.\n");
 		return;
 	}
 
@@ -857,7 +857,7 @@ void CutObject(Object Obj) {
 
 void DestroyObject(Object Obj) {
 	if (!Obj.exists()) {
-		error("DestroyObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("DestroyObject: Given object does not exist.\n");
 		return;
 	}
 
@@ -878,13 +878,13 @@ void DestroyObject(Object Obj) {
 
 	uint32_t nr = Obj.getObjectID();
 	if (nr == 0) {
-		error("DestroyObject: Ung\xfcltige Objektnummer %d.\n", nr);
+		error("DestroyObject: Invalid object number %d.\n", nr);
 		return;
 	}
 
 	nr &= HashTableMask;
 	if (HashTableType[nr] != HASHENTRY_IN_MEMORY) {
-		error("DestroyObject: Objekt steht nicht im Speicher.\n");
+		error("DestroyObject: Object is not in memory.\n");
 		return;
 	}
 
@@ -896,7 +896,7 @@ void DestroyObject(Object Obj) {
 
 void DeleteObject(Object Obj) {
 	if (!Obj.exists()) {
-		error("DeleteObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("DeleteObject: Given object does not exist.\n");
 		return;
 	}
 
@@ -921,7 +921,7 @@ Object GetMapContainer(int x, int y, int z) {
 
 Object GetMapContainer(Object Obj) {
 	if (!Obj.exists()) {
-		error("GetMapContainer: \xfc" "bergebenes Objekt existiert nicht\n");
+		error("GetMapContainer: Given object does not exist\n");
 		return NONE;
 	}
 
@@ -953,12 +953,12 @@ Object GetFirstSpecObject(int x, int y, int z, ObjectType Type) {
 
 Object GetFirstContainerObject(Object Con) {
 	if (Con == NONE) {
-		error("GetFirstContainerObject: \xdc" "bergebener Container existiert nicht.\n");
+		error("GetFirstContainerObject: Given container does not exist.\n");
 		return NONE;
 	}
 
 	if (!Con.getFlag(CONTAINER) && !Con.getFlag(CHEST)) {
-		error("GetFirstContainerObject: Con (%d) ist kein Container.\n", Con.getObjectType().getTypeID());
+		error("GetFirstContainerObject: Con (%d) is not a container.\n", Con.getObjectType().getTypeID());
 		return NONE;
 	}
 
@@ -967,12 +967,12 @@ Object GetFirstContainerObject(Object Con) {
 
 Object GetContainerObject(Object Con, int nr) {
 	if (!Con.exists()) {
-		error("GetContainerObject: \xdc" "bergebener Container existiert nicht.\n");
+		error("GetContainerObject: Given container does not exist.\n");
 		return NONE;
 	}
 
 	if (nr < 0) {
-		error("GetContainerObject: Ung\xfcltige laufende Nummer %d.\n", nr);
+		error("GetContainerObject: Invalid index %d.\n", nr);
 		return NONE;
 	}
 
@@ -1060,7 +1060,7 @@ unsigned short GetHouseID(int x, int y, int z) {
 	}
 
 	if (!Con.exists()) {
-		error("GetHouseID: Kartencontainer f\xfcr Punkt [%d,%d,%d] existiert nicht.\n", x, y, z);
+		error("GetHouseID: Map container for point [%d,%d,%d] does not exist.\n", x, y, z);
 		return 0;
 	}
 
@@ -1074,13 +1074,13 @@ void SetHouseID(int x, int y, int z, unsigned short ID) {
 
 	Object Con = GetMapContainer(x, y, z);
 	if (Con == NONE || !Con.exists()) {
-		print(3, "SetHouseID: Kartencontainer f\xfcr Punkt [%d,%d,%d] existiert nicht.\n", x, y, z);
+		print(3, "SetHouseID: Map container for point [%d,%d,%d] does not exist.\n", x, y, z);
 		return;
 	}
 
 	if (GetHouseID(x, y, z) != 0) {
 		// Quirk: the field is logged as y, z and z, not x, y and z.
-		error("SetHouseID: Feld [%d,%d,%d] geh\xf6rt schon zu einem Haus.\n", y, z, z);
+		error("SetHouseID: Field [%d,%d,%d] already belongs to a house.\n", y, z, z);
 		return;
 	}
 
@@ -1089,7 +1089,7 @@ void SetHouseID(int x, int y, int z, unsigned short ID) {
 
 int GetDepotNumber(char *Town) {
 	if (Town == nullptr) {
-		error("GetDepotNumber: Town ist NULL.\n");
+		error("GetDepotNumber: Town is NULL.\n");
 		return -1;
 	}
 
@@ -1108,7 +1108,7 @@ int GetDepotNumber(char *Town) {
 
 char *GetDepotName(int DepotNumber) {
 	if (DepotNumber < DepotInfo.low() || DepotNumber > DepotInfo.high()) {
-		error("GetDepotName: Ung\xfcltige Depotnummer %d.\n", DepotNumber);
+		error("GetDepotName: Invalid depot number %d.\n", DepotNumber);
 		return "unknown";
 	}
 
@@ -1116,7 +1116,7 @@ char *GetDepotName(int DepotNumber) {
 	// never is; written with the entry's address because g++ warns about the
 	// array form.
 	if (&DepotInfo(DepotNumber) == nullptr) {
-		error("GetDepotName: Ung\xfcltiger Name f\xfcr Depot %d.\n", DepotNumber);
+		error("GetDepotName: Invalid name for depot %d.\n", DepotNumber);
 		return "unknown";
 	}
 
@@ -1125,12 +1125,12 @@ char *GetDepotName(int DepotNumber) {
 
 int GetDepotSize(int DepotNumber, bool PremiumAccount) {
 	if (DepotNumber < DepotInfo.low() || DepotNumber > DepotInfo.high()) {
-		error("GetDepotSize: Ung\xfcltige Depotnummer %d.\n", DepotNumber);
+		error("GetDepotSize: Invalid depot number %d.\n", DepotNumber);
 		return 1;
 	}
 
 	if (DepotInfo(DepotNumber).Size < 1) {
-		error("GetDepotSize: Ung\xfcltige Depotgr\xf6\xdf" "e %d f\xfcr Depot %d.\n",
+		error("GetDepotSize: Invalid depot size %d for depot %d.\n",
 				DepotInfo(DepotNumber).Size, DepotNumber);
 		DepotInfo(DepotNumber).Size = 1;
 	}
@@ -1169,7 +1169,7 @@ bool GetMarkPosition(char *Name, int &x, int &y, int &z) {
 
 void InitSector(int x, int y, int z) {
 	if ((*Sector)(x, y, z) != nullptr) {
-		error("InitSector: Sektor %d/%d/%d existiert schon.\n", x, y, z);
+		error("InitSector: Sector %d/%d/%d already exists.\n", x, y, z);
 		return;
 	}
 
@@ -1194,7 +1194,7 @@ void InitSector(int x, int y, int z) {
 
 void SwapObject(TWriteBinaryFile &File, Object Obj, uint32_t FileNumber) {
 	if (!Obj.exists()) {
-		error("SwapObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("SwapObject: Given object does not exist.\n");
 		return;
 	}
 
@@ -1240,7 +1240,7 @@ void SwapSector() {
 	}
 
 	if (Sec == nullptr) {
-		error("FATAL ERROR in SwapSector: Es kann kein Sektor ausgelagert werden.\n");
+		error("FATAL ERROR in SwapSector: No sector can be swapped out.\n");
 		abort();
 	}
 
@@ -1258,7 +1258,7 @@ again:
 	TWriteBinaryFile File;
 	try {
 		File.open(FileName);
-		print(2, "Lagere Sektor %d/%d/%d aus...\n", SecX, SecY, SecZ);
+		print(2, "Swapping out sector %d/%d/%d...\n", SecX, SecY, SecZ);
 		File.writeQuad(SecX);
 		File.writeQuad(SecY);
 		File.writeQuad(SecZ);
@@ -1271,8 +1271,8 @@ again:
 		Sec->Status = SECTOR_SWAPPED_OUT;
 		File.close();
 	} catch (const char *s) {
-		error("FATAL ERROR in SwapSector: Kann Datei \"%s\" nicht anlegen.\n", FileName);
-		error("# Fehler: %s\n", s);
+		error("FATAL ERROR in SwapSector: Cannot create file \"%s\".\n", FileName);
+		error("# Error: %s\n", s);
 		abort();
 	}
 }
@@ -1288,16 +1288,16 @@ void UnswapSector(uint32_t FileNumber) {
 		int SecX = File.readQuad();
 		int SecY = File.readQuad();
 		int SecZ = File.readQuad();
-		print(2, "Lagere Sector %d/%d/%d ein...\n", SecX, SecY, SecZ);
+		print(2, "Swapping in sector %d/%d/%d...\n", SecX, SecY, SecZ);
 		TSector *Sec = (*Sector)(SecX, SecY, SecZ);
 		if (Sec == nullptr) {
-			error("UnswapSector: Sektor %d/%d/%d existiert nicht.\n", SecX, SecY, SecZ);
+			error("UnswapSector: Sector %d/%d/%d does not exist.\n", SecX, SecY, SecZ);
 			File.close();
 			return;
 		}
 
 		if (Sec->Status != SECTOR_SWAPPED_OUT) {
-			error("UnswapSector: Sektor %d/%d/%d ist nicht ausgelagert.\n", SecX, SecY, SecZ);
+			error("UnswapSector: Sector %d/%d/%d is not swapped out.\n", SecX, SecY, SecZ);
 			File.close();
 			return;
 		}
@@ -1310,7 +1310,7 @@ void UnswapSector(uint32_t FileNumber) {
 				HashTableData[nr] = (uintptr_t)Entry;
 				HashTableType[nr] = HASHENTRY_IN_MEMORY;
 			} else {
-				error("UnswapSector: Objekt %ld existiert schon.\n", (long)(int32_t)Entry->ObjectID);
+				error("UnswapSector: Object %ld already exists.\n", (long)(int32_t)Entry->ObjectID);
 			}
 		}
 
@@ -1318,8 +1318,8 @@ void UnswapSector(uint32_t FileNumber) {
 		File.close();
 		unlink(FileName);
 	} catch (const char *s) {
-		error("FATAL ERROR in UnswapSector: Kann Datei \"%s\" nicht lesen.\n", FileName);
-		error("# Fehler: %s\n", s);
+		error("FATAL ERROR in UnswapSector: Cannot read file \"%s\".\n", FileName);
+		error("# Error: %s\n", s);
 		abort();
 	}
 }
@@ -1328,7 +1328,7 @@ void DeleteSwappedSectors() {
 	dirent *DirEntry;
 	DIR *WorkDir = opendir(SAVEPATH);
 	if (WorkDir == nullptr) {
-		error("DeleteSwappedSectors: Unterverzeichnis %s nicht gefunden\n", SAVEPATH);
+		error("DeleteSwappedSectors: Subdirectory %s not found\n", SAVEPATH);
 		return;
 	}
 
@@ -1491,7 +1491,7 @@ void LoadSector(char *FileName, int x, int y, int z) {
 	TReadScriptFile Script;
 	try {
 		Script.open(FileName);
-		print(1, "Lade Sektor %d/%d/%d ...\n", x, y, z);
+		print(1, "Loading sector %d/%d/%d ...\n", x, y, z);
 		TSector *Sec = (*Sector)(x, y, z);
 		int xx = -1;
 		int yy = -1;
@@ -1543,8 +1543,8 @@ void LoadSector(char *FileName, int x, int y, int z) {
 
 		Script.close();
 	} catch (const char *s) {
-		error("LoadSector: Kann Datei \"%s\" nicht lesen.\n", FileName);
-		error("# Fehler: %s\n", s);
+		error("LoadSector: Cannot read file \"%s\".\n", FileName);
+		error("# Error: %s\n", s);
 		throw "Cannot load sector";
 	}
 }
@@ -1556,11 +1556,11 @@ void LoadMap() {
 
 	DIR *WorkDir = opendir(MAPPATH);
 	if (WorkDir == nullptr) {
-		error("LoadMap: Unterverzeichnis %s nicht gefunden\n", MAPPATH);
+		error("LoadMap: Subdirectory %s not found\n", MAPPATH);
 		throw "Cannot load map";
 	}
 
-	print(1, "Lade Karte ...\n");
+	print(1, "Loading map ...\n");
 	ObjectCounter = 0;
 	int SectorCounter = 0;
 	while ((DirEntry = readdir(WorkDir)) != nullptr) {
@@ -1575,8 +1575,8 @@ void LoadMap() {
 	}
 
 	closedir(WorkDir);
-	print(1, "%d Sektoren geladen.\n", SectorCounter);
-	print(1, "%d Objekte geladen.\n", ObjectCounter);
+	print(1, "%d sectors loaded.\n", SectorCounter);
+	print(1, "%d objects loaded.\n", ObjectCounter);
 }
 
 void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
@@ -1599,19 +1599,19 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 				}
 
 				if (LastObj == NONE) {
-					error("LastObj ist NONE (1)\n");
+					error("LastObj is NONE (1)\n");
 				}
 
 				LastObj = LastObj.getContainer();
 				if (LastObj == NONE) {
-					error("LastObj ist NONE (2)\n");
+					error("LastObj is NONE (2)\n");
 				}
 
 				Obj = LastObj.getNextObject();
 			} else {
 				// Quirk: a repeated test, which cannot hold here.
 				if (Obj == NONE) {
-					error("Obj ist NONE (1)\n");
+					error("Obj is NONE (1)\n");
 				}
 
 				if (Obj.isCreature()) {
@@ -1628,7 +1628,7 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 			}
 		} else {
 			if (Obj == NONE) {
-				error("Obj ist NONE (2)\n");
+				error("Obj is NONE (2)\n");
 			}
 
 			for (int Attribute = 0; Attribute <= INSTANCEATTRIBUTES - 1; Attribute++) {
@@ -1731,7 +1731,7 @@ void SaveSector(char *FileName, int x, int y, int z) {
 	TWriteScriptFile Script;
 	try {
 		Script.open(FileName);
-		print(1, "Speichere Sektor %d/%d/%d ...\n", x, y, z);
+		print(1, "Saving sector %d/%d/%d ...\n", x, y, z);
 		Script.writeText("# Tibia - graphical Multi-User-Dungeon");
 		Script.writeLn();
 		Script.writeText("# Data for sector ");
@@ -1783,12 +1783,12 @@ void SaveSector(char *FileName, int x, int y, int z) {
 
 		Script.close();
 		if (Empty) {
-			error("SaveSector: Sektor %d/%d/%d ist leer.\n", x, y, z);
+			error("SaveSector: Sector %d/%d/%d is empty.\n", x, y, z);
 			unlink(FileName);
 		}
 	} catch (const char *s) {
-		error("SaveSector: Kann Datei %s nicht schreiben.\n", FileName);
-		error("# Fehler: %s\n", s);
+		error("SaveSector: Cannot write file %s.\n", FileName);
+		error("# Error: %s\n", s);
 	}
 }
 
@@ -1797,12 +1797,12 @@ void SaveMap() {
 	char FileName[4096];
 
 	if (SavingMap) {
-		error("SaveMap: Karte wird schon gespeichert.\n");
+		error("SaveMap: Map is already being saved.\n");
 		return;
 	}
 
 	SavingMap = true;
-	print(1, "Speichere Karte ...\n");
+	print(1, "Saving map ...\n");
 	ObjectCounter = 0;
 	for (int x = SectorXMin; x <= SectorXMax; x++) {
 		for (int y = SectorYMin; y <= SectorYMax; y++) {
@@ -1813,7 +1813,7 @@ void SaveMap() {
 		}
 	}
 
-	print(1, "%d Objekte gespeichert.\n", ObjectCounter);
+	print(1, "%d objects saved.\n", ObjectCounter);
 	SavingMap = false;
 }
 
@@ -1823,7 +1823,7 @@ void RefreshSector(int x, int y, int z, TReadStream &Stream) {
 		return;
 	}
 
-	print(3, "Refreshe Sektor %d/%d/%d ...\n", x, y, z);
+	print(3, "Refreshing sector %d/%d/%d ...\n", x, y, z);
 	try {
 		while (!Stream.eof()) {
 			int xx = Stream.readByte();
@@ -1844,14 +1844,14 @@ void RefreshSector(int x, int y, int z, TReadStream &Stream) {
 			LoadObjects(Stream, GetMapContainer(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z));
 		}
 	} catch (const char *s) {
-		error("RefreshSector: Fehler beim Auslesen der Daten (%s).\n", s);
+		error("RefreshSector: Error while reading the data (%s).\n", s);
 	}
 }
 
 void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, bool SaveHouses) {
 	bool NewSector = ((*Sector)(x, y, z) == nullptr);
 	if (NewSector) {
-		print(2, "Lege Sektor %d/%d/%d neu an.\n", x, y, z);
+		print(2, "Creating sector %d/%d/%d anew.\n", x, y, z);
 		InitSector(x, y, z);
 	}
 
@@ -2131,8 +2131,8 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 
 	int result = rename(FileNameBak, FileName);
 	if (result != 0) {
-		error("PatchSector: Fehler %d beim Umbenennen von %s.\n", result, FileNameBak);
-		error("# Fehler %d: %s.\n", errno, strerror(errno));
+		error("PatchSector: Error %d while renaming %s.\n", result, FileNameBak);
+		error("# Error %d: %s.\n", errno, strerror(errno));
 		throw "cannot patch ORIGMAP";
 	}
 }

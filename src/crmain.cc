@@ -84,7 +84,7 @@ void ProcessSkills() {
 	for (int i = 0; i < FirstFreeCreature; i++) {
 		TCreature *cr = CreatureList(i);
 		if (cr == nullptr) {
-			error("ProcessSkills: Kreatur %d existiert nicht.\n", i);
+			error("ProcessSkills: Creature %d does not exist.\n", i);
 			continue;
 		}
 
@@ -98,7 +98,7 @@ void ProcessCreatures() {
 	for (int i = 0; i < FirstFreeCreature; i++) {
 		TCreature *cr = CreatureList(i);
 		if (cr == nullptr) {
-			error("ProcessCreatures: Kreatur %d existiert nicht.\n", i);
+			error("ProcessCreatures: Creature %d does not exist.\n", i);
 			continue;
 		}
 
@@ -123,13 +123,13 @@ void ProcessCreatures() {
 		}
 
 		if (!cr->IsDead && cr->Skills[SKILL_HITPOINTS]->Get() <= 0) {
-			error("ProcessCreatures: Kreatur %s ist nicht tot, obwohl sie keine HP mehr hat.\n", cr->Name);
+			error("ProcessCreatures: Creature %s is not dead, although it has no HP left.\n", cr->Name);
 			cr->Death();
 		}
 
 		if (cr->LoggingOut && cr->LogoutPossible() == LOGOUT_POSSIBLE) {
 			if (cr->IsDead && cr->Skills[SKILL_HITPOINTS]->Get() > 0) {
-				error("ProcessCreatures: Kreatur %s hat HP, obwohl sie tot ist.\n", cr->Name);
+				error("ProcessCreatures: Creature %s has HP, although it is dead.\n", cr->Name);
 				cr->Skills[SKILL_HITPOINTS]->Set(0);
 			}
 
@@ -162,7 +162,7 @@ void MoveCreatures(int Delay) {
 
 void DeleteChainCreature(TCreature *cr) {
 	if (cr == nullptr) {
-		error("DeleteChainCreature: \xdc" "begebene Kreatur existiert nicht.\n");
+		error("DeleteChainCreature: Given creature does not exist.\n");
 		return;
 	}
 
@@ -176,13 +176,13 @@ void DeleteChainCreature(TCreature *cr) {
 
 	while (true) {
 		if (ID == 0) {
-			error("DeleteChainCreature: Kreatur nicht gefunden.\n");
+			error("DeleteChainCreature: Creature not found.\n");
 			return;
 		}
 
 		TCreature *Help = GetCreature(ID);
 		if (Help == nullptr) {
-			error("DeleteChainCreature: Kreatur existiert nicht.\n");
+			error("DeleteChainCreature: Creature does not exist.\n");
 			return;
 		}
 
@@ -197,7 +197,7 @@ void DeleteChainCreature(TCreature *cr) {
 void InsertChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
 		// Quirk: the message names DeleteChainCreature.
-		error("DeleteChainCreature: \xdc" "begebene Kreatur existiert nicht.\n");
+		error("DeleteChainCreature: Given creature does not exist.\n");
 		return;
 	}
 
@@ -217,7 +217,7 @@ void InsertChainCreature(TCreature *cr, int newx, int newy) {
 void MoveChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
 		// Quirk: the message names DeleteChainCreature.
-		error("DeleteChainCreature: \xdc" "begebene Kreatur existiert nicht.\n");
+		error("DeleteChainCreature: Given creature does not exist.\n");
 		return;
 	}
 
@@ -237,7 +237,7 @@ TFindCreatures::TFindCreatures(int radx, int rady, int x, int y, int Mask) {
 TFindCreatures::TFindCreatures(int radx, int rady, uint32_t CreatureID, int Mask) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("TFindCreatures::TFindCreatures: Kreatur existiert nicht.\n");
+		error("TFindCreatures::TFindCreatures: Creature does not exist.\n");
 		finished = true;
 		return;
 	}
@@ -249,7 +249,7 @@ TFindCreatures::TFindCreatures(int radx, int rady, uint32_t CreatureID, int Mask
 // If the object does not exist, only finished is set.
 TFindCreatures::TFindCreatures(int radx, int rady, Object Obj, int Mask) {
 	if (!Obj.exists()) {
-		error("TFindCreatures::TFindCreatures: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("TFindCreatures::TFindCreatures: Given object does not exist.\n");
 		finished = true;
 		return;
 	}
@@ -299,7 +299,7 @@ again:
 
 	TCreature *cr = GetCreature(ActID);
 	if (cr == nullptr) {
-		error("TFindCreatures::getNext: Kreatur existiert nicht.\n");
+		error("TFindCreatures::getNext: Creature does not exist.\n");
 		ActID = 0;
 		goto again;
 	}
@@ -435,7 +435,7 @@ TCreature::~TCreature() noexcept(false) {
 			}
 		} catch (RESULT r) {
 			if (r != NOROOM && r != DESTROYED) {
-				error("TCreature::~TCreature: Kann Blutlache nicht setzen (Exc %d, Pos [%d,%d,%d]).\n", r, posx, posy, posz);
+				error("TCreature::~TCreature: Cannot place pool of blood (Exc %d, Pos [%d,%d,%d]).\n", r, posx, posy, posz);
 			}
 		}
 
@@ -450,14 +450,14 @@ TCreature::~TCreature() noexcept(false) {
 						try {
 							Delete(Help, -1);
 						} catch (RESULT r) {
-							error("TCreature::~TCreature: Exception %d beim L\xf6schen eines Feldes.\n", r);
+							error("TCreature::~TCreature: Exception %d while clearing a field.\n", r);
 						}
 					}
 				}
 			}
 
 			Object Corpse = Create(GetMapContainer(posx, posy, posz), CorpseType, 0);
-			Log("game", "Tod von %s: LoseInventory=%d.\n", Name, LoseInventory);
+			Log("game", "Death of %s: LoseInventory=%d.\n", Name, LoseInventory);
 
 			if (Type == PLAYER) {
 				char s[128];
@@ -492,7 +492,7 @@ TCreature::~TCreature() noexcept(false) {
 				pl->SaveInventory();
 			}
 		} catch (RESULT r) {
-			error("TCreature::~TCreature: Kann Leiche/Inventory nicht ablegen (Exc %d, Pos [%d,%d,%d], %s).\n", r, posx, posy, posz, Name);
+			error("TCreature::~TCreature: Cannot drop corpse/inventory (Exc %d, Pos [%d,%d,%d], %s).\n", r, posx, posy, posz, Name);
 		}
 	}
 
@@ -515,7 +515,7 @@ TCreature::~TCreature() noexcept(false) {
 	TKnownCreature *KnownCreature = FirstKnowingConnection;
 	while (KnownCreature != nullptr) {
 		if (KnownCreature->CreatureID != ID) {
-			error("TCreature::~TCreature: Verkettungsfehler bei Kreatur %lu.\n", (unsigned long)ID);
+			error("TCreature::~TCreature: Chaining error at creature %lu.\n", (unsigned long)ID);
 		}
 		KnownCreature->State = KNOWNCREATURE_FREE;
 		KnownCreature = KnownCreature->Next;
@@ -524,7 +524,7 @@ TCreature::~TCreature() noexcept(false) {
 
 void TCreature::SetID(uint32_t CharacterID) {
 	if (ID != 0) {
-		error("TCreature::SetID: ID ist schon gesetzt.\n");
+		error("TCreature::SetID: ID is already set.\n");
 	}
 
 	if (CharacterID == 0) {
@@ -534,18 +534,18 @@ void TCreature::SetID(uint32_t CharacterID) {
 		int test = 0;
 		while (GetCreature(ID) != nullptr) {
 			test++;
-			error("TCreature::SetID: Doppelte Nonplayer-ID %d gefunden.\n", ID);
+			error("TCreature::SetID: Duplicate nonplayer ID %d found.\n", ID);
 			ID = NextCreatureID;
 			NextCreatureID++;
 			if (test > 16) {
-				error("TCreature::SetID: 16x hintereinander doppelte ID. Verwende nun doppelte ID %d\n", ID);
+				error("TCreature::SetID: Duplicate ID 16 times in a row. Using duplicate ID %d now\n", ID);
 				break;
 			}
 		}
 	} else {
 		ID = CharacterID;
 		if (GetCreature(CharacterID) != nullptr) {
-			error("TCreature::SetID: Doppelte Character-ID %d gefunden.\n", ID);
+			error("TCreature::SetID: Duplicate character ID %d found.\n", ID);
 		}
 	}
 
@@ -561,7 +561,7 @@ void TCreature::DelID() {
 	TCreature *cr = HashList[m];
 	TCreature *PreviousEntry = nullptr;
 	if (cr == nullptr) {
-		error("TCreature::DelID: Hasheintrag nicht gefunden id = %d\n", ID);
+		error("TCreature::DelID: Hash entry not found id = %d\n", ID);
 		return;
 	}
 
@@ -579,7 +579,7 @@ void TCreature::DelID() {
 	}
 
 	if (cr->ID != ID) {
-		error("TCreature::DelID: id=%d nicht gefunden.\n", ID);
+		error("TCreature::DelID: id=%d not found.\n", ID);
 		return;
 	}
 
@@ -662,7 +662,7 @@ int TCreature::GetHealth() {
 	int MaxHitpoints = sk->GetMax();
 	if (MaxHitpoints <= 0) {
 		if (!IsDead) {
-			error("TCreature::GetHealth: MaxHitpoints von %s ist %d, obwohl sie nicht tot ist.\n", Name, MaxHitpoints);
+			error("TCreature::GetHealth: MaxHitpoints of %s is %d, although it is not dead.\n", Name, MaxHitpoints);
 		}
 		return 0;
 	}
@@ -678,7 +678,7 @@ int TCreature::GetHealth() {
 int TCreature::GetSpeed() {
 	TSkill *sk = Skills[SKILL_GOSTRENGTH];
 	if (sk == nullptr) {
-		error("TCreature::GetSpeed: Kein Skill GOSTRENGTH vorhanden.\n");
+		error("TCreature::GetSpeed: No skill GOSTRENGTH.\n");
 		return 0;
 	}
 
@@ -739,7 +739,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 			}
 
 			if (!Obj.getFlag(CLOTHES)) {
-				error("TCreature::Damage: Objekt %d hat PROTECTION, aber nicht CLOTHES.\n", Obj.getObjectType().getTypeID());
+				error("TCreature::Damage: Object %d has PROTECTION, but not CLOTHES.\n", Obj.getObjectType().getTypeID());
 				continue;
 			}
 
@@ -764,7 +764,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 						// Quirk: one argument for two conversions: the type
 						// takes the place of the exception number, and the
 						// second number is undefined.
-						error("TCreature::Damage: Exception %d beim Abnutzen von Objekt %d.\n", Obj.getObjectType().getTypeID());
+						error("TCreature::Damage: Exception %d while wearing out object %d.\n", Obj.getObjectType().getTypeID());
 					}
 				}
 			}
@@ -941,7 +941,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 				}
 
 				default: {
-					error("TCreature::Damage: Ung\xfcltiger Bluttyp %d f\xfcr Rasse %d.\n", RaceData[Race].Blood, Race);
+					error("TCreature::Damage: Invalid blood type %d for race %d.\n", RaceData[Race].Blood, Race);
 					break;
 				}
 			}
@@ -975,7 +975,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		default: {
 			// Quirk: this returns with the hitpoints already reduced,
 			// so a death is not handled.
-			error("TCreature::Damage: Ung\xfcltiger Schadenstyp %d.\n", DamageType);
+			error("TCreature::Damage: Invalid damage type %d.\n", DamageType);
 			return Damage;
 		}
 	}
@@ -1005,7 +1005,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 
 				bool DeleteObject = false;
 				if (Obj.getObjectType() == GetNewObjectType(77, 12)) {
-					Log("game", "%s stirbt mit Amulett of Loss.\n", Name);
+					Log("game", "%s dies with Amulet of Loss.\n", Name);
 					LoseInventory = LOSE_INVENTORY_NONE;
 					DeleteObject = true;
 				}
@@ -1014,7 +1014,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 					try {
 						Delete(Obj, -1);
 					} catch (RESULT r) {
-						error("TCreature::Damage: Exception %d beim L\xf6schen von Objekt %d.\n", r, Obj.getObjectType().getTypeID());
+						error("TCreature::Damage: Exception %d while deleting object %d.\n", r, Obj.getObjectType().getTypeID());
 					}
 				}
 			}
@@ -1053,7 +1053,7 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 				case DAMAGE_FIRE: strcpy(Remark, "fire"); break;
 				case DAMAGE_ENERGY: strcpy(Remark, "energy"); break;
 				default: {
-					error("TCreature::Damage: Ung\xfcltiger Schadenstyp %d als Todesursache.\n", DamageType);
+					error("TCreature::Damage: Invalid damage type %d as cause of death.\n", DamageType);
 					break;
 				}
 			}
@@ -1153,7 +1153,7 @@ TRaceData::TRaceData() : Skill(1, 5, 5), Talk(1, 5, 5, 0), Item(1, 5, 5), Spell(
 
 char *GetRaceName(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceName: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceName: Invalid race number %d.\n", Race);
 		return nullptr;
 	}
 
@@ -1162,7 +1162,7 @@ char *GetRaceName(int Race) {
 
 TOutfit GetRaceOutfit(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceOutfit: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceOutfit: Invalid race number %d.\n", Race);
 		return RaceData[1].Outfit;
 	}
 
@@ -1171,7 +1171,7 @@ TOutfit GetRaceOutfit(int Race) {
 
 bool GetRaceNoSummon(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceNoSummon: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceNoSummon: Invalid race number %d.\n", Race);
 		return true;
 	}
 
@@ -1180,7 +1180,7 @@ bool GetRaceNoSummon(int Race) {
 
 bool GetRaceNoConvince(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceNoConvince: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceNoConvince: Invalid race number %d.\n", Race);
 		return true;
 	}
 
@@ -1189,7 +1189,7 @@ bool GetRaceNoConvince(int Race) {
 
 bool GetRaceNoIllusion(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceNoIllusion: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceNoIllusion: Invalid race number %d.\n", Race);
 		return true;
 	}
 
@@ -1198,7 +1198,7 @@ bool GetRaceNoIllusion(int Race) {
 
 bool GetRaceNoParalyze(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceNoParalyze: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceNoParalyze: Invalid race number %d.\n", Race);
 		return true;
 	}
 
@@ -1207,7 +1207,7 @@ bool GetRaceNoParalyze(int Race) {
 
 int GetRaceSummonCost(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceSummonCost: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceSummonCost: Invalid race number %d.\n", Race);
 		return 0;
 	}
 
@@ -1216,7 +1216,7 @@ int GetRaceSummonCost(int Race) {
 
 int GetRacePoison(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRacePoison: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRacePoison: Invalid race number %d.\n", Race);
 		return 0;
 	}
 
@@ -1225,7 +1225,7 @@ int GetRacePoison(int Race) {
 
 bool GetRaceUnpushable(int Race) {
 	if (Race < 1 || Race >= MAX_RACES) {
-		error("GetRaceUnpushable: Ung\xfcltige Rassen-Nummer %d.\n", Race);
+		error("GetRaceUnpushable: Invalid race number %d.\n", Race);
 		return true;
 	}
 
@@ -1235,7 +1235,7 @@ bool GetRaceUnpushable(int Race) {
 // The properties are tested one after the other without else, and neither an
 // unknown property nor an unknown flag is an error.
 void LoadRace(char *FileName) {
-	print(1, "Lade Rassendaten aus Datei %s...\n", FileName);
+	print(1, "Loading race data from file %s...\n", FileName);
 
 	TReadScriptFile Script;
 	Script.open(FileName);
@@ -1599,7 +1599,7 @@ void LoadRace(char *FileName) {
 void LoadRaces() {
 	DIR *WorkDir = opendir(MONSTERPATH);
 	if (WorkDir == nullptr) {
-		error("LoadRaces: Unterverzeichnis %s nicht gefunden\n", MONSTERPATH);
+		error("LoadRaces: Subdirectory %s not found\n", MONSTERPATH);
 		throw "Cannot load races";
 	}
 
@@ -1641,13 +1641,13 @@ TAttackWave::~TAttackWave() {
 // the raid; it is not preset.
 void LoadMonsterRaid(char *FileName, int Start, bool *Type, int *Date, int *Interval, int *Duration) {
 	if (FileName == nullptr) {
-		error("LoadMonsterRaid: Dateiname ist NULL.\n");
+		error("LoadMonsterRaid: File name is NULL.\n");
 		throw "cannot load monster raid";
 	}
 
 	if (Start < 0) {
 		if (Type == nullptr || Date == nullptr || Interval == nullptr || Duration == nullptr) {
-			error("LoadMonsterRaid: Zeiger f\xfcr R\xfc" "ckgabewerte sind NULL.\n");
+			error("LoadMonsterRaid: Pointers for return values are NULL.\n");
 			throw "cannot load monster raid";
 		}
 
@@ -1655,7 +1655,7 @@ void LoadMonsterRaid(char *FileName, int Start, bool *Type, int *Date, int *Inte
 		*Interval = 0;
 		*Duration = 0;
 	} else {
-		print(1, "Plane Raid %s ein f\xfcr Runde %d.\n", FileName, Start);
+		print(1, "Scheduling raid %s for round %d.\n", FileName, Start);
 	}
 
 	TReadScriptFile Script;
@@ -1825,7 +1825,7 @@ void LoadMonsterRaids() {
 
 	DIR *WorkDir = opendir(MONSTERPATH);
 	if (WorkDir == nullptr) {
-		error("LoadMonsterRaids: Unterverzeichnis %s nicht gefunden.\n", MONSTERPATH);
+		error("LoadMonsterRaids: Subdirectory %s not found.\n", MONSTERPATH);
 		throw "Cannot load monster raids";
 	}
 
@@ -1884,7 +1884,7 @@ void ProcessMonsterRaids() {
 
 	while (AttackWaveQueue.getMin(ExecutionRound, AttackWave) && ExecutionRound <= RoundNr) {
 		AttackWaveQueue.deleteMin();
-		print(2, "Angriff von Monstern der Rasse %d.\n", AttackWave->Race);
+		print(2, "Attack by monsters of race %d.\n", AttackWave->Race);
 		if (AttackWave->Message != 0) {
 			// Quirk: the format ends with a single '%'.
 			BroadcastMessage(TALK_EVENT_MESSAGE, "%s%", GetDynamicString(AttackWave->Message));
@@ -1925,13 +1925,13 @@ void ProcessMonsterRaids() {
 				try {
 					Bag = Create(GetBodyContainer(cr->ID, BODY_CONTAINER), GetSpecialObject(INVENTORY_CONTAINER), 0);
 				} catch (RESULT r) {
-					error("ProcessMonsterRaids: Exception %d bei Rasse %d beim Erstellen des Rucksacks.\n", r, cr->Race);
+					error("ProcessMonsterRaids: Exception %d for race %d while creating the backpack.\n", r, cr->Race);
 					continue;
 				}
 			}
 
 			int Amount = random(1, I.Maximum);
-			print(2, "Verteile %d Objekte vom Typ %d.\n", Amount, I.Type.getTypeID());
+			print(2, "Distributing %d objects of type %d.\n", Amount, I.Type.getTypeID());
 			int Repeat = 1;
 			if (!I.Type.getFlag(CUMULATIVE)) {
 				Repeat = Amount;
@@ -1946,7 +1946,7 @@ void ProcessMonsterRaids() {
 					try {
 						Obj = Create(Bag, I.Type, 0);
 					} catch (RESULT r) {
-						error("ProcessMonsterRaids: Exception %d bei Rasse %d, ggf. CarryStrength erh\xf6hen.\n", r, cr->Race);
+						error("ProcessMonsterRaids: Exception %d for race %d, maybe increase CarryStrength.\n", r, cr->Race);
 						break;
 					}
 				} else {
@@ -1954,7 +1954,7 @@ void ProcessMonsterRaids() {
 				}
 
 				if (Obj.getContainer().isMapContainer()) {
-					error("ProcessMonsterRaids: Objekt f\xe4llt auf die Karte. CarryStrength f\xfcr Rasse %d erh\xf6hen.\n", cr->Race);
+					error("ProcessMonsterRaids: Object falls onto the map. Increase CarryStrength for race %d.\n", cr->Race);
 					Delete(Obj, -1);
 				}
 			}

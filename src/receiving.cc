@@ -47,7 +47,7 @@
 
 bool CommandAllowed(TConnection *Connection, unsigned short Command) {
 	if (Connection == nullptr) {
-		error("CommandAllowed: Connection ist NULL.\n");
+		error("CommandAllowed: Connection is NULL.\n");
 		return false;
 	}
 
@@ -60,7 +60,7 @@ bool CommandAllowed(TConnection *Connection, unsigned short Command) {
 				|| Command == CL_QUIT_GAME;
 	}
 
-	error("CommandAllowed: Ung\xfcltiger Verbindungsstatus %d bei Kommando %d.\n", State, Command);
+	error("CommandAllowed: Invalid connection state %d at command %d.\n", State, Command);
 	return false;
 }
 
@@ -78,13 +78,13 @@ bool CheckSpecialCoordinates(int Command, int x, int y, int z, bool AnyAllowed) 
 		return true;
 	}
 
-	print(3, "CheckSpecialCoordinates: Ung\xfcltige Koordinaten [%d,%d,%d] bei Kommando %d.\n", x, y, z, Command);
+	print(3, "CheckSpecialCoordinates: Invalid coordinates [%d,%d,%d] at command %d.\n", x, y, z, Command);
 	return false;
 }
 
 bool CheckVisibility(int Command, TConnection *Connection, int x, int y, int z) {
 	if (Connection == nullptr) {
-		error("CheckVisibility: Connection ist NULL.\n");
+		error("CheckVisibility: Connection is NULL.\n");
 		return false;
 	}
 
@@ -94,14 +94,14 @@ bool CheckVisibility(int Command, TConnection *Connection, int x, int y, int z) 
 
 	int posx, posy, posz;
 	Connection->GetPosition(posx, posy, posz);
-	print(3, "CheckVisibility: Feld [%d,%d,%d] ist von [%d,%d,%d] aus nicht sichtbar bei Kommando %d.\n",
+	print(3, "CheckVisibility: Field [%d,%d,%d] is not visible from [%d,%d,%d] at command %d.\n",
 			x, y, z, posx, posy, posz, Command);
 	return false;
 }
 
 bool CheckObjectType(int Command, int TypeID) {
 	if (!ObjectTypeExists(TypeID)) {
-		print(3, "CheckObjectType: Ung\xfcltiger Objekttyp %d bei Kommando %d.\n", TypeID, Command);
+		print(3, "CheckObjectType: Invalid object type %d at command %d.\n", TypeID, Command);
 		return false;
 	}
 	return true;
@@ -116,7 +116,7 @@ ObjectType GetObjectType(unsigned short TypeID) {
 
 void CGoDirection(TConnection *Connection, int dx, int dy) {
 	if (Connection == nullptr) {
-		error("CGoDirection: Connection ist NULL.\n");
+		error("CGoDirection: Connection is NULL.\n");
 		return;
 	}
 
@@ -148,7 +148,7 @@ void CGoDirection(TConnection *Connection, int dx, int dy) {
 
 void CGoPath(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CGoPath: Connection ist NULL.\n");
+		error("CGoPath: Connection is NULL.\n");
 		return;
 	}
 
@@ -196,7 +196,7 @@ void CGoPath(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CStop(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CGoStop: Connection ist NULL.\n");
+		error("CGoStop: Connection is NULL.\n");
 		return;
 	}
 
@@ -208,7 +208,7 @@ void CStop(TConnection *Connection) {
 
 void CLookAtPoint(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CLookAtPoint: Connection ist NULL.\n");
+		error("CLookAtPoint: Connection is NULL.\n");
 		return;
 	}
 
@@ -243,7 +243,7 @@ void CLookAtPoint(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CRefreshField(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CRefreshField: Connection ist NULL.\n");
+		error("CRefreshField: Connection is NULL.\n");
 		return;
 	}
 
@@ -263,7 +263,7 @@ void CRefreshField(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CTalk: Connection ist NULL.\n");
+		error("CTalk: Connection is NULL.\n");
 		return;
 	}
 
@@ -282,7 +282,7 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 			&& Mode != TALK_ANONYMOUS_CHANNELCALL
 			&& Mode != TALK_GAMEMASTER_BROADCAST
 			&& Mode != TALK_ANONYMOUS_BROADCAST) {
-		print(3, "CTalk: Unbekannter Sprechmodus %d.\n", Mode);
+		print(3, "CTalk: Unknown talk mode %d.\n", Mode);
 		return;
 	}
 
@@ -295,7 +295,7 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 			|| Mode == TALK_ANONYMOUS_MESSAGE) {
 		Buffer.readString(Addressee, sizeof(Addressee));
 		if (Addressee[0] == '\0') {
-			print(3, "CTalk: Adressat nicht angegeben.\n");
+			print(3, "CTalk: Addressee not given.\n");
 			return;
 		}
 	}
@@ -305,7 +305,7 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 			|| Mode == TALK_ANONYMOUS_CHANNELCALL) {
 		Channel = Buffer.readWord();
 		if (Channel >= GetNumberOfChannels()) {
-			print(3, "CTalk: Ung\xfcltiger Kanal %d.\n", Channel);
+			print(3, "CTalk: Invalid channel %d.\n", Channel);
 			return;
 		}
 		sprintf(Addressee, "%d", Channel);
@@ -314,18 +314,18 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 	char Text[256];
 	Buffer.readString(Text, sizeof(Text));
 	if (Text[0] == '\0') {
-		print(3, "CTalk: Kein Text.\n");
+		print(3, "CTalk: No text.\n");
 		return;
 	}
 
 	TPlayer *pl = Connection->GetPlayer();
 	if (pl == nullptr) {
-		print(3, "CTalk: Der Verbindung ist kein Spieler zugeordnet.\n");
+		print(3, "CTalk: No player is assigned to the connection.\n");
 		return;
 	}
 
 	if (strchr(Text, '\n') != nullptr) {
-		error("CTalk: %s verwendet Newlines (%d,%s)\n", pl->Name, Mode, Text);
+		error("CTalk: %s uses newlines (%d,%s)\n", pl->Name, Mode, Text);
 		return;
 	}
 
@@ -365,7 +365,7 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 				|| Mode == TALK_GAMEMASTER_CHANNELCALL
 				|| Mode == TALK_ANONYMOUS_CHANNELCALL)
 			&& Channel == REQUEST_QUEUE) {
-		print(3, "ChannelCall f\xfcr GM-Request-Queue.\n");
+		print(3, "ChannelCall for GM request queue.\n");
 		return;
 	}
 
@@ -380,7 +380,7 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Mode == TALK_CHANNEL_CALL && Channel == HELP_CHANNEL
 			&& CheckRight(pl->ID, HIGHLIGHT_HELP_CHANNEL)) {
 		pl->TutorActivities++;
-		print(3, "Aktvit\xe4tspunkt f\xfcr %s.\n", pl->Name);
+		print(3, "Activity point for %s.\n", pl->Name);
 		Mode = TALK_HIGHLIGHT_CHANNELCALL;
 	}
 
@@ -443,7 +443,7 @@ void CTalk(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CGetChannels(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CGetChannels: Connection ist NULL.\n");
+		error("CGetChannels: Connection is NULL.\n");
 		return;
 	}
 
@@ -452,7 +452,7 @@ void CGetChannels(TConnection *Connection) {
 
 void CJoinChannel(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CJoinChannel:  ist NULL.\n");
+		error("CJoinChannel:  is NULL.\n");
 		return;
 	}
 
@@ -477,13 +477,13 @@ void CJoinChannel(TConnection *Connection, TReadBuffer &Buffer) {
 			SendOpenChannel(Connection, Channel);
 		}
 	} catch (RESULT) {
-		print(3, "Spieler darf Kanal nicht h\xf6ren.\n");
+		print(3, "Player may not hear channel.\n");
 	}
 }
 
 void CLeaveChannel(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CLeaveChannel: Connection ist NULL.\n");
+		error("CLeaveChannel: Connection is NULL.\n");
 		return;
 	}
 
@@ -502,7 +502,7 @@ void CLeaveChannel(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CPrivateChannel(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CPrivateChannel: Connection ist NULL.\n");
+		error("CPrivateChannel: Connection is NULL.\n");
 		return;
 	}
 
@@ -529,7 +529,7 @@ void CPrivateChannel(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CProcessRequest(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CProcessRequest: Connection ist NULL.\n");
+		error("CProcessRequest: Connection is NULL.\n");
 		return;
 	}
 
@@ -565,7 +565,7 @@ void CProcessRequest(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CRemoveRequest(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CRemoveRequest: Connection ist NULL.\n");
+		error("CRemoveRequest: Connection is NULL.\n");
 		return;
 	}
 
@@ -605,7 +605,7 @@ void CRemoveRequest(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CCancelRequest(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CCancelRequest: Connection ist NULL.\n");
+		error("CCancelRequest: Connection is NULL.\n");
 		return;
 	}
 
@@ -629,7 +629,7 @@ void CCancelRequest(TConnection *Connection) {
 
 void CRotate(TConnection *Connection, int Direction) {
 	if (Connection == nullptr) {
-		error("CRotate: Connection ist NULL.\n");
+		error("CRotate: Connection is NULL.\n");
 		return;
 	}
 
@@ -653,7 +653,7 @@ void CRotate(TConnection *Connection, int Direction) {
 
 void CBugReport(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CBugReport: Connection ist NULL.\n");
+		error("CBugReport: Connection is NULL.\n");
 		return;
 	}
 
@@ -735,7 +735,7 @@ void CBugReport(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CErrorFileEntry(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CErrorFileEntry: Connection ist NULL.\n");
+		error("CErrorFileEntry: Connection is NULL.\n");
 		return;
 	}
 
@@ -836,7 +836,7 @@ void CErrorFileEntry(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CMoveObject(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CMoveObject: Connection ist NULL.\n");
+		error("CMoveObject: Connection is NULL.\n");
 		return;
 	}
 
@@ -895,7 +895,7 @@ void CMoveObject(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CTradeObject(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CTradeObject: Connection ist NULL.\n");
+		error("CTradeObject: Connection is NULL.\n");
 		return;
 	}
 
@@ -939,7 +939,7 @@ void CTradeObject(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CInspectTrade(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CInspectTrade: Connection ist NULL.\n");
+		error("CInspectTrade: Connection is NULL.\n");
 		return;
 	}
 
@@ -964,7 +964,7 @@ void CInspectTrade(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CAcceptTrade(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CAcceptTrade: Connection ist NULL.\n");
+		error("CAcceptTrade: Connection is NULL.\n");
 		return;
 	}
 
@@ -976,7 +976,7 @@ void CAcceptTrade(TConnection *Connection) {
 
 void CRejectTrade(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CRejectTrade: Connection ist NULL.\n");
+		error("CRejectTrade: Connection is NULL.\n");
 		return;
 	}
 
@@ -988,7 +988,7 @@ void CRejectTrade(TConnection *Connection) {
 
 void CUseObject(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CUseObject: Connection ist NULL.\n");
+		error("CUseObject: Connection is NULL.\n");
 		return;
 	}
 
@@ -1037,7 +1037,7 @@ void CUseObject(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CUseTwoObjects(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CUseTwoObjects: Connection ist NULL.\n");
+		error("CUseTwoObjects: Connection is NULL.\n");
 		return;
 	}
 
@@ -1098,7 +1098,7 @@ void CUseTwoObjects(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CUseOnCreature(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CUseOnCreature: Connection ist NULL.\n");
+		error("CUseOnCreature: Connection is NULL.\n");
 		return;
 	}
 
@@ -1165,7 +1165,7 @@ void CUseOnCreature(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CTurnObject(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CTurnObject: Connection ist NULL.\n");
+		error("CTurnObject: Connection is NULL.\n");
 		return;
 	}
 
@@ -1205,7 +1205,7 @@ void CTurnObject(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CCloseContainer(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CCloseContainer: Connection ist NULL.\n");
+		error("CCloseContainer: Connection is NULL.\n");
 		return;
 	}
 
@@ -1225,7 +1225,7 @@ void CCloseContainer(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CUpContainer(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CUpContainer: Connection ist NULL.\n");
+		error("CUpContainer: Connection is NULL.\n");
 		return;
 	}
 
@@ -1256,7 +1256,7 @@ void CUpContainer(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CRefreshContainer(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CRefreshContainer: Connection ist NULL.\n");
+		error("CRefreshContainer: Connection is NULL.\n");
 		return;
 	}
 
@@ -1280,7 +1280,7 @@ void CRefreshContainer(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CGetOutfit(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CGetOutfit: Connection ist NULL.\n");
+		error("CGetOutfit: Connection is NULL.\n");
 		return;
 	}
 
@@ -1299,7 +1299,7 @@ void CGetOutfit(TConnection *Connection) {
 
 void CSetOutfit(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CSetOutfit: Connection ist NULL.\n");
+		error("CSetOutfit: Connection is NULL.\n");
 		return;
 	}
 
@@ -1315,7 +1315,7 @@ void CSetOutfit(TConnection *Connection, TReadBuffer &Buffer) {
 	if (pl->Sex == SEX_MALE) {
 		if (!in(OutfitID, FIRST_MALE_OUTFIT, LAST_MALE_OUTFIT)
 				|| (!CheckRight(pl->ID, PREMIUM_ACCOUNT) && OutfitID > LAST_FREE_MALE_OUTFIT)) {
-			print(3, "CSetOutfit: Ung\xfcltiges Outfit %d f\xfcr M\xe4nner.\n", OutfitID);
+			print(3, "CSetOutfit: Invalid outfit %d for men.\n", OutfitID);
 			return;
 		}
 	}
@@ -1323,13 +1323,13 @@ void CSetOutfit(TConnection *Connection, TReadBuffer &Buffer) {
 	if (pl->Sex == SEX_FEMALE) {
 		if (!in(OutfitID, FIRST_FEMALE_OUTFIT, LAST_FEMALE_OUTFIT)
 				|| (!CheckRight(pl->ID, PREMIUM_ACCOUNT) && OutfitID > LAST_FREE_FEMALE_OUTFIT)) {
-			print(3, "CSetOutfit: Ung\xfcltiges Outfit %d f\xfcr Frauen.\n", OutfitID);
+			print(3, "CSetOutfit: Invalid outfit %d for women.\n", OutfitID);
 			return;
 		}
 	}
 
 	if (Colors[0] > 132 || Colors[1] > 132 || Colors[2] > 132 || Colors[3] > 132) {
-		print(3, "CSetOutfit: Ung\xfcltige Farbe f\xfcr Outfit.\n");
+		print(3, "CSetOutfit: Invalid color for outfit.\n");
 		return;
 	}
 
@@ -1345,7 +1345,7 @@ void CSetOutfit(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CEditText(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CEditText: Connection ist NULL.\n");
+		error("CEditText: Connection is NULL.\n");
 		return;
 	}
 
@@ -1378,7 +1378,7 @@ void CEditText(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CEditList(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CEditList: Connection ist NULL.\n");
+		error("CEditList: Connection is NULL.\n");
 		return;
 	}
 
@@ -1416,7 +1416,7 @@ void CEditList(TConnection *Connection, TReadBuffer &Buffer) {
 			}
 
 			default: {
-				error("CEditList: Unbekannter Typ %d.\n", Type);
+				error("CEditList: Unknown type %d.\n", Type);
 				break;
 			}
 		}
@@ -1427,7 +1427,7 @@ void CEditList(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CSetTactics(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CSetTactics: Connection ist NULL.\n");
+		error("CSetTactics: Connection is NULL.\n");
 		return;
 	}
 
@@ -1436,17 +1436,17 @@ void CSetTactics(TConnection *Connection, TReadBuffer &Buffer) {
 	int SecureMode = Buffer.readByte();
 
 	if (!in(AttackMode, ATTACK_MODE_OFFENSIVE, ATTACK_MODE_DEFENSIVE)) {
-		print(3, "CSetTactics: Ung\xfcltiger Angriffsmodus %d.\n", AttackMode);
+		print(3, "CSetTactics: Invalid attack mode %d.\n", AttackMode);
 		return;
 	}
 
 	if (!in(ChaseMode, CHASE_MODE_STAND, CHASE_MODE_FOLLOW)) {
-		print(3, "CSetTactics: Ung\xfcltiger Verfolgungsmodus %d.\n", ChaseMode);
+		print(3, "CSetTactics: Invalid chase mode %d.\n", ChaseMode);
 		return;
 	}
 
 	if (!in(SecureMode, SECURE_MODE_OFF, SECURE_MODE_ON)) {
-		print(3, "CSetTactics: Ung\xfcltiger Sicherheitsmodus %d.\n", SecureMode);
+		print(3, "CSetTactics: Invalid secure mode %d.\n", SecureMode);
 		return;
 	}
 
@@ -1462,7 +1462,7 @@ void CSetTactics(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CAttack(TConnection *Connection, TReadBuffer &Buffer, bool Follow) {
 	if (Connection == nullptr) {
-		error("CAttack: Connection ist NULL.\n");
+		error("CAttack: Connection is NULL.\n");
 		return;
 	}
 
@@ -1486,7 +1486,7 @@ void CAttack(TConnection *Connection, TReadBuffer &Buffer, bool Follow) {
 
 void CInviteToParty(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CInviteToParty: Connection ist NULL.\n");
+		error("CInviteToParty: Connection is NULL.\n");
 		return;
 	}
 
@@ -1510,7 +1510,7 @@ void CInviteToParty(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CJoinParty(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CJoinParty: Connection ist NULL.\n");
+		error("CJoinParty: Connection is NULL.\n");
 		return;
 	}
 
@@ -1525,7 +1525,7 @@ void CJoinParty(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CRevokeInvitation(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CRevokeInvitation: Connection ist NULL.\n");
+		error("CRevokeInvitation: Connection is NULL.\n");
 		return;
 	}
 
@@ -1536,7 +1536,7 @@ void CRevokeInvitation(TConnection *Connection, TReadBuffer &Buffer) {
 
 	uint32_t Guest = Buffer.readQuad();
 	if (pl->GetPartyLeader(false) == 0) {
-		print(3, "Spieler ist kein Mitglied einer Jagdgruppe.\n");
+		print(3, "Player is not a member of a party.\n");
 		return;
 	}
 
@@ -1545,7 +1545,7 @@ void CRevokeInvitation(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CPassLeadership(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CPassLeadership: Connection ist NULL.\n");
+		error("CPassLeadership: Connection is NULL.\n");
 		return;
 	}
 
@@ -1556,7 +1556,7 @@ void CPassLeadership(TConnection *Connection, TReadBuffer &Buffer) {
 
 	uint32_t NewLeader = Buffer.readQuad();
 	if (pl->GetPartyLeader(false) == 0) {
-		print(3, "Spieler ist kein Mitglied einer Jagdgruppe.\n");
+		print(3, "Player is not a member of a party.\n");
 		return;
 	}
 
@@ -1565,7 +1565,7 @@ void CPassLeadership(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CLeaveParty(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CLeaveParty: Connection ist NULL.\n");
+		error("CLeaveParty: Connection is NULL.\n");
 		return;
 	}
 
@@ -1575,7 +1575,7 @@ void CLeaveParty(TConnection *Connection) {
 	}
 
 	if (pl->GetPartyLeader(false) == 0) {
-		print(3, "Spieler ist kein Mitglied einer Jagdgruppe.\n");
+		print(3, "Player is not a member of a party.\n");
 		return;
 	}
 
@@ -1584,7 +1584,7 @@ void CLeaveParty(TConnection *Connection) {
 
 void COpenChannel(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("COpenChannel: Connection ist NULL.\n");
+		error("COpenChannel: Connection is NULL.\n");
 		return;
 	}
 
@@ -1602,7 +1602,7 @@ void COpenChannel(TConnection *Connection) {
 
 void CInviteToChannel(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CInviteToChannel: Connection ist NULL.\n");
+		error("CInviteToChannel: Connection is NULL.\n");
 		return;
 	}
 
@@ -1614,7 +1614,7 @@ void CInviteToChannel(TConnection *Connection, TReadBuffer &Buffer) {
 	char PlayerName[30];
 	Buffer.readString(PlayerName, sizeof(PlayerName));
 	if (PlayerName[0] == '\0') {
-		print(2, "CInviteToChannel: Kein Name angegeben.\n");
+		print(2, "CInviteToChannel: No name given.\n");
 		return;
 	}
 
@@ -1627,7 +1627,7 @@ void CInviteToChannel(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CExcludeFromChannel(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CExcludeFromChannel: Connection ist NULL.\n");
+		error("CExcludeFromChannel: Connection is NULL.\n");
 		return;
 	}
 
@@ -1647,7 +1647,7 @@ void CExcludeFromChannel(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CCancel(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("CCancel: Connection ist NULL.\n");
+		error("CCancel: Connection is NULL.\n");
 		return;
 	}
 
@@ -1669,7 +1669,7 @@ void CCancel(TConnection *Connection) {
 
 void CAddBuddy(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CAddBuddy: Connection ist NULL.\n");
+		error("CAddBuddy: Connection is NULL.\n");
 		return;
 	}
 
@@ -1687,7 +1687,7 @@ void CAddBuddy(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CRemoveBuddy(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CRemoveBuddy: Connection ist NULL.\n");
+		error("CRemoveBuddy: Connection is NULL.\n");
 		return;
 	}
 
@@ -1700,7 +1700,7 @@ void CRemoveBuddy(TConnection *Connection, TReadBuffer &Buffer) {
 
 void CRuleViolation(TConnection *Connection, TReadBuffer &Buffer) {
 	if (Connection == nullptr) {
-		error("CRuleViolation: Connection ist NULL.\n");
+		error("CRuleViolation: Connection is NULL.\n");
 		return;
 	}
 
@@ -1805,7 +1805,7 @@ void CQuitGame(TConnection *Connection) {
 			}
 
 			default: {
-				error("CQuitGame: Ung\xfcltiger R\xfc" "ckgabewert von LogoutPossible.\n");
+				error("CQuitGame: Invalid return value from LogoutPossible.\n");
 				break;
 			}
 		}
@@ -1818,18 +1818,18 @@ void CQuitGame(TConnection *Connection) {
 
 void ReceiveData(TConnection *Connection) {
 	if (Connection == nullptr) {
-		error("ReceiveData: Connection ist NULL.\n");
+		error("ReceiveData: Connection is NULL.\n");
 		return;
 	}
 
 	int Length = Connection->InDataSize;
 	if (Length <= 0) {
-		error("ReceiveData: Keine Daten vorhanden.\n");
+		error("ReceiveData: No data.\n");
 		return;
 	}
 
 	if (Length > (int)sizeof(Connection->InData) - 2) {
-		error("ReceiveData: Zu gro\xdf" "e Paketl\xe4nge %d.\n", Length);
+		error("ReceiveData: Packet length %d too large.\n", Length);
 		return;
 	}
 
@@ -1838,24 +1838,24 @@ void ReceiveData(TConnection *Connection) {
 	try {
 		Command = Buffer.readByte();
 	} catch (const char *s) {
-		error("ReceiveData: Fehler beim Auslesen des Kommandos (%s).\n", s);
+		error("ReceiveData: Error while reading the command (%s).\n", s);
 		return;
 	}
 
 	if (Connection->GetState() == CONNECTION_LOGIN) {
 		if (Command != CL_JOIN_GAME) {
-			error("ReceiveData: Falsches Login-Kommando %d.\n", Command);
+			error("ReceiveData: Wrong login command %d.\n", Command);
 			return;
 		}
 
 		if (!Connection->JoinGame(Buffer)) {
-			Log("game", "Einloggen gescheitert.\n");
+			Log("game", "Login failed.\n");
 			SendResult(Connection, LOGINERROR);
 			TPlayer *pl = Connection->GetPlayer();
 			if (pl != nullptr) {
 				DecrementIsOnlineOrder(pl->ID);
 			} else {
-				error("ReceiveData: Einloggen gescheitert und keine Kreatur bekannt.\n");
+				error("ReceiveData: Login failed and no creature known.\n");
 			}
 			Connection->Disconnect();
 		}
@@ -1930,12 +1930,12 @@ void ReceiveData(TConnection *Connection) {
 			case CL_RULE_VIOLATION: CRuleViolation(Connection, Buffer); break;
 			case CL_ERROR_FILE_ENTRY: CErrorFileEntry(Connection, Buffer); break;
 			default: {
-				print(3, "Unbekanntes Kommando %d.\n", Command);
+				print(3, "Unknown command %d.\n", Command);
 				break;
 			}
 		}
 	} catch (const char *s) {
-		print(3, "Fehler beim Auslesen der Daten f\xfcr Kommando %d (%s).\n", Command, s);
+		print(3, "Error while reading the data for command %d (%s).\n", Command, s);
 	}
 }
 

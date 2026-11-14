@@ -142,7 +142,7 @@ int GetInstanceAttributeByName(char *Name) {
 
 static void LoadParameters(TReadScriptFile &Script, int *Parameters, int NumberOfParameters, ...) {
 	if (NumberOfParameters > MAX_PARAMETERS) {
-		error("LoadParameters: Zu viele Parameter (%d).\n", NumberOfParameters);
+		error("LoadParameters: Too many parameters (%d).\n", NumberOfParameters);
 		Script.error("too many parameters");
 	}
 
