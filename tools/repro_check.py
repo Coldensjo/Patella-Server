@@ -25,8 +25,9 @@ What it does:
      as src/RSA_PrivateKey.hh instead.
   4. Keeps every executable of the build (game, querymanager, querymanager-seed, loginserver, rsakeygen and the test
      programs), as linked and stripped (strip --strip-all), in ~/.cache/patella-check/builds/repro/<tree>/. A tree
-     that was built before is not built again: the cache is per tree, so a commit and a working tree with the same
-     files share it. Deleting ~/.cache/patella-check/key makes a new key and empties the cache.
+     that was built before, with the same configure command and the same compiler and cmake, is not built again: the
+     cache is per tree, so a commit and a working tree with the same files share it. Deleting
+     ~/.cache/patella-check/key makes a new key and empties the cache.
   5. Compares the stripped binaries byte for byte. When one differs, it names the sections that differ, the strings
      of .rodata that are only in one of them, and the functions whose code differs. Those come from the unstripped
      binaries: objdump's disassembly of each function, with every address replaced by the symbol it names (by the
@@ -103,7 +104,8 @@ def resolve(spec):
 			raise CheckError("not a commit: %s" % spec)
 		return git("rev-parse", commit + "^{tree}"), "%s (%s)" % (spec, commit[:10])
 	index = git("rev-parse", "--git-path", "index")
-	temporary = git("rev-parse", "--git-path", "patella-check-index")
+	# One per process: a trace_check and a repro_check may both read the working tree at the same time.
+	temporary = git("rev-parse", "--git-path", "patella-check-index-%d" % os.getpid())
 	try:
 		if os.path.isfile(host_path(index)):
 			shutil.copyfile(host_path(index), host_path(temporary))
@@ -318,6 +320,12 @@ def run_logged(command, log_file):
 	return result.returncode, output
 
 
+def tool_version(command):
+	"""The first line of a tool's --version."""
+	result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+	return result.stdout.decode("utf-8", "replace").partition("\n")[0].strip()
+
+
 def build(arguments, data):
 	"""WSL step: builds the tree in data (a tar) unless the cache has it. Returns {"dir": its folder}."""
 	tree = arguments["tree"]
@@ -328,9 +336,19 @@ def build(arguments, data):
 	with lock(cache, "build"):
 		key = key_header(cache)
 		out = os.path.join(cache, "builds", mode, tree)
+		source = os.path.join(cache, "src")
+		folder = os.path.join(cache, "build-" + mode)
+		configure = ["cmake", "-S", source, "-B", folder, "-G", "Unix Makefiles", "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+			"-DCMAKE_PREFIX_PATH=" + arguments["prefix"], "-DPATELLA_RSA_KEY_HEADER=" + key]
+		configure += REPRO_FLAGS if mode == "repro" else []
+		# A cached build counts only if it was made the same way: the same configure command and the same compiler.
+		settings = "\n".join(configure + [tool_version(["c++", "--version"]), tool_version(["cmake", "--version"])]) + "\n"
 		if os.path.isfile(os.path.join(out, "complete")):
-			log("  built before: %s" % out)
-			return {"dir": out}
+			with open(os.path.join(out, "settings") if os.path.isfile(os.path.join(out, "settings")) else os.devnull) as f:
+				if f.read() == settings:
+					log("  built before: %s" % out)
+					return {"dir": out}
+			log("  built before, but with other flags or another compiler: building again")
 		stage = os.path.join(cache, "stage")
 		shutil.rmtree(stage, ignore_errors=True)
 		os.makedirs(stage)
@@ -340,12 +358,10 @@ def build(arguments, data):
 		knows_key_variable = os.path.isfile(keygen) and "PATELLA_RSA_KEY_HEADER" in open(keygen, encoding="utf-8").read()
 		if not knows_key_variable:
 			shutil.copyfile(key, os.path.join(stage, "src", "RSA_PrivateKey.hh"))
-		source = os.path.join(cache, "src")
 		written, removed = sync(stage, source)
 		shutil.rmtree(stage)
 		log("  sources in %s: %d files written, %d removed%s" % (source, written, removed,
 			"" if knows_key_variable else "; the tree predates PATELLA_RSA_KEY_HEADER, the key is src/RSA_PrivateKey.hh"))
-		folder = os.path.join(cache, "build-" + mode)
 		os.makedirs(folder, exist_ok=True)
 		# Linked again every time, so that no executable of another tree is left over.
 		for path in executables(folder):
@@ -353,9 +369,6 @@ def build(arguments, data):
 		shutil.rmtree(out, ignore_errors=True)
 		os.makedirs(out)
 		log_file = os.path.join(out, "build.log")
-		configure = ["cmake", "-S", source, "-B", folder, "-G", "Unix Makefiles", "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-			"-DCMAKE_PREFIX_PATH=" + arguments["prefix"], "-DPATELLA_RSA_KEY_HEADER=" + key]
-		configure += REPRO_FLAGS if mode == "repro" else []
 		log("  building in %s (%s)" % (folder, "-g0, no build ID" if mode == "repro" else "with debug information"))
 		code, output = run_logged(configure, log_file)
 		if code == 0:
@@ -381,6 +394,8 @@ def build(arguments, data):
 				code, output = run_logged(["strip", "--strip-all", "-o", stripped, kept], log_file)
 				if code != 0:
 					raise CheckError("strip %s failed: %s" % (path, output.strip()))
+		with open(os.path.join(out, "settings"), "w") as f:
+			f.write(settings)
 		with open(os.path.join(out, "complete"), "w") as f:
 			f.write("\n".join(found) + "\n")
 		log("  built: %s" % ", ".join(found))

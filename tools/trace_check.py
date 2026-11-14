@@ -498,6 +498,9 @@ def main(argv):
 	new_tree, new_label = repro_check.resolve(args.commits[1] if len(args.commits) > 1 else None)
 	old_dir = repro_check.build_tree(old_tree, old_label, "trace", who)
 	new_dir = repro_check.build_tree(new_tree, new_label, "trace", who)
+	if old_tree == new_tree:
+		log("%s: %s and %s are the same tree: both runs use the same build, so this proves only that the runs repeat"
+			% (who, old_label, new_label))
 	return repro_check.call_worker(__file__, WORKERS, "trace", {"options": options,
 		"old": {"dir": old_dir, "label": old_label}, "new": {"dir": new_dir, "label": new_label}})["code"]
 
