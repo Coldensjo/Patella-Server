@@ -4,11 +4,12 @@ A C++ rebuild of the 2006 Tibia game server (`bin/game`), with its own query
 manager (SQLite) and a login server for 7.72 clients.
 
 This repository contains no CipSoft files apart from what `data/` holds: the
-original installation's config, object types, circles, move and use rules and
-houses and the original game's spell table, converted to TOML, and its original
-map (`origmap.zip`, unzipped into the folder `[paths] origmap` names; start
-`map/` as a copy of it). To run the server you still need your own copy of the
-original installation for the rest (data files, monsters, NPCs).
+original installation's config, object types, circles, move and use rules,
+houses and map settings and the original game's spell table, converted to
+TOML, and its original map (`origmap.zip`, unzipped into the folder
+`[paths] origmap` names; start `map/` as a copy of it). To run the server you
+still need your own copy of the original installation for the rest (data
+files, monsters, NPCs).
 
 ## Build
 
@@ -80,6 +81,19 @@ into the installation's data folder. The comments at its top explain the
 fields. Who owns or rents a house stays in `owners.dat` in the data folder,
 which the game reads at start-up and writes; it is not part of this
 repository.
+
+## Map settings
+
+The game reads the map settings (the range of the sectors, how many cylinders
+it refreshes each minute, the room for the objects, the start positions, the
+marks gamemasters teleport to and the towns' depots) from `map.toml` in its
+data folder. `data/map.toml` is the original installation's `dat/map.dat` and
+the `dat/mem.dat` it includes converted with
+`patella-convert map map.dat map.toml` (`mem.dat` is read from the folder of
+`map.dat`); copy it into the installation's data folder. The comments at its
+top explain the fields. Keep `map.dat` and `mem.dat` there too: the original
+operator tools (`highscores`, `deloldusr`, `mgrep`, `ugrep`, `tempel`) still
+read them.
 
 ## License
 

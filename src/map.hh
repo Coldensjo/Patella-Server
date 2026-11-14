@@ -11,10 +11,9 @@
 
 #include "objects.hh"
 #include "containr.hh"
+#include "mapdata.hh"
 
 struct TCronEntry;
-struct TDepotInfo;
-struct TMark;
 struct TObject;
 struct TObjectBlock;
 struct TReadScriptFile;
@@ -82,14 +81,6 @@ const int END_OF_ATTRIBUTES = 0xFF;
 // The size of CronHashTable, which chains the cron entries by object number.
 const int CRON_HASH_TABLE_SIZE = 2047;
 
-extern int SectorXMin;
-extern int SectorXMax;
-extern int SectorYMin;
-extern int SectorYMax;
-extern int SectorZMin;
-extern int SectorZMax;
-extern int RefreshedCylinders;
-
 TObject &AccessObject(Object Obj);
 void GetObjectCoordinates(Object Obj, int &x, int &y, int &z);
 unsigned char GetMapContainerFlags(Object Obj);
@@ -154,7 +145,6 @@ void SaveSector(char *FileName, int x, int y, int z);
 void SaveMap();
 void RefreshSector(int x, int y, int z, TReadStream &Stream);
 void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, bool SaveHouses);
-void ReadMapConfig();
 void InitMap();
 void ExitMap(bool save);
 
@@ -164,22 +154,11 @@ extern TObjectBlock **ObjectBlock;
 extern TObject *FirstFreeObject;
 extern uintptr_t *HashTableData;
 extern unsigned char *HashTableType;
-extern int HashTableSize;
 extern uint32_t HashTableMask;
 extern int HashTableFree;
 extern int ObjectCounter;
 extern vector<TCronEntry> CronEntry;
 extern int CronHashTable[CRON_HASH_TABLE_SIZE];
 extern int CronEntries;
-extern int OBCount;
-extern vector<TDepotInfo> DepotInfo;
-extern vector<TMark> Mark;
-extern int Marks;
-extern int NewbieStartPositionX;
-extern int NewbieStartPositionY;
-extern int NewbieStartPositionZ;
-extern int VeteranStartPositionX;
-extern int VeteranStartPositionY;
-extern int VeteranStartPositionZ;
 
 #endif

@@ -1,0 +1,305 @@
+# map.toml: the map settings of the game server, converted from the original
+# map.dat and the mem.dat it includes by patella-convert. The game reads
+# map.toml in its data folder ([paths] data of config.toml). An unknown or
+# missing key, a value of the wrong type or out of range, or a depot given
+# twice, is an error.
+#
+#   refreshed_cylinders  How many cylinders the game refreshes each minute.
+#                        A cylinder is the sectors of one x and y on all
+#                        floors; the game goes through them row by row and
+#                        loads the fields marked Refresh in them anew from
+#                        the original map, but in sectors near a player.
+#   newbie_start         The field [x, y, z] new characters start on, their
+#                        home; a player without a vocation whose home lies
+#                        in a premium area gets it as home again while his
+#                        account is not premium. x 1 to 65535.
+#   veteran_start        The same for a player with a vocation. x 1 to 65535.
+#
+# [sectors] is the extent of the map in sectors of 32 by 32 fields (the files
+# XXXX-YYYY-ZZ.sec): x_min to x_max and y_min to y_max (1 to 2046), and the
+# floors z_min to z_max (0 to 15, 7 is the ground).
+#
+# [memory] is the room for the objects:
+#   objects     How many object numbers the game makes room for at first, a
+#               power of 2; it doubles them when few are left.
+#   cache_size  How many objects the game keeps in memory, a multiple of
+#               32768; when they are all in use, it swaps out the sector used
+#               longest ago.
+#
+# Each [[mark]] is a named field a gamemaster can teleport to:
+#   name      Its name, at most 19 characters. A name is looked up in any
+#             case, and the first mark of that name counts.
+#   position  Its field [x, y, z].
+#
+# Each [[depot]] is a town's depot:
+#   id    Its number, 0 to 8 (a player has one depot of each number), each
+#         at most once. The move and use rules (load_depot, save_depot)
+#         and the areas of houses.toml name it.
+#   town  The town's name, at most 19 characters: letters and parcels sent
+#         to the town go into this depot, and the query manager lists the
+#         town's houses under it.
+#   size  How many objects the depot holds, twice as many for a premium
+#         account; below 1 counts as 1 (an error is logged).
+#
+# Coordinates: x and y 0 to 65535, z 0 to 15.
+
+refreshed_cylinders = 8
+newbie_start = [32097, 32219, 7]
+veteran_start = [32369, 32241, 7]
+
+[sectors]
+x_min = 996
+x_max = 1043
+y_min = 984
+y_max = 1031
+z_min = 0
+z_max = 15
+
+[memory]
+objects = 33554432
+cache_size = 20971520
+
+[[mark]]
+name = "Thais"
+position = [32369, 32215, 7]
+
+[[mark]]
+name = "Carlin"
+position = [32341, 31789, 7]
+
+[[mark]]
+name = "Ab'Dendriel"
+position = [32661, 31687, 7]
+
+[[mark]]
+name = "Rookgaard"
+position = [32097, 32207, 7]
+
+[[mark]]
+name = "Fibula"
+position = [32176, 32437, 7]
+
+[[mark]]
+name = "Kazordoon"
+position = [32632, 31916, 8]
+
+[[mark]]
+name = "Senja"
+position = [32125, 31667, 7]
+
+[[mark]]
+name = "Folda"
+position = [32046, 31582, 7]
+
+[[mark]]
+name = "Vega"
+position = [32027, 31692, 7]
+
+[[mark]]
+name = "Havoc"
+position = [32783, 32243, 6]
+
+[[mark]]
+name = "Orc"
+position = [32901, 31771, 7]
+
+[[mark]]
+name = "Minocity"
+position = [32404, 32124, 15]
+
+[[mark]]
+name = "Minoroom"
+position = [32139, 32109, 11]
+
+[[mark]]
+name = "Desert"
+position = [32653, 32117, 7]
+
+[[mark]]
+name = "Swamp"
+position = [32724, 31976, 6]
+
+[[mark]]
+name = "Home"
+position = [32316, 31942, 7]
+
+[[mark]]
+name = "Mists"
+position = [32854, 32333, 6]
+
+[[mark]]
+name = "FibulaDungeon"
+position = [32189, 32426, 9]
+
+[[mark]]
+name = "DragonIsle"
+position = [32781, 31603, 7]
+
+[[mark]]
+name = "HellsGate"
+position = [32675, 31648, 10]
+
+[[mark]]
+name = "Necropolis"
+position = [32786, 31683, 14]
+
+[[mark]]
+name = "Trollcaves"
+position = [32493, 32259, 8]
+
+[[mark]]
+name = "Elvenbane"
+position = [32590, 31657, 7]
+
+[[mark]]
+name = "Fieldofglory"
+position = [32430, 31671, 7]
+
+[[mark]]
+name = "Hills"
+position = [32553, 31827, 6]
+
+[[mark]]
+name = "Sternum"
+position = [32463, 32077, 7]
+
+[[mark]]
+name = "Northport"
+position = [32486, 31610, 7]
+
+[[mark]]
+name = "Greenshore"
+position = [32273, 32053, 7]
+
+[[mark]]
+name = "Edron"
+position = [33191, 31818, 7]
+
+[[mark]]
+name = "Stonehome"
+position = [33319, 31766, 7]
+
+[[mark]]
+name = "Camp"
+position = [32655, 32208, 7]
+
+[[mark]]
+name = "Cormaya"
+position = [33302, 31970, 7]
+
+[[mark]]
+name = "Darashia"
+position = [33224, 32428, 7]
+
+[[mark]]
+name = "Drefia"
+position = [32996, 32417, 7]
+
+[[mark]]
+name = "Venore"
+position = [32955, 32076, 6]
+
+[[mark]]
+name = "Ghostship"
+position = [33325, 32173, 6]
+
+[[mark]]
+name = "VenoreDragons"
+position = [32793, 32155, 8]
+
+[[mark]]
+name = "Shadowthorn"
+position = [33086, 32157, 7]
+
+[[mark]]
+name = "Amazons"
+position = [32839, 31925, 7]
+
+[[mark]]
+name = "KingsIsle"
+position = [32174, 31940, 7]
+
+[[mark]]
+name = "Ghostlands"
+position = [32223, 31831, 7]
+
+[[mark]]
+name = "Ankrahmun"
+position = [33162, 32802, 7]
+
+[[mark]]
+name = "Oasis"
+position = [33132, 32661, 7]
+
+[[mark]]
+name = "Marid"
+position = [33103, 32539, 6]
+
+[[mark]]
+name = "Efreet"
+position = [33053, 32622, 6]
+
+[[mark]]
+name = "PortHope"
+position = [32623, 32753, 7]
+
+[[mark]]
+name = "Banuta"
+position = [32812, 32559, 7]
+
+[[mark]]
+name = "Chor"
+position = [32956, 32843, 7]
+
+[[mark]]
+name = "Trapwood"
+position = [32709, 32901, 8]
+
+[[mark]]
+name = "Eremo"
+position = [33323, 31883, 7]
+
+[[depot]]
+id = 0
+town = "Thais"
+size = 1000
+
+[[depot]]
+id = 1
+town = "Carlin"
+size = 1000
+
+[[depot]]
+id = 2
+town = "Kazordoon"
+size = 1000
+
+[[depot]]
+id = 3
+town = "Ab'Dendriel"
+size = 1000
+
+[[depot]]
+id = 4
+town = "Edron"
+size = 1000
+
+[[depot]]
+id = 5
+town = "Darashia"
+size = 1000
+
+[[depot]]
+id = 6
+town = "Venore"
+size = 1000
+
+[[depot]]
+id = 7
+town = "Ankrahmun"
+size = 1000
+
+[[depot]]
+id = 8
+town = "Port Hope"
+size = 1000

@@ -18,10 +18,13 @@ add_library(convert_common STATIC
 	moveuse_writer.cc
 	houses_dat.cc
 	houses_writer.cc
+	map_dat.cc
+	map_writer.cc
 	tomlwrite.cc
 	${GAME_SOURCE}/config.cc
 	${GAME_SOURCE}/housesdata.cc
 	${GAME_SOURCE}/magicdata.cc
+	${GAME_SOURCE}/mapdata.cc
 	${GAME_SOURCE}/moveusedata.cc
 	${GAME_SOURCE}/objects.cc
 	${GAME_SOURCE}/strings.cc
@@ -128,3 +131,21 @@ add_test(NAME convert_houses COMMAND convert_test_houses)
 add_test(NAME convert_houses_original COMMAND convert_test_houses --original ${PATELLA_ORIGINAL_HOUSEAREAS}
 	${PATELLA_ORIGINAL_HOUSES} ${PROJECT_SOURCE_DIR}/data/houses.toml)
 set_tests_properties(convert_houses_original PROPERTIES SKIP_RETURN_CODE 77)
+
+# The round trip of the map settings: the sectors' range, the refreshed
+# cylinders, the memory settings, the start positions, the marks and the
+# depots the game ends up with from a map.dat and the mem.dat it includes
+# (through the old reader, ReadMapDat) and from their map.toml (through
+# LoadMapData) are the same, field by field. convert_map uses made-up files;
+# convert_map_original the original map.dat, PATELLA_ORIGINAL_MAP (with the
+# mem.dat next to it), and the committed data/map.toml, which must also be
+# exactly what patella-convert makes of it. It is skipped when that map.dat is
+# not there.
+set(PATELLA_ORIGINAL_MAP "/mnt/c/Tibia/Patella-Gameserver/dat/map.dat" CACHE FILEPATH
+	"The original installation's map.dat, for the test convert_map_original")
+add_executable(convert_test_map tests/test_map.cc)
+target_link_libraries(convert_test_map PRIVATE convert_common)
+add_test(NAME convert_map COMMAND convert_test_map)
+add_test(NAME convert_map_original COMMAND convert_test_map --original ${PATELLA_ORIGINAL_MAP}
+	${PROJECT_SOURCE_DIR}/data/map.toml)
+set_tests_properties(convert_map_original PROPERTIES SKIP_RETURN_CODE 77)
