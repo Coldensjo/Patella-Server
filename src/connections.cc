@@ -1,3 +1,8 @@
+// connections.cc: the connection table and TConnection: the state changes of
+// a connection, the ping and idle timers that log a player out, what part of
+// the map the client sees, and the table of the creatures the client knows
+// (each entry also chained to its creature's FirstKnowingConnection).
+
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>

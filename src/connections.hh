@@ -1,3 +1,7 @@
+// connections.hh: TConnection, one client's connection (its state from
+// assignment through login, game and logout to disconnection, its buffers,
+// its timers and the creatures its client knows), and the connection table.
+
 #ifndef PATELLA_CONNECTIONS_HH
 #define PATELLA_CONNECTIONS_HH
 

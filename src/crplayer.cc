@@ -1,3 +1,12 @@
+// crplayer.cc: the players. The list of the players in the game
+// (PlayerList); the pool of player data slots (PlayerDataPool), which hold
+// what is loaded from and saved to the query manager for a character and
+// which the game and the other threads lock in turn; the index of all
+// character names, a tree by letter filled from the query manager; and
+// TPlayer (cr.hh): taking over a connection, loading and saving its data and
+// inventory, depots, buddies, professions, parties, trades, playerkilling and
+// its marks, spells and quest values.
+
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>

@@ -1,3 +1,12 @@
+// map.cc: the objects and the map. The objects lie in blocks of
+// OBJECTS_PER_BLOCK and are found by number through a hash table; the cron
+// is a heap of the objects that change when their time runs out. The map is a
+// matrix3d of sectors of SECTOR_SIZE x SECTOR_SIZE fields, each field a map
+// container that holds its objects in a list. Sectors are loaded from and
+// saved to the .sec files, refreshed and patched; when no object slot is
+// free, the sector used longest ago is swapped out to a file. map.dat gives
+// the sectors' range, the depots, the marks and the start positions.
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdint>
