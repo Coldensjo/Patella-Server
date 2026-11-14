@@ -55,13 +55,13 @@ struct TPlayerIndexInternalNode : public TPlayerIndexNode {
 
 struct TPlayerIndexLeafNode : public TPlayerIndexNode {
 	int Count;
-	TPlayerIndexEntry Entry[10];
+	TPlayerIndexEntry Entry[PLAYERINDEX_LEAFSIZE];
 };
 
 vector<TPlayer *> PlayerList(0, 100, 10, nullptr);
 int FirstFreePlayer;
 Semaphore PlayerMutex(1);
-TPlayerData PlayerDataPool[2000];
+TPlayerData PlayerDataPool[PLAYERDATA_POOLSIZE];
 Semaphore PlayerDataPoolMutex(1);
 store<TPlayerIndexInternalNode, 100> PlayerIndexInternalNodes;
 store<TPlayerIndexLeafNode, 100> PlayerIndexLeafNodes;
@@ -266,7 +266,7 @@ void LoadDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 		throw ERROR;
 	}
 
-	if (DepotNr < 0 || DepotNr > 8) {
+	if (DepotNr < 0 || DepotNr > MAX_DEPOTS - 1) {
 		error("LoadDepot: Ung\xfcltige Depotnummer %d.\n", DepotNr);
 		throw ERROR;
 	}
@@ -301,7 +301,7 @@ void SaveDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 		throw ERROR;
 	}
 
-	if (DepotNr < 0 || DepotNr > 8) {
+	if (DepotNr < 0 || DepotNr > MAX_DEPOTS - 1) {
 		error("SaveDepot: Ung\xfcltige Depotnummer %d.\n", DepotNr);
 		throw ERROR;
 	}
@@ -457,7 +457,7 @@ void FreePlayerPoolSlot(TPlayerData *Slot) {
 		delete[] Slot->Inventory;
 	}
 
-	for (int i = 0; i < 9; i++) {
+	for (int i = 0; i < MAX_DEPOTS; i++) {
 		if (Slot->Depot[i] != nullptr) {
 			delete[] Slot->Depot[i];
 		}
@@ -1357,7 +1357,7 @@ void TPlayer::SaveInventory() {
 
 	try {
 		TDynamicWriteBuffer HelpBuffer(16384);
-		for (int con = 1; con <= 10; con++) {
+		for (int con = FIRST_BODY_POSITION; con <= LAST_BODY_POSITION; con++) {
 			Object Obj = GetBodyObject(ID, con);
 			if (Obj.exists()) {
 				HelpBuffer.writeByte((unsigned char)con);
@@ -1527,7 +1527,7 @@ void TPlayer::IdleStimulus() {
 }
 
 void TPlayer::SetOpenContainer(int Window, Object Con) {
-	if (Window < 0 || Window > 15) {
+	if (Window < 0 || Window > MAX_OPEN_CONTAINERS - 1) {
 		// Original bug: the window number for %d is not passed.
 		error("TPlayer::SetOpenContainer: Ung\xfcltige Fensternummer %d.\n");
 		return;
@@ -1542,7 +1542,7 @@ void TPlayer::SetOpenContainer(int Window, Object Con) {
 }
 
 Object TPlayer::GetOpenContainer(int Window) {
-	if (Window < 0 || Window > 15) {
+	if (Window < 0 || Window > MAX_OPEN_CONTAINERS - 1) {
 		// Original bug: the window number for %d is not passed.
 		error("TPlayer::GetOpenContainer: Ung\xfcltige Fensternummer %d.\n");
 		return NONE;
@@ -1552,7 +1552,7 @@ Object TPlayer::GetOpenContainer(int Window) {
 }
 
 void TPlayer::CloseAllContainers() {
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < MAX_OPEN_CONTAINERS; i++) {
 		if (GetOpenContainer(i) != NONE) {
 			SetOpenContainer(i, NONE);
 			SendCloseContainer(GetConnection(), i);
@@ -1691,7 +1691,7 @@ void TPlayer::AcceptTrade() {
 			}
 
 			if (Con[1 - p] == NONE) {
-				if (pos <= 9) {
+				if (pos <= LAST_BODY_POSITION - 1) {
 					goto again;
 				}
 
@@ -1877,7 +1877,7 @@ bool TPlayer::GetActivePromotion() {
 }
 
 bool TPlayer::SpellKnown(int SpellNumber) {
-	if (SpellNumber < 0 || SpellNumber > 255) {
+	if (SpellNumber < 0 || SpellNumber > MAX_SPELLS - 1) {
 		error("TPlayer::SpellKnown: Ung\xfcltige Spruchnummer %d.\n", SpellNumber);
 		return false;
 	}
@@ -1886,7 +1886,7 @@ bool TPlayer::SpellKnown(int SpellNumber) {
 }
 
 void TPlayer::LearnSpell(int SpellNumber) {
-	if (SpellNumber < 0 || SpellNumber > 255) {
+	if (SpellNumber < 0 || SpellNumber > MAX_SPELLS - 1) {
 		error("TPlayer::LearnSpell: Ung\xfcltige Spruchnummer %d.\n", SpellNumber);
 		return;
 	}
@@ -1900,7 +1900,7 @@ void TPlayer::LearnSpell(int SpellNumber) {
 }
 
 int TPlayer::GetQuestValue(int Number) {
-	if (Number < 0 || Number > 499) {
+	if (Number < 0 || Number > MAX_QUESTS - 1) {
 		error("TPlayer::GetQuestValue: Ung\xfcltige Nummer %d.\n", Number);
 		return 0;
 	}
@@ -1910,7 +1910,7 @@ int TPlayer::GetQuestValue(int Number) {
 }
 
 void TPlayer::SetQuestValue(int Number, int Value) {
-	if (Number < 0 || Number > 499) {
+	if (Number < 0 || Number > MAX_QUESTS - 1) {
 		error("TPlayer::SetQuestValue: Ung\xfcltige Nummer %d.\n", Number);
 		return;
 	}
@@ -2041,8 +2041,8 @@ void TPlayer::AddBuddy(char *Name) {
 		return;
 	}
 
-	if (PlayerData->Buddies >= 100
-			|| (!CheckRight(ID, READ_GAMEMASTER_CHANNEL) && PlayerData->Buddies >= 100)
+	if (PlayerData->Buddies >= MAX_BUDDIES
+			|| (!CheckRight(ID, READ_GAMEMASTER_CHANNEL) && PlayerData->Buddies >= MAX_BUDDIES)
 			|| (!CheckRight(ID, PREMIUM_ACCOUNT) && PlayerData->Buddies >= 20)) {
 		SendMessage(GetConnection(), TALK_FAILURE_MESSAGE, "You cannot add more buddies.");
 		return;
