@@ -139,11 +139,17 @@ modulus() {
 	"$KEYGEN" --modulus "$key" || die "$key is not a usable key file"
 }
 
-# Gives the copy its key file when it has none: PLAY_KEY, or a new key.
+# Gives the copy its key file when it has none: PLAY_KEY, or a new key. A key
+# file it has is checked, so that a bad one stops the script before any
+# server is started.
 make_key() {
 	local key
 	key=$(key_file)
-	[ -f "$key" ] && return 0
+	if [ -f "$key" ]; then
+		"$KEYGEN" --modulus "$key" > /dev/null \
+			|| die "$key is not a usable key file; replace it, or delete it to get a new key"
+		return 0
+	fi
 	if [ -n "${PLAY_KEY:-}" ]; then
 		"$KEYGEN" --modulus "$PLAY_KEY" > /dev/null || die "PLAY_KEY=$PLAY_KEY is not a usable key file"
 		echo "copying the key file $PLAY_KEY to $key"
@@ -235,6 +241,7 @@ done
 if ipcs -m | grep -q "^$(printf '0x%08x' "$SHM_KEY") "; then
 	die "SHM key $SHM_KEY is in use: another game runs, or a leftover segment (ipcrm -M $SHM_KEY)"
 fi
+modulus
 echo $$ > "$RUN/play.pid"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
@@ -285,7 +292,6 @@ trap 'stop; exit 0' INT TERM
 
 echo "query manager pid $QMPID, login server pid $LSPID, game pid $GAMEPID"
 echo "console $CONSOLE"
-modulus
 # The game opens its port before it loads the map and refuses logins until
 # LaunchGame reports that it is ready.
 for i in $(seq 1 600); do
