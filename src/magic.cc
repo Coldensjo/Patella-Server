@@ -132,6 +132,108 @@ char SpellSyllable[MAX_SYLLABLES][6] = {
 TCircle Circle[10];
 TSpellList SpellList[MAX_SPELLS];
 
+// The spell numbers (SpellList), named after the spell names InitSpells
+// gives them.
+const int SPELL_LIGHT_HEALING = 1;
+const int SPELL_INTENSE_HEALING = 2;
+const int SPELL_ULTIMATE_HEALING = 3;
+const int SPELL_INTENSE_HEALING_RUNE = 4;
+const int SPELL_ULTIMATE_HEALING_RUNE = 5;
+const int SPELL_HASTE = 6;
+const int SPELL_LIGHT_MAGIC_MISSILE = 7;
+const int SPELL_HEAVY_MAGIC_MISSILE = 8;
+const int SPELL_SUMMON_CREATURE = 9;
+const int SPELL_LIGHT = 10;
+const int SPELL_GREAT_LIGHT = 11;
+const int SPELL_CONVINCE_CREATURE = 12;
+const int SPELL_ENERGY_WAVE = 13;
+const int SPELL_CHAMELEON = 14;
+const int SPELL_FIREBALL = 15;
+const int SPELL_GREAT_FIREBALL = 16;
+const int SPELL_FIREBOMB = 17;
+const int SPELL_EXPLOSION = 18;
+const int SPELL_FIRE_WAVE = 19;
+const int SPELL_FIND_PERSON = 20;
+const int SPELL_SUDDEN_DEATH = 21;
+const int SPELL_ENERGY_BEAM = 22;
+const int SPELL_GREAT_ENERGY_BEAM = 23;
+const int SPELL_ULTIMATE_EXPLOSION = 24;
+const int SPELL_FIRE_FIELD = 25;
+const int SPELL_POISON_FIELD = 26;
+const int SPELL_ENERGY_FIELD = 27;
+const int SPELL_FIRE_WALL = 28;
+const int SPELL_ANTIDOTE = 29;
+const int SPELL_DESTROY_FIELD = 30;
+const int SPELL_ANTIDOTE_RUNE = 31;
+const int SPELL_POISON_WALL = 32;
+const int SPELL_ENERGY_WALL = 33;
+const int SPELL_GET_ITEM_COUNT = 34;
+const int SPELL_GET_ITEM = 35;
+const int SPELL_MOVE = 37;
+const int SPELL_CREATURE_ILLUSION = 38;
+const int SPELL_STRONG_HASTE = 39;
+const int SPELL_GET_EXPERIENCE = 40;
+const int SPELL_CHANGE_DATA = 41;
+const int SPELL_FOOD = 42;
+const int SPELL_MAGIC_SHIELD = 44;
+const int SPELL_INVISIBLE = 45;
+const int SPELL_GET_SKILL_EXPERIENCE = 46;
+const int SPELL_TELEPORT_TO_FRIEND = 47;
+const int SPELL_POISONED_ARROW = 48;
+const int SPELL_EXPLOSIVE_ARROW = 49;
+const int SPELL_SOULFIRE = 50;
+const int SPELL_CONJURE_ARROW = 51;
+const int SPELL_RETRIEVE_FRIEND = 52;
+const int SPELL_SUMMON_WILD_CREATURE = 53;
+const int SPELL_PARALYZE = 54;
+const int SPELL_ENERGYBOMB = 55;
+const int SPELL_POISON_STORM = 56;
+const int SPELL_BANISH_ACCOUNT = 57;
+const int SPELL_GET_POSITION = 58;
+const int SPELL_TEMPLE_TELEPORT = 60;
+const int SPELL_DELETE_ACCOUNT = 61;
+const int SPELL_SET_NAMERULE = 62;
+const int SPELL_CREATE_GOLD = 63;
+const int SPELL_CHANGE_PROFESSION_OR_SEX = 64;
+const int SPELL_ENTRY_IN_CRIMINAL_RECORD = 65;
+const int SPELL_NAMELOCK = 66;
+const int SPELL_KICK_PLAYER = 67;
+const int SPELL_DELETE_CHARACTER = 68;
+const int SPELL_BANISH_IP_ADDRESS = 69;
+const int SPELL_BANISH_CHARACTER = 70;
+const int SPELL_INVITE_GUESTS = 71;
+const int SPELL_INVITE_SUBOWNERS = 72;
+const int SPELL_KICK_GUEST = 73;
+const int SPELL_EDIT_DOOR = 74;
+const int SPELL_ULTIMATE_LIGHT = 75;
+const int SPELL_MAGIC_ROPE = 76;
+const int SPELL_ENVENOM = 77;
+const int SPELL_DESINTEGRATE = 78;
+const int SPELL_CONJURE_BOLT = 79;
+const int SPELL_BERSERK = 80;
+const int SPELL_LEVITATE = 81;
+const int SPELL_MASS_HEALING = 82;
+const int SPELL_ANIMATE_DEAD = 83;
+const int SPELL_HEAL_FRIEND = 84;
+const int SPELL_UNDEAD_LEGION = 85;
+const int SPELL_MAGIC_WALL = 86;
+const int SPELL_FORCE_STRIKE = 87;
+const int SPELL_ENERGY_STRIKE = 88;
+const int SPELL_FLAME_STRIKE = 89;
+const int SPELL_CANCEL_INVISIBILITY = 90;
+const int SPELL_POISONBOMB = 91;
+const int SPELL_ENCHANT_STAFF = 92;
+const int SPELL_CHALLENGE = 93;
+const int SPELL_WILD_GROWTH = 94;
+const int SPELL_POWER_BOLT = 95;
+const int SPELL_GET_QUEST_VALUE = 96;
+const int SPELL_SET_QUEST_VALUE = 97;
+const int SPELL_DESINTEGRATE_SPELL = 98;
+const int SPELL_LEVITATE_GAMEMASTER = 99;
+const int SPELL_CLEAR_QUEST_VALUES = 100;
+const int SPELL_KILL_ALL_CREATURES = 101;
+const int SPELL_START_MONSTERRAID = 102;
+
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckMagicItem,
 // CheckRing, CheckAffectedPlayers, CheckMana and every spell function from
 // MassCombat to ChangeData are declared throw(RESULT) in the original. C++17
@@ -3231,73 +3333,73 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 	}
 
 	switch (SpellNr) {
-		case 34:
+		case SPELL_GET_ITEM_COUNT:
 			CreateThing(cr, SpellStr[2], SpellStr[3]);
 			break;
-		case 35:
+		case SPELL_GET_ITEM:
 			CreateThing(cr, SpellStr[2], nullptr);
 			break;
-		case 37:
+		case SPELL_MOVE:
 			Teleport(cr, SpellStr[2]);
 			break;
-		case 40:
+		case SPELL_GET_EXPERIENCE:
 			CreateKnowledge(cr, SpellStr[3], nullptr);
 			break;
-		case 41:
+		case SPELL_CHANGE_DATA:
 			ChangeData(cr, SpellStr[2]);
 			break;
-		case 46:
+		case SPELL_GET_SKILL_EXPERIENCE:
 			CreateKnowledge(cr, SpellStr[3], SpellStr[4]);
 			break;
-		case 47:
+		case SPELL_TELEPORT_TO_FRIEND:
 			TeleportToCreature(cr, SpellStr[3]);
 			break;
-		case 52:
+		case SPELL_RETRIEVE_FRIEND:
 			TeleportPlayerToMe(cr, SpellStr[3]);
 			break;
-		case 53:
+		case SPELL_SUMMON_WILD_CREATURE:
 			SummonCreature(cr, 0, SpellStr[3], true);
 			break;
-		case 58:
+		case SPELL_GET_POSITION:
 			GetPosition(cr);
 			break;
-		case 63:
+		case SPELL_CREATE_GOLD:
 			CreateMoney(cr, SpellStr[3]);
 			break;
-		case 64:
+		case SPELL_CHANGE_PROFESSION_OR_SEX:
 			ChangeProfession(cr, SpellStr[3]);
 			break;
-		case 71:
+		case SPELL_INVITE_GUESTS:
 			EditGuests(cr);
 			break;
-		case 72:
+		case SPELL_INVITE_SUBOWNERS:
 			EditSubowners(cr);
 			break;
-		case 73:
+		case SPELL_KICK_GUEST:
 			KickGuest(cr, SpellStr[3]);
 			break;
-		case 74:
+		case SPELL_EDIT_DOOR:
 			EditNameDoor(cr);
 			break;
-		case 96:
+		case SPELL_GET_QUEST_VALUE:
 			GetQuestValue(cr, SpellStr[3]);
 			break;
-		case 97:
+		case SPELL_SET_QUEST_VALUE:
 			SetQuestValue(cr, SpellStr[3], SpellStr[4]);
 			break;
-		case 98:
+		case SPELL_DESINTEGRATE_SPELL:
 			CleanupField(cr);
 			break;
-		case 99:
+		case SPELL_LEVITATE_GAMEMASTER:
 			MagicClimbing(cr, SpellStr[3]);
 			break;
-		case 100:
+		case SPELL_CLEAR_QUEST_VALUES:
 			ClearQuestValues(cr);
 			break;
-		case 101:
+		case SPELL_KILL_ALL_CREATURES:
 			KillAllMonsters(cr, EFFECT_DEATH, 2);
 			break;
-		case 102:
+		case SPELL_START_MONSTERRAID:
 			StartMonsterraid(cr, SpellStr[4]);
 			break;
 	}
@@ -3315,34 +3417,34 @@ void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) 
 	}
 
 	switch (SpellNr) {
-		case 57:
+		case SPELL_BANISH_ACCOUNT:
 			BanishAccount(cr, SpellStr[3], (int)std::clamp(strtol(SpellStr[4], nullptr, 10), (long)INT32_MIN, (long)INT32_MAX), SpellStr[5]);
 			break;
-		case 60:
+		case SPELL_TEMPLE_TELEPORT:
 			HomeTeleport(cr, SpellStr[2]);
 			break;
-		case 61:
+		case SPELL_DELETE_ACCOUNT:
 			DeleteAccount(cr, SpellStr[4], SpellStr[5]);
 			break;
-		case 62:
+		case SPELL_SET_NAMERULE:
 			SetNameRule(cr, SpellStr[2]);
 			break;
-		case 65:
+		case SPELL_ENTRY_IN_CRIMINAL_RECORD:
 			Notation(cr, SpellStr[2], SpellStr[3]);
 			break;
-		case 66:
+		case SPELL_NAMELOCK:
 			NameLock(cr, SpellStr[3]);
 			break;
-		case 67:
+		case SPELL_KICK_PLAYER:
 			KickPlayer(cr, SpellStr[2]);
 			break;
-		case 68:
+		case SPELL_DELETE_CHARACTER:
 			DeleteCharacter(cr, SpellStr[4], SpellStr[5]);
 			break;
-		case 69:
+		case SPELL_BANISH_IP_ADDRESS:
 			IPBanishment(cr, SpellStr[3], SpellStr[4]);
 			break;
-		case 70:
+		case SPELL_BANISH_CHARACTER:
 			BanishCharacter(cr, SpellStr[3], (int)std::clamp(strtol(SpellStr[4], nullptr, 10), (long)INT32_MIN, (long)INT32_MAX), SpellStr[5]);
 			break;
 	}
@@ -3372,133 +3474,133 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 
 	int Damage;
 	switch (SpellNr) {
-		case 1:
+		case SPELL_LIGHT_HEALING:
 			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 20, 10));
 			break;
-		case 2:
+		case SPELL_INTENSE_HEALING:
 			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 40, 20));
 			break;
-		case 3:
+		case SPELL_ULTIMATE_HEALING:
 			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 250, 50));
 			break;
-		case 6:
+		case SPELL_HASTE:
 			MagicGoStrength(cr, cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 30, 3);
 			break;
-		case 9:
+		case SPELL_SUMMON_CREATURE:
 			SummonCreature(cr, SpellList[SpellNr].Mana, SpellStr[3], false);
 			break;
-		case 10:
+		case SPELL_LIGHT:
 			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 6, 500);
 			break;
-		case 11:
+		case SPELL_GREAT_LIGHT:
 			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 8, 1000);
 			break;
-		case 13:
+		case SPELL_ENERGY_WAVE:
 			Damage = ComputeDamage(cr, SpellNr, 150, 50);
 			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 5, 30, DAMAGE_ENERGY);
 			break;
-		case 19:
+		case SPELL_FIRE_WAVE:
 			Damage = ComputeDamage(cr, SpellNr, 30, 10);
 			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 4, 45, DAMAGE_FIRE);
 			break;
-		case 20:
+		case SPELL_FIND_PERSON:
 			FindPerson(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[2]);
 			break;
-		case 22:
+		case SPELL_ENERGY_BEAM:
 			Damage = ComputeDamage(cr, SpellNr, 60, 20);
 			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 5, 0, DAMAGE_ENERGY);
 			break;
-		case 23:
+		case SPELL_GREAT_ENERGY_BEAM:
 			Damage = ComputeDamage(cr, SpellNr, 120, 80);
 			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 8, 0, DAMAGE_ENERGY);
 			break;
-		case 24:
+		case SPELL_ULTIMATE_EXPLOSION:
 			Damage = ComputeDamage(cr, SpellNr, 250, 50);
 			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION_AREA, 6, DAMAGE_PHYSICAL, ANIMATION_FIRE);
 			break;
-		case 29:
+		case SPELL_ANTIDOTE:
 			NegatePoison(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, cr);
 			break;
-		case 38:
+		case SPELL_CREATURE_ILLUSION:
 			CreatureIllusion(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[4], 200);
 			break;
-		case 39:
+		case SPELL_STRONG_HASTE:
 			MagicGoStrength(cr, cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 70, 2);
 			break;
-		case 42:
+		case SPELL_FOOD:
 			CreateFood(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints);
 			break;
-		case 44:
+		case SPELL_MAGIC_SHIELD:
 			Shielding(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 200);
 			break;
-		case 45:
+		case SPELL_INVISIBLE:
 			Invisibility(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 200);
 			break;
-		case 48:
+		case SPELL_POISONED_ARROW:
 			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POISONED_ARROW, 5);
 			break;
-		case 49:
+		case SPELL_EXPLOSIVE_ARROW:
 			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_EXPLOSIVE_ARROW, 3);
 			break;
-		case 51:
+		case SPELL_CONJURE_ARROW:
 			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_ARROW, 10);
 			break;
-		case 56:
+		case SPELL_POISON_STORM:
 			Damage = ComputeDamage(cr, SpellNr, 200, 50);
 			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_POISON, 8, DAMAGE_POISON_CONDITION, ANIMATION_NONE);
 			break;
-		case 75:
+		case SPELL_ULTIMATE_LIGHT:
 			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 9, 2000);
 			break;
-		case 76:
+		case SPELL_MAGIC_ROPE:
 			MagicRope(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints);
 			break;
-		case 79:
+		case SPELL_CONJURE_BOLT:
 			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_BOLT, 5);
 			break;
-		case 80:
+		case SPELL_BERSERK:
 			Damage = ComputeDamage(cr, SpellNr, 80, 20);
 			Damage = cr->Skills[SKILL_LEVEL]->Get() * Damage / 25;
 			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[SKILL_LEVEL]->Get() * 4, 0, Damage, EFFECT_HIT_AREA, 2, DAMAGE_PHYSICAL, ANIMATION_NONE);
 			break;
-		case 81:
+		case SPELL_LEVITATE:
 			MagicClimbing(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[3]);
 			break;
-		case 82:
+		case SPELL_MASS_HEALING:
 			Damage = ComputeDamage(cr, SpellNr, 200, 40);
 			MassHeal(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 4);
 			break;
-		case 84:
+		case SPELL_HEAL_FRIEND:
 			HealFriend(cr, SpellStr[3], SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 120, 40));
 			break;
-		case 85:
+		case SPELL_UNDEAD_LEGION:
 			MassRaiseDead(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4);
 			break;
-		case 87:
+		case SPELL_FORCE_STRIKE:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
 			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_DEATH, 1, 0, DAMAGE_PHYSICAL);
 			break;
-		case 88:
+		case SPELL_ENERGY_STRIKE:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
 			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 1, 0, DAMAGE_ENERGY);
 			break;
-		case 89:
+		case SPELL_FLAME_STRIKE:
 			Damage = ComputeDamage(cr, SpellNr, 45, 10);
 			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 1, 0, DAMAGE_FIRE);
 			break;
-		case 90:
+		case SPELL_CANCEL_INVISIBILITY:
 			CancelInvisibility(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4);
 			break;
-		case 92:
+		case SPELL_ENCHANT_STAFF:
 			EnchantObject(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, GetNewObjectType(90, 25), GetNewObjectType(90, 57));
 			break;
-		case 93:
+		case SPELL_CHALLENGE:
 			Challenge(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 2);
 			break;
-		case 94:
+		case SPELL_WILD_GROWTH:
 			CreateField(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, FIELD_RUSHWOOD);
 			break;
-		case 95:
+		case SPELL_POWER_BOLT:
 			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POWER_BOLT, 1);
 			break;
 	}
@@ -3703,9 +3805,9 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 			if (SpellList[i].Comment[0] != 0) {
 				strcat(Buffer, " - ");
 				strcat(Buffer, SpellList[i].Comment);
-				if (i == 80) {
+				if (i == SPELL_BERSERK) {
 					strcpy(Help, " : 4*Level");
-				} else if (i == 9 || i == 12) {
+				} else if (i == SPELL_SUMMON_CREATURE || i == SPELL_CONVINCE_CREATURE) {
 					strcpy(Help, " : var");
 				} else {
 					sprintf(Help, " : %d", SpellList[i].Mana);
@@ -3908,88 +4010,88 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 	int Damage;
 	try {
 		switch (SpellNr) {
-			case 4:
+			case SPELL_INTENSE_HEALING_RUNE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				Damage = ComputeDamage(pl, SpellNr, 70, 30);
 				Heal(dest, -1, 0, Damage);
 				break;
-			case 5:
+			case SPELL_ULTIMATE_HEALING_RUNE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				Damage = ComputeDamage(pl, SpellNr, 250, 0);
 				Heal(dest, -1, 0, Damage);
 				break;
-			case 7:
+			case SPELL_LIGHT_MAGIC_MISSILE:
 				Damage = ComputeDamage(pl, SpellNr, 15, 5);
 				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
 				break;
-			case 8:
+			case SPELL_HEAVY_MAGIC_MISSILE:
 				Damage = ComputeDamage(pl, SpellNr, 30, 10);
 				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
 				break;
-			case 12:
+			case SPELL_CONVINCE_CREATURE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				Convince(pl, dest);
 				break;
-			case 14:
+			case SPELL_CHAMELEON:
 				ObjectIllusion(pl, 0, 0, Dest, 200);
 				break;
-			case 15:
+			case SPELL_FIREBALL:
 				Damage = ComputeDamage(pl, SpellNr, 20, 5);
 				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 3, DAMAGE_FIRE, ANIMATION_FIRE);
 				break;
-			case 16:
+			case SPELL_GREAT_FIREBALL:
 				Damage = ComputeDamage(pl, SpellNr, 50, 15);
 				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 4, DAMAGE_FIRE, ANIMATION_FIRE);
 				break;
-			case 17:
+			case SPELL_FIREBOMB:
 				MassCreateField(pl, Dest, 0, 0, FIELD_FIRE, 3);
 				break;
-			case 18:
+			case SPELL_EXPLOSION:
 				Damage = ComputeDamage(pl, SpellNr, 60, 40);
 				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION_AREA, 1, DAMAGE_PHYSICAL, ANIMATION_FIRE);
 				break;
-			case 21:
+			case SPELL_SUDDEN_DEATH:
 				Damage = ComputeDamage(pl, SpellNr, 150, 20);
 				Combat(pl, Dest, 0, 0, Damage, EFFECT_DEATH, ANIMATION_DEATH, DAMAGE_PHYSICAL);
 				break;
-			case 25:
+			case SPELL_FIRE_FIELD:
 				CreateField(pl, Dest, 0, 0, FIELD_FIRE);
 				break;
-			case 26:
+			case SPELL_POISON_FIELD:
 				CreateField(pl, Dest, 0, 0, FIELD_POISON);
 				break;
-			case 27:
+			case SPELL_ENERGY_FIELD:
 				CreateField(pl, Dest, 0, 0, FIELD_ENERGY);
 				break;
-			case 28:
+			case SPELL_FIRE_WALL:
 				CreateFieldWall(pl, Dest, 0, 0, FIELD_FIRE, 2);
 				break;
-			case 30:
+			case SPELL_DESTROY_FIELD:
 				DeleteField(pl, Dest, 0, 0);
 				break;
-			case 31:
+			case SPELL_ANTIDOTE_RUNE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
 				NegatePoison(pl, 0, 0, dest);
 				break;
-			case 32:
+			case SPELL_POISON_WALL:
 				CreateFieldWall(pl, Dest, 0, 0, FIELD_POISON, 2);
 				break;
-			case 33:
+			case SPELL_ENERGY_WALL:
 				CreateFieldWall(pl, Dest, 0, 0, FIELD_ENERGY, 3);
 				break;
-			case 50:
+			case SPELL_SOULFIRE:
 				Damage = ComputeDamage(pl, SpellNr, 120, 20);
 				Combat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_HIT, ANIMATION_FIRE, DAMAGE_FIRE_CONDITION);
 				break;
-			case 54:
+			case SPELL_PARALYZE:
 				if (dest == nullptr) {
 					throw NOCREATURE;
 				}
@@ -3998,23 +4100,23 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				}
 				MagicGoStrength(pl, dest, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, -101, 1);
 				break;
-			case 55:
+			case SPELL_ENERGYBOMB:
 				MassCreateField(pl, Dest, 0, 0, FIELD_ENERGY, 3);
 				break;
-			case 77:
+			case SPELL_ENVENOM:
 				Damage = ComputeDamage(pl, SpellNr, 70, 20);
 				Combat(pl, Dest, 0, 0, Damage, EFFECT_POISON_HIT, ANIMATION_ENERGY, DAMAGE_POISON_CONDITION);
 				break;
-			case 78:
+			case SPELL_DESINTEGRATE:
 				CleanupField(pl, Dest, 0, 0);
 				break;
-			case 83:
+			case SPELL_ANIMATE_DEAD:
 				RaiseDead(pl, Dest, 0, 0);
 				break;
-			case 86:
+			case SPELL_MAGIC_WALL:
 				CreateField(pl, Dest, 0, 0, FIELD_MAGICWALL);
 				break;
-			case 91:
+			case SPELL_POISONBOMB:
 				MassCreateField(pl, Dest, 0, 0, FIELD_POISON, 3);
 				break;
 			default:
@@ -4151,22 +4253,22 @@ void InitSpells() {
 	}
 
 	TSpellList *S;
-	S = CreateSpell(1, "ex", "ura", "");
+	S = CreateSpell(SPELL_LIGHT_HEALING, "ex", "ura", "");
 	S->Mana = 25;
 	S->Level = 9;
 	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Light Healing";
-	S = CreateSpell(2, "ex", "ura", "gran", "");
+	S = CreateSpell(SPELL_INTENSE_HEALING, "ex", "ura", "gran", "");
 	S->Mana = 40;
 	S->Level = 11;
 	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Intense Healing";
-	S = CreateSpell(3, "ex", "ura", "vita", "");
+	S = CreateSpell(SPELL_ULTIMATE_HEALING, "ex", "ura", "vita", "");
 	S->Mana = 160;
 	S->Level = 20;
 	S->Flags = SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Ultimate Healing";
-	S = CreateSpell(4, "ad", "ura", "gran", "");
+	S = CreateSpell(SPELL_INTENSE_HEALING_RUNE, "ad", "ura", "gran", "");
 	S->Mana = 240;
 	S->Level = 15;
 	S->RuneGr = 79;
@@ -4176,7 +4278,7 @@ void InitSpells() {
 	S->RuneLevel = 1;
 	S->SoulPoints = 2;
 	S->Comment = "Intense Healing Rune";
-	S = CreateSpell(5, "ad", "ura", "vita", "");
+	S = CreateSpell(SPELL_ULTIMATE_HEALING_RUNE, "ad", "ura", "vita", "");
 	S->Mana = 400;
 	S->Level = 24;
 	S->RuneGr = 79;
@@ -4186,12 +4288,12 @@ void InitSpells() {
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
 	S->Comment = "Ultimate Healing Rune";
-	S = CreateSpell(6, "ut", "ani", "hur", "");
+	S = CreateSpell(SPELL_HASTE, "ut", "ani", "hur", "");
 	S->Mana = 60;
 	S->Level = 14;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Haste";
-	S = CreateSpell(7, "ad", "ori", "");
+	S = CreateSpell(SPELL_LIGHT_MAGIC_MISSILE, "ad", "ori", "");
 	S->Mana = 120;
 	S->Level = 15;
 	S->RuneGr = 79;
@@ -4201,7 +4303,7 @@ void InitSpells() {
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
 	S->Comment = "Light Magic Missile";
-	S = CreateSpell(8, "ad", "ori", "gran", "");
+	S = CreateSpell(SPELL_HEAVY_MAGIC_MISSILE, "ad", "ori", "gran", "");
 	S->Mana = 280;
 	S->Level = 25;
 	S->RuneGr = 79;
@@ -4211,22 +4313,22 @@ void InitSpells() {
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Heavy Magic Missile";
-	S = CreateSpell(9, "ut", "evo", "res", "para", "");
+	S = CreateSpell(SPELL_SUMMON_CREATURE, "ut", "evo", "res", "para", "");
 	S->Mana = 0;
 	S->Level = 25;
 	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Summon Creature";
-	S = CreateSpell(10, "ut", "evo", "lux", "");
+	S = CreateSpell(SPELL_LIGHT, "ut", "evo", "lux", "");
 	S->Mana = 20;
 	S->Level = 8;
 	S->Flags = 0;
 	S->Comment = "Light";
-	S = CreateSpell(11, "ut", "evo", "gran", "lux", "");
+	S = CreateSpell(SPELL_GREAT_LIGHT, "ut", "evo", "gran", "lux", "");
 	S->Mana = 60;
 	S->Level = 13;
 	S->Flags = 0;
 	S->Comment = "Great Light";
-	S = CreateSpell(12, "ad", "eta", "sio", "");
+	S = CreateSpell(SPELL_CONVINCE_CREATURE, "ad", "eta", "sio", "");
 	S->Mana = 200;
 	S->Level = 16;
 	S->RuneGr = 79;
@@ -4236,12 +4338,12 @@ void InitSpells() {
 	S->RuneLevel = 5;
 	S->SoulPoints = 3;
 	S->Comment = "Convince Creature";
-	S = CreateSpell(13, "ex", "evo", "mort", "hur", "");
+	S = CreateSpell(SPELL_ENERGY_WAVE, "ex", "evo", "mort", "hur", "");
 	S->Mana = 250;
 	S->Level = 38;
 	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Energy Wave";
-	S = CreateSpell(14, "ad", "evo", "ina", "");
+	S = CreateSpell(SPELL_CHAMELEON, "ad", "evo", "ina", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
@@ -4251,7 +4353,7 @@ void InitSpells() {
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Chameleon";
-	S = CreateSpell(15, "ad", "ori", "flam", "");
+	S = CreateSpell(SPELL_FIREBALL, "ad", "ori", "flam", "");
 	S->Mana = 160;
 	S->Level = 17;
 	S->RuneGr = 79;
@@ -4261,7 +4363,7 @@ void InitSpells() {
 	S->RuneLevel = 2;
 	S->SoulPoints = 2;
 	S->Comment = "Fireball";
-	S = CreateSpell(16, "ad", "ori", "gran", "flam", "");
+	S = CreateSpell(SPELL_GREAT_FIREBALL, "ad", "ori", "gran", "flam", "");
 	S->Mana = 480;
 	S->Level = 23;
 	S->RuneGr = 79;
@@ -4271,7 +4373,7 @@ void InitSpells() {
 	S->RuneLevel = 4;
 	S->SoulPoints = 3;
 	S->Comment = "Great Fireball";
-	S = CreateSpell(17, "ad", "evo", "mas", "flam", "");
+	S = CreateSpell(SPELL_FIREBOMB, "ad", "evo", "mas", "flam", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
@@ -4281,7 +4383,7 @@ void InitSpells() {
 	S->RuneLevel = 5;
 	S->SoulPoints = 4;
 	S->Comment = "Firebomb";
-	S = CreateSpell(18, "ad", "evo", "mas", "hur", "");
+	S = CreateSpell(SPELL_EXPLOSION, "ad", "evo", "mas", "hur", "");
 	S->Mana = 720;
 	S->Level = 31;
 	S->RuneGr = 79;
@@ -4291,17 +4393,17 @@ void InitSpells() {
 	S->RuneLevel = 6;
 	S->SoulPoints = 4;
 	S->Comment = "Explosion";
-	S = CreateSpell(19, "ex", "evo", "flam", "hur", "");
+	S = CreateSpell(SPELL_FIRE_WAVE, "ex", "evo", "flam", "hur", "");
 	S->Mana = 80;
 	S->Level = 18;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Fire Wave";
-	S = CreateSpell(20, "ex", "iva", "para", "");
+	S = CreateSpell(SPELL_FIND_PERSON, "ex", "iva", "para", "");
 	S->Mana = 20;
 	S->Level = 8;
 	S->Flags = 0;
 	S->Comment = "Find Person";
-	S = CreateSpell(21, "ad", "ori", "vita", "vis", "");
+	S = CreateSpell(SPELL_SUDDEN_DEATH, "ad", "ori", "vita", "vis", "");
 	S->Mana = 880;
 	S->Level = 45;
 	S->RuneGr = 79;
@@ -4311,22 +4413,22 @@ void InitSpells() {
 	S->RuneLevel = 15;
 	S->SoulPoints = 5;
 	S->Comment = "Sudden Death";
-	S = CreateSpell(22, "ex", "evo", "vis", "lux", "");
+	S = CreateSpell(SPELL_ENERGY_BEAM, "ex", "evo", "vis", "lux", "");
 	S->Mana = 100;
 	S->Level = 23;
 	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Energy Beam";
-	S = CreateSpell(23, "ex", "evo", "gran", "vis", "lux", "");
+	S = CreateSpell(SPELL_GREAT_ENERGY_BEAM, "ex", "evo", "gran", "vis", "lux", "");
 	S->Mana = 200;
 	S->Level = 29;
 	S->Flags = SPELLFLAG_AGGRESSIVE;
 	S->Comment = "Great Energy Beam";
-	S = CreateSpell(24, "ex", "evo", "gran", "mas", "vis", "");
+	S = CreateSpell(SPELL_ULTIMATE_EXPLOSION, "ex", "evo", "gran", "mas", "vis", "");
 	S->Mana = 1200;
 	S->Level = 60;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Ultimate Explosion";
-	S = CreateSpell(25, "ad", "evo", "grav", "flam", "");
+	S = CreateSpell(SPELL_FIRE_FIELD, "ad", "evo", "grav", "flam", "");
 	S->Mana = 240;
 	S->Level = 15;
 	S->RuneGr = 79;
@@ -4336,7 +4438,7 @@ void InitSpells() {
 	S->RuneLevel = 1;
 	S->SoulPoints = 1;
 	S->Comment = "Fire Field";
-	S = CreateSpell(26, "ad", "evo", "grav", "pox", "");
+	S = CreateSpell(SPELL_POISON_FIELD, "ad", "evo", "grav", "pox", "");
 	S->Mana = 200;
 	S->Level = 14;
 	S->RuneGr = 79;
@@ -4346,7 +4448,7 @@ void InitSpells() {
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
 	S->Comment = "Poison Field";
-	S = CreateSpell(27, "ad", "evo", "grav", "vis", "");
+	S = CreateSpell(SPELL_ENERGY_FIELD, "ad", "evo", "grav", "vis", "");
 	S->Mana = 320;
 	S->Level = 18;
 	S->RuneGr = 79;
@@ -4356,7 +4458,7 @@ void InitSpells() {
 	S->RuneLevel = 3;
 	S->SoulPoints = 2;
 	S->Comment = "Energy Field";
-	S = CreateSpell(28, "ad", "evo", "mas", "grav", "flam", "");
+	S = CreateSpell(SPELL_FIRE_WALL, "ad", "evo", "mas", "grav", "flam", "");
 	S->Mana = 780;
 	S->Level = 33;
 	S->RuneGr = 79;
@@ -4366,12 +4468,12 @@ void InitSpells() {
 	S->RuneLevel = 6;
 	S->SoulPoints = 4;
 	S->Comment = "Fire Wall";
-	S = CreateSpell(29, "ex", "ana", "pox", "");
+	S = CreateSpell(SPELL_ANTIDOTE, "ex", "ana", "pox", "");
 	S->Mana = 30;
 	S->Level = 10;
 	S->Flags = 0;
 	S->Comment = "Antidote";
-	S = CreateSpell(30, "ad", "ito", "grav", "");
+	S = CreateSpell(SPELL_DESTROY_FIELD, "ad", "ito", "grav", "");
 	S->Mana = 120;
 	S->Level = 17;
 	S->RuneGr = 79;
@@ -4381,7 +4483,7 @@ void InitSpells() {
 	S->RuneLevel = 3;
 	S->SoulPoints = 2;
 	S->Comment = "Destroy Field";
-	S = CreateSpell(31, "ad", "ana", "pox", "");
+	S = CreateSpell(SPELL_ANTIDOTE_RUNE, "ad", "ana", "pox", "");
 	S->Mana = 200;
 	S->Level = 15;
 	S->RuneGr = 79;
@@ -4391,7 +4493,7 @@ void InitSpells() {
 	S->RuneLevel = 0;
 	S->SoulPoints = 1;
 	S->Comment = "Antidote Rune";
-	S = CreateSpell(32, "ad", "evo", "mas", "grav", "pox", "");
+	S = CreateSpell(SPELL_POISON_WALL, "ad", "evo", "mas", "grav", "pox", "");
 	S->Mana = 640;
 	S->Level = 29;
 	S->RuneGr = 79;
@@ -4401,7 +4503,7 @@ void InitSpells() {
 	S->RuneLevel = 5;
 	S->SoulPoints = 3;
 	S->Comment = "Poison Wall";
-	S = CreateSpell(33, "ad", "evo", "mas", "grav", "vis", "");
+	S = CreateSpell(SPELL_ENERGY_WALL, "ad", "evo", "mas", "grav", "vis", "");
 	S->Mana = 1000;
 	S->Level = 41;
 	S->RuneGr = 79;
@@ -4411,80 +4513,80 @@ void InitSpells() {
 	S->RuneLevel = 9;
 	S->SoulPoints = 5;
 	S->Comment = "Energy Wall";
-	S = CreateSpell(34, "al", "evo", "para", "para", "");
+	S = CreateSpell(SPELL_GET_ITEM_COUNT, "al", "evo", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Item";
-	S = CreateSpell(35, "al", "evo", "para", "");
+	S = CreateSpell(SPELL_GET_ITEM, "al", "evo", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Item";
-	S = CreateSpell(37, "al", "ani", "para", "");
+	S = CreateSpell(SPELL_MOVE, "al", "ani", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Move";
-	S = CreateSpell(38, "ut", "evo", "res", "ina", "para", "");
+	S = CreateSpell(SPELL_CREATURE_ILLUSION, "ut", "evo", "res", "ina", "para", "");
 	S->Mana = 100;
 	S->Level = 23;
 	S->Flags = 0;
 	S->Comment = "Creature Illusion";
-	S = CreateSpell(39, "ut", "ani", "gran", "hur", "");
+	S = CreateSpell(SPELL_STRONG_HASTE, "ut", "ani", "gran", "hur", "");
 	S->Mana = 100;
 	S->Level = 20;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Strong Haste";
-	S = CreateSpell(40, "al", "evo", "cogni", "para", "");
+	S = CreateSpell(SPELL_GET_EXPERIENCE, "al", "evo", "cogni", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Experience";
-	S = CreateSpell(41, "al", "eta", "para", "");
+	S = CreateSpell(SPELL_CHANGE_DATA, "al", "eta", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Change Data";
-	S = CreateSpell(42, "ex", "evo", "pan", "");
+	S = CreateSpell(SPELL_FOOD, "ex", "evo", "pan", "");
 	S->Mana = 120;
 	S->Level = 14;
 	S->SoulPoints = 1;
 	S->Flags = 0;
 	S->Comment = "Food";
-	S = CreateSpell(44, "ut", "amo", "vita", "");
+	S = CreateSpell(SPELL_MAGIC_SHIELD, "ut", "amo", "vita", "");
 	S->Mana = 50;
 	S->Level = 14;
 	S->Flags = 0;
 	S->Comment = "Magic Shield";
-	S = CreateSpell(45, "ut", "ana", "vid", "");
+	S = CreateSpell(SPELL_INVISIBLE, "ut", "ana", "vid", "");
 	S->Mana = 440;
 	S->Level = 35;
 	S->Flags = 0;
 	S->Comment = "Invisible";
-	S = CreateSpell(46, "al", "evo", "cogni", "para", "para", "");
+	S = CreateSpell(SPELL_GET_SKILL_EXPERIENCE, "al", "evo", "cogni", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Skill Experience";
-	S = CreateSpell(47, "al", "ani", "sio", "para", "");
+	S = CreateSpell(SPELL_TELEPORT_TO_FRIEND, "al", "ani", "sio", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Teleport to Friend";
-	S = CreateSpell(48, "ex", "evo", "con", "pox", "");
+	S = CreateSpell(SPELL_POISONED_ARROW, "ex", "evo", "con", "pox", "");
 	S->Mana = 130;
 	S->Level = 16;
 	S->SoulPoints = 2;
 	S->Flags = 0;
 	S->Comment = "Poisoned Arrow";
-	S = CreateSpell(49, "ex", "evo", "con", "flam", "");
+	S = CreateSpell(SPELL_EXPLOSIVE_ARROW, "ex", "evo", "con", "flam", "");
 	S->Mana = 290;
 	S->Level = 25;
 	S->SoulPoints = 3;
 	S->Flags = 0;
 	S->Comment = "Explosive Arrow";
-	S = CreateSpell(50, "ad", "evo", "res", "flam", "");
+	S = CreateSpell(SPELL_SOULFIRE, "ad", "evo", "res", "flam", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
@@ -4494,23 +4596,23 @@ void InitSpells() {
 	S->RuneLevel = 7;
 	S->SoulPoints = 3;
 	S->Comment = "Soulfire";
-	S = CreateSpell(51, "ex", "evo", "con", "");
+	S = CreateSpell(SPELL_CONJURE_ARROW, "ex", "evo", "con", "");
 	S->Mana = 100;
 	S->Level = 13;
 	S->SoulPoints = 1;
 	S->Flags = 0;
 	S->Comment = "Conjure Arrow";
-	S = CreateSpell(52, "al", "liber", "sio", "para", "");
+	S = CreateSpell(SPELL_RETRIEVE_FRIEND, "al", "liber", "sio", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Retrieve Friend";
-	S = CreateSpell(53, "al", "evo", "res", "para", "");
+	S = CreateSpell(SPELL_SUMMON_WILD_CREATURE, "al", "evo", "res", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Summon Wild Creature";
-	S = CreateSpell(54, "ad", "ana", "ani", "");
+	S = CreateSpell(SPELL_PARALYZE, "ad", "ana", "ani", "");
 	S->Mana = 1400;
 	S->Level = 54;
 	S->RuneGr = 79;
@@ -4520,7 +4622,7 @@ void InitSpells() {
 	S->RuneLevel = 18;
 	S->SoulPoints = 3;
 	S->Comment = "Paralyze";
-	S = CreateSpell(55, "ad", "evo", "mas", "vis", "");
+	S = CreateSpell(SPELL_ENERGYBOMB, "ad", "evo", "mas", "vis", "");
 	S->Mana = 880;
 	S->Level = 37;
 	S->RuneGr = 79;
@@ -4530,107 +4632,107 @@ void InitSpells() {
 	S->RuneLevel = 10;
 	S->SoulPoints = 5;
 	S->Comment = "Energybomb";
-	S = CreateSpell(56, "ex", "evo", "gran", "mas", "pox", "");
+	S = CreateSpell(SPELL_POISON_STORM, "ex", "evo", "gran", "mas", "pox", "");
 	S->Mana = 600;
 	S->Level = 50;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Poison Storm";
-	S = CreateSpell(57, "om", "ana", "liber", "para", "para", "para", "");
+	S = CreateSpell(SPELL_BANISH_ACCOUNT, "om", "ana", "liber", "para", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Banish Account";
-	S = CreateSpell(58, "al", "iva", "tera", "");
+	S = CreateSpell(SPELL_GET_POSITION, "al", "iva", "tera", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Position";
-	S = CreateSpell(60, "om", "ani", "para", "");
+	S = CreateSpell(SPELL_TEMPLE_TELEPORT, "om", "ani", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Temple Teleport";
-	S = CreateSpell(61, "om", "ana", "gran", "liber", "para", "para", "");
+	S = CreateSpell(SPELL_DELETE_ACCOUNT, "om", "ana", "gran", "liber", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Delete Account";
-	S = CreateSpell(62, "om", "amo", "para", "");
+	S = CreateSpell(SPELL_SET_NAMERULE, "om", "amo", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Set Namerule";
-	S = CreateSpell(63, "al", "evo", "vis", "para", "");
+	S = CreateSpell(SPELL_CREATE_GOLD, "al", "evo", "vis", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Create Gold";
-	S = CreateSpell(64, "al", "eta", "vita", "para", "");
+	S = CreateSpell(SPELL_CHANGE_PROFESSION_OR_SEX, "al", "eta", "vita", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Change Profession or Sex";
-	S = CreateSpell(65, "om", "isa", "para", "para", "");
+	S = CreateSpell(SPELL_ENTRY_IN_CRIMINAL_RECORD, "om", "isa", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Entry in Criminal Record";
-	S = CreateSpell(66, "om", "ana", "hora", "para", "");
+	S = CreateSpell(SPELL_NAMELOCK, "om", "ana", "hora", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Namelock";
-	S = CreateSpell(67, "om", "ana", "para", "");
+	S = CreateSpell(SPELL_KICK_PLAYER, "om", "ana", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Kick Player";
-	S = CreateSpell(68, "om", "ana", "gran", "res", "para", "para", "");
+	S = CreateSpell(SPELL_DELETE_CHARACTER, "om", "ana", "gran", "res", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Delete Character";
-	S = CreateSpell(69, "om", "ana", "vis", "para", "para", "");
+	S = CreateSpell(SPELL_BANISH_IP_ADDRESS, "om", "ana", "vis", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Banish IP Address";
-	S = CreateSpell(70, "om", "ana", "res", "para", "para", "para", "");
+	S = CreateSpell(SPELL_BANISH_CHARACTER, "om", "ana", "res", "para", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Banish Character";
-	S = CreateSpell(71, "al", "eta", "sio", "");
+	S = CreateSpell(SPELL_INVITE_GUESTS, "al", "eta", "sio", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Invite Guests";
-	S = CreateSpell(72, "al", "eta", "som", "");
+	S = CreateSpell(SPELL_INVITE_SUBOWNERS, "al", "eta", "som", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Invite Subowners";
-	S = CreateSpell(73, "al", "ana", "sio", "para", "");
+	S = CreateSpell(SPELL_KICK_GUEST, "al", "ana", "sio", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Kick Guest";
-	S = CreateSpell(74, "al", "eta", "grav", "");
+	S = CreateSpell(SPELL_EDIT_DOOR, "al", "eta", "grav", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Edit Door";
-	S = CreateSpell(75, "ut", "evo", "vis", "lux", "");
+	S = CreateSpell(SPELL_ULTIMATE_LIGHT, "ut", "evo", "vis", "lux", "");
 	S->Mana = 140;
 	S->Level = 26;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Ultimate Light";
-	S = CreateSpell(76, "ex", "ani", "tera", "");
+	S = CreateSpell(SPELL_MAGIC_ROPE, "ex", "ani", "tera", "");
 	S->Mana = 20;
 	S->Level = 9;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Magic Rope";
-	S = CreateSpell(77, "ad", "evo", "res", "pox", "");
+	S = CreateSpell(SPELL_ENVENOM, "ad", "evo", "res", "pox", "");
 	S->Mana = 400;
 	S->Level = 21;
 	S->RuneGr = 79;
@@ -4640,7 +4742,7 @@ void InitSpells() {
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Envenom";
-	S = CreateSpell(78, "ad", "ito", "tera", "");
+	S = CreateSpell(SPELL_DESINTEGRATE, "ad", "ito", "tera", "");
 	S->Mana = 200;
 	S->Level = 21;
 	S->RuneGr = 79;
@@ -4650,28 +4752,28 @@ void InitSpells() {
 	S->SoulPoints = 3;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Desintegrate";
-	S = CreateSpell(79, "ex", "evo", "con", "mort", "");
+	S = CreateSpell(SPELL_CONJURE_BOLT, "ex", "evo", "con", "mort", "");
 	S->Mana = 140;
 	S->Level = 17;
 	S->SoulPoints = 2;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Conjure Bolt";
-	S = CreateSpell(80, "ex", "ori", "");
+	S = CreateSpell(SPELL_BERSERK, "ex", "ori", "");
 	S->Mana = 0;
 	S->Level = 35;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MAX_100;
 	S->Comment = "Berserk";
-	S = CreateSpell(81, "ex", "ani", "hur", "para", "");
+	S = CreateSpell(SPELL_LEVITATE, "ex", "ani", "hur", "para", "");
 	S->Mana = 50;
 	S->Level = 12;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Levitate";
-	S = CreateSpell(82, "ex", "ura", "gran", "mas", "res", "");
+	S = CreateSpell(SPELL_MASS_HEALING, "ex", "ura", "gran", "mas", "res", "");
 	S->Mana = 150;
 	S->Level = 36;
 	S->Flags = SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Mass Healing";
-	S = CreateSpell(83, "ad", "ana", "mort", "");
+	S = CreateSpell(SPELL_ANIMATE_DEAD, "ad", "ana", "mort", "");
 	S->Mana = 600;
 	S->Level = 27;
 	S->RuneGr = 79;
@@ -4681,17 +4783,17 @@ void InitSpells() {
 	S->SoulPoints = 5;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Animate Dead";
-	S = CreateSpell(84, "ex", "ura", "sio", "para", "");
+	S = CreateSpell(SPELL_HEAL_FRIEND, "ex", "ura", "sio", "para", "");
 	S->Mana = 70;
 	S->Level = 18;
 	S->Flags = SPELLFLAG_PREMIUM | SPELLFLAG_FACTOR_MIN_100;
 	S->Comment = "Heal Friend";
-	S = CreateSpell(85, "ex", "ana", "mas", "mort", "");
+	S = CreateSpell(SPELL_UNDEAD_LEGION, "ex", "ana", "mas", "mort", "");
 	S->Mana = 500;
 	S->Level = 30;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Undead Legion";
-	S = CreateSpell(86, "ad", "evo", "grav", "tera", "");
+	S = CreateSpell(SPELL_MAGIC_WALL, "ad", "evo", "grav", "tera", "");
 	S->Mana = 750;
 	S->Level = 32;
 	S->RuneGr = 79;
@@ -4701,27 +4803,27 @@ void InitSpells() {
 	S->SoulPoints = 5;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Magic Wall";
-	S = CreateSpell(87, "ex", "ori", "mort", "");
+	S = CreateSpell(SPELL_FORCE_STRIKE, "ex", "ori", "mort", "");
 	S->Mana = 20;
 	S->Level = 11;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Force Strike";
-	S = CreateSpell(88, "ex", "ori", "vis", "");
+	S = CreateSpell(SPELL_ENERGY_STRIKE, "ex", "ori", "vis", "");
 	S->Mana = 20;
 	S->Level = 12;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Energy Strike";
-	S = CreateSpell(89, "ex", "ori", "flam", "");
+	S = CreateSpell(SPELL_FLAME_STRIKE, "ex", "ori", "flam", "");
 	S->Mana = 20;
 	S->Level = 12;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Flame Strike";
-	S = CreateSpell(90, "ex", "ana", "ina", "");
+	S = CreateSpell(SPELL_CANCEL_INVISIBILITY, "ex", "ana", "ina", "");
 	S->Mana = 200;
 	S->Level = 26;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Cancel Invisibility";
-	S = CreateSpell(91, "ad", "evo", "mas", "pox", "");
+	S = CreateSpell(SPELL_POISONBOMB, "ad", "evo", "mas", "pox", "");
 	S->Mana = 520;
 	S->Level = 25;
 	S->RuneGr = 79;
@@ -4731,58 +4833,58 @@ void InitSpells() {
 	S->RuneLevel = 4;
 	S->SoulPoints = 2;
 	S->Comment = "Poisonbomb";
-	S = CreateSpell(92, "ex", "eta", "vis", "");
+	S = CreateSpell(SPELL_ENCHANT_STAFF, "ex", "eta", "vis", "");
 	S->Mana = 80;
 	S->Level = 41;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Enchant Staff";
-	S = CreateSpell(93, "ex", "eta", "res", "");
+	S = CreateSpell(SPELL_CHALLENGE, "ex", "eta", "res", "");
 	S->Mana = 30;
 	S->Level = 20;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Challenge";
-	S = CreateSpell(94, "ex", "evo", "grav", "vita", "");
+	S = CreateSpell(SPELL_WILD_GROWTH, "ex", "evo", "grav", "vita", "");
 	S->Mana = 220;
 	S->Level = 27;
 	S->Flags = SPELLFLAG_AGGRESSIVE | SPELLFLAG_PREMIUM;
 	S->Comment = "Wild Growth";
-	S = CreateSpell(95, "ex", "evo", "con", "vis", "");
+	S = CreateSpell(SPELL_POWER_BOLT, "ex", "evo", "con", "vis", "");
 	S->Mana = 800;
 	S->Level = 59;
 	S->SoulPoints = 3;
 	S->Flags = SPELLFLAG_PREMIUM;
 	S->Comment = "Power Bolt";
-	S = CreateSpell(96, "al", "iva", "cogni", "para", "");
+	S = CreateSpell(SPELL_GET_QUEST_VALUE, "al", "iva", "cogni", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Get Quest Value";
-	S = CreateSpell(97, "al", "eta", "cogni", "para", "para", "");
+	S = CreateSpell(SPELL_SET_QUEST_VALUE, "al", "eta", "cogni", "para", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Set Quest Value";
-	S = CreateSpell(98, "al", "ito", "tera", "");
+	S = CreateSpell(SPELL_DESINTEGRATE_SPELL, "al", "ito", "tera", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Desintegrate Spell";
-	S = CreateSpell(99, "al", "ani", "hur", "para", "");
+	S = CreateSpell(SPELL_LEVITATE_GAMEMASTER, "al", "ani", "hur", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Levitate Gamemaster";
-	S = CreateSpell(100, "al", "ana", "cogni", "");
+	S = CreateSpell(SPELL_CLEAR_QUEST_VALUES, "al", "ana", "cogni", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Clear Quest Values";
-	S = CreateSpell(101, "al", "ito", "mas", "res", "");
+	S = CreateSpell(SPELL_KILL_ALL_CREATURES, "al", "ito", "mas", "res", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
 	S->Comment = "Kill All Creatures";
-	S = CreateSpell(102, "al", "evo", "mas", "res", "para", "");
+	S = CreateSpell(SPELL_START_MONSTERRAID, "al", "evo", "mas", "res", "para", "");
 	S->Mana = 0;
 	S->Level = 0;
 	S->Flags = 0;
