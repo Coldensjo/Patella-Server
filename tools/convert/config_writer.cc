@@ -67,9 +67,9 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 		{"map", MAPPATH, "the map sectors (*.sec) the game loads and saves"},
 		{"origmap", ORIGMAPPATH, "the original map sectors"},
 		{"data", DATAPATH, "items.toml, map.toml and the other data"},
-		{"user", USERPATH, "the player files (NN/<id>.usr)"},
+		{"user", USERPATH, "the old player files (NN/<id>.usr) querymanager-seed imports"},
 		{"log", LOGPATH, "the log files"},
-		{"save", SAVEPATH, "game.pid, swapped-out sectors, patches"},
+		{"save", SAVEPATH, "game.pid, swapped-out sectors, patches, unsent player data"},
 		{"monster", MONSTERPATH, "the monster races (*.mon) and raids (*.evt)"},
 		{"npc", NPCPATH, "the NPCs (*.npc)"},
 	};

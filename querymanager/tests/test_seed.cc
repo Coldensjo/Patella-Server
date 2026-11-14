@@ -52,6 +52,13 @@ std::string playerFile(uint32_t id, const std::string &name, uint32_t outfit, ui
 		"Depots      = {1 Content={2594 Content={3031 Amount=27}}}\n";
 }
 
+// The object types the player files' item texts name: the committed
+// data/items.toml.
+void copyItems(const fs::path &folder) {
+	fs::create_directories(folder);
+	fs::copy_file(PATELLA_ITEMS_TOML, folder / "items.toml", fs::copy_options::overwrite_existing);
+}
+
 // The .tibia of the made-up installation. The password "abcx/" is sent by
 // the game as "n,I3a" (worked out by hand from DisguisePassword).
 const char *const TibiaFile =
@@ -205,6 +212,40 @@ void testSeed(const fs::path &root) {
 	CHECK(world.config.rebootHour == 9);
 	CHECK(world.config.address[0] == 127 && world.config.address[3] == 1);
 
+	// The player data of every imported character, as the game's old reader
+	// read the file and its savePlayerData would send it.
+	CHECK(report.playerDataImported == 4 && report.playerDataDamaged == 0);
+	CHECK(report.playerDataKept == 0 && report.playerDataFailed == 0);
+	CHECK(storage.countRows("player_data") == 4);
+	std::optional<PlayerData> data = storage.loadPlayerData(1234);
+	CHECK(data.has_value());
+	if (data) {
+		CHECK(data->name == "Made Up Knight");
+		CHECK(data->race == 1 && data->profession == 2);
+		CHECK(data->originalOutfit.id == 131 && data->originalOutfit.colors[0] == 3
+			&& data->originalOutfit.colors[1] == 86 && data->originalOutfit.colors[2] == 3
+			&& data->originalOutfit.colors[3] == 86);
+		CHECK(data->currentOutfit == data->originalOutfit);
+		CHECK(data->lastLogin == 1146000000 && data->lastLogout == 1146000060);
+		CHECK(data->startX == 32097 && data->startY == 32219 && data->startZ == 7);
+		CHECK(data->posX == 32097 && data->posY == 32219 && data->posZ == 7);
+		CHECK(data->skills.size() == 2);
+		if (data->skills.size() == 2) {
+			CHECK(data->skills[0].number == 0 && data->skills[0].actual == 9 && data->skills[0].minimum == 1
+				&& data->skills[0].addLevel == 1 && data->skills[0].experience == 100
+				&& data->skills[0].delta == 100);
+			CHECK(data->skills[1].number == 1 && data->skills[1].actual == 3 && data->skills[1].nextLevel == 100);
+		}
+		CHECK(data->spells == std::vector<uint8_t>({8, 42}));
+		CHECK(data->questValues.size() == 1 && data->questValues[0].number == 17
+			&& data->questValues[0].value == 1);
+		CHECK(data->murders.empty());
+		CHECK(data->inventory == "{8 Content={2120}}");
+		CHECK(data->depots.size() == 1 && data->depots[0].number == 1
+			&& data->depots[0].content == "{2594 Content={3031 Amount=27}}");
+	}
+	CHECK(!storage.hasPlayerData(4321));
+
 	CharacterRecord knight = *storage.findCharacterByName("made up knight");
 	CHECK(knight.id == 1234 && knight.sex == 1 && knight.accountId == 0 && knight.worldId == world.id);
 	CHECK(knight.lastLogin == 1146000000);
@@ -265,7 +306,11 @@ void testSeed(const fs::path &root) {
 	CHECK(owners.size() == 1 && owners[0].ownerId == 1234 && owners[0].ownerName == "Made Up Knight"
 		&& owners[0].paidUntil == 1100500000);
 
-	// Seeding again keeps what the database learned in between.
+	// Seeding again keeps what the database learned in between, the player
+	// data the game saved too.
+	PlayerData saved = *storage.loadPlayerData(5678);
+	saved.posX = 32100;
+	storage.savePlayerData(saved);
 	AccountRecord account;
 	account.id = 111111;
 	account.password = "pw";
@@ -280,6 +325,16 @@ void testSeed(const fs::path &root) {
 	CHECK(storage.findCharacter(1234)->accountId == 111111);
 	CHECK(storage.findCharacter(1234)->guild == "Test Guild");
 	CHECK(storage.countRows("worlds") == 1);
+	CHECK(again.playerDataImported == 0 && again.playerDataKept == 4);
+	CHECK(storage.loadPlayerData(5678)->posX == 32100);
+
+	// Without the player data.
+	SqliteStorage noData(":memory:");
+	options.importPlayerData = false;
+	SeedReport noDataReport = seedFromInstallation(noData, options);
+	CHECK(noDataReport.playersImported == 4 && noDataReport.playerDataImported == 0);
+	CHECK(noData.countRows("player_data") == 0);
+	options.importPlayerData = true;
 
 	// Options: nothing but the world.
 	SqliteStorage bare(":memory:");
@@ -323,7 +378,12 @@ void testConfigToml(const fs::path &root) {
 		"password = \"abcx/\"\n");
 	writeFile(game / ".tibia", "World = \"Other\"\nQueryManager = {(\"127.0.0.1\",7173,\"zz\")}\n");
 	writeFile(game / "players/34/1234.usr", playerFile(1234, "Made Up Knight", 131, 1146000000));
+	// A file the old reader stops in, at an object type that does not exist.
+	std::string broken = playerFile(66, "Made Up Broken", 128, 1146000000);
+	broken.replace(broken.find("{2120}"), 6, "{65000}");
+	writeFile(game / "players/66/66.usr", broken);
 	writeFile(game / "data/owners.dat", OwnersFile);
+	copyItems(game / "data");
 
 	TibiaConfig config = readConfigToml((game / "config.toml").string());
 	CHECK(config.world == "T\xF6mlia");
@@ -342,8 +402,19 @@ void testConfigToml(const fs::path &root) {
 	CHECK(report.worldName == "T\xF6mlia");
 	CHECK(report.privateWorld);
 	CHECK(report.queryManagerEntries == 2);
-	CHECK(report.playerFiles == 1 && report.playersImported == 1);
+	CHECK(report.playerFiles == 2 && report.playersImported == 2);
 	CHECK(report.houseOwners == 2);
+	// The damaged file comes in as the old game loaded it: what was read
+	// before the error, and no inventory and no depots.
+	CHECK(report.playerDataImported == 2 && report.playerDataDamaged == 1);
+	std::optional<PlayerData> broken66 = storage.loadPlayerData(66);
+	CHECK(broken66 && broken66->name == "Made Up Broken" && broken66->skills.size() == 2
+		&& broken66->inventory == "{}" && broken66->depots.empty());
+	bool warned = false;
+	for (const std::string &warning : report.warnings) {
+		warned = warned || warning.find("unknown object type") != std::string::npos;
+	}
+	CHECK(warned);
 	CHECK(storage.checkApplicationPassword(APPLICATION_GAME, "n,I3a"));
 	CHECK(storage.findWorld("T\xF6mlia").has_value());
 	CHECK(!storage.findWorld("Other").has_value());
@@ -376,6 +447,7 @@ void all() {
 
 	writeFile(root / ".tibia", TibiaFile);
 	writeFile(root / "dat/owners.dat", OwnersFile);
+	copyItems(root / "dat");
 	writeFile(root / "usr/34/1234.usr", playerFile(1234, "Made Up Knight", 131, 1146000000));
 	writeFile(root / "usr/78/5678.usr", playerFile(5678, "Made Up Sorceress", 138, 1146000001));
 	writeFile(root / "usr/77/77.usr", playerFile(77, "Made Up Gamemaster", 75, 1146000002));

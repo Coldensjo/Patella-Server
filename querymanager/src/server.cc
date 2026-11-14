@@ -191,6 +191,7 @@ bool Server::sendAll(int fd, const std::vector<uint8_t> &data) {
 void Server::serve(Connection *connection) {
 	Session session;
 	session.connectionId = connection->id;
+	session.socket = connection->fd;
 	unsigned long long id = static_cast<unsigned long long>(connection->id);
 	logMessage(LogLevel::Info, "conn %llu: connected from %s", id, connection->peer.c_str());
 

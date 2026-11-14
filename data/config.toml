@@ -29,9 +29,9 @@ bin = "bin"          # reboot-daily, run when the game ends for a reboot
 map = "map"          # the map sectors (*.sec) the game loads and saves
 origmap = "origmap"  # the original map sectors
 data = "dat"         # items.toml, map.toml and the other data
-user = "usr"         # the player files (NN/<id>.usr)
+user = "usr"         # the old player files (NN/<id>.usr) querymanager-seed imports
 log = "log"          # the log files
-save = "save"        # game.pid, swapped-out sectors, patches
+save = "save"        # game.pid, swapped-out sectors, patches, unsent player data
 monster = "mon"      # the monster races (*.mon) and raids (*.evt)
 npc = "npc"          # the NPCs (*.npc)
 

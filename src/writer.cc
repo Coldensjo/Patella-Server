@@ -3,7 +3,7 @@
 // queues for it. The writer thread carries out the orders the game queues
 // (InsertOrder): the query manager requests of logouts, player lists, kill
 // statistics, punishments, deaths, buddies and logins that did not happen
-// (decrementIsOnline), and the saving of the player files. Its replies
+// (decrementIsOnline), and the saving of the player data. Its replies
 // (broadcasts, direct messages, logouts) go back to the game thread, which
 // handles them in ProcessWriterThreadReplies.
 

@@ -1,11 +1,12 @@
 // querymanager-seed: creates or extends a query manager database.
 //
-// Mode 1 (--game-root): import a game server installation, see seed.hh.
+// Mode 1 (--game-root): import a game server installation, see seed.hh: the
+// world, the characters and their player data, the house owners.
 // Mode 2 (--add-account): create an account and assign characters to it.
 // The installation has no accounts, so a client login needs this step; the
 // account number and password are the operator's choice. It can also create
 // new characters: they get the next free character id and have no player
-// file, so the game starts them as new characters (LoadPlayerData,
+// data, so the game starts them as new characters (LoadPlayerData,
 // src/dbfuncs.cc).
 // --login-password, alone or with either mode, stores the password the
 // login server (loginserver/) presents. It sends it as it is, without the
@@ -26,7 +27,8 @@ namespace {
 
 void usage(const char *program) {
 	std::fprintf(stderr,
-		"usage: %s --db PATH --game-root DIR [world options] [--no-players] [--no-house-owners]\n"
+		"usage: %s --db PATH --game-root DIR [world options] [--no-players] [--no-player-data]\n"
+		"          [--no-house-owners]\n"
 		"       %s --db PATH --add-account ID --password PASSWORD [account options]\n"
 		"       %s --db PATH --login-password PASSWORD [with either form above]\n"
 		"world options (defaults in parentheses):\n"
@@ -191,6 +193,10 @@ int main(int argc, char **argv) {
 			options.importPlayers = false;
 			continue;
 		}
+		if (option == "--no-player-data") {
+			options.importPlayerData = false;
+			continue;
+		}
 		if (option == "--no-house-owners") {
 			options.importHouseOwners = false;
 			continue;
@@ -320,6 +326,12 @@ int main(int argc, char **argv) {
 		std::printf("players imported:       %zu (male %zu, female %zu, other outfit %zu)\n",
 			report.playersImported, report.playersMale, report.playersFemale, report.playersOtherOutfit);
 		std::printf("players skipped:        %zu\n", report.playersSkipped);
+		if (options.importPlayers && options.importPlayerData) {
+			std::printf("player data imported:   %zu (%zu damaged files read as far as the old game read them)\n",
+				report.playerDataImported, report.playerDataDamaged);
+			std::printf("player data kept:       %zu (the database had it already)\n", report.playerDataKept);
+			std::printf("player data failed:     %zu\n", report.playerDataFailed);
+		}
 		std::printf("house owners imported:  %zu (%zu without a character)\n", report.houseOwners,
 			report.houseOwnersWithoutCharacter);
 		std::printf("characters in database: %llu\n",

@@ -1,9 +1,9 @@
 // script.cc: the readers and writers of the data files. TReadScriptFile splits
-// a text file into tokens (identifiers, numbers, strings, byte sequences,
-// coordinates, special characters) and follows the files it includes;
-// TWriteScriptFile writes such a file. TReadBinaryFile and TWriteBinaryFile
-// read and write binary files. SaveFile keeps a copy of a file that could not
-// be read.
+// a text file, or such a text in memory, into tokens (identifiers, numbers,
+// strings, byte sequences, coordinates, special characters) and follows the
+// files it includes; TWriteScriptFile writes such a file or text.
+// TReadBinaryFile and TWriteBinaryFile read and write binary files. SaveFile
+// keeps a copy of a file that could not be read.
 
 #include <cerrno>
 #include <cstdint>
@@ -102,6 +102,33 @@ void TReadScriptFile::open(char *FileName) {
 		::error("Error %d: %s.\n", ErrorCode, strerror(ErrorCode));
 		RecursionDepth--;
 		throw "Cannot open script-file";
+	}
+
+	Line[RecursionDepth] = 1;
+}
+
+void TReadScriptFile::openText(char *Name, const char *Text, int Length) {
+	RecursionDepth++;
+	if (RecursionDepth == MAXIMUMRECURSIONDEPTH) {
+		::error("TReadScriptFile::openText: Recursion depth too large.\n");
+		throw "Recursion depth too high";
+	}
+
+	snprintf(Filename[RecursionDepth], sizeof(Filename[RecursionDepth]), "%s", Name);
+
+	// fmemopen refuses an empty buffer; a single blank reads as the end of the
+	// text just as well.
+	if (Length > 0) {
+		File[RecursionDepth] = fmemopen(const_cast<char *>(Text), (size_t)Length, "rb");
+	} else {
+		File[RecursionDepth] = fmemopen(const_cast<char *>(" "), 1, "rb");
+	}
+	if (File[RecursionDepth] == nullptr) {
+		int ErrorCode = errno;
+		::error("TReadScriptFile::openText: Cannot open text %s.\n", Filename[RecursionDepth]);
+		::error("Error %d: %s.\n", ErrorCode, strerror(ErrorCode));
+		RecursionDepth--;
+		throw "Cannot open script-text";
 	}
 
 	Line[RecursionDepth] = 1;
@@ -649,6 +676,8 @@ char TReadScriptFile::getSpecial() {
 
 TWriteScriptFile::TWriteScriptFile() {
 	File = nullptr;
+	Text = nullptr;
+	TextLength = 0;
 }
 
 TWriteScriptFile::~TWriteScriptFile() {
@@ -658,6 +687,9 @@ TWriteScriptFile::~TWriteScriptFile() {
 			::error("TWriteScriptFile::~TWriteScriptFile: Error %d while closing the file.\n", errno);
 		}
 	}
+
+	// The text openText wrote; open_memstream leaves it to the caller.
+	free(Text);
 }
 
 void TWriteScriptFile::open(char *FileName) {
@@ -669,6 +701,9 @@ void TWriteScriptFile::open(char *FileName) {
 		File = nullptr;
 	}
 
+	free(Text);
+	Text = nullptr;
+	TextLength = 0;
 	File = fopen(FileName, "wb");
 	if (File == nullptr) {
 		int ErrorCode = errno;
@@ -678,6 +713,29 @@ void TWriteScriptFile::open(char *FileName) {
 	}
 
 	strcpy(Filename, FileName);
+}
+
+void TWriteScriptFile::openText() {
+	if (File != nullptr) {
+		::error("TWriteScriptFile::openText: Old script is still open.\n");
+		if (fclose(File) != 0) {
+			::error("TWriteScriptFile::openText: Error %d while closing the file.\n", errno);
+		}
+		File = nullptr;
+	}
+
+	free(Text);
+	Text = nullptr;
+	TextLength = 0;
+	File = open_memstream(&Text, &TextLength);
+	if (File == nullptr) {
+		int ErrorCode = errno;
+		::error("TWriteScriptFile::openText: Cannot create a text.\n");
+		::error("Error %d: %s.\n", ErrorCode, strerror(ErrorCode));
+		throw "Cannot create script-text";
+	}
+
+	strcpy(Filename, "(text)");
 }
 
 void TWriteScriptFile::close() {

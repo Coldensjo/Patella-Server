@@ -24,8 +24,11 @@ What it does, in WSL Ubuntu-24.04:
      default 17011) and scratch query manager ports (--qm-port, default 17173, and the three after it for the other
      entries). Then it seeds a scratch database with the build's querymanager-seed (game port --port, default 17171),
      adds the two test accounts with a new character each (900001 'Testa Alpha', male, and 900002 'Testb Beta',
-     female; neither may have a player file) and starts the build's query manager. The game runs with HOME set to the
-     copy, so it reads the copy's config.toml (or .tibia).
+     female; neither may have a player file or player data) and starts the build's query manager. A build whose
+     query manager keeps the player data (its database has the table player_data) gets them from the player files
+     with the seed, which imports them; the copy's usr/ is then removed, so the run also shows that its game no longer
+     reads or writes player files. The game runs with HOME set to the copy, so it reads the copy's config.toml (or
+     .tibia).
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
@@ -36,6 +39,10 @@ What it does, in WSL Ubuntu-24.04:
      differ and is reported apart: the world light (message 0x82), the "New record: N players are logged in."
      broadcast (it follows the player list, made when the real minute is a multiple of 5) and dates in texts. The
      query manager requests of both runs are compared too, for information (the player list shows up there too).
+  5. Compares what each game saved of the two test characters when it shut down: the player files a build with
+     player files wrote, and the player data a build with a player database saved, written as player files with that
+     build's patella-convert usr-export (the game's old writer). LastLogin and LastLogout follow the wall clock and
+     are left out. They must be the same.
 
 Only the builds run, never the original bin/game. The ports 7171-7176, the SHM key 10011 and /game are refused, so a
 server the owner plays on is never touched. Nothing of usr/ is printed: the seed's output and the game's console stay
@@ -317,13 +324,45 @@ def lay_out(game, data, options):
 	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"]), ".tibia", objects
 
 
+# The seed's report lines that hold counts only.
+SEED_COUNTS = re.compile(r"^(player files|players imported|players skipped|player data [a-z]+):")
+
+
+def has_player_data(db):
+	"""Whether the database keeps the player data (the table player_data of schema version 2)."""
+	import sqlite3
+	connection = sqlite3.connect(db)
+	try:
+		return connection.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'player_data'"
+			).fetchone() is not None
+	finally:
+		connection.close()
+
+
+def stored_player_data(db, character):
+	"""Whether the database has player data of the character."""
+	import sqlite3
+	connection = sqlite3.connect(db)
+	try:
+		return connection.execute("SELECT 1 FROM player_data WHERE character_id = ?", (character,)).fetchone() \
+			is not None
+	finally:
+		connection.close()
+
+
 def seed(binary, db, game, world, port, log_file):
 	"""Seeds the database from the copy and adds the test accounts, as compare.sh does. The output (it names player
-	files) goes to log_file only."""
+	files) goes to log_file only; the lines with the counts of the player files and player data are logged. Returns
+	the IDs of the two new characters."""
 	with open(log_file, "w") as f:
 		if subprocess.run([binary, "--db", db, "--game-root", game, "--port", str(port)], stdout=f,
 				stderr=subprocess.STDOUT, check=False).returncode != 0:
 			raise CheckError("querymanager-seed --game-root failed; see %s" % log_file)
+	with open(log_file, encoding="utf-8", errors="replace") as f:
+		for line in f:
+			if SEED_COUNTS.match(line):
+				log("    seed: " + line.rstrip("\n"))
+	characters = []
 	for account, password, sex, name in TEST_ACCOUNTS:
 		result = subprocess.run([binary, "--db", db, "--add-account", str(account), "--password", password, "--world",
 			world, "--sex", str(sex), "--new-character", name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -334,9 +373,36 @@ def seed(binary, db, game, world, port, log_file):
 		ids = [int(i) for i in re.findall(r"(?m)^new character (\d+):", output)]
 		if result.returncode != 0 or len(ids) != 1:
 			raise CheckError("querymanager-seed --add-account %d failed; see %s" % (account, log_file))
-		# A new character starts as a new one only without a player file; only its existence is tested.
+		# A new character starts as a new one only without a player file and without player data; only their
+		# existence is tested.
 		if os.path.exists(os.path.join(game, "usr", "%02d" % (ids[0] % 100), "%d.usr" % ids[0])):
 			raise CheckError("new character %d has a player file" % ids[0])
+		if has_player_data(db) and stored_player_data(db, ids[0]):
+			raise CheckError("new character %d has player data" % ids[0])
+		characters.append(ids[0])
+	return characters
+
+
+def saved_characters(binaries, game, db, characters, out):
+	"""What the game saved of the test characters, as player file texts without the LastLogin and LastLogout lines
+	({id: text}; a character it saved nothing of is missing): the player files it wrote, or, with a player database,
+	the player data written as player files by the build's patella-convert usr-export."""
+	folder = os.path.join(game, "usr")
+	if has_player_data(db):
+		folder = os.path.join(out, "saved")
+		shutil.rmtree(folder, ignore_errors=True)
+		with open(os.path.join(out, "export.log"), "w") as f:
+			if subprocess.run([os.path.join(binaries, "tools", "convert", "patella-convert"), "usr-export",
+					os.path.join(game, "config.toml"), folder] + [str(c) for c in characters], stdout=f,
+					stderr=subprocess.STDOUT, check=False).returncode != 0:
+				raise CheckError("patella-convert usr-export failed; see %s" % os.path.join(out, "export.log"))
+	texts = {}
+	for character in characters:
+		path = os.path.join(folder, "%02d" % (character % 100), "%d.usr" % character)
+		if os.path.isfile(path):
+			with open(path, encoding="latin-1") as f:
+				texts[character] = "".join(line for line in f if not line.startswith(("LastLogin", "LastLogout")))
+	return texts
 
 
 def gdb_script(seed_value, stop_round):
@@ -387,7 +453,7 @@ def run(side, build, data, options, key, root):
 	shutil.rmtree(out, ignore_errors=True)
 	os.makedirs(out)
 	binaries = os.path.join(build, "bin")
-	result = {"ok": False, "boot": None, "scenario": None, "exit": None}
+	result = {"ok": False, "boot": None, "scenario": None, "exit": None, "saved": None}
 	qm = gdb = client = None
 	game_pid = None
 	try:
@@ -403,8 +469,11 @@ def run(side, build, data, options, key, root):
 				raise CheckError("cannot unpack %s" % options["install"])
 		world, layout, objects = lay_out(game, data, options)
 		log("  %s: runtime copy with %s" % (side, layout))
-		seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world, options["port"],
-			os.path.join(out, "seed.log"))
+		characters = seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world,
+			options["port"], os.path.join(out, "seed.log"))
+		if has_player_data(db):
+			shutil.rmtree(os.path.join(game, "usr"))
+			log("  %s: the database keeps the player data; usr/ removed from the copy" % side)
 		qm_log = os.path.join(out, "qm.log")
 		with open(os.path.join(out, "qm.stderr"), "w") as f:
 			qm = subprocess.Popen([os.path.join(binaries, "querymanager", "querymanager"), "--db", db, "--port",
@@ -462,6 +531,8 @@ def run(side, build, data, options, key, root):
 		result["exit"] = game_exit(console)
 		log("  %s: the game %s" % (side, result["exit"]))
 		result["ok"] = status in (0, 3) and result["exit"] == "exited normally"
+		if result["exit"] == "exited normally":
+			result["saved"] = saved_characters(binaries, game, db, characters, out)
 		return result
 	finally:
 		# The clients first, then the game, then gdb: a game whose gdb is gone would run on.
@@ -570,6 +641,25 @@ def trace(arguments, data):
 			log("  " + line)
 		log("trace_check: query manager requests (for information): %s" % ("identical" if not qm_diff else
 			"%d lines differ, see %s" % (len(qm_diff), os.path.join(root, "diff-qm.txt"))))
+		saved = [results[side]["saved"] for side in ("old", "new")]
+		if None in saved:
+			log("trace_check: saved test characters: not compared (a game did not exit normally)")
+			code = 1
+		else:
+			old_saved = [saved[0].get(c) for c in sorted(saved[0])]
+			new_saved = [saved[1].get(c) for c in sorted(saved[1])]
+			if len(saved[0]) != 2 or sorted(saved[0]) != sorted(saved[1]) or old_saved != new_saved:
+				code = 1
+				log("trace_check: saved test characters differ (old saved %d, new %d):" % (len(saved[0]),
+					len(saved[1])))
+				for character in sorted(set(saved[0]) | set(saved[1])):
+					for line in difflib.unified_diff(saved[0].get(character, "").splitlines(),
+							saved[1].get(character, "").splitlines(), "old %d" % character, "new %d" % character,
+							lineterm="", n=0):
+						log("  " + line)
+			else:
+				log("trace_check: saved test characters: the same in both runs (%d characters, LastLogin and "
+					"LastLogout left out)" % len(saved[0]))
 		if total:
 			code = 1
 			for line in report[:120]:

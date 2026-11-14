@@ -27,6 +27,9 @@ struct Session {
 	uint8_t applicationType = 0;
 	uint32_t worldId = 0;          // 0: the application is not bound to a world
 	std::string worldName;
+	// The connection's socket, which savePlayerData looks at to see whether
+	// the client still waits for the answer; -1: none (the tests).
+	int socket = -1;
 };
 
 // Returns the current Unix time; replaceable in tests.
@@ -72,6 +75,9 @@ private:
 	void handleEvictFreeAccounts(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleEvictDeletedCharacters(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleEvictExGuildleaders(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleLoadPlayerData(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleSavePlayerData(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void requirePlayerDataWorld(uint32_t characterId, uint32_t worldId);
 
 	Storage &Store;
 	Clock Now;

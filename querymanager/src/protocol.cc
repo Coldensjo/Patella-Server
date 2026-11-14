@@ -18,6 +18,8 @@ namespace qm {
 //       request:  quad AccountID, string Password, string IPAddress
 //       response: OK: nothing. ERROR: byte code 1..4.
 //  11 loginAccount: not sent by the game server, see handlers.cc.
+//  54 loadPlayerData, 55 savePlayerData: this project's own, see
+//       handlers.cc.
 //  12 loginAdmin
 //       request:  quad AccountID, flag PrivateWorld
 //       response: OK: byte NumberOfCharacters, then per character
@@ -136,6 +138,8 @@ static const QueryInfo QueryTable[] = {
 	{QUERY_EXCLUDE_FROM_AUCTIONS, "excludeFromAuctions", 0x80e4a30, true},
 	{QUERY_CANCEL_HOUSE_TRANSFER, "cancelHouseTransfer", 0x80e4d90, true},
 	{QUERY_LOAD_WORLD_CONFIG, "loadWorldConfig", 0x80e1950, true},
+	{QUERY_LOAD_PLAYER_DATA, "loadPlayerData", 0, true},
+	{QUERY_SAVE_PLAYER_DATA, "savePlayerData", 0, true},
 	{QUERY_GET_KEPT_CHARACTERS, "getKeptCharacters", 0x80e6770, false},
 	{QUERY_GET_DELETED_CHARACTERS, "getDeletedCharacters", 0x80e6900, false},
 	{QUERY_DELETE_OLD_CHARACTER, "deleteOldCharacter", 0x80e6a90, false},

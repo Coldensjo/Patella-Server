@@ -15,6 +15,8 @@
 #ifndef QM_STORAGE_HH
 #define QM_STORAGE_HH
 
+#include "playerdata.hh"
+
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -257,6 +259,14 @@ public:
 	// Withdraws the bids of the character in the world's running auctions
 	// and records the exclusion.
 	virtual void excludeFromAuctions(uint32_t worldId, uint32_t characterId, bool banish, uint32_t now) = 0;
+
+	// --- player data (playerdata.hh)
+	// The character's player data, keyed by character id alone (the game's
+	// player files were, too); nothing if none is stored.
+	virtual std::optional<PlayerData> loadPlayerData(uint32_t characterId) = 0;
+	// Replaces the character's player data (data.characterId) as a whole.
+	virtual void savePlayerData(const PlayerData &data) = 0;
+	virtual bool hasPlayerData(uint32_t characterId) = 0;
 };
 
 } // namespace qm

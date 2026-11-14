@@ -1,5 +1,6 @@
 // Protocol layer: scalars, strings, framing and the query catalogue.
 
+#include "playerdata.hh"
 #include "protocol.hh"
 #include "test.hh"
 #include "text.hh"
@@ -131,14 +132,16 @@ static void testFraming() {
 static void testCatalogue() {
 	size_t count = 0;
 	const QueryInfo *table = queryTable(count);
-	CHECK(count == 50);
+	CHECK(count == 52);
 	size_t implemented = 0;
 	for (size_t i = 0; i < count; i++) {
 		if (i > 0) {
 			CHECK(table[i - 1].type < table[i].type);
 		}
-		// loginAccount is this project's request; the 2006 bin/game has none.
-		if (table[i].type == QUERY_LOGIN_ACCOUNT) {
+		// loginAccount, loadPlayerData and savePlayerData are this project's
+		// requests; the 2006 bin/game has none of them.
+		if (table[i].type == QUERY_LOGIN_ACCOUNT || table[i].type == QUERY_LOAD_PLAYER_DATA
+				|| table[i].type == QUERY_SAVE_PLAYER_DATA) {
 			CHECK(table[i].address == 0);
 		} else {
 			CHECK(table[i].address >= 0x80e04b0 && table[i].address < 0x80e8c80);
@@ -148,7 +151,7 @@ static void testCatalogue() {
 			implemented++;
 		}
 	}
-	CHECK(implemented == 27);
+	CHECK(implemented == 29);
 
 	CHECK(std::string(queryName(QUERY_LOGIN)) == "login");
 	CHECK(std::string(queryName(11)) == "loginAccount");
@@ -156,6 +159,8 @@ static void testCatalogue() {
 	CHECK(std::string(queryName(21)) == "logoutGame");
 	CHECK(std::string(queryName(50)) == "loadPlayers");
 	CHECK(std::string(queryName(53)) == "loadWorldConfig");
+	CHECK(std::string(queryName(54)) == "loadPlayerData");
+	CHECK(std::string(queryName(55)) == "savePlayerData");
 	CHECK(std::string(queryName(215)) == "cancelPaymentNew");
 	CHECK(findQueryInfo(1) == nullptr);
 	CHECK(findQueryInfo(34) == nullptr);
@@ -181,11 +186,88 @@ static void testText() {
 	CHECK(foldLatin1("AbC \xC4\xD6\xDC\xDF\xD7") == "abc \xE4\xF6\xFC\xDF\xD7");
 }
 
+// The record of loadPlayerData and savePlayerData, byte by byte.
+static void testPlayerDataRecord() {
+	PlayerData data;
+	data.name = "Ab";
+	data.race = 1;
+	data.profession = -2;
+	data.originalOutfit.id = 0;
+	data.originalOutfit.objectType = 0x0BF2;
+	data.currentOutfit.id = 130;
+	data.currentOutfit.colors[0] = 1;
+	data.currentOutfit.colors[1] = 2;
+	data.currentOutfit.colors[2] = 3;
+	data.currentOutfit.colors[3] = 4;
+	data.lastLogin = 0x01020304;
+	data.posZ = 7;
+	PlayerSkill skill;
+	skill.number = 5;
+	skill.actual = 9;
+	skill.delta = -1;
+	data.skills = {skill};
+	data.spells = {255};
+	PlayerQuestValue quest;
+	quest.number = 0x01F3;
+	quest.value = 6;
+	data.questValues = {quest};
+	data.murders = {0x10};
+	data.inventory = "{}";
+	PlayerDepot depot;
+	depot.number = 8;
+	depot.content = "{1}";
+	data.depots = {depot};
+
+	WriteBuffer out;
+	writePlayerData(out, data);
+	std::vector<uint8_t> expected = {
+		0x02, 0x00, 'A', 'b',                       // Name
+		0x01, 0x00, 0x00, 0x00,                     // Race
+		0xFE, 0xFF, 0xFF, 0xFF,                     // Profession -2
+		0x00, 0x00, 0x00, 0x00, 0xF2, 0x0B,         // OriginalOutfit: id 0, ObjectType
+		0x82, 0x00, 0x00, 0x00, 1, 2, 3, 4,         // CurrentOutfit: id 130, Colors
+		0x04, 0x03, 0x02, 0x01,                     // LastLogin
+		0x00, 0x00, 0x00, 0x00,                     // LastLogout
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,         // StartX, StartY, StartZ
+		0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0,         // PosX, PosY, PosZ
+		0x00, 0x00, 0x00, 0x00,                     // PlayerkillerEnd
+		0x01, 0x00, 0x05,                           // one skill, number 5
+		9, 0, 0, 0,                                 // Actual
+	};
+	for (int i = 0; i < 12; i++) {                  // Maximum .. NextLevel
+		expected.insert(expected.end(), {0, 0, 0, 0});
+	}
+	const std::vector<uint8_t> tail = {
+		0xFF, 0xFF, 0xFF, 0xFF,                     // Delta -1
+		0x01, 0x00, 0xFF,                           // one spell, 255
+		0x01, 0x00, 0xF3, 0x01, 6, 0, 0, 0,         // one quest value
+		0x01, 0x00, 0x10, 0x00, 0x00, 0x00,         // one murder
+		0x02, 0x00, '{', '}',                       // Inventory
+		0x01, 0x00, 0x08, 0x03, 0x00, '{', '1', '}', // one depot
+	};
+	expected.insert(expected.end(), tail.begin(), tail.end());
+	CHECK(out.data() == expected);
+
+	ReadBuffer in(out.data());
+	PlayerData back;
+	readPlayerData(in, back);
+	CHECK(in.eof());
+	CHECK(back == data);
+
+	// Each shorter payload is refused.
+	for (size_t size = 0; size < expected.size(); size++) {
+		ReadBuffer part(expected.data(), size);
+		PlayerData partial;
+		CHECK_THROWS(readPlayerData(part, partial), ProtocolError);
+	}
+}
+
 static void all() {
 	testScalars();
 	testStrings();
 	testFraming();
 	testCatalogue();
+	testPlayerDataRecord();
 	testText();
 }
 

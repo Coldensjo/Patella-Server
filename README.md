@@ -107,6 +107,53 @@ copy it into the installation's data folder. The comments at its top explain
 the layout. Keep `conversion.lst` there too: the original operator tools
 (`highscores`, `deloldusr`, `mgrep`, `ugrep`, `tempel`) still read it.
 
+## Player data
+
+The game keeps what it knows of a character between logins (race,
+profession, outfits, last login and logout, start and current position,
+player-killer end, skills, spells, quest values, murders, inventory and the
+nine depots) in the query manager's database, not in files. It loads a
+character's data with the request loadPlayerData and saves it with
+savePlayerData; the record they carry is described in
+`querymanager/src/playerdata.hh`, the tables (`player_data` with one row per
+character, `player_skills`, `player_spells`, `player_quest_values`,
+`player_murders` and `player_depots`) in `querymanager/src/sqlite_storage.cc`.
+The inventory and each depot are stored as the item text the player files had
+for them. A character the database has no data of starts as a new character.
+A database of an older schema is brought up to date when the query manager
+opens it.
+
+The original installation's player files (`usr/NN/<id>.usr`) are imported
+with the characters by `querymanager-seed --game-root`, which reads them with
+the game's old reader of them; it needs the object types (`items.toml`, or the
+original `objects.srv`) in the installation's data folder. `--no-player-data`
+leaves the player data out, and data the database has already is kept.
+An existing database (schema version 1) that a game with player files used
+gets the new tables when the query manager opens it, but no player data: run
+`querymanager-seed --game-root` on that installation once more before the
+new game starts. Otherwise every character starts as a new one, and the
+game's save of that new character is the data a later import keeps.
+`patella-convert usr-export CONFIG_TOML FOLDER [ID...]` writes the database's
+player data as player files again. `patella-convert usr-check CONFIG_TOML`
+proves that every player file comes back the same from the database, field
+by field; it saves each file's data into the database (unless
+`--read-only`), so run it on a scratch database only.
+`tools/playerdata_check.py` runs it on a copy of an installation. The game
+itself no longer reads or writes player files; `[paths] user` in `config.toml`
+is read only by `querymanager-seed`, to find the files to import.
+
+When a save does not reach the query manager, the game keeps the data in the
+save folder (`[paths] save`) as `playerdata-<id>.rec` and logs where. It sends
+that file before it loads the character again and at its next start; the next
+successful save makes it obsolete. A query manager that takes the connection
+but does not answer makes a save wait 30 seconds; after such a save the game
+keeps its saves in files at once for a minute, so that saving many characters
+(at shutdown, say) does not take hours. The query manager does not store a
+save the game has given up on and closed the connection of, so such a late save
+never replaces newer data saved since. While the file cannot be sent, the
+character cannot log in: a load that fails refuses the login, so that a
+character never starts as new because its data could not be read.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Tibia and its files belong to CipSoft GmbH and are

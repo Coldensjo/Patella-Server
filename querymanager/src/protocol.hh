@@ -65,9 +65,9 @@ enum ApplicationType : uint8_t {
 	APPLICATION_LOGIN = 2,
 };
 
-// Every query type of the 2006 TQueryManagerConnection, and loginAccount. The
-// number is the first byte the method writes (TWriteBuffer::writeByte), the
-// name is the method's.
+// Every query type of the 2006 TQueryManagerConnection, and this project's own
+// (loginAccount, loadPlayerData, savePlayerData). The number is the first
+// byte the method writes (TWriteBuffer::writeByte), the name is the method's.
 enum QueryType : uint8_t {
 	QUERY_LOGIN = 0,
 	QUERY_CHECK_ACCOUNT_PASSWORD = 10,
@@ -106,6 +106,11 @@ enum QueryType : uint8_t {
 	QUERY_EXCLUDE_FROM_AUCTIONS = 51,
 	QUERY_CANCEL_HOUSE_TRANSFER = 52,
 	QUERY_LOAD_WORLD_CONFIG = 53,
+	// This project's own: the game's player data, which the 2006 game kept
+	// in its player files (usr/NN/<id>.usr). The numbers are free in the
+	// catalogue.
+	QUERY_LOAD_PLAYER_DATA = 54,
+	QUERY_SAVE_PLAYER_DATA = 55,
 	QUERY_GET_KEPT_CHARACTERS = 200,
 	QUERY_GET_DELETED_CHARACTERS = 201,
 	QUERY_DELETE_OLD_CHARACTER = 202,
@@ -164,7 +169,8 @@ enum Limits : uint32_t {
 	// Fixed 30-byte buffers on the game side: 29 characters and a NUL.
 	MAX_NAME_LENGTH = 29,
 	// Largest frame this server accepts from a client. The biggest request
-	// buffer in the game is max(0x4000, Houses * 600) for insertHouses.
+	// buffers in the game are max(0x4000, Houses * 600) for insertHouses and
+	// the 4 MiB of the player data connections (src/dbfuncs.cc).
 	MAX_REQUEST_SIZE = 16u * 1024u * 1024u,
 };
 

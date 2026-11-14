@@ -2,6 +2,7 @@
 
 #include "seed.hh"
 
+#include "player_records.hh"
 #include "protocol.hh"
 #include "script.hh"
 
@@ -303,7 +304,51 @@ WorldConfig defaultWorldConfig() {
 
 namespace {
 
-void importPlayers(Storage &storage, const std::string &userPath, uint32_t worldId, SeedReport &report) {
+// Imports the player data of a character from its player file, unless the
+// database has data of it already (an earlier seeding, or the running game).
+void importPlayerData(Storage &storage, const std::string &path, const std::string &where, uint32_t characterId,
+		SeedReport &report) {
+	if (storage.hasPlayerData(characterId)) {
+		report.playerDataKept++;
+		return;
+	}
+	std::vector<std::string> errors;
+	std::vector<uint8_t> record;
+	PlayerFileRecord result;
+	try {
+		result = ReadPlayerFileRecord(path, characterId, record, errors);
+	} catch (const std::exception &e) {
+		report.playerDataFailed++;
+		report.warnings.push_back(where + ": player data not imported: " + e.what());
+		return;
+	}
+	for (const std::string &error : errors) {
+		report.warnings.push_back(where + ": " + error);
+	}
+	if (result == PlayerFileRecord::Missing) {
+		report.playerDataFailed++;
+		report.warnings.push_back(where + ": player file gone; player data not imported");
+		return;
+	}
+
+	PlayerData data;
+	ReadBuffer in(record);
+	readPlayerData(in, data);
+	if (!in.eof()) {
+		throw std::runtime_error(where + ": the record of the player file is longer than its fields");
+	}
+	data.characterId = characterId;
+	storage.savePlayerData(data);
+	report.playerDataImported++;
+	if (result == PlayerFileRecord::Damaged) {
+		report.playerDataDamaged++;
+		report.warnings.push_back(where + ": player file could not be read to its end; its player data is"
+			" imported as far as it was read, without inventory and depots, as the old game loaded it");
+	}
+}
+
+void importPlayers(Storage &storage, const std::string &userPath, uint32_t worldId, bool withPlayerData,
+		SeedReport &report) {
 	namespace fs = std::filesystem;
 	if (!fs::is_directory(userPath)) {
 		throw std::runtime_error("no player directory " + userPath);
@@ -323,8 +368,8 @@ void importPlayers(Storage &storage, const std::string &userPath, uint32_t world
 	report.playerFiles = files.size();
 
 	for (const fs::path &file : files) {
-		// PlayerDataPath (src/dbfuncs.cc): "%s/%02ld/%ld.usr" with
-		// CharacterID % 100 as the directory.
+		// PlayerFilePath (tools/convert/usr_files.cc): "%s/%02ld/%ld.usr"
+		// with CharacterID % 100 as the directory.
 		std::string where = file.parent_path().filename().string() + "/" + file.filename().string();
 		PlayerFile player;
 		try {
@@ -380,6 +425,9 @@ void importPlayers(Storage &storage, const std::string &userPath, uint32_t world
 			continue;
 		}
 		report.playersImported++;
+		if (withPlayerData) {
+			importPlayerData(storage, file.string(), where, player.id, report);
+		}
 	}
 }
 
@@ -437,12 +485,17 @@ SeedReport seedFromInstallation(Storage &storage, const SeedOptions &options) {
 		}
 	}
 
+	bool withPlayerData = options.importPlayers && options.importPlayerData;
+	if (withPlayerData) {
+		LoadPlayerFileObjectTypes(dataPath);
+	}
+
 	storage.begin();
 	try {
 		storage.setApplicationPassword(APPLICATION_GAME, password);
 		report.worldId = storage.putWorld(config.world, options.world, config.privateWorld);
 		if (options.importPlayers) {
-			importPlayers(storage, userPath, report.worldId, report);
+			importPlayers(storage, userPath, report.worldId, withPlayerData, report);
 		}
 		if (options.importHouseOwners) {
 			importHouseOwners(storage, dataPath + "/owners.dat", report.worldId, report);

@@ -1,9 +1,14 @@
 # patella-convert, which turns the original installation's files into the TOML
 # files the game reads (convert.cc), and its tests. It reads each original file
 # with the game's own reader and writes what the game ended up with, so it
-# compiles the game units those readers need, with the game's flags.
+# compiles the game units those readers need, with the game's flags. The
+# player files (usr_files.cc, player_records.cc, usr_commands.cc; also for
+# querymanager-seed's import) need the game's own player data code (dbfuncs.cc,
+# query.cc) and the units it uses; Log and CleanHouseField, of the game units
+# left out, are stubs (game_stubs.cc).
 
 set(GAME_SOURCE ${PROJECT_SOURCE_DIR}/src)
+find_package(Threads REQUIRED)
 
 add_library(convert_common STATIC
 	tibia_config.cc
@@ -23,6 +28,10 @@ add_library(convert_common STATIC
 	conversion_lst.cc
 	conversion_writer.cc
 	tomlwrite.cc
+	usr_files.cc
+	player_records.cc
+	usr_commands.cc
+	game_stubs.cc
 	${GAME_SOURCE}/config.cc
 	${GAME_SOURCE}/housesdata.cc
 	${GAME_SOURCE}/magicdata.cc
@@ -34,9 +43,15 @@ add_library(convert_common STATIC
 	${GAME_SOURCE}/script.cc
 	${GAME_SOURCE}/utils.cc
 	${GAME_SOURCE}/mudinc.cc
+	${GAME_SOURCE}/dbfuncs.cc
+	${GAME_SOURCE}/query.cc
+	${GAME_SOURCE}/map.cc
+	${GAME_SOURCE}/threads.cc
+	${GAME_SOURCE}/time.cc
+	${GAME_SOURCE}/shm.cc
 )
 target_include_directories(convert_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${GAME_SOURCE})
-target_link_libraries(convert_common PUBLIC game_flags tomlplusplus)
+target_link_libraries(convert_common PUBLIC game_flags tomlplusplus Threads::Threads)
 
 add_executable(patella-convert convert.cc)
 target_link_libraries(patella-convert PRIVATE convert_common)
@@ -168,3 +183,13 @@ add_test(NAME convert_conversion COMMAND convert_test_conversion)
 add_test(NAME convert_conversion_original COMMAND convert_test_conversion --original ${PATELLA_ORIGINAL_CONVERSION}
 	${PROJECT_SOURCE_DIR}/data/conversion.toml)
 set_tests_properties(convert_conversion_original PROPERTIES SKIP_RETURN_CODE 77)
+
+# The player data through the query manager (test_playerdata.cc): made-up
+# player files read with the old reader must come back the same from
+# LoadPlayerData after SavePlayerData and after querymanager-seed's import, and
+# a save while the query manager is gone must keep the data until it is back.
+# The query manager runs in the test's process.
+add_executable(convert_test_playerdata tests/test_playerdata.cc)
+target_link_libraries(convert_test_playerdata PRIVATE convert_common qm_server)
+target_compile_definitions(convert_test_playerdata PRIVATE PATELLA_ITEMS_TOML="${PROJECT_SOURCE_DIR}/data/items.toml")
+add_test(NAME convert_playerdata COMMAND convert_test_playerdata)

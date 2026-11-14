@@ -25,6 +25,9 @@ struct TReadScriptFile {
 	TReadScriptFile();
 	~TReadScriptFile();
 	void open(char *FileName);
+	// Reads the Length bytes at Text as the script instead of a file; Name
+	// stands for it in the error texts. Text must stay unchanged until close.
+	void openText(char *Name, const char *Text, int Length);
 	void close();
 	void error(char *Text);
 	void nextToken();
@@ -60,7 +63,13 @@ struct TWriteScriptFile {
 	TWriteScriptFile();
 	~TWriteScriptFile();
 	void open(char *FileName);
+	// Writes the script into memory instead of a file. After close, getText
+	// gives what was written (getTextLength bytes and a terminating NUL) until
+	// the next open or the end of the object.
+	void openText();
 	void close();
+	const char *getText() { return Text != nullptr ? Text : ""; }
+	int getTextLength() { return (int)TextLength; }
 	void writeLn();
 	void writeText(char *Text);
 	void writeString(char *Text);
@@ -70,6 +79,8 @@ struct TWriteScriptFile {
 private:
 	FILE *File;
 	char Filename[4096];
+	char *Text;
+	size_t TextLength;
 };
 
 struct TReadBinaryFile : public TReadStream {

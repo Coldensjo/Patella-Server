@@ -1,5 +1,5 @@
-// dbfuncs.hh: a player's data as the player file holds it (TPlayerData,
-// TOutfit) and the functions that load and save it (dbfuncs.cc).
+// dbfuncs.hh: a player's data (TPlayerData, TOutfit) and the functions that
+// load it from the query manager and save it there (dbfuncs.cc).
 
 #ifndef PATELLA_DBFUNCS_HH
 #define PATELLA_DBFUNCS_HH
@@ -12,6 +12,8 @@
 
 struct TReadScriptFile;
 struct TWriteScriptFile;
+struct TReadStream;
+struct TWriteStream;
 
 // The sizes of TPlayerData's tables: the spells (SpellList, also in TPlayer;
 // the spells are 1 to 255, 0 is none), the quest values (QuestValues, also in
@@ -89,9 +91,27 @@ struct TPlayerData {
 	int NumberOfMutings;
 };
 
-void PlayerDataPath(uint32_t CharacterID, char *Extension, char *Path);
-bool PlayerDataExists(uint32_t CharacterID);
+// The player data record of loadPlayerData and savePlayerData (its layout is
+// in querymanager/src/playerdata.hh), without the character ID. WritePlayerData
+// writes the murders later than MurderLimitation (SavePlayerData: those of the
+// last 30 days; 0: all). Both throw a const char * if they cannot:
+// WritePlayerData if an object stream of the slot cannot be written as text,
+// ReadPlayerData on a record or item text it cannot read (the slot then has no
+// inventory and no depots).
+void WritePlayerData(TWriteStream &Stream, TPlayerData *Slot, int MurderLimitation);
+void ReadPlayerData(TReadStream &Stream, TPlayerData *Slot);
+// What a character the query manager has no data of starts with.
+void SetNewPlayerData(TPlayerData *Slot);
+
+// The player data connections: InitPlayerData opens them and sends what
+// SavePlayerData kept in files while the query manager did not take it;
+// ExitPlayerData closes them.
+void InitPlayerData();
+void ExitPlayerData();
+// LoadPlayerData fills the slot of Slot->CharacterID; false if it could not,
+// and the player must then not be let in. SavePlayerData is true once the data
+// is safe: with the query manager, or kept in a file under the save path.
 bool LoadPlayerData(TPlayerData *Slot);
-void SavePlayerData(TPlayerData *Slot);
+bool SavePlayerData(TPlayerData *Slot);
 
 #endif

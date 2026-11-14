@@ -453,16 +453,19 @@ void InitPlayerPool() {
 	for (int i = 0; i < PLAYERDATA_POOLSIZE; i++) {
 		PlayerDataPool[i].CharacterID = 0;
 	}
+
+	InitPlayerData();
 }
 
+// A slot whose data could not be saved stays dirty, so that the next save
+// tries again.
 void SavePlayerPoolSlot(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("SavePlayerPoolSlot: Slot does not exist.\n");
 		return;
 	}
 
-	if (Slot->Dirty) {
-		SavePlayerData(Slot);
+	if (Slot->Dirty && SavePlayerData(Slot)) {
 		Slot->Dirty = false;
 	}
 }
@@ -489,6 +492,10 @@ void FreePlayerPoolSlot(TPlayerData *Slot) {
 	}
 
 	SavePlayerPoolSlot(Slot);
+	if (Slot->Dirty) {
+		error("FreePlayerPoolSlot: Data of character %ld could not be saved; the slot keeps it.\n", (long)Slot->CharacterID);
+		return;
+	}
 
 	if (Slot->Inventory != nullptr) {
 		delete[] Slot->Inventory;
@@ -578,8 +585,13 @@ again:
 	if (Slot == nullptr) {
 		for (int i = 0; i < PLAYERDATA_POOLSIZE; i++) {
 			if (PlayerDataPool[i].Sticky == 0 && PlayerDataPool[i].Locked == 0) {
+				FreePlayerPoolSlot(&PlayerDataPool[i]);
+				// A slot whose data could not be saved keeps it.
+				if (PlayerDataPool[i].CharacterID != 0) {
+					continue;
+				}
+
 				Slot = &PlayerDataPool[i];
-				FreePlayerPoolSlot(Slot);
 				memset(Slot, 0, sizeof(TPlayerData));
 				Slot->CharacterID = CharacterID;
 				Slot->Locked = gettid();
@@ -596,13 +608,13 @@ again:
 	}
 
 	print(3, "Loading data for player %ld.\n", (long)CharacterID);
-	if (!PlayerDataExists(CharacterID)) {
-		Log("game", "Player %ld logs in for the first time.\n", (long)CharacterID);
-	}
-
 	if (!LoadPlayerData(Slot)) {
+		// Under the mutex: once CharacterID is 0, another thread may take the
+		// slot, and Locked must not be cleared after it has locked it.
+		PlayerDataPoolMutex.down();
 		Slot->CharacterID = 0;
 		Slot->Locked = 0;
+		PlayerDataPoolMutex.up();
 		return nullptr;
 	}
 
@@ -743,6 +755,7 @@ void SavePlayerPoolSlots() {
 }
 
 void ExitPlayerPool() {
+	int Unsaved = 0;
 	for (int i = 0; i < PLAYERDATA_POOLSIZE; i++) {
 		uint32_t CharacterID = PlayerDataPool[i].CharacterID;
 		if (CharacterID == 0) {
@@ -764,10 +777,19 @@ void ExitPlayerPool() {
 
 		AttachPlayerPoolSlot(&PlayerDataPool[i], false);
 		FreePlayerPoolSlot(&PlayerDataPool[i]);
+		// A slot that could not be saved keeps its character.
+		if (PlayerDataPool[i].CharacterID != 0) {
+			Unsaved++;
+		}
 		ReleasePlayerPoolSlot(&PlayerDataPool[i]);
 	}
 
-	print(1, "All player data saved.\n");
+	ExitPlayerData();
+	if (Unsaved > 0) {
+		error("ExitPlayerPool: The data of %d players could not be saved and is lost.\n", Unsaved);
+	} else {
+		print(1, "All player data saved.\n");
+	}
 }
 
 int GetPlayerIndexEntryNumber(char *Name, int Position) {

@@ -81,12 +81,17 @@ public:
 	std::vector<AuctionResult> takeFinishedAuctions(uint32_t worldId, uint32_t now) override;
 	void excludeFromAuctions(uint32_t worldId, uint32_t characterId, bool banish, uint32_t now) override;
 
+	std::optional<PlayerData> loadPlayerData(uint32_t characterId) override;
+	void savePlayerData(const PlayerData &data) override;
+	bool hasPlayerData(uint32_t characterId) override;
+
 	// Number of rows of a table; for the seeding report and the tests.
 	uint64_t countRows(const std::string &table);
 
 private:
 	void exec(const char *sql);
 	void createSchema();
+	void migrate(int64_t version);
 
 	sqlite3 *Db;
 	bool InTransaction;
