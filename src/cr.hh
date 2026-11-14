@@ -284,8 +284,8 @@ private:
 	uint32_t LastDefendTime;
 	uint32_t LatestAttackTime;
 	int TypeToSkill(int type);
-	void GetWeapon();
-	void GetAmmo();
+	void FindWeapons();
+	void FindAmmo();
 	unsigned char AttackMode;
 	unsigned char ChaseMode;
 	unsigned char SecureMode;

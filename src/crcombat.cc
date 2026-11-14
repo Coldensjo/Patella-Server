@@ -371,8 +371,8 @@ void TCombat::CheckCombatValues() {
 	Object OldAmmo = Ammo;
 	bool OldFist = Fist;
 
-	GetWeapon();
-	GetAmmo();
+	FindWeapons();
+	FindAmmo();
 
 	if (OldMissile != Missile || OldWand != Wand || OldClose != Close
 			|| OldShield != Shield || OldThrow != Throw || OldAmmo != Ammo
@@ -499,7 +499,7 @@ int TCombat::TypeToSkill(int type) {
 	}
 }
 
-void TCombat::GetWeapon() {
+void TCombat::FindWeapons() {
 	Missile = NONE;
 	Wand = NONE;
 	Close = NONE;
@@ -509,7 +509,7 @@ void TCombat::GetWeapon() {
 	Fist = true;
 
 	if (!Master->GetCreatureObject().exists()) {
-		error("TCombat::GetWeapon: Creature object does not exist.\n");
+		error("TCombat::FindWeapons: Creature object does not exist.\n");
 		return;
 	}
 
@@ -555,7 +555,7 @@ void TCombat::GetWeapon() {
 	}
 }
 
-void TCombat::GetAmmo() {
+void TCombat::FindAmmo() {
 	if (Missile != NONE) {
 		Ammo = GetBodyObject(Master->ID, BODY_AMMO);
 		if (Ammo != NONE && (!Ammo.getFlag(AMMO)
