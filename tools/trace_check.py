@@ -17,8 +17,9 @@ What it does, in WSL Ubuntu-24.04:
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
      relative, so they point at the copy); data/items.toml goes into the copy's data folder ([paths] data) and its
      objects.srv is removed. A tree without them (faithful) gets the copy's .tibia with its paths pointed at the copy,
-     and keeps objects.srv. The scenario's clients read the object types from the file the copy has. Either config gets a scratch SHM key (--shm, default 17011) and scratch query manager ports
-     (--qm-port, default 17173, and the three after it for the other entries). Then it seeds a scratch database with
+     and keeps objects.srv. The scenario's clients read the object types from the file the copy has. Either config
+     gets a scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the
+     three after it for the other entries). Then it seeds a scratch database with
      the build's querymanager-seed (game port --port, default 17171), adds the two test accounts with a new character
      each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; neither may have a player file) and starts the
      build's query manager. The game runs with HOME set to the copy, so it reads the copy's config.toml (or .tibia).
