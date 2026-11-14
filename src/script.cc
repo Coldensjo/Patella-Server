@@ -672,7 +672,7 @@ void TWriteScriptFile::open(char *FileName) {
 	File = fopen(FileName, "wb");
 	if (File == nullptr) {
 		int ErrorCode = errno;
-		::error("TWriteScriptFile: Cannot create file %s.\n", FileName);
+		::error("TWriteScriptFile::open: Cannot create file %s.\n", FileName);
 		::error("Error %d: %s.\n", ErrorCode, strerror(ErrorCode));
 		throw "Cannot create script-file";
 	}
@@ -898,7 +898,7 @@ void TReadBinaryFile::readBytes(unsigned char *Buffer, int Count) {
 				Filename, (int)ftell(File), Result, ErrorCode, strerror(ErrorCode));
 		if (fclose(File) != 0) {
 			// quirk: the message names readByte, not readBytes
-			::error("TReadBinaryFile::readByte: Error %d while closing the file.\n", errno);
+			::error("TReadBinaryFile::readBytes: Error %d while closing the file.\n", errno);
 		}
 		File = nullptr;
 		SaveFile(Filename);

@@ -197,7 +197,7 @@ void DeleteChainCreature(TCreature *cr) {
 void InsertChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
 		// Quirk: the message names DeleteChainCreature.
-		error("DeleteChainCreature: Given creature does not exist.\n");
+		error("InsertChainCreature: Given creature does not exist.\n");
 		return;
 	}
 
@@ -217,7 +217,7 @@ void InsertChainCreature(TCreature *cr, int newx, int newy) {
 void MoveChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
 		// Quirk: the message names DeleteChainCreature.
-		error("DeleteChainCreature: Given creature does not exist.\n");
+		error("MoveChainCreature: Given creature does not exist.\n");
 		return;
 	}
 

@@ -1691,12 +1691,12 @@ void UseChangeObject(uint32_t CreatureID, Object Obj) {
 
 void UseObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
-		error("UseObjects: Given object does not exist.\n");
+		error("UseObject: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.getFlag(USEEVENT)) {
-		error("UseObjects: Given object is not usable.\n");
+		error("UseObject: Given object is not usable.\n");
 		throw ERROR;
 	}
 

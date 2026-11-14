@@ -166,7 +166,7 @@ void CheckRuneLevel(TCreature *cr, int SpellNr) {
 	int Level = SpellList[SpellNr].RuneLevel;
 	TSkill *sk = cr->Skills[SKILL_MAGICLEVEL];
 	if (sk == nullptr) {
-		error("CheckLevel: No skill MAGLEVEL.\n");
+		error("CheckRuneLevel: No skill MAGLEVEL.\n");
 		throw ERROR;
 	}
 
