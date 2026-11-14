@@ -76,7 +76,7 @@ struct TParty {
 	}
 };
 
-int Channels = 8;
+int Channels = PUBLIC_CHANNELS;
 int StatementID = 0;
 int Parties = 0;
 vector<TChannel> Channel(0, 18, 10);
@@ -85,6 +85,9 @@ int CurrentSubscriberNumber;
 fifo<TStatement> Statements(1024);
 fifo<TListener> Listeners(1024);
 vector<TParty> Party(0, 100, 50);
+
+// The most pieces a cumulative object can hold (its AMOUNT).
+const int MAX_AMOUNT = 100;
 
 // CheckTopMoveObject through both CheckWeight overloads, Create, Copy, Move,
 // Merge, both Change overloads, Delete, Empty and Look are declared
@@ -1146,7 +1149,7 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 		int x, y, z;
 		GetObjectCoordinates(Con, x, y, z);
 		Object Top = GetTopObject(x, y, z, true);
-		if (Top != NONE && Top.getObjectType() == Type && Top.getAttribute(AMOUNT) + Value <= 100) {
+		if (Top != NONE && Top.getObjectType() == Type && Top.getAttribute(AMOUNT) + Value <= MAX_AMOUNT) {
 			Change(Top, AMOUNT, Top.getAttribute(AMOUNT) + Value);
 			return Top;
 		}
@@ -1423,7 +1426,7 @@ void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignor
 		Count = Obj.getAttribute(AMOUNT);
 	}
 
-	if (Dest.getAttribute(AMOUNT) + Count > 100) {
+	if (Dest.getAttribute(AMOUNT) + Count > MAX_AMOUNT) {
 		throw TOOMANYPARTS;
 	}
 
@@ -1973,8 +1976,8 @@ void Look(uint32_t CreatureID, Object Obj) {
 	}
 
 	strcat(s, ".");
-	if ((Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) == 0)
-			|| (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) == 0)) {
+	if ((Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE)
+			|| (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) == LIQUID_NONE)) {
 		strcat(s, " It is empty.");
 	}
 
@@ -2548,7 +2551,7 @@ void ProcessCronSystem() {
 }
 
 bool SectorRefreshable(int SectorX, int SectorY, int SectorZ) {
-	TFindCreatures SearchPlayers(31, 31, SectorX * 32 + 16, SectorY * 32 + 16, FIND_PLAYERS);
+	TFindCreatures SearchPlayers(31, 31, SectorX * SECTOR_SIZE + SECTOR_SIZE / 2, SectorY * SECTOR_SIZE + SECTOR_SIZE / 2, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = SearchPlayers.getNext();
 		if (ID == 0) {
@@ -2581,7 +2584,7 @@ void RefreshSector(int SectorX, int SectorY, int SectorZ, unsigned char *Data, i
 	TReadBuffer Buffer(Data, Size);
 	RefreshSector(SectorX, SectorY, SectorZ, Buffer);
 
-	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, FIND_ALL);
+	TFindCreatures SearchMonsters(16, 16, SectorX * SECTOR_SIZE + SECTOR_SIZE / 2, SectorY * SECTOR_SIZE + SECTOR_SIZE / 2, FIND_ALL);
 	while (true) {
 		uint32_t CreatureID = SearchMonsters.getNext();
 		if (CreatureID == 0) {
@@ -2732,7 +2735,7 @@ void ApplyPatch(int SectorX, int SectorY, int SectorZ, bool FullSector, TReadScr
 	PatchSector(SectorX, SectorY, SectorZ, FullSector, Script, SaveHouses);
 	FinishHouseCleanup();
 
-	TFindCreatures SearchMonsters(16, 16, SectorX * 32 + 16, SectorY * 32 + 16, FIND_ALL);
+	TFindCreatures SearchMonsters(16, 16, SectorX * SECTOR_SIZE + SECTOR_SIZE / 2, SectorY * SECTOR_SIZE + SECTOR_SIZE / 2, FIND_ALL);
 	while (true) {
 		uint32_t CreatureID = SearchMonsters.getNext();
 		if (CreatureID == 0) {
