@@ -27,9 +27,20 @@ struct TObject {
 	uint32_t Attributes[4];
 };
 
+// The objects are kept in blocks of OBJECTS_PER_BLOCK (map.dat's CacheSize is
+// a multiple of it).
+const int OBJECTS_PER_BLOCK = 32768;
+
 struct TObjectBlock {
-	TObject Object[32768];
+	TObject Object[OBJECTS_PER_BLOCK];
 };
+
+// TSector::Status. A sector is SECTOR_INITIALIZING while InitSector creates its
+// fields, so that SwapSector, which only takes a sector in memory, cannot swap
+// it out half made.
+const int SECTOR_INITIALIZING = 0;
+const int SECTOR_IN_MEMORY = 1;
+const int SECTOR_SWAPPED_OUT = 2;
 
 struct TSector {
 	Object MapCon[SECTOR_SIZE][SECTOR_SIZE];
@@ -95,12 +106,22 @@ TObjectBlock **ObjectBlock;
 TObject *FirstFreeObject;
 uintptr_t *HashTableData;
 unsigned char *HashTableType;
+// HashTableType of an object number: free, an object in memory (HashTableData
+// points at it) or swapped out with its sector (HashTableData is the number
+// of the swap file). Entry 0, object number 0 (NONE), is never given out; its
+// data is the object AccessObject returns for an invalid object.
+const int HASHENTRY_FREE = 0;
+const int HASHENTRY_IN_MEMORY = 1;
+const int HASHENTRY_SWAPPED_OUT = 2;
+const int HASHENTRY_RESERVED = 255;
 int HashTableSize;
 uint32_t HashTableMask;
 int HashTableFree;
 int ObjectCounter;
 vector<TCronEntry> CronEntry(0, 256, 256);
-int CronHashTable[2047];
+// The size of CronHashTable, which chains the cron entries by object number.
+const int CRON_HASH_TABLE_SIZE = 2047;
+int CronHashTable[CRON_HASH_TABLE_SIZE];
 int CronEntries;
 int OBCount;
 int SectorXMin;
@@ -128,11 +149,12 @@ TObject &AccessObject(Object Obj) {
 	}
 
 	uint32_t Position = Obj.getObjectID() & HashTableMask;
-	if (HashTableType[Position] == 2) {
+	if (HashTableType[Position] == HASHENTRY_SWAPPED_OUT) {
 		UnswapSector((uint32_t)HashTableData[Position]);
 	}
 
-	if (HashTableType[Position] == 1 && ((TObject *)HashTableData[Position])->ObjectID == Obj.getObjectID()) {
+	if (HashTableType[Position] == HASHENTRY_IN_MEMORY
+			&& ((TObject *)HashTableData[Position])->ObjectID == Obj.getObjectID()) {
 		return *(TObject *)HashTableData[Position];
 	}
 
@@ -145,11 +167,11 @@ bool Object::exists() {
 	}
 
 	uint32_t Position = ObjectID & HashTableMask;
-	if (HashTableType[Position] == 2) {
+	if (HashTableType[Position] == HASHENTRY_SWAPPED_OUT) {
 		UnswapSector((uint32_t)HashTableData[Position]);
 	}
 
-	return HashTableType[Position] == 1 && ((TObject *)HashTableData[Position])->ObjectID == ObjectID;
+	return HashTableType[Position] == HASHENTRY_IN_MEMORY && ((TObject *)HashTableData[Position])->ObjectID == ObjectID;
 }
 
 ObjectType Object::getObjectType() {
@@ -252,7 +274,7 @@ void CronMove(int Destination, int Source) {
 	if (Entry->Previous != -1) {
 		CronEntry(Entry->Previous).Next = Destination;
 	} else {
-		CronHashTable[Entry->Obj.getObjectID() % 2047] = Destination;
+		CronHashTable[Entry->Obj.getObjectID() % CRON_HASH_TABLE_SIZE] = Destination;
 	}
 }
 
@@ -301,8 +323,8 @@ void CronSet(Object Obj, uint32_t Delay) {
 	CronEntry(CronEntries).Obj = Obj;
 	CronEntry(CronEntries).RoundNr = RoundNr + Delay;
 	CronEntry(CronEntries).Previous = -1;
-	CronEntry(CronEntries).Next = CronHashTable[Obj.getObjectID() % 2047];
-	CronHashTable[Obj.getObjectID() % 2047] = CronEntries;
+	CronEntry(CronEntries).Next = CronHashTable[Obj.getObjectID() % CRON_HASH_TABLE_SIZE];
+	CronHashTable[Obj.getObjectID() % CRON_HASH_TABLE_SIZE] = CronEntries;
 	if (CronEntry(CronEntries).Next != -1) {
 		CronEntry(CronEntry(CronEntries).Next).Previous = CronEntries;
 	}
@@ -324,7 +346,7 @@ void CronDelete(int Position) {
 	if (Entry->Previous != -1) {
 		CronEntry(Entry->Previous).Next = Entry->Next;
 	} else {
-		CronHashTable[Entry->Obj.getObjectID() % 2047] = Entry->Next;
+		CronHashTable[Entry->Obj.getObjectID() % CRON_HASH_TABLE_SIZE] = Entry->Next;
 	}
 
 	CronEntries--;
@@ -352,7 +374,7 @@ uint32_t CronInfo(Object Obj, bool Delete) {
 		return 0;
 	}
 
-	int Position = CronHashTable[Obj.getObjectID() % 2047];
+	int Position = CronHashTable[Obj.getObjectID() % CRON_HASH_TABLE_SIZE];
 	while (Position != -1 && CronEntry(Position).Obj != Obj) {
 		Position = CronEntry(Position).Next;
 	}
@@ -404,7 +426,7 @@ void CronChange(Object Obj, int NewDelay) {
 		return;
 	}
 
-	int Position = CronHashTable[Obj.getObjectID() % 2047];
+	int Position = CronHashTable[Obj.getObjectID() % CRON_HASH_TABLE_SIZE];
 	while (Position != -1 && CronEntry(Position).Obj != Obj) {
 		Position = CronEntry(Position).Next;
 	}
@@ -610,22 +632,22 @@ void ResizeHashTable() {
 
 	uintptr_t *NewData = (uintptr_t *)malloc(NewSize * sizeof(uintptr_t));
 	unsigned char *NewType = (unsigned char *)malloc(NewSize);
-	memset(NewType, 0, NewSize);
-	NewType[0] = 255;
+	memset(NewType, HASHENTRY_FREE, NewSize);
+	NewType[0] = HASHENTRY_RESERVED;
 	NewData[0] = HashTableData[0];
 	for (int i = 1; i < HashTableSize; i++) {
-		if (HashTableType[i] == 0) {
+		if (HashTableType[i] == HASHENTRY_FREE) {
 			continue;
 		}
 
-		if (HashTableType[i] == 2) {
+		if (HashTableType[i] == HASHENTRY_SWAPPED_OUT) {
 			UnswapSector((uint32_t)HashTableData[i]);
 		}
 
-		if (HashTableType[i] == 1) {
+		if (HashTableType[i] == HASHENTRY_IN_MEMORY) {
 			TObject *Entry = (TObject *)HashTableData[i];
 			uint32_t nr = Entry->ObjectID & NewMask;
-			NewType[nr] = 1;
+			NewType[nr] = HASHENTRY_IN_MEMORY;
 			NewData[nr] = (uintptr_t)Entry;
 		} else {
 			error("ResizeHashTable: Fehler beim Reorganisieren der HashTabelle.\n");
@@ -648,7 +670,7 @@ Object CreateObject() {
 		ResizeHashTable();
 	}
 
-	while (HashTableType[Iterator & HashTableMask] != 0) {
+	while (HashTableType[Iterator & HashTableMask] != HASHENTRY_FREE) {
 		Iterator++;
 	}
 
@@ -660,7 +682,7 @@ Object CreateObject() {
 
 	Help->ObjectID = Iterator;
 	HashTableData[Iterator & HashTableMask] = (uintptr_t)Help;
-	HashTableType[Iterator & HashTableMask] = 1;
+	HashTableType[Iterator & HashTableMask] = HASHENTRY_IN_MEMORY;
 	HashTableFree--;
 	IncrementObjectCounter();
 	return Object(Iterator);
@@ -889,13 +911,13 @@ void DestroyObject(Object Obj) {
 	}
 
 	nr &= HashTableMask;
-	if (HashTableType[nr] != 1) {
+	if (HashTableType[nr] != HASHENTRY_IN_MEMORY) {
 		error("DestroyObject: Objekt steht nicht im Speicher.\n");
 		return;
 	}
 
 	PutFreeObjectSlot((TObject *)HashTableData[nr]);
-	HashTableType[nr] = 0;
+	HashTableType[nr] = HASHENTRY_FREE;
 	HashTableFree++;
 	DecrementObjectCounter();
 }
@@ -1182,7 +1204,7 @@ void InitSector(int x, int y, int z) {
 	TSector *Sec = (TSector *)malloc(sizeof(TSector));
 	(*Sector)(x, y, z) = Sec;
 	memset((void *)Sec, 0, sizeof(TSector));
-	Sec->Status = 0;
+	Sec->Status = SECTOR_INITIALIZING;
 	Sec->TimeStamp = RoundNr;
 	for (int xx = 0; xx < SECTOR_SIZE; xx++) {
 		for (int yy = 0; yy < SECTOR_SIZE; yy++) {
@@ -1195,7 +1217,7 @@ void InitSector(int x, int y, int z) {
 	}
 
 	Sec->MapFlags = 0;
-	Sec->Status = 1;
+	Sec->Status = SECTOR_IN_MEMORY;
 }
 
 void SwapObject(TWriteBinaryFile &File, Object Obj, uint32_t FileNumber) {
@@ -1216,7 +1238,7 @@ void SwapObject(TWriteBinaryFile &File, Object Obj, uint32_t FileNumber) {
 	}
 
 	PutFreeObjectSlot(Entry);
-	HashTableType[Obj.getObjectID() & HashTableMask] = 2;
+	HashTableType[Obj.getObjectID() & HashTableMask] = HASHENTRY_SWAPPED_OUT;
 	HashTableData[Obj.getObjectID() & HashTableMask] = FileNumber;
 }
 
@@ -1234,7 +1256,7 @@ void SwapSector() {
 		for (int y = SectorYMin; y <= SectorYMax; y++) {
 			for (int z = SectorZMin; z <= SectorZMax; z++) {
 				TSector *Help = (*Sector)(x, y, z);
-				if (Help != nullptr && Help->Status == 1 && Help->TimeStamp < Oldest) {
+				if (Help != nullptr && Help->Status == SECTOR_IN_MEMORY && Help->TimeStamp < Oldest) {
 					Sec = Help;
 					SecX = x;
 					SecY = y;
@@ -1274,7 +1296,7 @@ again:
 			}
 		}
 
-		Sec->Status = 2;
+		Sec->Status = SECTOR_SWAPPED_OUT;
 		File.close();
 	} catch (const char *s) {
 		error("FATAL ERROR in SwapSector: Kann Datei \"%s\" nicht anlegen.\n", FileName);
@@ -1302,7 +1324,7 @@ void UnswapSector(uint32_t FileNumber) {
 			return;
 		}
 
-		if (Sec->Status != 2) {
+		if (Sec->Status != SECTOR_SWAPPED_OUT) {
 			error("UnswapSector: Sektor %d/%d/%d ist nicht ausgelagert.\n", SecX, SecY, SecZ);
 			File.close();
 			return;
@@ -1312,15 +1334,15 @@ void UnswapSector(uint32_t FileNumber) {
 			TObject *Entry = GetFreeObjectSlot();
 			File.readBytes((unsigned char *)Entry, sizeof(TObject));
 			uint32_t nr = Entry->ObjectID & HashTableMask;
-			if (HashTableType[nr] == 2) {
+			if (HashTableType[nr] == HASHENTRY_SWAPPED_OUT) {
 				HashTableData[nr] = (uintptr_t)Entry;
-				HashTableType[nr] = 1;
+				HashTableType[nr] = HASHENTRY_IN_MEMORY;
 			} else {
 				error("UnswapSector: Objekt %ld existiert schon.\n", (long)(int32_t)Entry->ObjectID);
 			}
 		}
 
-		Sec->Status = 1;
+		Sec->Status = SECTOR_IN_MEMORY;
 		File.close();
 		unlink(FileName);
 	} catch (const char *s) {
@@ -2290,7 +2312,7 @@ void ReadMapConfig() {
 		throw "SectorZMin is greater than SectorZMax";
 	}
 
-	if (OBCount % 32768 != 0) {
+	if (OBCount % OBJECTS_PER_BLOCK != 0) {
 		throw "CacheSize must be a multiple of 32768";
 	}
 
@@ -2298,7 +2320,7 @@ void ReadMapConfig() {
 		throw "illegal value for CacheSize";
 	}
 
-	OBCount /= 32768;
+	OBCount /= OBJECTS_PER_BLOCK;
 	if (HashTableSize <= 0) {
 		throw "illegal value for Objects";
 	}
@@ -2329,7 +2351,7 @@ void InitMap() {
 	for (int i = 0; i < OBCount; i++) {
 		// See GetFreeObjectSlot for where the pointer is kept.
 		TObject *Next;
-		for (int j = 0; j < 32767; j++) {
+		for (int j = 0; j < OBJECTS_PER_BLOCK - 1; j++) {
 			Next = &ObjectBlock[i]->Object[j + 1];
 			memcpy((void *)&ObjectBlock[i]->Object[j].NextObject, &Next, sizeof(TObject *));
 		}
@@ -2340,19 +2362,19 @@ void InitMap() {
 			Next = nullptr;
 		}
 
-		memcpy((void *)&ObjectBlock[i]->Object[32767].NextObject, &Next, sizeof(TObject *));
+		memcpy((void *)&ObjectBlock[i]->Object[OBJECTS_PER_BLOCK - 1].NextObject, &Next, sizeof(TObject *));
 	}
 
 	FirstFreeObject = ObjectBlock[0]->Object;
 	HashTableMask = HashTableSize - 1;
 	HashTableData = (uintptr_t *)malloc(HashTableSize * sizeof(uintptr_t));
 	HashTableType = (unsigned char *)malloc(HashTableSize);
-	memset(HashTableType, 0, HashTableSize);
+	memset(HashTableType, HASHENTRY_FREE, HashTableSize);
 	HashTableFree = HashTableSize - 1;
-	HashTableType[0] = 255;
+	HashTableType[0] = HASHENTRY_RESERVED;
 	HashTableData[0] = (uintptr_t)GetFreeObjectSlot();
 
-	for (int i = 0; i < 2047; i++) {
+	for (int i = 0; i < CRON_HASH_TABLE_SIZE; i++) {
 		CronHashTable[i] = -1;
 	}
 
