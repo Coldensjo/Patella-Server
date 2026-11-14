@@ -350,7 +350,15 @@ int UsrCheck(int argc, char **argv) {
 	SetPrintFunction(CountPrint);
 	std::vector<std::pair<std::string, uint32_t>> Files = PlayerFiles(UserPath);
 
-	char TempPath[] = "/tmp/patella-usr-check-XXXXXX";
+	// The old writer's file of each character holds a player's data: it goes
+	// into TMPDIR (tools/playerdata_check.py sets its run folder, which it
+	// removes on every exit path), else /tmp.
+	const char *TempFolder = getenv("TMPDIR");
+	std::string TempTemplate = std::string(TempFolder != nullptr && TempFolder[0] != 0 ? TempFolder : "/tmp")
+			+ "/patella-usr-check-XXXXXX";
+	std::vector<char> TempName(TempTemplate.begin(), TempTemplate.end());
+	TempName.push_back(0);
+	char *TempPath = TempName.data();
 	int TempFile = mkstemp(TempPath);
 	if (TempFile < 0) {
 		throw std::runtime_error("cannot create a temporary file");
@@ -452,6 +460,7 @@ int UsrCheck(int argc, char **argv) {
 		}
 	}
 
-	bool Ok = ImportDifferent == 0 && LoadFailed == 0 && SaveDifferent == 0 && SaveFailed == 0;
+	// A player file the import left out did not come through either.
+	bool Ok = ImportDifferent == 0 && NotStored == 0 && LoadFailed == 0 && SaveDifferent == 0 && SaveFailed == 0;
 	return Ok ? 0 : 1;
 }

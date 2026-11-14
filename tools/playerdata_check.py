@@ -20,11 +20,12 @@ What it does, in WSL Ubuntu-24.04:
      file's writer did); and it counts the imported files that the old writer gives back byte for byte.
 
 The player files hold real players' data: nothing of them is printed, only counts. The seed's output (it names player
-files) stays in a file of the run folder, and the run removes the copy, the database and that file at the end, on
-every exit path. A run holds repro_check's ~/.cache/patella-check/run.lock, like the other checks. Ports 7171-7176,
+files) and usr-check's temporary file (TMPDIR) stay in the run folder, and the run removes it with the copy and the
+database at the end, on every exit path. A run holds repro_check's ~/.cache/patella-check/run.lock, like the other checks. Ports 7171-7176,
 SHM key 10011 and /game are refused.
 
-Exit code 0: every file passed. 1: a difference, a failure, or a step that did not go through. 2: wrong usage.
+Exit code 0: every file passed (a file the import left out does not). 1: a difference, a failure, or a step that
+did not go through. 2: wrong usage.
 """
 
 import argparse
@@ -103,8 +104,10 @@ def check(arguments, data):
 				raise CheckError("the query manager did not start")
 			log("playerdata_check: patella-convert usr-check on every player file")
 			start = time.time()
+			# Its temporary file holds a player's data: in the run folder, which goes on every exit path.
 			result = subprocess.run([os.path.join(binaries, "tools", "convert", "patella-convert"), "usr-check",
-				os.path.join(game, "config.toml")], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+				os.path.join(game, "config.toml")], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+				env=dict(os.environ, TMPDIR=root))
 			# usr-check prints counts only.
 			for line in result.stdout.decode("utf-8", "replace").splitlines():
 				log("  " + line)

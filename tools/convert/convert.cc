@@ -64,8 +64,10 @@
 //     querymanager-seed imported the file; and the same again after
 //     savePlayerData and loadPlayerData (but for the murders older than 30
 //     days, which a save drops). It also counts the imported files that the
-//     old writer gives back byte for byte. It prints only counts. Without
-//     --read-only it saves every character's data: use a scratch database.
+//     old writer gives back byte for byte. A file the import left out fails
+//     the check. It prints only counts. Without --read-only it saves every
+//     character's data: use a scratch database. Its temporary file (the old
+//     writer's output, a player's data) is in TMPDIR, else /tmp.
 
 #include <cstdio>
 #include <cstring>
