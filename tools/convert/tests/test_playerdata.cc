@@ -1,12 +1,13 @@
-// The player data through the query manager, with made-up player files: what
-// the game's old reader (LoadPlayerFile) read from a file must come back the
-// same, field by field, from LoadPlayerData after SavePlayerData, and after
-// querymanager-seed's import of the file (ReadPlayerFileRecord); the item
-// text in the database must be the file's; a character without data starts
-// as a new one; and a save while the query manager is gone must keep the data
-// in a file under the save path that the next load or start sends, while a
-// load in that time must refuse. The query manager runs in this process, on a
-// port the system chooses, with a database in a temporary folder.
+// The player data through the query manager, with made-up player files (one
+// of them with the edge cases): what the game's old reader (LoadPlayerFile)
+// read from a file must come back the same, field by field, from
+// LoadPlayerData after SavePlayerData, and after querymanager-seed's import
+// of the file (ReadPlayerFileRecord); the item text in the database must be
+// the file's; a character without data starts as a new one; and a save while
+// the query manager is gone must keep the data in a file under the save path
+// that the next load or start sends, while a load in that time must refuse.
+// The query manager runs in this process, on a port the system chooses, with
+// a database in a temporary folder.
 
 #include <atomic>
 #include <cerrno>
@@ -96,6 +97,77 @@ const char *const SorcererFile =
 	"Inventory   = {}\n"
 	"\n"
 	"Depots      = {}\n";
+
+// The edge cases, all in one made-up character: a name of 29 characters with
+// an ISO-8859-1 letter, the largest and the most negative values the game's
+// numbers take (INT_MIN itself marks a skill that was never set), an outfit
+// of object type 65535, every skill, every spell (0 to 255), every quest
+// value, 20 murders (as many as the game keeps, all recent), every body
+// position and all nine depots, the last one with item text longer than 65534
+// bytes (the long form of a string on the wire) of texts with quotes,
+// backslashes, line breaks and ISO-8859-1 letters.
+std::string MaximalFile(const std::vector<int> &Murders) {
+	const std::string Max = "2147483647";
+	const std::string Min = "-2147483647";
+	std::string File = "ID              = 4242\n"
+		"Name            = \"Made Up Maximal Char\xE4" "cter Xyz\"\n"
+		"Race            = " + Max + "\n"
+		"Profession      = " + Min + "\n"
+		"OriginalOutfit  = (" + Max + ",255-0-255-128)\n"
+		"CurrentOutfit   = (0,65535)\n"
+		"LastLogin       = " + Max + "\n"
+		"LastLogout      = " + Min + "\n"
+		"StartPosition   = [65535,65535,15]\n"
+		"CurrentPosition = [0,0,0]\n"
+		"PlayerkillerEnd = " + Min + "\n"
+		"\n";
+	for (int SkillNr = 0; SkillNr < MAX_SKILLS; SkillNr++) {
+		File += "Skill = (" + std::to_string(SkillNr);
+		for (int Value = 0; Value < 14; Value++) {
+			File += "," + ((SkillNr + Value) % 2 == 0 ? Max : Min);
+		}
+		File += ")\n";
+	}
+	File += "\nSpells      = {";
+	for (int SpellNr = 0; SpellNr < MAX_SPELLS; SpellNr++) {
+		File += (SpellNr == 0 ? "" : ",") + std::to_string(SpellNr);
+	}
+	File += "}\nQuestValues = {";
+	for (int Number = 0; Number < MAX_QUESTS; Number++) {
+		File += (Number == 0 ? "(" : ",(") + std::to_string(Number) + "," + (Number % 2 == 0 ? Max : Min) + ")";
+	}
+	File += "}\nMurders     = {";
+	for (size_t i = 0; i < Murders.size(); i++) {
+		File += (i == 0 ? "" : ",") + std::to_string(Murders[i]);
+	}
+	File += "}\n\nInventory   = {";
+	for (int Position = 1; Position <= 10; Position++) {
+		if (Position != 1) {
+			File += ",\n               ";
+		}
+		File += std::to_string(Position) + " Content=";
+		File += Position == 3 ? "{2853 Content={2820 String=\"\\\\ \\\"\\n\xFF\"}}" : "{3355}";
+	}
+	File += "}\n\nDepots      = {";
+	// A text of 3000 bytes, 3300 in the file: 100 times 27 letters, a quote,
+	// a backslash and a line break.
+	std::string Text;
+	for (int i = 0; i < 100; i++) {
+		Text += std::string(27, (char)(0xC0 + i % 32)) + "\\\"\\\\\\n";
+	}
+	for (int DepotNr = 0; DepotNr < MAX_DEPOTS; DepotNr++) {
+		if (DepotNr != 0) {
+			File += ", \n               ";
+		}
+		File += std::to_string(DepotNr) + " Content={3502 Content={3031 Amount=100";
+		for (int i = 0; DepotNr == MAX_DEPOTS - 1 && i < 25; i++) {
+			File += ", 2820 String=\"" + Text + "\"";
+		}
+		File += "}}";
+	}
+	File += "}\n";
+	return File;
+}
 
 // The query manager of the test, on the port the first start got.
 struct TQueryManager {
@@ -283,6 +355,63 @@ void Run(const fs::path &Root) {
 		fs::path Written = Root / "written.usr";
 		CHECK(SavePlayerFile(Loaded.get(), Written.c_str()));
 		CHECK(ReadFile(Written) == KnightFile(std::to_string(RecentMurder)));
+	}
+
+	// The edge cases: they come back the same from the query manager, the
+	// import stores the record the game's save stores, and the old writer
+	// gives the file back byte for byte.
+	{
+		const uint32_t MAXIMAL = 4242;
+		qm::CharacterRecord Character;
+		Character.id = MAXIMAL;
+		Character.worldId = WorldID;
+		Character.name = "Made Up Maximal";
+		Manager.Storage->putCharacter(Character);
+		std::vector<int> Murders;
+		for (int i = 0; i < 20; i++) {
+			Murders.push_back(Now - 20 * 86400 + i * 3600);
+		}
+		std::string MaximalText = MaximalFile(Murders);
+		fs::path MaximalPath = Users / "42" / "4242.usr";
+		WriteFile(MaximalPath, MaximalText);
+		TSlot Maximal = LoadFile(MaximalPath, MAXIMAL);
+		CHECK(strcmp(Maximal->Name, "Made Up Maximal Char\xE4" "cter Xyz") == 0);
+		CHECK(Maximal->Race == INT_MAX && Maximal->Profession == -INT_MAX
+			&& Maximal->CurrentOutfit.ObjectType == 65535);
+		CHECK(Maximal->Minimum[MAX_SKILLS - 1] != INT_MIN && Maximal->SpellList[0] != 0
+			&& Maximal->SpellList[MAX_SPELLS - 1] != 0);
+		CHECK(Maximal->QuestValues[MAX_QUESTS - 1] == -INT_MAX && Maximal->MurderTimestamps[0] == Murders[0]);
+		for (int DepotNr = 0; DepotNr < MAX_DEPOTS; DepotNr++) {
+			CHECK(Maximal->Depot[DepotNr] != nullptr);
+		}
+
+		TSlot Saved = Copy(*Maximal);
+		CHECK(SavePlayerData(Saved.get()));
+		TSlot Loaded = NewSlot(MAXIMAL);
+		CHECK(LoadPlayerData(Loaded.get()));
+		CHECK(Same(*Maximal, *Loaded));
+		std::optional<qm::PlayerData> Data = Manager.Storage->loadPlayerData(MAXIMAL);
+		CHECK(Data.has_value());
+		if (Data) {
+			CHECK(Data->name == "Made Up Maximal Char\xE4" "cter Xyz");
+			CHECK(Data->skills.size() == MAX_SKILLS && Data->spells.size() == MAX_SPELLS
+				&& Data->questValues.size() == MAX_QUESTS && Data->murders.size() == 20);
+			CHECK(Data->depots.size() == MAX_DEPOTS && Data->depots.back().content.size() > 0xFFFF);
+
+			std::vector<uint8_t> Record;
+			std::vector<std::string> Errors;
+			CHECK(ReadPlayerFileRecord(MaximalPath.string(), MAXIMAL, Record, Errors) == PlayerFileRecord::Loaded);
+			qm::PlayerData Imported;
+			qm::ReadBuffer In(Record);
+			qm::readPlayerData(In, Imported);
+			CHECK(In.eof());
+			Imported.characterId = MAXIMAL;
+			CHECK(Imported == *Data);
+		}
+
+		fs::path Written = Root / "maximal.usr";
+		CHECK(SavePlayerFile(Loaded.get(), Written.c_str()));
+		CHECK(ReadFile(Written) == MaximalText);
 	}
 
 	// No data: a new character, as for a missing player file.
