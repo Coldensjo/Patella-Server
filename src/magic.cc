@@ -39,7 +39,7 @@
 #include "houses.hh"
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckRing,
-// CheckAffectedPlayers, CheckMana and every spell function from MassCombat
+// CheckAffectedPlayers, SpendManaAndSoulPoints and every spell function from MassCombat
 // to ChangeData report a failure by throwing a RESULT. They have no exception
 // specification (C++17 has none), so an exception of another type passes to
 // the caller too.
@@ -212,9 +212,9 @@ void CheckAffectedPlayers(TCreature *cr, int x, int y, int z) {
 	}
 }
 
-void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
+void SpendManaAndSoulPoints(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	if (cr == nullptr) {
-		error("CheckMana: Given creature does not exist.\n");
+		error("SpendManaAndSoulPoints: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -225,12 +225,12 @@ void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	TSkill *mana = cr->Skills[SKILL_MANA];
 	TSkill *soulpoints = cr->Skills[SKILL_SOULPOINTS];
 	if (mana == nullptr) {
-		error("CheckMana: No skill MANA!\n");
+		error("SpendManaAndSoulPoints: No skill MANA!\n");
 		throw ERROR;
 	}
 
 	if (soulpoints == nullptr) {
-		error("CheckMana: No skill SOULPOINTS!\n");
+		error("SpendManaAndSoulPoints: No skill SOULPOINTS!\n");
 		throw ERROR;
 	}
 
@@ -808,7 +808,7 @@ void MassCombat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Dama
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	TDamageImpact Impact(cr, DmgType, Damage, false);
 	CircleShapeSpell(cr, x, y, z, INT_MAX, Animation, Radius, &Impact, EffectNr);
 }
@@ -819,7 +819,7 @@ void AngleCombat(TCreature *cr, int Mana, int SoulPoints, int Damage, int Effect
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (((Radius == 1 && Angle == 0) || WorldType == PVP_ENFORCED) ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (((Radius == 1 && Angle == 0) || WorldType == PVP_ENFORCED) ? 1000 : 2000));
 	TDamageImpact Impact(cr, DmgType, Damage, false);
 	AngleShapeSpell(cr, Angle, Radius, &Impact, EffectNr);
 }
@@ -850,7 +850,7 @@ void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, 
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	TDamageImpact Impact(cr, DmgType, Damage, false);
 	CircleShapeSpell(cr, x, y, z, INT_MAX, AnimationNr, 0, &Impact, EffectNr);
 }
@@ -917,7 +917,7 @@ void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) 
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	CreateField(x, y, z, Type, cr->ID, (WorldType == NON_PVP && cr->IsPeaceful()));
 	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
@@ -966,7 +966,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
 		Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
@@ -1005,7 +1005,7 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
 		Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	}
@@ -1107,7 +1107,7 @@ void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 		throw NOROOM;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	Obj = GetFirstObject(x, y, z);
 	while (Obj != NONE) {
 		Object Help = Obj;
@@ -1137,7 +1137,7 @@ void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 		throw OUTOFRANGE;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	Obj = GetFirstObject(x, y, z);
 	while (Obj != NONE) {
 		Object Help = Obj;
@@ -1435,7 +1435,7 @@ void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
 		throw NOTACCESSIBLE;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	Move(0, Obj, GetMapContainer(x, y + 1, z - 1), -1, false, NONE);
 	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
@@ -1487,7 +1487,7 @@ void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 		throw NOTACCESSIBLE;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	Move(0, Obj, GetMapContainer(dx, dy, dz), -1, false, NONE);
 	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 }
@@ -1629,7 +1629,7 @@ void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	int max = rand() % 2 + 1;
 	for (int i = 0; i < max; i++) {
 		ObjectType Type;
@@ -1655,7 +1655,7 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	ObjectType Type;
 	switch (Ammo) {
 		case CONJURE_ARROW: Type = GetNewObjectType(94, 1); break;
@@ -1706,7 +1706,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 	}
 
 	if (!God) {
-		CheckMana(cr, GetRaceSummonCost(Race) + Mana, 0, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+		SpendManaAndSoulPoints(cr, GetRaceSummonCost(Race) + Mana, 0, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	}
 
 	CreateMonster(Race, posx, posy, posz, 0, (God ? 0 : cr->ID), true);
@@ -1803,7 +1803,7 @@ void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 		throw NOROOM;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	Delete(Obj, -1);
 	CreateMonster(RACE_SKELETON, x, y, z, 0, cr->ID, true);
 }
@@ -1825,7 +1825,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, (WorldType == PVP_ENFORCED ? 1000 : 2000));
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
 		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
@@ -1867,7 +1867,7 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 		throw NOTACCESSIBLE;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	TSkill *sk = cr->Skills[SKILL_HITPOINTS];
 	if (sk == nullptr) {
 		error("Heal: Skill HITPOINTS does not exist.\n");
@@ -1900,7 +1900,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
 		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
@@ -1984,7 +1984,7 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 		throw PLAYERNOTONLINE;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	sk->Change(Healing);
 	if (pl->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
 		pl->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
@@ -2000,7 +2000,7 @@ void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	TSkill *sk = cr->Skills[SKILL_MANA];
 	if (sk == nullptr) {
 		error("RefreshMana: Skill MANA does not exist.\n");
@@ -2032,7 +2032,7 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 		}
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	TSkill *sk = dest->Skills[SKILL_GOSTRENGTH];
 	int mdact;
 	if (percent < -100) {
@@ -2056,7 +2056,7 @@ void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	cr->SetTimer(SKILL_MANASHIELD, 1, Duration, Duration, -1);
 	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
@@ -2072,7 +2072,7 @@ void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	dest->SetTimer(SKILL_POISON, 0, 0, 0, -1);
 	GraphicalEffect(dest->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
@@ -2083,7 +2083,7 @@ void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) 
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	if (cr->Skills[SKILL_SHINING]->TimerValue() <= Radius) {
 		cr->SetTimer(SKILL_SHINING, Radius, Duration / Radius, Duration / Radius, -1);
 	}
@@ -2097,7 +2097,7 @@ void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	cr->Outfit.OutfitID = 0;
 	cr->Outfit.ObjectType = 0;
 	cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
@@ -2121,7 +2121,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 		throw CANNOTTHROW;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	if (cr->posx != x || cr->posy != y || cr->posz != z) {
 		Missile(cr->GetCreatureObject(), GetMapContainer(x, y, z), ANIMATION_ENERGY);
 	}
@@ -2217,7 +2217,7 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 		throw NOTACCESSIBLE;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	if (cr->Skills[SKILL_ILLUSION]->Get() == 0) {
 		cr->Outfit = GetRaceOutfit(Race);
 		cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
@@ -2241,7 +2241,7 @@ void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Dur
 		throw NOTMOVABLE;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	if (cr->Skills[SKILL_ILLUSION]->Get() == 0) {
 		cr->Outfit.OutfitID = 0;
 		if (Obj.getFlag(DISGUISE)) {
@@ -2336,7 +2336,7 @@ void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, O
 		}
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	Change(Obj, Target, 0);
 	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 }
@@ -2359,14 +2359,14 @@ void Convince(TCreature *master, TCreature *slave) {
 	}
 
 	int Mana = GetRaceSummonCost(slave->Race);
-	CheckMana(master, Mana, 0, (WorldType == PVP_ENFORCED) ? 1000 : 2000);
+	SpendManaAndSoulPoints(master, Mana, 0, (WorldType == PVP_ENFORCED) ? 1000 : 2000);
 	ConvinceMonster(master, slave);
 	GraphicalEffect(master->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 	GraphicalEffect(slave->GetCreatureObject(), EFFECT_HIT_AREA);
 }
 
 void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	for (int i = 0; i <= Radius; i++) {
 		for (int j = 0; j < Circle[i].Count; j++) {
 			int dx = cr->posx + Circle[i].x[j];
@@ -2420,7 +2420,7 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 		throw ERROR;
 	}
 
-	CheckMana(cr, Mana, SoulPoints, 1000);
+	SpendManaAndSoulPoints(cr, Mana, SoulPoints, 1000);
 	int Distance = std::max<int>(abs(Opp->posx - cr->posx), abs(Opp->posy - cr->posy));
 	if (Distance <= 4) {
 		if (Opp->posz < cr->posz) {
@@ -3404,14 +3404,14 @@ void RuneSpell(uint32_t CreatureID, int SpellNr) {
 
 	bool executed = false;
 	if (Obj1.exists() && Obj1.getObjectType() == GetSpecialObject(RUNE_BLANK)) {
-		CheckMana(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 1000);
+		SpendManaAndSoulPoints(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 1000);
 		Change(Obj1, GetNewObjectType(SpellList[SpellNr].RuneGr, SpellList[SpellNr].RuneNr), SpellList[SpellNr].Amount);
 		executed = true;
 	}
 
 	if (Obj2.exists() && Obj2.getObjectType() == GetSpecialObject(RUNE_BLANK)) {
 		try {
-			CheckMana(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 1000);
+			SpendManaAndSoulPoints(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 1000);
 			Change(Obj2, GetNewObjectType(SpellList[SpellNr].RuneGr, SpellList[SpellNr].RuneNr), SpellList[SpellNr].Amount);
 			executed = true;
 		} catch (RESULT r) {

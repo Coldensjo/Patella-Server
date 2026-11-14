@@ -666,7 +666,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 
 	if (Wand != NONE) {
 		try {
-			CheckMana(Master, Wand.getAttribute(WANDMANACONSUMPTION), 0, 0);
+			SpendManaAndSoulPoints(Master, Wand.getAttribute(WANDMANACONSUMPTION), 0, 0);
 		} catch (RESULT r) {
 			if (r == NOTENOUGHMANA) {
 				throw OUTOFAMMO;
