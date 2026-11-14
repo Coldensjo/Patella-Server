@@ -609,8 +609,12 @@ again:
 
 	print(3, "Loading data for player %ld.\n", (long)CharacterID);
 	if (!LoadPlayerData(Slot)) {
+		// Under the mutex: once CharacterID is 0, another thread may take the
+		// slot, and Locked must not be cleared after it has locked it.
+		PlayerDataPoolMutex.down();
 		Slot->CharacterID = 0;
 		Slot->Locked = 0;
+		PlayerDataPoolMutex.up();
 		return nullptr;
 	}
 
