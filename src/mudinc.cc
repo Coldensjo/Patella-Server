@@ -1,3 +1,7 @@
+// mudinc.cc: installing a signal handler, and helpers for Latin-1 text:
+// character classes, case, comparison without case, and the last occurrence
+// of a character.
+
 #include <csignal>
 #include <cstring>
 

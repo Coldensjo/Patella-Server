@@ -1,3 +1,6 @@
+// magic.hh: the spells (magic.cc): the impacts (TImpact and its kinds) that a
+// shaped spell applies, the spell functions and the spell tables.
+
 #ifndef PATELLA_MAGIC_HH
 #define PATELLA_MAGIC_HH
 

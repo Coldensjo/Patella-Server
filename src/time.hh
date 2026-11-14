@@ -1,3 +1,6 @@
+// time.hh: the round counter, the server's milliseconds, and the game and
+// real clocks (time.cc).
+
 #ifndef PATELLA_TIME_HH
 #define PATELLA_TIME_HH
 

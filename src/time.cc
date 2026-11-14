@@ -1,3 +1,7 @@
+// time.cc: the round counter and the clocks: the game's time of day and its
+// light, the game date, the real time of day, and the round at which a real
+// time comes.
+
 #include <cstdint>
 #include <ctime>
 

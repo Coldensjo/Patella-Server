@@ -1,3 +1,6 @@
+// mudinc.hh: the signal handler setup and the helpers for Latin-1 text
+// (mudinc.cc).
+
 #ifndef PATELLA_MUDINC_HH
 #define PATELLA_MUDINC_HH
 

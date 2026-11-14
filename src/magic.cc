@@ -1,3 +1,10 @@
+// magic.cc: the spells. The spell table (InitSpells) and the syllables that
+// CheckForSpell parses a spoken text into; the checks a spell passes
+// (spellbook, level, mana, ...); the impacts (TImpact) and the shapes that
+// apply them to fields and creatures, which the monsters' spells use too; the
+// spell functions, from attack and healing spells to the gamemasters'
+// commands; runes, magic items and potions; and the circles of circles.dat.
+
 #include <algorithm>
 #include <climits>
 #include <cstdint>

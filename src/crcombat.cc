@@ -1,3 +1,7 @@
+// crcombat.cc: TCombat (cr.hh), a creature's fight: its target and chasing,
+// close and distance attacks, the attack and defense rolls, its weapons and
+// ammunition, and the list of damage that shares out the experience.
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>

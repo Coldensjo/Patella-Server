@@ -1,3 +1,6 @@
+// threads.hh: Thread, the thread functions and Semaphore, a counting
+// semaphore (threads.cc).
+
 #ifndef PATELLA_THREADS_HH
 #define PATELLA_THREADS_HH
 
