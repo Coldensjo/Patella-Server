@@ -327,7 +327,7 @@ void SaveDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 
 void GetProfessionName(char *Buffer, int Profession, bool Article, bool Capitals) {
 	if (Article) {
-		if (Profession == 11 || Profession == 14) {
+		if (Profession == PROFESSION_ELITE_KNIGHT || Profession == PROFESSION_ELDER_DRUID) {
 			strcpy(Buffer, "an ");
 		} else {
 			strcpy(Buffer, "a ");
@@ -337,31 +337,31 @@ void GetProfessionName(char *Buffer, int Profession, bool Article, bool Capitals
 	}
 
 	switch (Profession) {
-		case 0:
+		case PROFESSION_NONE:
 			strcat(Buffer, "None");
 			break;
-		case 1:
+		case PROFESSION_KNIGHT:
 			strcat(Buffer, "Knight");
 			break;
-		case 2:
+		case PROFESSION_PALADIN:
 			strcat(Buffer, "Paladin");
 			break;
-		case 3:
+		case PROFESSION_SORCERER:
 			strcat(Buffer, "Sorcerer");
 			break;
-		case 4:
+		case PROFESSION_DRUID:
 			strcat(Buffer, "Druid");
 			break;
-		case 11:
+		case PROFESSION_ELITE_KNIGHT:
 			strcat(Buffer, "Elite Knight");
 			break;
-		case 12:
+		case PROFESSION_ROYAL_PALADIN:
 			strcat(Buffer, "Royal Paladin");
 			break;
-		case 13:
+		case PROFESSION_MASTER_SORCERER:
 			strcat(Buffer, "Master Sorcerer");
 			break;
-		case 14:
+		case PROFESSION_ELDER_DRUID:
 			strcat(Buffer, "Elder Druid");
 			break;
 		default:
@@ -916,7 +916,7 @@ char *GetCharacterName(char *Name) {
 }
 
 TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayers(0, 10, 10), FormerAttackedPlayers(0, 10, 10) {
-	Profession = 0;
+	Profession = PROFESSION_NONE;
 	ConstructError = NOERROR;
 	Type = PLAYER;
 	Depot = NONE;
@@ -1025,7 +1025,7 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 		if (!CheckRight(ID, PREMIUM_ACCOUNT)) {
 			if (IsPremiumArea(startx, starty, startz)) {
 				Log("game", "Spieler %s wird aus PayArea-Stadt ausgeb\xfcrgert und erh\xe4lt neue Heimatstadt.\n", Name);
-				GetStartPosition(startx, starty, startz, GetEffectiveProfession() == 0);
+				GetStartPosition(startx, starty, startz, GetEffectiveProfession() == PROFESSION_NONE);
 			}
 
 			if (IsPremiumArea(posx, posy, posz)) {
@@ -1041,14 +1041,14 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 		SendInitGame(GetConnection(), ID);
 		SendRights(GetConnection());
 		SendFullScreen(GetConnection());
-		GraphicalEffect(GetCreatureObject(), 11);
+		GraphicalEffect(GetCreatureObject(), EFFECT_TELEPORT);
 		LoadInventory(PlayerData->LastLoginTime == 0);
 		NotifyChangeInventory();
 		SendAmbiente(GetConnection());
 		if (GetCreature(ID) == nullptr) {
 			error("TPlayer::TPlayer: Kreatur nicht korrekt angelegt.\n");
 		} else {
-			AnnounceChangedCreature(ID, 2);
+			AnnounceChangedCreature(ID, CREATURE_LIGHT);
 		}
 
 		SendPlayerSkills(GetConnection());
@@ -1085,7 +1085,7 @@ TPlayer::~TPlayer() {
 	SaveData();
 	if (!IsDead) {
 		Log("game", "Spieler %s loggt aus.\n", Name);
-		GraphicalEffect(posx, posy, posz, 3);
+		GraphicalEffect(posx, posy, posz, EFFECT_POFF);
 		SaveInventory();
 	} else {
 		Log("game", "Spieler %s ist gestorben.\n", Name);
@@ -1098,7 +1098,8 @@ TPlayer::~TPlayer() {
 			PlayerData->Inventory = nullptr;
 		}
 
-		if ((Profession != 0 && Skills[SKILL_LEVEL]->Get() <= 5) || Skills[SKILL_HITPOINTS]->GetMax() <= 0) {
+		if ((Profession != PROFESSION_NONE && Skills[SKILL_LEVEL]->Get() <= 5)
+				|| Skills[SKILL_HITPOINTS]->GetMax() <= 0) {
 			// The level line is logged in both cases, as in the original.
 			if (Skills[SKILL_HITPOINTS]->GetMax() <= 0) {
 				Log("game", "Setze Spieler %s komplett zur\xfc" "ck wegen MaxHitpoints.\n", Name);
@@ -1112,7 +1113,7 @@ TPlayer::~TPlayer() {
 				PlayerData->posx = 0;
 				PlayerData->posy = 0;
 				PlayerData->posz = 0;
-				PlayerData->Profession = 0;
+				PlayerData->Profession = PROFESSION_NONE;
 				memset(PlayerData->SpellList, 0, sizeof(PlayerData->SpellList));
 				memset(PlayerData->QuestValues, 0, sizeof(PlayerData->QuestValues));
 				for (int i = 0; i < MAX_SKILLS; i++) {
@@ -1167,7 +1168,7 @@ void TPlayer::SetInList() {
 	PlayerMutex.up();
 	NotifyBuddies(ID, Name, true);
 	IncrementPlayersOnline();
-	if (Profession == 0) {
+	if (Profession == PROFESSION_NONE) {
 		IncrementNewbiesOnline();
 	}
 }
@@ -1182,7 +1183,7 @@ void TPlayer::DelInList() {
 			FirstFreePlayer--;
 			PlayerMutex.up();
 			DecrementPlayersOnline();
-			if (Profession == 0) {
+			if (Profession == PROFESSION_NONE) {
 				DecrementNewbiesOnline();
 			}
 			return;
@@ -1218,7 +1219,7 @@ void TPlayer::LoadData() {
 	posx = startx;
 	posy = starty;
 	posz = startz;
-	Direction = 2;
+	Direction = DIRECTION_SOUTH;
 	SetSkills(Race);
 	Outfit = PlayerData->CurrentOutfit;
 	if (PlayerData->startx != 0) {
@@ -1304,13 +1305,13 @@ void TPlayer::LoadInventory(bool SetStandardInventory) {
 	}
 
 	if (PlayerData->Inventory == nullptr) {
-		if (Profession == 0 && !CheckRight(ID, ZERO_CAPACITY) && SetStandardInventory) {
+		if (Profession == PROFESSION_NONE && !CheckRight(ID, ZERO_CAPACITY) && SetStandardInventory) {
 			try {
-				Create(GetBodyContainer(ID, 5), GetSpecialObject(INVENTORY_RIGHTHAND), 0);
-				Create(GetBodyContainer(ID, 6), GetSpecialObject(INVENTORY_LEFTHAND), 0);
-				Create(GetBodyContainer(ID, 4),
-						GetSpecialObject(Sex == 1 ? INVENTORY_BODY_MALE : INVENTORY_BODY_FEMALE), 0);
-				Object Con = Create(GetBodyContainer(ID, 3), GetSpecialObject(INVENTORY_CONTAINER), 0);
+				Create(GetBodyContainer(ID, BODY_RIGHTHAND), GetSpecialObject(INVENTORY_RIGHTHAND), 0);
+				Create(GetBodyContainer(ID, BODY_LEFTHAND), GetSpecialObject(INVENTORY_LEFTHAND), 0);
+				Create(GetBodyContainer(ID, BODY_TORSO),
+						GetSpecialObject(Sex == SEX_MALE ? INVENTORY_BODY_MALE : INVENTORY_BODY_FEMALE), 0);
+				Object Con = Create(GetBodyContainer(ID, BODY_CONTAINER), GetSpecialObject(INVENTORY_CONTAINER), 0);
 				Create(Con, GetSpecialObject(INVENTORY_FOOD), 1);
 			} catch (RESULT r) {
 				error("TPlayer::LoadInventory: Exception %d beim Erstellen des Standard-Inventorys.\n", r);
@@ -1466,7 +1467,7 @@ void TPlayer::Death() {
 	}
 
 	int Percent = GetActivePromotion() ? 7 : 10;
-	for (int Quest = 101; Quest <= 105; Quest++) {
+	for (int Quest = FIRST_BLESSING_QUEST; Quest <= LAST_BLESSING_QUEST; Quest++) {
 		if (GetQuestValue(Quest) != 0) {
 			Percent--;
 			SetQuestValue(Quest, 0);
@@ -1756,28 +1757,28 @@ void TPlayer::RejectTrade() {
 }
 
 void TPlayer::ClearProfession() {
-	if (Profession == 0) {
+	if (Profession == PROFESSION_NONE) {
 		return;
 	}
 
-	Profession = 0;
+	Profession = PROFESSION_NONE;
 	Combat.CheckCombatValues();
 	IncrementNewbiesOnline();
 }
 
 void TPlayer::SetProfession(unsigned char prof) {
-	if (prof == 10) {
-		if (Profession == 0) {
+	if (prof == PROFESSION_PROMOTION) {
+		if (Profession == PROFESSION_NONE) {
 			error("TPlayer::SetProfession: Spieler hat noch keinen Beruf f\xfcr Veredelung.\n");
 			return;
 		}
 
-		if (Profession >= 10) {
+		if (Profession >= PROFESSION_PROMOTION) {
 			error("TPlayer::SetProfession: Spieler hat seinen Beruf schon veredelt.\n");
 			return;
 		}
 
-		Profession += 10;
+		Profession += PROFESSION_PROMOTION;
 		Combat.CheckCombatValues();
 		Skills[SKILL_SOULPOINTS]->SetMax(200);
 		int Rest = Skills[SKILL_SOULPOINTS]->TimerValue();
@@ -1787,13 +1788,13 @@ void TPlayer::SetProfession(unsigned char prof) {
 		return;
 	}
 
-	if (Profession != 0) {
+	if (Profession != PROFESSION_NONE) {
 		error("TPlayer::SetProfession: Player '%s' hat bereits einen Beruf!\n", Name);
 		return;
 	}
 
 	switch (prof) {
-		case 1:
+		case PROFESSION_KNIGHT:
 			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(1100, 50);
 			Skills[SKILL_AXEFIGHTING]->ChangeSkill(1100, 50);
 			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(1100, 50);
@@ -1805,7 +1806,7 @@ void TPlayer::SetProfession(unsigned char prof) {
 			Skills[SKILL_MANA]->SetAddLevel(5);
 			Skills[SKILL_MAGICLEVEL]->ChangeSkill(3000, 1600);
 			break;
-		case 2:
+		case PROFESSION_PALADIN:
 			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(1200, 50);
 			Skills[SKILL_AXEFIGHTING]->ChangeSkill(1200, 50);
 			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(1200, 50);
@@ -1817,7 +1818,7 @@ void TPlayer::SetProfession(unsigned char prof) {
 			Skills[SKILL_MANA]->SetAddLevel(15);
 			Skills[SKILL_MAGICLEVEL]->ChangeSkill(1400, 1600);
 			break;
-		case 3:
+		case PROFESSION_SORCERER:
 			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(2000, 50);
 			Skills[SKILL_AXEFIGHTING]->ChangeSkill(2000, 50);
 			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(2000, 50);
@@ -1829,7 +1830,7 @@ void TPlayer::SetProfession(unsigned char prof) {
 			Skills[SKILL_MANA]->SetAddLevel(30);
 			Skills[SKILL_MAGICLEVEL]->ChangeSkill(1100, 1600);
 			break;
-		case 4:
+		case PROFESSION_DRUID:
 			Skills[SKILL_SWORDFIGHTING]->ChangeSkill(1800, 50);
 			Skills[SKILL_AXEFIGHTING]->ChangeSkill(1800, 50);
 			Skills[SKILL_CLUBFIGHTING]->ChangeSkill(1800, 50);
@@ -1856,8 +1857,8 @@ unsigned char TPlayer::GetRealProfession() {
 }
 
 unsigned char TPlayer::GetEffectiveProfession() {
-	if (Profession >= 10) {
-		return Profession - 10;
+	if (Profession >= PROFESSION_PROMOTION) {
+		return Profession - PROFESSION_PROMOTION;
 	}
 
 	return Profession;
@@ -1872,7 +1873,7 @@ unsigned char TPlayer::GetActiveProfession() {
 }
 
 bool TPlayer::GetActivePromotion() {
-	return CheckRight(ID, PREMIUM_ACCOUNT) && Profession >= 10;
+	return CheckRight(ID, PREMIUM_ACCOUNT) && Profession >= PROFESSION_PROMOTION;
 }
 
 bool TPlayer::SpellKnown(int SpellNumber) {
@@ -1920,31 +1921,31 @@ void TPlayer::SetQuestValue(int Number, int Value) {
 
 void TPlayer::CheckOutfit() {
 	if (CheckRight(ID, GAMEMASTER_OUTFIT)) {
-		if (OrgOutfit.OutfitID == 75) {
+		if (OrgOutfit.OutfitID == OUTFIT_GAMEMASTER) {
 			return;
 		}
 
-		OrgOutfit.OutfitID = 75;
+		OrgOutfit.OutfitID = OUTFIT_GAMEMASTER;
 		OrgOutfit.Colors[0] = 0;
 		OrgOutfit.Colors[1] = 0;
 		OrgOutfit.Colors[2] = 0;
 		OrgOutfit.Colors[3] = 0;
-	} else if (Sex == 1) {
-		if (in(OrgOutfit.OutfitID, 128, 134)) {
+	} else if (Sex == SEX_MALE) {
+		if (in(OrgOutfit.OutfitID, FIRST_MALE_OUTFIT, LAST_MALE_OUTFIT)) {
 			return;
 		}
 
-		OrgOutfit.OutfitID = 128;
+		OrgOutfit.OutfitID = FIRST_MALE_OUTFIT;
 		OrgOutfit.Colors[0] = 78;
 		OrgOutfit.Colors[1] = 69;
 		OrgOutfit.Colors[2] = 58;
 		OrgOutfit.Colors[3] = 76;
 	} else {
-		if (in(OrgOutfit.OutfitID, 136, 142)) {
+		if (in(OrgOutfit.OutfitID, FIRST_FEMALE_OUTFIT, LAST_FEMALE_OUTFIT)) {
 			return;
 		}
 
-		OrgOutfit.OutfitID = 136;
+		OrgOutfit.OutfitID = FIRST_FEMALE_OUTFIT;
 		OrgOutfit.Colors[0] = 78;
 		OrgOutfit.Colors[1] = 69;
 		OrgOutfit.Colors[2] = 58;
@@ -2257,7 +2258,7 @@ void TPlayer::RecordAttack(uint32_t Victim) {
 	if (!IsAttackJustified(Victim) && !IsAggressor(false)) {
 		Aggressor = true;
 		print(3, "Spieler %s ist Aggressor.\n", Name);
-		AnnounceChangedCreature(ID, 5);
+		AnnounceChangedCreature(ID, CREATURE_SKULL);
 	}
 }
 
@@ -2293,7 +2294,7 @@ void TPlayer::RecordMurder(uint32_t Victim) {
 		PlayerData->PlayerkillerEnd = static_cast<int32_t>(time(nullptr)) + 2592000;
 		if (Announce) {
 			print(3, "Spieler %s ist Playerkiller.\n", Name);
-			AnnounceChangedCreature(ID, 5);
+			AnnounceChangedCreature(ID, CREATURE_SKULL);
 		}
 
 		if (Playerkilling == 2) {
@@ -2368,7 +2369,7 @@ void TPlayer::ClearPlayerkillingMarks() {
 		Aggressor = false;
 		NumberOfAttackedPlayers = 0;
 		print(3, "Spieler %s ist kein Aggressor mehr.\n", Name);
-		AnnounceChangedCreature(ID, 5);
+		AnnounceChangedCreature(ID, CREATURE_SKULL);
 	}
 
 	if (NumberOfAttackedPlayers > 0) {
@@ -2398,31 +2399,31 @@ void TPlayer::ClearPlayerkillingMarks() {
 
 int TPlayer::GetPlayerkillingMark(TPlayer *Observer) {
 	if (WorldType != NORMAL) {
-		return 0;
+		return SKULL_NONE;
 	}
 
 	if (Observer == nullptr) {
 		error("TPlayer::GetPlayerkillingMark: Beobachter existiert nicht.\n");
-		return 0;
+		return SKULL_NONE;
 	}
 
 	if (IsPlayerkiller()) {
-		return 4;
+		return SKULL_RED;
 	}
 
 	if (IsAggressor(false)) {
-		return 3;
+		return SKULL_WHITE;
 	}
 
 	if (GetPartyLeader(false) != 0 && GetPartyLeader(false) == Observer->GetPartyLeader(false)) {
-		return 2;
+		return SKULL_GREEN;
 	}
 
 	if (IsAttacker(Observer->ID, false)) {
-		return 1;
+		return SKULL_YELLOW;
 	}
 
-	return 0;
+	return SKULL_NONE;
 }
 
 uint32_t TPlayer::GetPartyLeader(bool CheckFormer) {
@@ -2451,26 +2452,26 @@ void TPlayer::LeaveParty() {
 int TPlayer::GetPartyMark(TPlayer *Observer) {
 	if (Observer == nullptr) {
 		error("TPlayer::GetPartyMark: Beobachter existiert nicht.\n");
-		return 0;
+		return PARTY_SHIELD_NONE;
 	}
 
 	if (ID == Observer->GetPartyLeader(false)) {
-		return 4;
+		return PARTY_SHIELD_LEADER;
 	}
 
 	if (GetPartyLeader(false) != 0 && GetPartyLeader(false) == Observer->GetPartyLeader(false)) {
-		return 3;
+		return PARTY_SHIELD_MEMBER;
 	}
 
 	if (Observer->ID == Observer->GetPartyLeader(false) && IsInvitedToParty(ID, Observer->ID)) {
-		return 2;
+		return PARTY_SHIELD_GUEST;
 	}
 
 	if (ID == GetPartyLeader(false) && IsInvitedToParty(Observer->ID, ID)) {
-		return 1;
+		return PARTY_SHIELD_HOST;
 	}
 
-	return 0;
+	return PARTY_SHIELD_NONE;
 }
 
 int TPlayer::RecordTalk() {
