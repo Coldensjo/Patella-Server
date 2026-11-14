@@ -24,7 +24,9 @@
 # player files are imported into the database (PLAY_RUN/querymanager.sqlite) by
 # querymanager-seed when the database is made; the game itself never reads them.
 # Copy and database are made on first use and kept, so characters keep their
-# progress; the installation and the repository are not touched.
+# progress; only the data/*.toml files are brought up to date with this tree's
+# on every start, since its game reads them as the tree has them. The
+# installation and the repository are not touched.
 #
 # Environment (defaults in brackets):
 #   PLAY_BUILD      the build directory [$HOME/build/patella-server]
@@ -177,12 +179,6 @@ setup() {
 			tar -x -C "$ROOT" -f "$INSTALL" || die "cannot unpack $INSTALL"
 		fi
 		write_config || die "cannot write $ROOT/config.toml"
-		data=$ROOT/$(config_value paths.data) || die "config.toml has no [paths] data"
-		mkdir -p "$data" || exit 1
-		for name in "$REPO"/data/*.toml; do
-			[ "$(basename "$name")" = config.toml ] && continue
-			cp "$name" "$data/" || die "cannot copy $name"
-		done
 		origmap=$ROOT/$(config_value paths.origmap) || die "config.toml has no [paths] origmap"
 		map=$ROOT/$(config_value paths.map) || die "config.toml has no [paths] map"
 		if [ ! -d "$origmap" ]; then
@@ -199,6 +195,14 @@ setup() {
 		# The installation's .tibia stays for its operator tools, pointed at the copy.
 		[ -f "$ROOT/.tibia" ] && sed -i "s#\"/game/#\"$ROOT/#" "$ROOT/.tibia"
 	fi
+	data=$ROOT/$(config_value paths.data) || die "config.toml has no [paths] data"
+	mkdir -p "$data" || exit 1
+	for name in "$REPO"/data/*.toml; do
+		[ "$(basename "$name")" = config.toml ] && continue
+		cmp -s "$name" "$data/$(basename "$name")" && continue
+		[ -e "$data/$(basename "$name")" ] && echo "updating $(basename "$name") in $data from this tree's data/"
+		cp "$name" "$data/" || die "cannot copy $name"
+	done
 	make_key
 	if [ ! -f "$DB" ]; then
 		echo "seeding $DB (game on 127.0.0.1:$GAME_PORT)"

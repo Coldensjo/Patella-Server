@@ -58,6 +58,21 @@ const int MAX_SUMMONS = 2;
 
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
+static_assert(NUMBER_OF_RIGHTS == NO_STATISTICS + 1, "RightNames names every right");
+
+// Whether the player CharacterID has the right that commands.toml gives the
+// right check Check of the command SpellNr (COMMAND_RIGHT, or one of the
+// MOVE_RIGHT_* of SPELL_MOVE). A check without a right is never passed; it
+// belongs to a command commands.toml does not have, which is never cast.
+static bool CheckCommandRight(uint32_t CharacterID, int SpellNr, int Check = COMMAND_RIGHT) {
+	int Right = CommandRight[SpellNr][Check];
+	if (Right == NO_RIGHT) {
+		error("CheckCommandRight: Command %d has no right for check %d.\n", SpellNr, Check);
+		return false;
+	}
+	return CheckRight(CharacterID, static_cast<RIGHT>(Right));
+}
+
 int Direction(int dx, int dy) {
 	if (dx == 0) {
 		if (dy == 0) {
@@ -861,7 +876,7 @@ void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 		throw ERROR;
 	}
 
-	if (cr->Type == PLAYER && !CheckRight(cr->ID, CREATE_MONSTERS)) {
+	if (cr->Type == PLAYER && !CheckCommandRight(cr->ID, SPELL_KILL_ALL_CREATURES)) {
 		return;
 	}
 
@@ -1164,7 +1179,7 @@ void CleanupField(TCreature *cr) {
 		throw ERROR;
 	}
 
-	if (!CheckRight(cr->ID, CLEANUP_FIELDS)) {
+	if (!CheckCommandRight(cr->ID, SPELL_DESINTEGRATE_SPELL)) {
 		return;
 	}
 
@@ -1212,7 +1227,7 @@ void Teleport(TCreature *cr, char *Param) {
 	Object Obj = cr->GetCreatureObject();
 	GetObjectCoordinates(Obj, x, y, z);
 	if (stricmp(Param, "up", -1) == 0) {
-		if (!CheckRight(cr->ID, TELEPORT_VERTICAL)) {
+		if (!CheckCommandRight(cr->ID, SPELL_MOVE, MOVE_RIGHT_VERTICAL)) {
 			return;
 		}
 
@@ -1224,7 +1239,7 @@ void Teleport(TCreature *cr, char *Param) {
 		Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
 		GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	} else if (stricmp(Param, "down", -1) == 0) {
-		if (!CheckRight(cr->ID, TELEPORT_VERTICAL)) {
+		if (!CheckCommandRight(cr->ID, SPELL_MOVE, MOVE_RIGHT_VERTICAL)) {
 			return;
 		}
 
@@ -1236,7 +1251,7 @@ void Teleport(TCreature *cr, char *Param) {
 		Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
 		GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 	} else if (stricmp(Param, "fast", -1) == 0) {
-		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
+		if (!CheckCommandRight(cr->ID, SPELL_MOVE, MOVE_RIGHT_SPEED)) {
 			return;
 		}
 
@@ -1244,7 +1259,7 @@ void Teleport(TCreature *cr, char *Param) {
 		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "fastest", -1) == 0) {
-		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
+		if (!CheckCommandRight(cr->ID, SPELL_MOVE, MOVE_RIGHT_SPEED)) {
 			return;
 		}
 
@@ -1252,7 +1267,7 @@ void Teleport(TCreature *cr, char *Param) {
 		AnnounceChangedCreature(cr->ID, CREATURE_SPEED);
 		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else if (stricmp(Param, "slow", -1) == 0 || stricmp(Param, "normal", -1) == 0) {
-		if (!CheckRight(cr->ID, MODIFY_GOSTRENGTH)) {
+		if (!CheckCommandRight(cr->ID, SPELL_MOVE, MOVE_RIGHT_SPEED)) {
 			return;
 		}
 
@@ -1261,7 +1276,7 @@ void Teleport(TCreature *cr, char *Param) {
 		GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	} else {
 		if (sscanf(Param, "%d,%d,%d", &x, &y, &z) == 3 || sscanf(Param, "[%d,%d,%d]", &x, &y, &z) == 3) {
-			if (!CheckRight(cr->ID, TELEPORT_TO_COORDINATE)) {
+			if (!CheckCommandRight(cr->ID, SPELL_MOVE, MOVE_RIGHT_COORDINATE)) {
 				return;
 			}
 
@@ -1283,7 +1298,7 @@ void Teleport(TCreature *cr, char *Param) {
 			Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
 			GraphicalEffect(x, y, z, EFFECT_TELEPORT);
 		} else {
-			if (!CheckRight(cr->ID, TELEPORT_TO_MARK)) {
+			if (!CheckCommandRight(cr->ID, SPELL_MOVE, MOVE_RIGHT_MARK)) {
 				return;
 			}
 
@@ -1314,7 +1329,7 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 	}
 
 	TPlayer *pl = static_cast<TPlayer *>(cr);
-	if (!CheckRight(cr->ID, TELEPORT_TO_CHARACTER)) {
+	if (!CheckCommandRight(cr->ID, SPELL_TELEPORT_TO_FRIEND)) {
 		return;
 	}
 
@@ -1377,7 +1392,7 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	}
 
 	TPlayer *pl = static_cast<TPlayer *>(cr);
-	if (!CheckRight(cr->ID, RETRIEVE)) {
+	if (!CheckCommandRight(cr->ID, SPELL_RETRIEVE_FRIEND)) {
 		return;
 	}
 
@@ -1508,7 +1523,7 @@ void MagicClimbing(TCreature *cr, char *Direction) {
 		throw ERROR;
 	}
 
-	if (CheckRight(cr->ID, LEVITATE)) {
+	if (CheckCommandRight(cr->ID, SPELL_LEVITATE_GAMEMASTER)) {
 		MagicClimbing(cr, 0, 0, Direction);
 	}
 }
@@ -1530,7 +1545,7 @@ void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 	}
 
 	TPlayer *pl = static_cast<TPlayer *>(cr);
-	if (!CheckRight(cr->ID, CREATE_OBJECTS)) {
+	if (!CheckCommandRight(cr->ID, Param2 != nullptr ? SPELL_GET_ITEM_COUNT : SPELL_GET_ITEM)) {
 		return;
 	}
 
@@ -1597,7 +1612,7 @@ void CreateMoney(TCreature *cr, char *Param) {
 	}
 
 	TPlayer *pl = static_cast<TPlayer *>(cr);
-	if (!CheckRight(cr->ID, CREATE_MONEY)) {
+	if (!CheckCommandRight(cr->ID, SPELL_CREATE_GOLD)) {
 		return;
 	}
 
@@ -1685,7 +1700,7 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 	}
 
 	if (God) {
-		if (!CheckRight(cr->ID, CREATE_MONSTERS)) {
+		if (!CheckCommandRight(cr->ID, SPELL_SUMMON_WILD_CREATURE)) {
 			return;
 		}
 	} else {
@@ -1750,7 +1765,7 @@ void StartMonsterraid(TCreature *cr, char *RaidName) {
 		throw ERROR;
 	}
 
-	if (!CheckRight(cr->ID, CREATE_MONSTERS)) {
+	if (!CheckCommandRight(cr->ID, SPELL_START_MONSTERRAID)) {
 		return;
 	}
 
@@ -2272,7 +2287,7 @@ void ChangeData(TCreature *cr, char *Param) {
 	}
 
 	TPlayer *pl = static_cast<TPlayer *>(cr);
-	if (!CheckRight(cr->ID, CREATE_OBJECTS)) {
+	if (!CheckCommandRight(cr->ID, SPELL_CHANGE_DATA)) {
 		return;
 	}
 
@@ -2490,7 +2505,7 @@ void GetPosition(TCreature *cr) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (CheckRight(pl->ID, SHOW_COORDINATE)) {
+	if (CheckCommandRight(pl->ID, SPELL_GET_POSITION)) {
 		SendMessage(pl->GetConnection(), TALK_EVENT_MESSAGE, "Your position is [%d,%d,%d].", pl->posx, pl->posy, pl->posz);
 	}
 }
@@ -2512,7 +2527,7 @@ void GetQuestValue(TCreature *cr, char *Param) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (!CheckRight(pl->ID, CHANGE_SKILLS)) {
+	if (!CheckCommandRight(pl->ID, SPELL_GET_QUEST_VALUE)) {
 		return;
 	}
 
@@ -2548,7 +2563,7 @@ void SetQuestValue(TCreature *cr, char *Param1, char *Param2) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (!CheckRight(pl->ID, CHANGE_SKILLS)) {
+	if (!CheckCommandRight(pl->ID, SPELL_SET_QUEST_VALUE)) {
 		return;
 	}
 
@@ -2575,7 +2590,7 @@ void ClearQuestValues(TCreature *cr) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (!CheckRight(pl->ID, CHANGE_SKILLS)) {
+	if (!CheckCommandRight(pl->ID, SPELL_CLEAR_QUEST_VALUES)) {
 		return;
 	}
 
@@ -2603,7 +2618,7 @@ void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (!CheckRight(pl->ID, CHANGE_SKILLS)) {
+	if (!CheckCommandRight(pl->ID, Param2 != nullptr ? SPELL_GET_SKILL_EXPERIENCE : SPELL_GET_EXPERIENCE)) {
 		return;
 	}
 
@@ -2643,7 +2658,7 @@ void ChangeProfession(TCreature *cr, char *Param) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (!CheckRight(pl->ID, CHANGE_PROFESSION)) {
+	if (!CheckCommandRight(pl->ID, SPELL_CHANGE_PROFESSION_OR_SEX)) {
 		return;
 	}
 
@@ -3022,7 +3037,7 @@ void KickPlayer(TCreature *cr, char *Name) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (!CheckRight(pl->ID, KICK)) {
+	if (!CheckCommandRight(pl->ID, SPELL_KICK_PLAYER)) {
 		return;
 	}
 
@@ -3059,7 +3074,7 @@ void HomeTeleport(TCreature *cr, char *Name) {
 	}
 
 	TPlayer *pl = (TPlayer *)cr;
-	if (!CheckRight(pl->ID, HOME_TELEPORT)) {
+	if (!CheckCommandRight(pl->ID, SPELL_TEMPLE_TELEPORT)) {
 		return;
 	}
 
@@ -3947,6 +3962,7 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 void InitMagic() {
 	InitCircles();
 	InitSpells();
+	InitCommands();
 	InitLog("banish");
 }
 
@@ -3998,6 +4014,6 @@ static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool
 // EnchantObject through HomeTeleport, CharacterRightSpell, AccountRightSpell,
 // CastSpell, RuneSpell, DeleteRune, UseMagicItem, DrinkPotion and the static
 // CreateField report a failure by throwing a RESULT, and InitMagic by throwing
-// a const char * (from InitCircles and InitSpells). They have no exception
-// specification (C++17 has none), so an exception of another type passes to
-// the caller too.
+// a const char * (from InitCircles, InitSpells and InitCommands). They have no
+// exception specification (C++17 has none), so an exception of another type
+// passes to the caller too.

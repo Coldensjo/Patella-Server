@@ -6,20 +6,21 @@
 # unknown key or flag, or a value of the wrong type, is an error.
 #
 # Each [[spell]] is one spell:
-#   number       The spell number, 1 to 255, each at most once. It ties the
-#                spell to what it does in the code, and the player files keep
-#                the numbers of the spells a player knows, so a spell keeps
-#                its number.
+#   number       The spell number, 1 to 255, each at most once and none of a
+#                command in commands.toml. It ties the spell to what it does
+#                in the code, and the player files keep the numbers of the
+#                spells a player knows, so a spell keeps its number.
 #   name         The name the spellbook shows, at most 30 characters.
 #   words        What is said to cast it, as the spellbook shows it: the
 #                class syllable and the next one as one word, every further
 #                syllable a word of its own, separated by single spaces; at
-#                most 10 syllables, and no two spells with the same. The class
-#                says how the spell is cast: "ex" and "ut" at once, "ad"
-#                makes a rune of a blank rune in a hand, "al" and "om" are
-#                commands of the gamemasters' character and account rights.
-#                "para" stands for a word the caster chooses (a name, a
-#                number; in quotes if it has spaces).
+#                most 10 syllables, and no two spells (or commands in
+#                commands.toml) with the same. The class says how the spell
+#                is cast: "ex" and "ut" at once, "ad" makes a rune of a
+#                blank rune in a hand; the classes "al" and "om" are the
+#                commands, in commands.toml. "para" stands for a word the
+#                caster chooses (a name, a number; in quotes if it has
+#                spaces).
 #   level        The character level needed to cast it, or for a rune to
 #                make it. Left out, 0.
 #   mana         The mana it costs. Left out, 0.
@@ -356,30 +357,6 @@ flags = ["aggressive"]
 rune = { group = 79, number = 19, magic_level = 9, charges = 4 }
 
 [[spell]]
-number = 34
-name = "Get Item"
-words = "alevo para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 35
-name = "Get Item"
-words = "alevo para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 37
-name = "Move"
-words = "alani para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
 number = 38
 name = "Creature Illusion"
 words = "utevo res ina para"
@@ -395,22 +372,6 @@ level = 20
 mana = 100
 soul_points = 0
 flags = ["premium"]
-
-[[spell]]
-number = 40
-name = "Get Experience"
-words = "alevo cogni para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 41
-name = "Change Data"
-words = "aleta para"
-level = 0
-mana = 0
-soul_points = 0
 
 [[spell]]
 number = 42
@@ -434,22 +395,6 @@ name = "Invisible"
 words = "utana vid"
 level = 35
 mana = 440
-soul_points = 0
-
-[[spell]]
-number = 46
-name = "Get Skill Experience"
-words = "alevo cogni para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 47
-name = "Teleport to Friend"
-words = "alani sio para"
-level = 0
-mana = 0
 soul_points = 0
 
 [[spell]]
@@ -487,22 +432,6 @@ mana = 100
 soul_points = 1
 
 [[spell]]
-number = 52
-name = "Retrieve Friend"
-words = "alliber sio para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 53
-name = "Summon Wild Creature"
-words = "alevo res para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
 number = 54
 name = "Paralyze"
 words = "adana ani"
@@ -530,142 +459,6 @@ level = 50
 mana = 600
 soul_points = 0
 flags = ["aggressive", "premium"]
-
-[[spell]]
-number = 57
-name = "Banish Account"
-words = "omana liber para para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 58
-name = "Get Position"
-words = "aliva tera"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 60
-name = "Temple Teleport"
-words = "omani para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 61
-name = "Delete Account"
-words = "omana gran liber para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 62
-name = "Set Namerule"
-words = "omamo para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 63
-name = "Create Gold"
-words = "alevo vis para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 64
-name = "Change Profession or Sex"
-words = "aleta vita para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 65
-name = "Entry in Criminal Record"
-words = "omisa para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 66
-name = "Namelock"
-words = "omana hora para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 67
-name = "Kick Player"
-words = "omana para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 68
-name = "Delete Character"
-words = "omana gran res para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 69
-name = "Banish IP Address"
-words = "omana vis para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 70
-name = "Banish Character"
-words = "omana res para para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 71
-name = "Invite Guests"
-words = "aleta sio"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 72
-name = "Invite Subowners"
-words = "aleta som"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 73
-name = "Kick Guest"
-words = "alana sio para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 74
-name = "Edit Door"
-words = "aleta grav"
-level = 0
-mana = 0
-soul_points = 0
 
 [[spell]]
 number = 75
@@ -860,59 +653,3 @@ level = 59
 mana = 800
 soul_points = 3
 flags = ["premium"]
-
-[[spell]]
-number = 96
-name = "Get Quest Value"
-words = "aliva cogni para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 97
-name = "Set Quest Value"
-words = "aleta cogni para para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 98
-name = "Desintegrate Spell"
-words = "alito tera"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 99
-name = "Levitate Gamemaster"
-words = "alani hur para"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 100
-name = "Clear Quest Values"
-words = "alana cogni"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 101
-name = "Kill All Creatures"
-words = "alito mas res"
-level = 0
-mana = 0
-soul_points = 0
-
-[[spell]]
-number = 102
-name = "Start Monsterraid"
-words = "alevo mas res para"
-level = 0
-mana = 0
-soul_points = 0

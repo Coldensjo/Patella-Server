@@ -1,7 +1,9 @@
 // magicdata.hh: the data of the spells (magicdata.cc): the spell table,
-// loaded from spells.toml, with the syllables of the spells' words, and the
-// circles, the area shapes the spells and the monsters' spells hit, loaded
-// from circles.toml. magic.cc holds what the spells do.
+// loaded from spells.toml and, for the commands (the spells of the classes al
+// and om), from commands.toml, with the syllables of the spells' words; the
+// rights the commands need, also from commands.toml; and the circles, the
+// area shapes the spells and the monsters' spells hit, loaded from
+// circles.toml. magic.cc holds what the spells and commands do.
 
 #ifndef PATELLA_MAGICDATA_HH
 #define PATELLA_MAGICDATA_HH
@@ -151,8 +153,28 @@ const int SPELL_CLEAR_QUEST_VALUES = 100;
 const int SPELL_KILL_ALL_CREATURES = 101;
 const int SPELL_START_MONSTERRAID = 102;
 
-// The longest name of a spell (TSpellList's Comment) spells.toml may give.
+// The longest name of a spell (TSpellList's Comment) spells.toml and
+// commands.toml may give.
 const int MAX_SPELL_NAME_LENGTH = 30;
+
+// The rights (RIGHT in info.hh), 0 to NUMBER_OF_RIGHTS - 1, which
+// commands.toml names by RightNames.
+const int NUMBER_OF_RIGHTS = 82;
+
+// The rights a command checks, at most MAX_COMMAND_RIGHTS (CommandRight). A
+// command checks one right, COMMAND_RIGHT, which it needs to do anything;
+// SPELL_MOVE checks one of four, by the word the caster gives: "up" and
+// "down", "fast", "fastest", "slow" and "normal", coordinates, or the name of
+// a mark.
+const int MAX_COMMAND_RIGHTS = 4;
+const int COMMAND_RIGHT = 0;
+const int MOVE_RIGHT_VERTICAL = 0;
+const int MOVE_RIGHT_SPEED = 1;
+const int MOVE_RIGHT_COORDINATE = 2;
+const int MOVE_RIGHT_MARK = 3;
+
+// CommandRight of a right check that has no right.
+const int NO_RIGHT = -1;
 
 // The circles a shape can have (Circle): radius 0 to 9.
 const int MAX_CIRCLES = 10;
@@ -169,13 +191,36 @@ struct TCircle {
 	int Count;
 };
 
-// Fills SpellList from the spells.toml file FileName: the spells it defines,
-// and every other spell number empty. Throws a const char *
+// Fills SpellList from the spells.toml file FileName: the spells it defines
+// (of the classes ad, ex and ut), and every other spell number empty, for the
+// commands too (LoadCommands). Throws a const char *
 // "<file>:<line>:<column>: <what>" for what is wrong with it.
 void LoadSpells(const char *FileName);
 
 // LoadSpells of spells.toml in the data folder (DATAPATH).
 void InitSpells();
+
+// The right checks of a command: their names in commands.toml, by their
+// index in CommandRight, or none. Names[0] is "" for a command that checks
+// only COMMAND_RIGHT, whose right commands.toml gives as a string.
+struct TCommandRightChecks {
+	int Count;
+	const char *Names[MAX_COMMAND_RIGHTS];
+};
+TCommandRightChecks GetCommandRightChecks(int SpellNr);
+
+// The right of a name in commands.toml (PREMIUM_ACCOUNT, ...), or NO_RIGHT
+// for none.
+int GetRightByName(const char *Name);
+
+// Fills CommandRight and the commands' entries in SpellList from the
+// commands.toml file FileName; the spells must be loaded already (LoadSpells),
+// since a command may not have the number or the words of a spell. Throws a
+// const char * "<file>:<line>:<column>: <what>" for what is wrong with it.
+void LoadCommands(const char *FileName);
+
+// LoadCommands of commands.toml in the data folder (DATAPATH).
+void InitCommands();
 
 // Fills Circle from the circles.toml file FileName. Throws a const char *
 // "<file>:<line>:<column>: <what>" for what is wrong with it.
@@ -186,6 +231,8 @@ void InitCircles();
 
 extern char SpellSyllable[MAX_SYLLABLES][6];
 extern TSpellList SpellList[MAX_SPELLS];
+extern int CommandRight[MAX_SPELLS][MAX_COMMAND_RIGHTS];
+extern const char *const RightNames[NUMBER_OF_RIGHTS];
 extern TCircle Circle[MAX_CIRCLES];
 
 #endif

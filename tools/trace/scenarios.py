@@ -300,3 +300,80 @@ def full(ctx):
 	a.logout()
 	b.logout()
 	s(4)
+
+
+# The commands (commands.toml), each said by every character of the scenario
+# commands: what is said, a note of what it shows. The words given make a
+# command answer when the right it checks is there, and change little: no
+# player of these names is online, the hands hold the torch and the club, there
+# is no mark or raid of that name.
+COMMANDS = [
+	('alevo "no such thing" 5', "Get Item with a count: CREATE_OBJECTS"),
+	('alevo "no such thing"', "Get Item: CREATE_OBJECTS"),
+	("alani fast", "Move, speed: MODIFY_GOSTRENGTH"),
+	("alani normal", "Move, speed: MODIFY_GOSTRENGTH"),
+	("alani 99999,99999,7", "Move to coordinates: TELEPORT_TO_COORDINATE"),
+	("alani nosuchmark", "Move to a mark: TELEPORT_TO_MARK"),
+	("alani up", "Move up: TELEPORT_VERTICAL"),
+	("alani down", "Move down: TELEPORT_VERTICAL"),
+	("alevo cogni 1", "Get Experience: CHANGE_SKILLS"),
+	("alevo cogni 1 1", "Get Skill Experience: CHANGE_SKILLS"),
+	("aleta 5", "Change Data: CREATE_OBJECTS"),
+	('alani sio "Nobody Here At All"', "Teleport to Friend: TELEPORT_TO_CHARACTER"),
+	('alliber sio "Nobody Here At All"', "Retrieve Friend: RETRIEVE"),
+	("alevo res nosuchcreature", "Summon Wild Creature, unknown race: refused before the right"),
+	("alevo res rat", "Summon Wild Creature: CREATE_MONSTERS"),
+	("aliva tera", "Get Position: SHOW_COORDINATE"),
+	('omani "Nobody Here At All"', "Temple Teleport: HOME_TELEPORT"),
+	("alevo vis 0", "Create Gold: CREATE_MONEY"),
+	("aleta vita male", "Change Profession or Sex: CHANGE_PROFESSION"),
+	('omana "Nobody Here At All"', "Kick Player: KICK"),
+	("aliva cogni 1", "Get Quest Value: CHANGE_SKILLS"),
+	("aleta cogni 1 5", "Set Quest Value: CHANGE_SKILLS"),
+	("alana cogni", "Clear Quest Values: CHANGE_SKILLS"),
+	("alani hur up", "Levitate Gamemaster: LEVITATE"),
+	("alito mas res", "Kill All Creatures: CREATE_MONSTERS"),
+	("alevo mas res nosuchraid", "Start Monsterraid: CREATE_MONSTERS"),
+	('omana liber "Nobody Here At All" 1 x', "Banish Account: no right"),
+	('omana gran liber "Nobody Here At All" x', "Delete Account: no right"),
+	('omamo "Nobody Here At All"', "Set Namerule: no right"),
+	('omisa "Nobody Here At All" x', "Entry in Criminal Record: no right"),
+	('omana hora "Nobody Here At All"', "Namelock: no right"),
+	('omana gran res "Nobody Here At All" x', "Delete Character: no right"),
+	('omana vis "Nobody Here At All" x', "Banish IP Address: no right"),
+	('omana res "Nobody Here At All" 1 x', "Banish Character: no right"),
+	("aleta sio", "Invite Guests: no right, not in a house"),
+	("aleta som", "Invite Subowners: no right, not in a house"),
+	('alana sio "Nobody Here At All"', "Kick Guest: no right"),
+	("aleta grav", "Edit Door: no right, no door"),
+	("alito tera", "Desintegrate Spell: CLEANUP_FIELDS (blocks the logout)"),
+]
+
+
+@scenario()
+def commands(ctx):
+	"""The commands of commands.toml, said by a player without rights (a)
+	and by five gamemasters (c to g), each with some of the rights the
+	commands check (trace_check.py GM_RIGHTS), so that every right check
+	answers some of them and not the others."""
+	s = Steps(ctx)
+	ctx.at(0)
+	keys = ["a", "c", "d", "e", "f", "g"]
+	who = {}
+	for key in keys:
+		who[key] = ctx.login(key)
+		s(2)
+	# Each character in rounds of its own, three commands a round, so that
+	# the order in which the game takes them is the same in both runs.
+	for i in range(0, len(COMMANDS), 3):
+		for key in keys:
+			c = who[key]
+			for text, what in COMMANDS[i:i + 3]:
+				c.note("=== " + what)
+				c.say(text)
+			s(1)
+	s(2)
+	for key in keys:
+		who[key].logout()
+		s(1)
+	s(3)

@@ -1,8 +1,11 @@
 // magicdata.cc: the data of the spells (magicdata.hh): the syllables of their
 // words; the spell table, loaded from spells.toml (data/spells.toml in the
 // repository, written by tools/convert from the table the game had in its
-// code); and the circles, loaded from circles.toml (data/circles.toml,
-// converted from the original circles.dat by tools/convert).
+// code) and, for the commands, from commands.toml (data/commands.toml, written
+// by tools/convert from that table and the rights the code checked); the
+// rights of the commands, from commands.toml; and the circles, loaded from
+// circles.toml (data/circles.toml, converted from the original circles.dat by
+// tools/convert).
 
 #include "tomlfile.hh"
 
@@ -70,7 +73,94 @@ char SpellSyllable[MAX_SYLLABLES][6] = {
 	"",
 };
 TSpellList SpellList[MAX_SPELLS];
+int CommandRight[MAX_SPELLS][MAX_COMMAND_RIGHTS];
 TCircle Circle[MAX_CIRCLES];
+
+// The names of the rights, by their number (RIGHT in info.hh).
+const char *const RightNames[NUMBER_OF_RIGHTS] = {
+	"PREMIUM_ACCOUNT",
+	"NOTATION",
+	"NAMELOCK",
+	"STATEMENT_REPORT",
+	"BANISHMENT",
+	"FINAL_WARNING",
+	"IP_BANISHMENT",
+	"KICK",
+	"HOME_TELEPORT",
+	"GAMEMASTER_BROADCAST",
+	"ANONYMOUS_BROADCAST",
+	"NO_BANISHMENT",
+	"ALLOW_MULTICLIENT",
+	"LOG_COMMUNICATION",
+	"READ_GAMEMASTER_CHANNEL",
+	"READ_TUTOR_CHANNEL",
+	"HIGHLIGHT_HELP_CHANNEL",
+	"SEND_BUGREPORTS",
+	"NAME_INSULTING",
+	"NAME_SENTENCE",
+	"NAME_NONSENSICAL_LETTERS",
+	"NAME_BADLY_FORMATTED",
+	"NAME_NO_PERSON",
+	"NAME_CELEBRITY",
+	"NAME_COUNTRY",
+	"NAME_FAKE_IDENTITY",
+	"NAME_FAKE_POSITION",
+	"STATEMENT_INSULTING",
+	"STATEMENT_SPAMMING",
+	"STATEMENT_ADVERT_OFFTOPIC",
+	"STATEMENT_ADVERT_MONEY",
+	"STATEMENT_NON_ENGLISH",
+	"STATEMENT_CHANNEL_OFFTOPIC",
+	"STATEMENT_VIOLATION_INCITING",
+	"CHEATING_BUG_ABUSE",
+	"CHEATING_GAME_WEAKNESS",
+	"CHEATING_MACRO_USE",
+	"CHEATING_MODIFIED_CLIENT",
+	"CHEATING_HACKING",
+	"CHEATING_MULTI_CLIENT",
+	"CHEATING_ACCOUNT_TRADING",
+	"CHEATING_ACCOUNT_SHARING",
+	"GAMEMASTER_THREATENING",
+	"GAMEMASTER_PRETENDING",
+	"GAMEMASTER_INFLUENCE",
+	"GAMEMASTER_FALSE_REPORTS",
+	"KILLING_EXCESSIVE_UNJUSTIFIED",
+	"DESTRUCTIVE_BEHAVIOUR",
+	"SPOILING_AUCTION",
+	"INVALID_PAYMENT",
+	"TELEPORT_TO_CHARACTER",
+	"TELEPORT_TO_MARK",
+	"TELEPORT_VERTICAL",
+	"TELEPORT_TO_COORDINATE",
+	"LEVITATE",
+	"SPECIAL_MOVEUSE",
+	"MODIFY_GOSTRENGTH",
+	"SHOW_COORDINATE",
+	"RETRIEVE",
+	"ENTER_HOUSES",
+	"OPEN_NAMEDOORS",
+	"INVULNERABLE",
+	"UNLIMITED_MANA",
+	"KEEP_INVENTORY",
+	"ALL_SPELLS",
+	"UNLIMITED_CAPACITY",
+	"ZERO_CAPACITY",
+	"ATTACK_EVERYWHERE",
+	"NO_ATTACK",
+	"NO_RUNES",
+	"NO_LOGOUT_BLOCK",
+	"GAMEMASTER_OUTFIT",
+	"ILLUMINATE",
+	"CHANGE_PROFESSION",
+	"IGNORED_BY_MONSTERS",
+	"SHOW_KEYHOLE_NUMBERS",
+	"CREATE_OBJECTS",
+	"CREATE_MONEY",
+	"CREATE_MONSTERS",
+	"CHANGE_SKILLS",
+	"CLEANUP_FIELDS",
+	"NO_STATISTICS",
+};
 
 // The flags of a spell as spells.toml names them, by their bit in
 // TSpellList's Flags.
@@ -96,8 +186,10 @@ static int GetSyllableByText(const std::string &Text) {
 
 // Fills Syllable from the words of a spell as the game writes them
 // (GetSpellString): the class syllable and the second syllable as one word,
-// each further syllable as a word of its own, separated by single spaces.
-static void ReadWords(const toml::table &Entry, unsigned char *Syllable) {
+// each further syllable as a word of its own, separated by single spaces. The
+// words of a command (Command) start with al or om, those of a spell with ad,
+// ex or ut.
+static void ReadWords(const toml::table &Entry, unsigned char *Syllable, bool Command) {
 	const toml::node *Node = Entry.get("words");
 	if (!Node->is_string()) {
 		TomlError(Node->source(), "words must be a string");
@@ -123,8 +215,13 @@ static void ReadWords(const toml::table &Entry, unsigned char *Syllable) {
 	// The class syllable (al, ad, ex, ut or om) is the first two letters.
 	std::string Class = Parts[0].substr(0, 2);
 	int ClassSyllable = GetSyllableByText(Class);
-	if (ClassSyllable < SYLLABLE_AL || ClassSyllable > SYLLABLE_OM) {
-		TomlError(Node->source(), "words must start with al, ad, ex, ut or om");
+	bool CommandClass = ClassSyllable == SYLLABLE_AL || ClassSyllable == SYLLABLE_OM;
+	bool SpellClass = ClassSyllable == SYLLABLE_AD || ClassSyllable == SYLLABLE_EX || ClassSyllable == SYLLABLE_UT;
+	if (Command && !CommandClass) {
+		TomlError(Node->source(), "words must start with al or om (ad, ex and ut start spells, in spells.toml)");
+	}
+	if (!Command && !SpellClass) {
+		TomlError(Node->source(), "words must start with ad, ex or ut (al and om start commands, in commands.toml)");
 	}
 	Parts[0] = Parts[0].substr(2);
 	if (Parts[0].empty()) {
@@ -185,7 +282,7 @@ static void ReadSpell(const toml::node &Node, bool *Defined) {
 	TomlGetString(Entry, "name", Name, sizeof(Name));
 	Spell.Comment = AddStaticString(Name);
 
-	ReadWords(Entry, Spell.Syllable);
+	ReadWords(Entry, Spell.Syllable, false);
 	for (int Other = 1; Other < MAX_SPELLS; Other++) {
 		if (Other != SpellNr && Defined[Other]
 				&& memcmp(SpellList[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
@@ -250,6 +347,172 @@ void InitSpells() {
 	char FileName[4096];
 	sprintf(FileName, "%s/spells.toml", DATAPATH);
 	LoadSpells(FileName);
+}
+
+TCommandRightChecks GetCommandRightChecks(int SpellNr) {
+	switch (SpellNr) {
+		case SPELL_MOVE:
+			return {4, {"vertical", "speed", "coordinate", "mark"}};
+		case SPELL_GET_ITEM_COUNT:
+		case SPELL_GET_ITEM:
+		case SPELL_GET_EXPERIENCE:
+		case SPELL_CHANGE_DATA:
+		case SPELL_GET_SKILL_EXPERIENCE:
+		case SPELL_TELEPORT_TO_FRIEND:
+		case SPELL_RETRIEVE_FRIEND:
+		case SPELL_SUMMON_WILD_CREATURE:
+		case SPELL_GET_POSITION:
+		case SPELL_TEMPLE_TELEPORT:
+		case SPELL_CREATE_GOLD:
+		case SPELL_CHANGE_PROFESSION_OR_SEX:
+		case SPELL_KICK_PLAYER:
+		case SPELL_GET_QUEST_VALUE:
+		case SPELL_SET_QUEST_VALUE:
+		case SPELL_DESINTEGRATE_SPELL:
+		case SPELL_LEVITATE_GAMEMASTER:
+		case SPELL_CLEAR_QUEST_VALUES:
+		case SPELL_KILL_ALL_CREATURES:
+		case SPELL_START_MONSTERRAID:
+			return {1, {""}};
+		default:
+			return {0, {}};
+	}
+}
+
+int GetRightByName(const char *Name) {
+	for (int Right = 0; Right < NUMBER_OF_RIGHTS; Right++) {
+		if (strcmp(Name, RightNames[Right]) == 0) {
+			return Right;
+		}
+	}
+	return NO_RIGHT;
+}
+
+// The right a string of commands.toml names. What names the value in the
+// error text.
+static int ReadRight(const toml::node &Node, const char *What) {
+	if (!Node.is_string()) {
+		TomlError(Node.source(), "%s must be a string", What);
+	}
+	const std::string &Name = Node.as_string()->get();
+	int Right = GetRightByName(Name.c_str());
+	if (Right == NO_RIGHT) {
+		TomlError(Node.source(), "unknown right \"%s\"", Name.c_str());
+	}
+	return Right;
+}
+
+// The rights of a command under right: a string for a command that checks
+// one right, a table by the names of its checks for one that checks more,
+// and nothing for one that checks none.
+static void ReadCommandRights(const toml::table &Entry, int SpellNr) {
+	TCommandRightChecks Checks = GetCommandRightChecks(SpellNr);
+	const toml::node *Node = Entry.get("right");
+	if (Checks.Count == 0) {
+		if (Node != nullptr) {
+			TomlError(Node->source(), "command %d checks no right", SpellNr);
+		}
+		return;
+	}
+	if (Node == nullptr) {
+		TomlError(Entry.source(), "command %d needs right", SpellNr);
+	}
+
+	if (Checks.Names[0][0] == 0) {
+		CommandRight[SpellNr][COMMAND_RIGHT] = ReadRight(*Node, "right");
+		return;
+	}
+
+	if (!Node->is_table()) {
+		TomlError(Node->source(), "right of command %d must be a table of its %d right checks", SpellNr,
+				Checks.Count);
+	}
+	const toml::table &Rights = *Node->as_table();
+	for (const auto &[Key, Value] : Rights) {
+		bool Known = false;
+		for (int i = 0; i < Checks.Count; i++) {
+			Known = Known || Key.str() == Checks.Names[i];
+		}
+		if (!Known) {
+			TomlError(Value.source(), "unknown key \"%s\" in right of command %d", std::string(Key.str()).c_str(),
+					SpellNr);
+		}
+	}
+	for (int i = 0; i < Checks.Count; i++) {
+		const toml::node *Check = Rights.get(Checks.Names[i]);
+		if (Check == nullptr) {
+			TomlError(Node->source(), "right of command %d needs %s", SpellNr, Checks.Names[i]);
+		}
+		CommandRight[SpellNr][i] = ReadRight(*Check, Checks.Names[i]);
+	}
+}
+
+// One [[command]] of commands.toml. Defined notes the command numbers filled
+// so far.
+static void ReadCommand(const toml::node &Node, bool *Defined) {
+	if (!Node.is_table()) {
+		TomlError(Node.source(), "an entry of command must be a table");
+	}
+
+	const toml::table &Entry = *Node.as_table();
+	TomlCheckKeys(Entry, "[[command]]", {"number", "name", "words", "right"});
+	for (const char *Key : {"number", "name", "words"}) {
+		if (!Entry.contains(Key)) {
+			TomlError(Node.source(), "an entry of command needs %s", Key);
+		}
+	}
+
+	int SpellNr = 0;
+	TomlGetNumber(Entry, "number", SpellNr, 1, MAX_SPELLS - 1);
+	if (Defined[SpellNr]) {
+		TomlError(Entry.get("number")->source(), "command %d is defined twice", SpellNr);
+	}
+	if (SpellList[SpellNr].Syllable[0] != 0) {
+		TomlError(Entry.get("number")->source(), "%d is the number of a spell in spells.toml", SpellNr);
+	}
+	Defined[SpellNr] = true;
+
+	TSpellList &Spell = SpellList[SpellNr];
+	memset(&Spell, 0, sizeof(TSpellList));
+
+	char Name[MAX_SPELL_NAME_LENGTH + 1];
+	TomlGetString(Entry, "name", Name, sizeof(Name));
+	Spell.Comment = AddStaticString(Name);
+
+	ReadWords(Entry, Spell.Syllable, true);
+	for (int Other = 1; Other < MAX_SPELLS; Other++) {
+		if (Other != SpellNr && SpellList[Other].Syllable[0] != 0
+				&& memcmp(SpellList[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
+			TomlError(Entry.get("words")->source(), "these words are already the ones of %s %d",
+					Defined[Other] ? "command" : "spell", Other);
+		}
+	}
+
+	ReadCommandRights(Entry, SpellNr);
+}
+
+void LoadCommands(const char *FileName) {
+	for (int i = 0; i < MAX_SPELLS; i++) {
+		for (int j = 0; j < MAX_COMMAND_RIGHTS; j++) {
+			CommandRight[i][j] = NO_RIGHT;
+		}
+	}
+
+	toml::table Commands = TomlParseFile(FileName);
+	TomlCheckKeys(Commands, "the top level", {"command"});
+
+	bool Defined[MAX_SPELLS] = {};
+	if (const toml::array *Entries = TomlGetArray(Commands, "command")) {
+		for (const toml::node &Node : *Entries) {
+			ReadCommand(Node, Defined);
+		}
+	}
+}
+
+void InitCommands() {
+	char FileName[4096];
+	sprintf(FileName, "%s/commands.toml", DATAPATH);
+	LoadCommands(FileName);
 }
 
 // The most rows circles.toml may have (and fields in a row): the size

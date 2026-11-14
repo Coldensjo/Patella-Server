@@ -72,16 +72,20 @@ installation's data folder. The comments at its top explain the fields. Keep
 `objects.srv` there too: the original operator tools (`highscores`,
 `deloldusr`, `mgrep`, `ugrep`, `tempel`) still read it.
 
-## Spells and circles
+## Spells, commands and circles
 
 The game reads its spells (name, words, level, mana, soul points, flags and the
-rune a rune spell makes) from `spells.toml` and the circles, the area shapes
-the spells hit, from `circles.toml`, both in its data folder. What a spell does
-stays in the code, which knows the spells by their numbers. `data/spells.toml`
-is the spell table the game had in its code, written with
-`patella-convert spells spells.toml`; `data/circles.toml` is the original
+rune a rune spell makes) from `spells.toml`, the gamemasters' commands (the
+spells of the classes al and om: name, words and the rights each needs) from
+`commands.toml`, and the circles, the area shapes the spells hit, from
+`circles.toml`, all in its data folder. What a spell or command does stays in
+the code, which knows them by their numbers. `data/spells.toml` and
+`data/commands.toml` are the spell table the game had in its code, with the
+rights its code checked for the commands, written with
+`patella-convert spells spells.toml` and
+`patella-convert commands commands.toml`; `data/circles.toml` is the original
 installation's `dat/circles.dat` converted with
-`patella-convert circles circles.dat circles.toml`. Copy both into the
+`patella-convert circles circles.dat circles.toml`. Copy all three into the
 installation's data folder. The comments at the top of each file explain the
 fields.
 

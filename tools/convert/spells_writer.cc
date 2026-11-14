@@ -1,5 +1,5 @@
-// spells_writer.cc: writes the game's spell table as spells.toml
-// (spells_writer.hh).
+// spells_writer.cc: writes the game's spell table as spells.toml and, with the
+// rights of the commands, commands.toml (spells_writer.hh).
 
 #include "spells_writer.hh"
 
@@ -57,20 +57,21 @@ static std::string Header() {
 	Text += "# unknown key or flag, or a value of the wrong type, is an error.\n";
 	Text += "#\n";
 	Text += "# Each [[spell]] is one spell:\n";
-	Text += "#   number       The spell number, 1 to 255, each at most once. It ties the\n";
-	Text += "#                spell to what it does in the code, and the player files keep\n";
-	Text += "#                the numbers of the spells a player knows, so a spell keeps\n";
-	Text += "#                its number.\n";
+	Text += "#   number       The spell number, 1 to 255, each at most once and none of a\n";
+	Text += "#                command in commands.toml. It ties the spell to what it does\n";
+	Text += "#                in the code, and the player files keep the numbers of the\n";
+	Text += "#                spells a player knows, so a spell keeps its number.\n";
 	Text += "#   name         The name the spellbook shows, at most 30 characters.\n";
 	Text += "#   words        What is said to cast it, as the spellbook shows it: the\n";
 	Text += "#                class syllable and the next one as one word, every further\n";
 	Text += "#                syllable a word of its own, separated by single spaces; at\n";
-	Text += "#                most 10 syllables, and no two spells with the same. The class\n";
-	Text += "#                says how the spell is cast: \"ex\" and \"ut\" at once, \"ad\"\n";
-	Text += "#                makes a rune of a blank rune in a hand, \"al\" and \"om\" are\n";
-	Text += "#                commands of the gamemasters' character and account rights.\n";
-	Text += "#                \"para\" stands for a word the caster chooses (a name, a\n";
-	Text += "#                number; in quotes if it has spaces).\n";
+	Text += "#                most 10 syllables, and no two spells (or commands in\n";
+	Text += "#                commands.toml) with the same. The class says how the spell\n";
+	Text += "#                is cast: \"ex\" and \"ut\" at once, \"ad\" makes a rune of a\n";
+	Text += "#                blank rune in a hand; the classes \"al\" and \"om\" are the\n";
+	Text += "#                commands, in commands.toml. \"para\" stands for a word the\n";
+	Text += "#                caster chooses (a name, a number; in quotes if it has\n";
+	Text += "#                spaces).\n";
 	Text += "#   level        The character level needed to cast it, or for a rune to\n";
 	Text += "#                make it. Left out, 0.\n";
 	Text += "#   mana         The mana it costs. Left out, 0.\n";
@@ -123,47 +124,72 @@ static bool IsEmpty(const TSpellList &Spell) {
 			&& Spell.Amount == 0;
 }
 
-std::string SpellsToToml() {
+// Whether the words of a spell table entry make it a command: class al or om.
+static bool IsCommand(const TSpellList &Spell) {
+	return Spell.Syllable[0] == SYLLABLE_AL || Spell.Syllable[0] == SYLLABLE_OM;
+}
+
+// Throws for what neither spells.toml nor commands.toml can hold of the spell
+// table entry SpellNr, which is not empty. KnownFlags are the flags with a
+// name.
+static void CheckSpell(int SpellNr, int KnownFlags) {
+	const TSpellList &Spell = SpellList[SpellNr];
+	if (Spell.Comment == nullptr) {
+		throw "a spell without a name, which spells.toml cannot hold";
+	}
+	if (strlen(Spell.Comment) > static_cast<size_t>(MAX_SPELL_NAME_LENGTH)) {
+		throw "a spell name longer than 30 characters, which spells.toml refuses";
+	}
+	if (Spell.Syllable[0] < SYLLABLE_AL || Spell.Syllable[0] > SYLLABLE_OM) {
+		throw "a spell whose words do not start with al, ad, ex, ut or om, which spells.toml cannot hold";
+	}
+	for (int i = 1; i < MAX_SPELL_SYLLABLES; i++) {
+		if (Spell.Syllable[i] != 0 && (Spell.Syllable[i - 1] == 0 || Spell.Syllable[i] >= MAX_SYLLABLES
+					|| SpellSyllable[Spell.Syllable[i]][0] == 0)) {
+			throw "a spell with an unknown syllable or a gap in its words, which spells.toml cannot hold";
+		}
+	}
+	for (int Other = 1; Other < SpellNr; Other++) {
+		if (memcmp(SpellList[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
+			throw "two spells with the same words, which spells.toml refuses";
+		}
+	}
+	if (Spell.Mana < 0 || Spell.SoulPoints < 0 || Spell.Amount < 0) {
+		throw "a negative mana, soul points or charges, which spells.toml refuses";
+	}
+	if ((Spell.Flags & ~KnownFlags) != 0) {
+		throw "a spell flag without a name, which spells.toml cannot hold";
+	}
+	if (Spell.RuneGr == 0 && (Spell.RuneNr != 0 || Spell.RuneLevel != 0 || Spell.Amount != 0)) {
+		throw "rune values without a rune group, which spells.toml cannot hold";
+	}
+	if (IsCommand(Spell) && (Spell.Level != 0 || Spell.Mana != 0 || Spell.SoulPoints != 0 || Spell.Flags != 0
+				|| Spell.RuneGr != 0)) {
+		throw "a command (al or om) with a level, mana, soul points, flags or a rune, which commands.toml cannot hold";
+	}
+}
+
+// Checks the whole table (CheckSpell) and returns the flags with a name.
+static int CheckSpells() {
 	int KnownFlags = 0;
 	for (const auto &Flag : FlagKeys) {
 		KnownFlags |= Flag.Flag;
 	}
+	for (int SpellNr = 1; SpellNr < MAX_SPELLS; SpellNr++) {
+		if (!IsEmpty(SpellList[SpellNr])) {
+			CheckSpell(SpellNr, KnownFlags);
+		}
+	}
+	return KnownFlags;
+}
 
+std::string SpellsToToml() {
+	CheckSpells();
 	std::string Text = Header();
 	for (int SpellNr = 1; SpellNr < MAX_SPELLS; SpellNr++) {
 		const TSpellList &Spell = SpellList[SpellNr];
-		if (IsEmpty(Spell)) {
+		if (IsEmpty(Spell) || IsCommand(Spell)) {
 			continue;
-		}
-
-		if (Spell.Comment == nullptr) {
-			throw "a spell without a name, which spells.toml cannot hold";
-		}
-		if (strlen(Spell.Comment) > static_cast<size_t>(MAX_SPELL_NAME_LENGTH)) {
-			throw "a spell name longer than 30 characters, which spells.toml refuses";
-		}
-		if (Spell.Syllable[0] < SYLLABLE_AL || Spell.Syllable[0] > SYLLABLE_OM) {
-			throw "a spell whose words do not start with al, ad, ex, ut or om, which spells.toml cannot hold";
-		}
-		for (int i = 1; i < MAX_SPELL_SYLLABLES; i++) {
-			if (Spell.Syllable[i] != 0 && (Spell.Syllable[i - 1] == 0 || Spell.Syllable[i] >= MAX_SYLLABLES
-						|| SpellSyllable[Spell.Syllable[i]][0] == 0)) {
-				throw "a spell with an unknown syllable or a gap in its words, which spells.toml cannot hold";
-			}
-		}
-		for (int Other = 1; Other < SpellNr; Other++) {
-			if (memcmp(SpellList[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
-				throw "two spells with the same words, which spells.toml refuses";
-			}
-		}
-		if (Spell.Mana < 0 || Spell.SoulPoints < 0 || Spell.Amount < 0) {
-			throw "a negative mana, soul points or charges, which spells.toml refuses";
-		}
-		if ((Spell.Flags & ~KnownFlags) != 0) {
-			throw "a spell flag without a name, which spells.toml cannot hold";
-		}
-		if (Spell.RuneGr == 0 && (Spell.RuneNr != 0 || Spell.RuneLevel != 0 || Spell.Amount != 0)) {
-			throw "rune values without a rune group, which spells.toml cannot hold";
 		}
 
 		Text += "\n[[spell]]\n";
@@ -186,6 +212,87 @@ std::string SpellsToToml() {
 			Text += "rune = { group = " + std::to_string(Spell.RuneGr) + ", number = " + std::to_string(Spell.RuneNr)
 					+ ", magic_level = " + std::to_string(Spell.RuneLevel) + ", charges = "
 					+ std::to_string(Spell.Amount) + " }\n";
+		}
+	}
+	return Text;
+}
+
+static std::string CommandsHeader() {
+	std::string Text;
+	Text += "# commands.toml: the commands of the game server, the spells of the classes al\n";
+	Text += "# and om, which gamemasters give by saying their words (and players, those of\n";
+	Text += "# their houses), written by patella-convert from the spell table the game had\n";
+	Text += "# in its code and the rights its code checked. The game reads commands.toml in\n";
+	Text += "# its data folder ([paths] data of config.toml), after spells.toml. What a\n";
+	Text += "# command does stays in the code; this file says what it is called, what is\n";
+	Text += "# said to give it and which rights it needs. An unknown key or right, or a\n";
+	Text += "# value of the wrong type, is an error.\n";
+	Text += "#\n";
+	Text += "# Each [[command]] is one command:\n";
+	Text += "#   number  The command number, 1 to 255, each at most once and none of a\n";
+	Text += "#           spell in spells.toml. It ties the command to what it does in the\n";
+	Text += "#           code.\n";
+	Text += "#   name    Its name, at most 30 characters.\n";
+	Text += "#   words   What is said to give it, written as spells.toml writes words:\n";
+	Text += "#           the class syllable and the next one as one word, every further\n";
+	Text += "#           syllable a word of its own, separated by single spaces; at most\n";
+	Text += "#           10 syllables, and no two commands or spells with the same. The\n";
+	Text += "#           class is \"al\" for the commands of character rights, \"om\" for\n";
+	Text += "#           those of account rights. \"para\" stands for a word the caster\n";
+	Text += "#           chooses (a name, a number; in quotes if it has spaces).\n";
+	Text += "#   right   The right a player needs for the command to do anything, by its\n";
+	Text += "#           name below. Command 37 (Move) needs one of four rights, by the\n";
+	Text += "#           word given, so its right is a table of them: vertical (\"up\" and\n";
+	Text += "#           \"down\"), speed (\"fast\", \"fastest\", \"slow\" and \"normal\"),\n";
+	Text += "#           coordinate (x,y,z or [x,y,z]) and mark (the name of a mark). The\n";
+	Text += "#           code checks no right for the house commands and for those that\n";
+	Text += "#           point to the rule violation dialog (Ctrl+Y): they have none.\n";
+	Text += "#           Every other command needs it.\n";
+	Text += "#\n";
+	Text += "# The rights:\n";
+	std::vector<std::string> Names(RightNames, RightNames + NUMBER_OF_RIGHTS);
+	Text += CommentList(Names, "#   ", ", ");
+	return Text;
+}
+
+std::string CommandsToToml() {
+	CheckSpells();
+	for (int SpellNr = 0; SpellNr < MAX_SPELLS; SpellNr++) {
+		TCommandRightChecks Checks = GetCommandRightChecks(SpellNr);
+		bool Command = !IsEmpty(SpellList[SpellNr]) && IsCommand(SpellList[SpellNr]);
+		for (int i = 0; i < MAX_COMMAND_RIGHTS; i++) {
+			int Right = CommandRight[SpellNr][i];
+			if (Right != NO_RIGHT && (Right < 0 || Right >= NUMBER_OF_RIGHTS)) {
+				throw "a right without a name, which commands.toml cannot hold";
+			}
+			if (Right != NO_RIGHT && (!Command || i >= Checks.Count)) {
+				throw "a right for a check that no command has, which commands.toml cannot hold";
+			}
+			if (Right == NO_RIGHT && Command && i < Checks.Count) {
+				throw "a command without a right for one of its checks, which commands.toml refuses";
+			}
+		}
+	}
+
+	std::string Text = CommandsHeader();
+	for (int SpellNr = 1; SpellNr < MAX_SPELLS; SpellNr++) {
+		const TSpellList &Spell = SpellList[SpellNr];
+		if (IsEmpty(Spell) || !IsCommand(Spell)) {
+			continue;
+		}
+
+		Text += "\n[[command]]\n";
+		Text += "number = " + std::to_string(SpellNr) + "\n";
+		Text += "name = " + TomlQuote(Spell.Comment) + "\n";
+		Text += "words = " + TomlQuote(SpellWords(Spell.Syllable)) + "\n";
+		TCommandRightChecks Checks = GetCommandRightChecks(SpellNr);
+		if (Checks.Count == 1 && Checks.Names[0][0] == 0) {
+			Text += "right = " + TomlQuote(RightNames[CommandRight[SpellNr][COMMAND_RIGHT]]) + "\n";
+		} else if (Checks.Count > 0) {
+			Text += "[command.right]\n";
+			for (int i = 0; i < Checks.Count; i++) {
+				Text += std::string(Checks.Names[i]) + " = " + TomlQuote(RightNames[CommandRight[SpellNr][i]]) + "\n";
+			}
 		}
 	}
 	return Text;
