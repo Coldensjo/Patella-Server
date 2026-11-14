@@ -36,7 +36,7 @@ const char *GetName(Object Obj) {
 		if (cr != nullptr) {
 			snprintf(ObjectName, sizeof(ObjectName), "%s", cr->Name);
 		} else {
-			error("GetName: Kreatur %d existiert nicht.\n", Obj.getCreatureID());
+			error("GetName: Creature %d does not exist.\n", Obj.getCreatureID());
 		}
 	} else {
 		Help = Obj.getObjectType().getName(1);
@@ -60,7 +60,7 @@ const char *GetName(Object Obj) {
 
 const char *GetInfo(Object Obj) {
 	if (!Obj.exists()) {
-		error("GetInfo: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetInfo: Given object does not exist.\n");
 		return nullptr;
 	}
 
@@ -69,7 +69,7 @@ const char *GetInfo(Object Obj) {
 
 int GetWeight(Object Obj, int Count) {
 	if (!Obj.exists()) {
-		error("GetWeight: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetWeight: Given object does not exist.\n");
 		return 0;
 	}
 
@@ -87,7 +87,7 @@ int GetWeight(Object Obj, int Count) {
 			return 80000;
 		}
 
-		error("GetWeight: Objekttyp %d ist nicht nehmbar.\n", Obj.getObjectType().getTypeID());
+		error("GetWeight: Object type %d is not takeable.\n", Obj.getObjectType().getTypeID());
 		return 0;
 	}
 
@@ -127,7 +127,7 @@ int GetCompleteWeight(Object Obj) {
 
 uint32_t GetObjectCreatureID(Object Obj) {
 	if (!Obj.exists()) {
-		error("GetObjectCreatureID: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetObjectCreatureID: Given object does not exist.\n");
 		return 0;
 	}
 
@@ -143,7 +143,7 @@ uint32_t GetObjectCreatureID(Object Obj) {
 
 int GetObjectBodyPosition(Object Obj) {
 	if (!Obj.exists()) {
-		error("GetObjectBodyPosition: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetObjectBodyPosition: Given object does not exist.\n");
 		return 0;
 	}
 
@@ -156,12 +156,12 @@ int GetObjectBodyPosition(Object Obj) {
 
 int GetObjectRNum(Object Obj) {
 	if (!Obj.exists()) {
-		error("GetObjectRNum: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetObjectRNum: Given object does not exist.\n");
 		return 0;
 	}
 
 	if (Obj.isMapContainer()) {
-		error("GetObjectRNum: Objekt ist MapContainer.\n");
+		error("GetObjectRNum: Object is MapContainer.\n");
 		return 0;
 	}
 
@@ -169,7 +169,7 @@ int GetObjectRNum(Object Obj) {
 	int Count = 0;
 	while (Search != Obj) {
 		if (Search == NONE) {
-			error("GetObjectRNum: Objekt liegt nicht in Container\n");
+			error("GetObjectRNum: Object is not in container\n");
 			return 0;
 		}
 		Count++;
@@ -183,12 +183,12 @@ bool ObjectInRange(uint32_t CreatureID, Object Obj, int Range) {
 	int x, y, z;
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("ObjectInRange: Ung\xfcltige Kreatur CreatureID=%d \xfc" "bergeben.\n", CreatureID);
+		error("ObjectInRange: Invalid creature CreatureID=%d given.\n", CreatureID);
 		return false;
 	}
 
 	if (!Obj.exists()) {
-		error("ObjectInRange: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("ObjectInRange: Given object does not exist.\n");
 		return false;
 	}
 
@@ -198,7 +198,7 @@ bool ObjectInRange(uint32_t CreatureID, Object Obj, int Range) {
 
 bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range) {
 	if (!Obj.exists()) {
-		error("ObjectAccessible: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("ObjectAccessible: Given object does not exist.\n");
 		return false;
 	}
 
@@ -221,7 +221,7 @@ bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range) {
 		if (CoordinateHookable(x, y, z)) {
 			TCreature *cr = GetCreature(CreatureID);
 			if (cr == nullptr) {
-				error("ObjectAccessible: Kreatur existiert nicht.\n");
+				error("ObjectAccessible: Creature does not exist.\n");
 				return false;
 			}
 
@@ -258,7 +258,7 @@ const char *GetLiquidName(uint32_t nr) {
 		case LIQUID_LIFEFLUID: return "lifefluid";
 		case LIQUID_LEMONADE: return "lemonade";
 		default: {
-			error("GetLiquidName: Ung\xfcltiger Fl\xfcssigkeitstyp %d\n", nr);
+			error("GetLiquidName: Invalid liquid type %d\n", nr);
 			return "unknown";
 		}
 	}
@@ -280,7 +280,7 @@ unsigned char GetLiquidColor(uint32_t nr) {
 		case LIQUID_LIFEFLUID: return LIQUID_COLOR_RED;
 		case LIQUID_LEMONADE: return LIQUID_COLOR_YELLOW;
 		default: {
-			error("GetLiquidColor: Ung\xfcltiger Fl\xfcssigkeitstyp %d\n", nr);
+			error("GetLiquidColor: Invalid liquid type %d\n", nr);
 			return LIQUID_COLOR_NONE;
 		}
 	}
@@ -288,7 +288,7 @@ unsigned char GetLiquidColor(uint32_t nr) {
 
 int ObjectDistance(Object Obj1, Object Obj2) {
 	if (!Obj1.exists() || !Obj2.exists()) {
-		error("ObjectDistance: \xdc" "bergebene Objekte existieren nicht.\n");
+		error("ObjectDistance: Given objects do not exist.\n");
 		return INT_MAX;
 	}
 
@@ -305,13 +305,13 @@ int ObjectDistance(Object Obj1, Object Obj2) {
 Object GetBodyContainer(uint32_t CreatureID, int Position) {
 	if ((Position < FIRST_BODY_POSITION || Position > LAST_BODY_POSITION)
 			&& (Position < POSITION_CONTAINER_BASE || Position > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1)) {
-		error("GetBodyContainer: ung\xfcltige Position: %d\n", Position);
+		error("GetBodyContainer: invalid position: %d\n", Position);
 		return NONE;
 	}
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("GetBodyContainer: Kreatur %d existiert nicht.\n", CreatureID);
+		error("GetBodyContainer: Creature %d does not exist.\n", CreatureID);
 		return NONE;
 	}
 
@@ -321,7 +321,7 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 
 	if (Position >= POSITION_CONTAINER_BASE) {
 		if (cr->Type != PLAYER) {
-			error("GetBodyContainer: Nur Spieler haben offene Container.\n");
+			error("GetBodyContainer: Only players have open containers.\n");
 			return NONE;
 		}
 
@@ -330,7 +330,7 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 
 	// Quirk: the error does not end the function.
 	if (!cr->GetCreatureObject().exists()) {
-		error("GetBodyContainer: Kreatur-Objekt von %s existiert nicht (Pos %d).\n", cr->Name, Position);
+		error("GetBodyContainer: Creature object of %s does not exist (pos %d).\n", cr->Name, Position);
 	}
 
 	return GetContainerObject(cr->GetCreatureObject(), Position - FIRST_BODY_POSITION);
@@ -338,7 +338,7 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 
 Object GetBodyObject(uint32_t CreatureID, int Position) {
 	if (Position < FIRST_BODY_POSITION || Position > LAST_BODY_POSITION) {
-		error("GetBodyObject: ung\xfcltige Position %d\n", Position);
+		error("GetBodyObject: invalid position %d\n", Position);
 		return NONE;
 	}
 
@@ -376,7 +376,7 @@ Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType 
 		}
 
 		if ((y > LAST_BODY_POSITION && y < POSITION_CONTAINER_BASE) || y > POSITION_CONTAINER_BASE + MAX_OPEN_CONTAINERS - 1) {
-			error("GetObject: Ung\xfcltiger ContainerCode x=%d,y=%d,z=%d,RNum=%d,Type=%d.\n",
+			error("GetObject: Invalid ContainerCode x=%d,y=%d,z=%d,RNum=%d,Type=%d.\n",
 					x, y, z, RNum, Type.getTypeID());
 			return NONE;
 		}
@@ -384,12 +384,12 @@ Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType 
 		if (y >= POSITION_CONTAINER_BASE) {
 			TCreature *cr = GetCreature(CreatureID);
 			if (cr == nullptr) {
-				error("GetObject: Kreatur %d existiert nicht.\n", CreatureID);
+				error("GetObject: Creature %d does not exist.\n", CreatureID);
 				return NONE;
 			}
 
 			if (cr->Type != PLAYER) {
-				error("GetObject: Nur Spieler haben offene Container.\n");
+				error("GetObject: Only players have open containers.\n");
 				return NONE;
 			}
 
@@ -464,7 +464,7 @@ Object GetRowObject(Object Obj, ObjectType Type, uint32_t Value, bool Recurse) {
 Object GetInventoryObject(uint32_t CreatureID, ObjectType Type, uint32_t Value) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("GetInventoryObject: Kreatur %d existiert nicht.\n", CreatureID);
+		error("GetInventoryObject: Creature %d does not exist.\n", CreatureID);
 		return NONE;
 	}
 
@@ -490,7 +490,7 @@ Object GetInventoryObject(uint32_t CreatureID, ObjectType Type, uint32_t Value) 
 
 int CountObjectsInContainer(Object Con) {
 	if (!Con.exists()) {
-		error("CountObjectsInContainer: Container existiert nicht.\n");
+		error("CountObjectsInContainer: Container does not exist.\n");
 		return 0;
 	}
 
@@ -552,12 +552,12 @@ int CountObjects(Object Obj, ObjectType Type, uint32_t Value) {
 int CountInventoryObjects(uint32_t CreatureID, ObjectType Type, uint32_t Value) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("CountInventoryObjects: Kreatur %d existiert nicht; Objekttyp %d.\n", CreatureID, Type.getTypeID());
+		error("CountInventoryObjects: Creature %d does not exist; object type %d.\n", CreatureID, Type.getTypeID());
 		return 0;
 	}
 
 	if (cr->GetCreatureObject() == NONE) {
-		error("CountInventoryObjects: Kreatur %s hat kein Kreatur-Objekt.\n", cr->Name);
+		error("CountInventoryObjects: Creature %s has no creature object.\n", cr->Name);
 		return 0;
 	}
 
@@ -598,12 +598,12 @@ int CountMoney(Object Obj) {
 int CountInventoryMoney(uint32_t CreatureID) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("CountInventoryMoney: Kreatur %d existiert nicht.\n", CreatureID);
+		error("CountInventoryMoney: Creature %d does not exist.\n", CreatureID);
 		return 0;
 	}
 
 	if (cr->GetCreatureObject() == NONE) {
-		error("CountInventoryMoney: Kreatur %s hat kein Kreatur-Objekt.\n", cr->Name);
+		error("CountInventoryMoney: Creature %s has no creature object.\n", cr->Name);
 		return 0;
 	}
 
@@ -611,9 +611,9 @@ int CountInventoryMoney(uint32_t CreatureID) {
 }
 
 void CalculateChange(int Amount, int &Gold, int &Platinum, int &Crystal) {
-	print(3, "Zahle %d mit %d/%d/%d M\xfcnzen...\n", Amount, Gold, Platinum, Crystal);
+	print(3, "Paying %d with %d/%d/%d coins...\n", Amount, Gold, Platinum, Crystal);
 	if (Crystal * 10000 + Platinum * 100 + Gold < Amount) {
-		error("CalculateChange: %d/%d/%d M\xfcnzen reichen nicht zur Bezahlung von %d.\n",
+		error("CalculateChange: %d/%d/%d coins are not enough to pay %d.\n",
 				Gold, Platinum, Crystal, Amount);
 		return;
 	}
@@ -643,9 +643,9 @@ void CalculateChange(int Amount, int &Gold, int &Platinum, int &Crystal) {
 		}
 	}
 
-	print(3, "Verwende %d/%d/%d M\xfcnzen.\n", Gold, Platinum, Crystal);
+	print(3, "Using %d/%d/%d coins.\n", Gold, Platinum, Crystal);
 	if (Crystal * 10000 + Platinum * 100 + Gold != Amount) {
-		error("CalculateChange: Fehlerhafte Berechnung: %d/%d/%d M\xfcnzen f\xfcr %d.\n",
+		error("CalculateChange: Wrong calculation: %d/%d/%d coins for %d.\n",
 				Gold, Platinum, Crystal, Amount);
 	}
 }
@@ -969,18 +969,18 @@ bool SearchSpawnField(int &x, int &y, int &z, int Distance, bool Player) {
 bool SearchFlightField(uint32_t FugitiveID, uint32_t PursuerID, int &x, int &y, int &z) {
 	TCreature *Fugitive = GetCreature(FugitiveID);
 	if (Fugitive == nullptr) {
-		error("SearchFlightField: Fl\xfc" "chtling existiert nicht.\n");
+		error("SearchFlightField: Fugitive does not exist.\n");
 		return false;
 	}
 
 	TCreature *Pursuer = GetCreature(PursuerID);
 	if (Pursuer == nullptr) {
-		error("SearchFlightField: Verfolger existiert nicht.\n");
+		error("SearchFlightField: Pursuer does not exist.\n");
 		return false;
 	}
 
 	if (Fugitive->posz != Pursuer->posz) {
-		error("SearchFlightField: Fl\xfc" "chtling und Verfolger sind auf verschiedenen Ebenen.\n");
+		error("SearchFlightField: Fugitive and pursuer are on different levels.\n");
 		return false;
 	}
 
@@ -1049,7 +1049,7 @@ bool SearchFlightField(uint32_t FugitiveID, uint32_t PursuerID, int &x, int &y, 
 			case 7: x = Fugitive->posx;     y = Fugitive->posy + 1; break;
 			case 8: x = Fugitive->posx + 1; y = Fugitive->posy + 1; break;
 			default: {
-				error("SearchFlightField: Ung\xfcltige Richtung %d.\n", Try[i]);
+				error("SearchFlightField: Invalid direction %d.\n", Try[i]);
 				return false;
 			}
 		}
@@ -1158,7 +1158,7 @@ bool ThrowPossible(int sx, int sy, int sz, int zx, int zy, int zz, int Power) {
 void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("GetCreatureLight: Kreatur existiert nicht.\n");
+		error("GetCreatureLight: Creature does not exist.\n");
 		Brightness = 0;
 		Color = 0;
 		return;
@@ -1202,7 +1202,7 @@ void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 int GetInventoryWeight(uint32_t CreatureID) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("GetInventoryWeight: Kreatur %d existiert nicht.\n", CreatureID);
+		error("GetInventoryWeight: Creature %d does not exist.\n", CreatureID);
 		return 0;
 	}
 
@@ -1212,13 +1212,13 @@ int GetInventoryWeight(uint32_t CreatureID) {
 bool CheckRight(uint32_t CharacterID, RIGHT Right) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("CheckRight: Spieler existiert nicht; Right=%d.\n", Right);
+		error("CheckRight: Player does not exist; Right=%d.\n", Right);
 		return false;
 	}
 
 	// The right is compared as a signed number.
 	if (static_cast<int>(Right) < 0 || static_cast<int>(Right) / 8 >= static_cast<int>(sizeof(pl->Rights))) {
-		error("CheckRight: Ung\xfcltige Rechtnummer %d.\n", Right);
+		error("CheckRight: Invalid right number %d.\n", Right);
 		return false;
 	}
 
@@ -1228,19 +1228,19 @@ bool CheckRight(uint32_t CharacterID, RIGHT Right) {
 bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("CheckBanishmentRight: Spieler existiert nicht.\n");
+		error("CheckBanishmentRight: Player does not exist.\n");
 		return false;
 	}
 
 	// The messages print the 32-bit ID as a signed number.
 	if (!in(Reason, 0, LAST_BANISHMENT_RIGHT - FIRST_BANISHMENT_RIGHT)) {
-		error("CheckBanishmentRight: Ung\xfcltiger Banngrund %d von Spieler %ld.\n",
+		error("CheckBanishmentRight: Invalid banishment reason %d from player %ld.\n",
 				Reason, static_cast<long>(static_cast<int32_t>(CharacterID)));
 		return false;
 	}
 
 	if (!in(Action, BANISHMENT_ACTION_NOTATION, BANISHMENT_ACTION_STATEMENT_REPORT)) {
-		error("CheckBanishmentRight: Ung\xfcltige Aktion %d von Spieler %ld.\n",
+		error("CheckBanishmentRight: Invalid action %d from player %ld.\n",
 				Action, static_cast<long>(static_cast<int32_t>(CharacterID)));
 		return false;
 	}
@@ -1322,7 +1322,7 @@ const char *GetBanishmentReason(int Reason) {
 		case SPOILING_AUCTION: return "SPOILING_AUCTION";
 		case INVALID_PAYMENT: return "INVALID_PAYMENT";
 		default: {
-			error("GetBanishmentReason: Ung\xfcltiger Verbannungsgrund %d.\n", Reason);
+			error("GetBanishmentReason: Invalid banishment reason %d.\n", Reason);
 			return "";
 		}
 	}
