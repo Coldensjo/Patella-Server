@@ -24,6 +24,14 @@
 #include "time.hh"
 #include "houses.hh"
 
+// The entries ChangeSubowners and ChangeGuests take from the edited list.
+const int MAX_SUBOWNERS = 10;
+const int MAX_GUESTS = 100;
+
+// The time a rent pays for, in seconds: thirty days, as the letter to a new
+// owner says.
+const int RENT_PERIOD = 2592000;
+
 struct THouseGuest {
 	char Name[60];
 	operator char *() { return Name; }
@@ -360,7 +368,7 @@ void ChangeSubowners(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 			p[l] = 0;
 			strcpy(house->Subowner(house->Subowners), p);
 			house->Subowners++;
-			if (house->Subowners >= 10) {
+			if (house->Subowners >= MAX_SUBOWNERS) {
 				break;
 			}
 		}
@@ -416,7 +424,7 @@ void ChangeGuests(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 			p[l] = 0;
 			strcpy(house->Guest(house->Guests), p);
 			house->Guests++;
-			if (house->Guests >= 100) {
+			if (house->Guests >= MAX_GUESTS) {
 				break;
 			}
 		}
@@ -452,7 +460,7 @@ void KickGuest(unsigned short HouseID, TPlayer *Guest) {
 	}
 
 	Object Obj = Guest->GetCreatureObject();
-	GraphicalEffect(Obj, 3);
+	GraphicalEffect(Obj, EFFECT_POFF);
 	Object Bed = GetFirstObject(Guest->posx, Guest->posy, Guest->posz);
 	while (Bed != NONE && !Bed.getFlag(BED)) {
 		Bed++;
@@ -468,7 +476,7 @@ void KickGuest(unsigned short HouseID, TPlayer *Guest) {
 	}
 
 	Move(0, Obj, GetMapContainer(house->ExitX, house->ExitY, house->ExitZ), -1, false, NONE);
-	GraphicalEffect(Obj, 11);
+	GraphicalEffect(Obj, EFFECT_TELEPORT);
 }
 
 void KickGuest(unsigned short HouseID, TPlayer *Host, TPlayer *Guest) {
@@ -515,7 +523,7 @@ void KickGuests(unsigned short HouseID) {
 		throw ERROR;
 	}
 
-	TFindCreatures Search(MaxHouseX, MaxHouseY, house->CenterX, house->CenterY, 1);
+	TFindCreatures Search(MaxHouseX, MaxHouseY, house->CenterX, house->CenterY, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -893,7 +901,7 @@ void FinishAuctions() {
 			house->OwnerID = CharacterIDs[i];
 			strcpy(house->OwnerName, CharacterNames[i]);
 			house->LastTransition = (int)TimeStamp;
-			house->PaidUntil = (int)TimeStamp + 2592000;
+			house->PaidUntil = (int)TimeStamp + RENT_PERIOD;
 		}
 
 		while (GetFirstContainerObject(Con) != NONE) {
@@ -1178,7 +1186,7 @@ void CollectRents() {
 			Log("houses", "Mieter hat gen\xfcgend Geld.\n");
 			DeleteMoney(Con, House(i).Rent);
 			SaveDepot(PlayerData, House(i).DepotNr, Con);
-			House(i).PaidUntil += 2592000;
+			House(i).PaidUntil += RENT_PERIOD;
 		}
 
 		while (GetFirstContainerObject(Con) != NONE) {
