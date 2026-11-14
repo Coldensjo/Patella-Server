@@ -9,18 +9,31 @@
 #include "utils.hh"
 #include "strings.hh"
 
+// The text bytes of a static string block, the strings of a dynamic string
+// block and its text bytes. A dynamic string's number is its block's index
+// times DYNAMIC_STRING_BLOCK_ENTRIES plus its entry plus 1 (0 is no string).
+const int STATIC_STRING_BLOCK_SIZE = 65536;
+const int DYNAMIC_STRING_BLOCK_ENTRIES = 256;
+const int DYNAMIC_STRING_BLOCK_SIZE = 32768;
+
+// TDynamicStringTableBlock::EntryType: a free entry, a string, and a deleted
+// string whose text CleanupDynamicStrings removes.
+const int DYNAMIC_STRING_FREE = 0;
+const int DYNAMIC_STRING_USED = 1;
+const int DYNAMIC_STRING_DELETED = 2;
+
 struct TStaticStringTableBlock {
 	int TotalTextLength;
-	char Text[65536];
+	char Text[STATIC_STRING_BLOCK_SIZE];
 };
 
 struct TDynamicStringTableBlock {
 	int FreeEntries;
 	int TotalTextLength;
 	bool Dirty;
-	unsigned char EntryType[256];
-	unsigned short StringOffset[256];
-	char Text[32768];
+	unsigned char EntryType[DYNAMIC_STRING_BLOCK_ENTRIES];
+	unsigned short StringOffset[DYNAMIC_STRING_BLOCK_ENTRIES];
+	char Text[DYNAMIC_STRING_BLOCK_SIZE];
 };
 
 list<TStaticStringTableBlock> StaticStringTable;
@@ -28,7 +41,7 @@ list<TDynamicStringTableBlock> DynamicStringTable;
 
 const char *AddStaticString(const char *String) {
 	int Length = static_cast<int>(strlen(String));
-	if (Length >= 65536) {
+	if (Length >= STATIC_STRING_BLOCK_SIZE) {
 		error("AddStaticString: String zu lang (%d).\n", Length);
 		return nullptr;
 	}
@@ -39,7 +52,7 @@ const char *AddStaticString(const char *String) {
 
 	listIterator<TStaticStringTableBlock> iter(StaticStringTable.first());
 	while (iter() != nullptr) {
-		if (65536 - (*iter)->TotalTextLength > Length + 1) {
+		if (STATIC_STRING_BLOCK_SIZE - (*iter)->TotalTextLength > Length + 1) {
 			break;
 		}
 		iter++;
@@ -58,7 +71,7 @@ const char *AddStaticString(const char *String) {
 
 uint32_t AddDynamicString(char *String) {
 	int Length = static_cast<int>(strlen(String));
-	if (Length >= 32768) {
+	if (Length >= DYNAMIC_STRING_BLOCK_SIZE) {
 		error("AddDynamicString: String zu lang (%d)\n", Length);
 		return 0;
 	}
@@ -71,7 +84,7 @@ uint32_t AddDynamicString(char *String) {
 	int count = 0;
 	while (iter() != nullptr) {
 		if ((*iter)->FreeEntries > 0
-				&& 32768 - (*iter)->TotalTextLength > Length + 1) {
+				&& DYNAMIC_STRING_BLOCK_SIZE - (*iter)->TotalTextLength > Length + 1) {
 			break;
 		}
 		iter++;
@@ -81,18 +94,18 @@ uint32_t AddDynamicString(char *String) {
 	if (iter() == nullptr) {
 		iter = DynamicStringTable.append();
 		TDynamicStringTableBlock *p = *iter;
-		p->FreeEntries = 256;
+		p->FreeEntries = DYNAMIC_STRING_BLOCK_ENTRIES;
 		p->TotalTextLength = 0;
 		p->Dirty = false;
-		for (int i = 0; i < 256; i++) {
-			p->EntryType[i] = 0;
+		for (int i = 0; i < DYNAMIC_STRING_BLOCK_ENTRIES; i++) {
+			p->EntryType[i] = DYNAMIC_STRING_FREE;
 		}
 	}
 
 	TDynamicStringTableBlock *p = *iter;
 	int pos = -1;
-	for (int i = 0; i < 256; i++) {
-		if (p->EntryType[i] == 0) {
+	for (int i = 0; i < DYNAMIC_STRING_BLOCK_ENTRIES; i++) {
+		if (p->EntryType[i] == DYNAMIC_STRING_FREE) {
 			pos = i;
 			break;
 		}
@@ -103,12 +116,12 @@ uint32_t AddDynamicString(char *String) {
 		return 0;
 	}
 
-	p->EntryType[pos] = 1;
+	p->EntryType[pos] = DYNAMIC_STRING_USED;
 	p->FreeEntries--;
 	p->StringOffset[pos] = static_cast<unsigned short>(p->TotalTextLength);
 	memcpy(p->Text + p->TotalTextLength, String, Length + 1);
 	p->TotalTextLength += Length + 1;
-	return count * 256 + pos + 1;
+	return count * DYNAMIC_STRING_BLOCK_ENTRIES + pos + 1;
 }
 
 char *GetDynamicString(uint32_t Number) {
@@ -117,8 +130,8 @@ char *GetDynamicString(uint32_t Number) {
 	}
 
 	Number--;
-	int Block = Number / 256;
-	int pos = Number % 256;
+	int Block = Number / DYNAMIC_STRING_BLOCK_ENTRIES;
+	int pos = Number % DYNAMIC_STRING_BLOCK_ENTRIES;
 	int count = 0;
 	listIterator<TDynamicStringTableBlock> iter(DynamicStringTable.first());
 	while (count < Block && iter() != nullptr) {
@@ -132,7 +145,7 @@ char *GetDynamicString(uint32_t Number) {
 	}
 
 	TDynamicStringTableBlock *p = *iter;
-	if (p->EntryType[pos] != 1) {
+	if (p->EntryType[pos] != DYNAMIC_STRING_USED) {
 		error("GetDynamicString: Eintrag f\xfcr String %u existiert nicht\n", Number + 1);
 		return nullptr;
 	}
@@ -146,8 +159,8 @@ void DeleteDynamicString(uint32_t Number) {
 	}
 
 	Number--;
-	int Block = Number / 256;
-	int pos = Number % 256;
+	int Block = Number / DYNAMIC_STRING_BLOCK_ENTRIES;
+	int pos = Number % DYNAMIC_STRING_BLOCK_ENTRIES;
 	int count = 0;
 	listIterator<TDynamicStringTableBlock> iter(DynamicStringTable.first());
 	while (count < Block && iter() != nullptr) {
@@ -161,12 +174,12 @@ void DeleteDynamicString(uint32_t Number) {
 	}
 
 	TDynamicStringTableBlock *p = *iter;
-	if (p->EntryType[pos] != 1) {
+	if (p->EntryType[pos] != DYNAMIC_STRING_USED) {
 		error("DeleteDynamicString: Eintrag f\xfcr String %u existiert nicht\n", Number + 1);
 		return;
 	}
 
-	p->EntryType[pos] = 2;
+	p->EntryType[pos] = DYNAMIC_STRING_DELETED;
 	p->Dirty = true;
 }
 
@@ -175,27 +188,27 @@ void CleanupDynamicStrings() {
 	while (iter() != nullptr) {
 		TDynamicStringTableBlock *p = *iter;
 		if (p->Dirty) {
-			for (int i = 0; i < 256; i++) {
-				if (p->EntryType[i] != 2) {
+			for (int i = 0; i < DYNAMIC_STRING_BLOCK_ENTRIES; i++) {
+				if (p->EntryType[i] != DYNAMIC_STRING_DELETED) {
 					continue;
 				}
 
 				int Offset = p->StringOffset[i];
 				int Length = static_cast<int>(strlen(p->Text + Offset)) + 1;
 				p->TotalTextLength -= Length;
-				p->EntryType[i] = 0;
-				if (Offset + Length > 32768) {
+				p->EntryType[i] = DYNAMIC_STRING_FREE;
+				if (Offset + Length > DYNAMIC_STRING_BLOCK_SIZE) {
 					error("CleanupDynamicStrings: Stringende fehlt\n");
 					continue;
 				}
 
-				int Help = 32768 - Offset - Length;
+				int Help = DYNAMIC_STRING_BLOCK_SIZE - Offset - Length;
 				if (Help > 0) {
 					memmove(p->Text + Offset, p->Text + Offset + Length, Help);
 				}
 				p->FreeEntries++;
-				for (int j = 0; j < 256; j++) {
-					if (p->EntryType[j] != 0 && p->StringOffset[j] > Offset) {
+				for (int j = 0; j < DYNAMIC_STRING_BLOCK_ENTRIES; j++) {
+					if (p->EntryType[j] != DYNAMIC_STRING_FREE && p->StringOffset[j] > Offset) {
 						p->StringOffset[j] -= static_cast<unsigned short>(Length);
 					}
 				}
