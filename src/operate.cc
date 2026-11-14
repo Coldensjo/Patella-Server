@@ -2133,7 +2133,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 			case -2:
 				throw NAMEAMBIGUOUS;
 			default:
-				error("Talk: Invalid return value of IdentifyPlayer.\n");
+				error("Talk: Invalid return value from IdentifyPlayer.\n");
 				throw ERROR;
 		}
 
@@ -3734,7 +3734,7 @@ void LeaveParty(uint32_t Member, bool Forced) {
 	}
 
 	if (member->GetPartyLeader(false) == 0) {
-		error("LeaveParty: Player is not a member of a hunting party.\n");
+		error("LeaveParty: Player is not a member of a party.\n");
 		return;
 	}
 

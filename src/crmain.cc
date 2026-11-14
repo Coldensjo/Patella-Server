@@ -1925,7 +1925,7 @@ void ProcessMonsterRaids() {
 				try {
 					Bag = Create(GetBodyContainer(cr->ID, BODY_CONTAINER), GetSpecialObject(INVENTORY_CONTAINER), 0);
 				} catch (RESULT r) {
-					error("ProcessMonsterRaids: Exception %d at race %d while creating the backpack.\n", r, cr->Race);
+					error("ProcessMonsterRaids: Exception %d for race %d while creating the backpack.\n", r, cr->Race);
 					continue;
 				}
 			}
@@ -1946,7 +1946,7 @@ void ProcessMonsterRaids() {
 					try {
 						Obj = Create(Bag, I.Type, 0);
 					} catch (RESULT r) {
-						error("ProcessMonsterRaids: Exception %d at race %d, maybe increase CarryStrength.\n", r, cr->Race);
+						error("ProcessMonsterRaids: Exception %d for race %d, maybe increase CarryStrength.\n", r, cr->Race);
 						break;
 					}
 				} else {

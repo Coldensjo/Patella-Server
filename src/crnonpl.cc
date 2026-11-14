@@ -2075,7 +2075,7 @@ TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 						try {
 							Obj = Create(Bag, I.Type, 0);
 						} catch (RESULT r) {
-							error("TMonster::TMonster: Exception %d for race %d, maybe raise CarryStrength.\n", r, Race);
+							error("TMonster::TMonster: Exception %d for race %d, maybe increase CarryStrength.\n", r, Race);
 							break;
 						}
 					} else {
@@ -2083,7 +2083,7 @@ TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 					}
 
 					if (Obj.getContainer().isMapContainer()) {
-						error("TMonster::TMonster: Object falls onto the map. Raise CarryStrength for race %d.\n", Race);
+						error("TMonster::TMonster: Object falls onto the map. Increase CarryStrength for race %d.\n", Race);
 						Delete(Obj, -1);
 					}
 				}
