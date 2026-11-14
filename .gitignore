@@ -23,3 +23,4 @@ notes/
 
 # The RSA key stays local; without it the build generates one (keygen/)
 src/RSA_PrivateKey.hh
+!README.md
