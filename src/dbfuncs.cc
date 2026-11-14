@@ -502,12 +502,16 @@ static bool WritePendingPlayerData(uint32_t CharacterID, unsigned char *Data, in
 	return true;
 }
 
-static void RemovePendingPlayerData(uint32_t CharacterID) {
+// True if no file is left.
+static bool RemovePendingPlayerData(uint32_t CharacterID) {
 	char FileName[4096];
 	PendingPlayerDataPath(CharacterID, FileName, sizeof(FileName));
 	if (unlink(FileName) != 0 && errno != ENOENT) {
 		error("RemovePendingPlayerData: Cannot remove %s (error %d).\n", FileName, errno);
+		return false;
 	}
+
+	return true;
 }
 
 // Sends the kept record of the character, if there is one, and removes the
@@ -681,8 +685,16 @@ bool SavePlayerData(TPlayerData *Slot) {
 	}
 
 	if (Result == 0) {
-		// What a file kept is older than what was just saved.
-		RemovePendingPlayerData(Slot->CharacterID);
+		// What a file kept is older than what was just saved, and the next
+		// load or start would send it. If it cannot be removed, it gets this
+		// record instead; if that fails too, the slot stays dirty, so that it
+		// is not freed and its next save tries again.
+		if (!RemovePendingPlayerData(Slot->CharacterID)
+				&& !WritePendingPlayerData(Slot->CharacterID, Record.getData(), Record.getDataSize())) {
+			error("SavePlayerData: The query manager has the data of player %ld, but an older record of it is kept under %s; it stays in memory.\n",
+					(long)(int32_t)Slot->CharacterID, SAVEPATH);
+			return false;
+		}
 		return true;
 	}
 
