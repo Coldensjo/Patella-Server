@@ -130,22 +130,22 @@ void AnnounceChangedCreature(uint32_t CreatureID, int Type) {
 
 		if (Connection->IsVisible(cr->posx, cr->posy, cr->posz)) {
 			switch (Type) {
-				case 1:
+				case CREATURE_HEALTH:
 					SendCreatureHealth(Connection, CreatureID);
 					break;
-				case 2:
+				case CREATURE_LIGHT:
 					SendCreatureLight(Connection, CreatureID);
 					break;
-				case 3:
+				case CREATURE_OUTFIT:
 					SendCreatureOutfit(Connection, CreatureID);
 					break;
-				case 4:
+				case CREATURE_SPEED:
 					SendCreatureSpeed(Connection, CreatureID);
 					break;
-				case 5:
+				case CREATURE_SKULL:
 					SendCreatureSkull(Connection, CreatureID);
 					break;
-				case 6:
+				case CREATURE_PARTY:
 					SendCreatureParty(Connection, CreatureID);
 					break;
 			}
@@ -180,13 +180,13 @@ void AnnounceChangedField(Object Obj, int Type) {
 		}
 
 		switch (Type) {
-			case 0:
+			case OBJECT_DELETED:
 				SendDeleteField(pl->GetConnection(), x, y, z, Obj);
 				break;
-			case 1:
+			case OBJECT_CREATED:
 				SendAddField(pl->GetConnection(), x, y, z, Obj);
 				break;
-			case 2:
+			case OBJECT_CHANGED:
 				SendChangeField(pl->GetConnection(), x, y, z, Obj);
 				break;
 			default:
@@ -220,13 +220,13 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 			}
 
 			switch (Type) {
-				case 0:
+				case OBJECT_DELETED:
 					SendDeleteInContainer(pl->GetConnection(), con, Obj);
 					break;
-				case 1:
+				case OBJECT_CREATED:
 					SendCreateInContainer(pl->GetConnection(), con, Obj);
 					break;
-				case 2:
+				case OBJECT_CHANGED:
 					SendChangeInContainer(pl->GetConnection(), con, Obj);
 					break;
 				default:
@@ -254,11 +254,11 @@ void AnnounceChangedInventory(Object Obj, int Type) {
 	}
 
 	switch (Type) {
-		case 0:
+		case OBJECT_DELETED:
 			SendDeleteInventory(cr->GetConnection(), GetObjectBodyPosition(Obj));
 			break;
-		case 1:
-		case 2:
+		case OBJECT_CREATED:
+		case OBJECT_CHANGED:
 			SendSetInventory(cr->GetConnection(), GetObjectBodyPosition(Obj), Obj);
 			break;
 		default:
@@ -887,7 +887,7 @@ void NotifyCreature(uint32_t CreatureID, Object Obj, bool Inventory) {
 	}
 
 	if (Obj.getFlag(LIGHT) && Inventory) {
-		AnnounceChangedCreature(CreatureID, 2);
+		AnnounceChangedCreature(CreatureID, CREATURE_LIGHT);
 	}
 
 	cr->NotifyChangeInventory();
@@ -905,7 +905,7 @@ void NotifyCreature(uint32_t CreatureID, ObjectType Type, bool Inventory) {
 	}
 
 	if (Type.getFlag(LIGHT) && Inventory) {
-		AnnounceChangedCreature(CreatureID, 2);
+		AnnounceChangedCreature(CreatureID, CREATURE_LIGHT);
 	}
 
 	cr->NotifyChangeInventory();
@@ -921,7 +921,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 		return;
 	}
 
-	if (Type == 3) {
+	if (Type == OBJECT_MOVED) {
 		if (!OldCon.exists()) {
 			error("NotifyAllCreatures: \xdc" "bergebener alter Container existiert nicht.\n");
 			return;
@@ -937,7 +937,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 				if (ID == 0) {
 					break;
 				}
-				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), 2);
+				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 
 			TFindCreatures Search2(10, 10, x, y, 7);
@@ -946,7 +946,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 				if (ID == 0) {
 					break;
 				}
-				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), 2);
+				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 		} else {
 			TFindCreatures Search((std::abs(x - oldx) + 1) / 2 + 10, (std::abs(y - oldy) + 1) / 2 + 10, (x + oldx) / 2, (y + oldy) / 2, 7);
@@ -955,7 +955,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 				if (ID == 0) {
 					break;
 				}
-				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), 2);
+				GetCreature(ID)->CreatureMoveStimulus(Obj.getCreatureID(), OBJECT_CHANGED);
 			}
 		}
 	} else {
@@ -1193,12 +1193,12 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 		cr->NotifyCreate();
 	}
 
-	AnnounceChangedObject(Obj, 1);
+	AnnounceChangedObject(Obj, OBJECT_CREATED);
 	NotifyTrades(Obj);
 	NotifyCreature(GetObjectCreatureID(Obj), Obj, Obj.getContainer().isBodyContainer());
 	MovementEvent(Obj, Obj.getContainer(), Obj.getContainer());
 	CollisionEvent(Obj, Obj.getContainer());
-	NotifyAllCreatures(Obj, 1, NONE);
+	NotifyAllCreatures(Obj, OBJECT_CREATED, NONE);
 	return Obj;
 }
 
@@ -1245,12 +1245,12 @@ Object Copy(Object Con, Object Source) {
 		}
 	}
 
-	AnnounceChangedObject(Obj, 1);
+	AnnounceChangedObject(Obj, OBJECT_CREATED);
 	NotifyTrades(Obj);
 	NotifyCreature(GetObjectCreatureID(Obj), Obj, Obj.getContainer().isBodyContainer());
 	MovementEvent(Obj, Obj.getContainer(), Obj.getContainer());
 	CollisionEvent(Obj, Obj.getContainer());
-	NotifyAllCreatures(Obj, 1, NONE);
+	NotifyAllCreatures(Obj, OBJECT_CREATED, NONE);
 	return Obj;
 }
 
@@ -1340,7 +1340,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 	}
 
 	if (!Obj.isCreature() && Rest == NONE) {
-		AnnounceChangedObject(Obj, 0);
+		AnnounceChangedObject(Obj, OBJECT_DELETED);
 		NotifyTrades(Obj);
 		NotifyDepot(CreatureID, Obj, CountObjects(Obj));
 	}
@@ -1361,13 +1361,13 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 
 	MoveObject(Obj, Con);
 	if (!Obj.isCreature()) {
-		AnnounceChangedObject(Obj, 1);
+		AnnounceChangedObject(Obj, OBJECT_CREATED);
 		NotifyTrades(Obj);
 		NotifyDepot(CreatureID, Obj, -CountObjects(Obj));
 	}
 
 	if (Rest != NONE) {
-		AnnounceChangedObject(Rest, 2);
+		AnnounceChangedObject(Rest, OBJECT_CHANGED);
 		NotifyTrades(Rest);
 	}
 
@@ -1388,7 +1388,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 
 	MovementEvent(Obj, oldCon, Con);
 	CollisionEvent(Obj, Obj.getContainer());
-	NotifyAllCreatures(Obj, 3, oldCon);
+	NotifyAllCreatures(Obj, OBJECT_MOVED, oldCon);
 }
 
 void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignore) {
@@ -1452,22 +1452,22 @@ void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignor
 
 	if (Count < (int)Obj.getAttribute(AMOUNT)) {
 		ChangeObject(Obj, AMOUNT, Obj.getAttribute(AMOUNT) - Count);
-		AnnounceChangedObject(Obj, 2);
+		AnnounceChangedObject(Obj, OBJECT_CHANGED);
 		NotifyTrades(Obj);
 		ChangeObject(Dest, AMOUNT, Dest.getAttribute(AMOUNT) + Count);
 	} else {
-		AnnounceChangedObject(Obj, 0);
+		AnnounceChangedObject(Obj, OBJECT_DELETED);
 		NotifyTrades(Obj);
 		NotifyDepot(CreatureID, Obj, 1);
 		MergeObjects(Obj, Dest);
 	}
 
-	AnnounceChangedObject(Dest, 2);
+	AnnounceChangedObject(Dest, OBJECT_CHANGED);
 	NotifyTrades(Dest);
 	NotifyCreature(oldCreature, Dest, oldCon.isBodyContainer());
 	NotifyCreature(GetObjectCreatureID(Dest), Dest, Dest.getContainer().isBodyContainer());
 	CollisionEvent(Dest, Dest.getContainer());
-	NotifyAllCreatures(Dest, 2, NONE);
+	NotifyAllCreatures(Dest, OBJECT_CHANGED, NONE);
 }
 
 void Change(Object Obj, ObjectType NewType, uint32_t Value) {
@@ -1548,10 +1548,10 @@ void Change(Object Obj, ObjectType NewType, uint32_t Value) {
 		ChangeObject(Obj, CHARGES, Value);
 	}
 
-	AnnounceChangedObject(Obj, 2);
+	AnnounceChangedObject(Obj, OBJECT_CHANGED);
 	NotifyTrades(Obj);
 	NotifyCreature(GetObjectCreatureID(Obj), Obj, Obj.getContainer().isBodyContainer());
-	NotifyAllCreatures(Obj, 2, NONE);
+	NotifyAllCreatures(Obj, OBJECT_CHANGED, NONE);
 }
 
 void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
@@ -1573,7 +1573,7 @@ void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 
 	ChangeObject(Obj, Attribute, Value);
 	if (Attribute == AMOUNT || Attribute == CONTAINERLIQUIDTYPE || Attribute == POOLLIQUIDTYPE) {
-		AnnounceChangedObject(Obj, 2);
+		AnnounceChangedObject(Obj, OBJECT_CHANGED);
 	}
 
 	NotifyTrades(Obj);
@@ -1622,10 +1622,10 @@ void Delete(Object Obj, int Count) {
 	}
 
 	if (Rest == NONE) {
-		AnnounceChangedObject(Obj, 0);
+		AnnounceChangedObject(Obj, OBJECT_DELETED);
 	}
 
-	NotifyAllCreatures(Obj, 0, NONE);
+	NotifyAllCreatures(Obj, OBJECT_DELETED, NONE);
 	if (oldType.isCreature()) {
 		TCreature *cr = GetCreature(oldCreature);
 		if (cr == nullptr) {
@@ -1637,7 +1637,7 @@ void Delete(Object Obj, int Count) {
 
 	DeleteObject(Obj);
 	if (Rest != NONE) {
-		AnnounceChangedObject(Rest, 2);
+		AnnounceChangedObject(Rest, OBJECT_CHANGED);
 		NotifyTrades(Rest);
 	}
 
