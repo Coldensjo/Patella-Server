@@ -15,9 +15,11 @@ What it does, in WSL Ubuntu-24.04:
      (--install, a tar or a folder; default /home/chris/patella-cmp/pristine.tar) in ~/.cache/patella-check/trace/game
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
-     relative, so they point at the copy). A tree without them (faithful) gets the copy's .tibia with its paths
-     pointed at the copy. Either config gets a scratch SHM key (--shm, default 17011) and scratch query manager ports
-     (--qm-port, default 17173, and the three after it for the other entries). Then it seeds a scratch database with
+     relative, so they point at the copy); data/items.toml goes into the copy's data folder ([paths] data) and its
+     objects.srv is removed. A tree without them (faithful) gets the copy's .tibia with its paths pointed at the copy,
+     and keeps objects.srv. The scenario's clients read the object types from the file the copy has. Either config
+     gets a scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the
+     three after it for the other entries). Then it seeds a scratch database with
      the build's querymanager-seed (game port --port, default 17171), adds the two test accounts with a new character
      each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; neither may have a player file) and starts the
      build's query manager. The game runs with HOME set to the copy, so it reads the copy's config.toml (or .tibia).
@@ -260,16 +262,37 @@ def write_config(source, game, shm, qm_port):
 	return world
 
 
+def data_folder(game):
+	"""The copy's data folder as its config.toml names it ([paths] data, relative to the copy)."""
+	import tomllib
+	with open(os.path.join(game, "config.toml"), "rb") as f:
+		data = tomllib.load(f).get("paths", {}).get("data")
+	if not data or data.startswith("/"):
+		raise CheckError("data/config.toml: [paths] data = %r does not name a folder in the copy" % data)
+	return os.path.normpath(os.path.join(game, data))
+
+
 def lay_out(game, data, options):
 	"""Lays the runtime copy out for a tree whose data/ folder is data (None: the tree has none). Returns the world's
-	name."""
+	name, the layout for the log and the object types file for the clients."""
 	tibia = os.path.join(game, ".tibia")
+	objects = os.path.join(game, "dat", "objects.srv")
 	if data and os.path.isfile(os.path.join(data, "config.toml")):
 		world = write_config(os.path.join(data, "config.toml"), game, options["shm"], options["qm_port"])
 		if os.path.exists(tibia):
 			os.remove(tibia)
-		return world, "config.toml from the tree's data/, no .tibia"
-	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"]), ".tibia"
+		layout = "config.toml from the tree's data/, no .tibia"
+		if os.path.isfile(os.path.join(data, "items.toml")):
+			folder = data_folder(game)
+			objects = os.path.join(folder, "items.toml")
+			shutil.copyfile(os.path.join(data, "items.toml"), objects)
+			if os.path.exists(os.path.join(folder, "objects.srv")):
+				os.remove(os.path.join(folder, "objects.srv"))
+			layout += "; items.toml from the tree's data/, no objects.srv"
+		return world, layout, objects
+	if data and os.path.isfile(os.path.join(data, "items.toml")):
+		raise CheckError("data/items.toml without data/config.toml: the copy's data folder is unknown")
+	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"]), ".tibia", objects
 
 
 def seed(binary, db, game, world, port, log_file):
@@ -356,7 +379,7 @@ def run(side, build, data, options, key, root):
 			os.makedirs(game)
 			if subprocess.run(["tar", "-x", "-C", game, "-f", options["install"]], check=False).returncode != 0:
 				raise CheckError("cannot unpack %s" % options["install"])
-		world, layout = lay_out(game, data, options)
+		world, layout, objects = lay_out(game, data, options)
 		log("  %s: runtime copy with %s" % (side, layout))
 		seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world, options["port"],
 			os.path.join(out, "seed.log"))
@@ -400,8 +423,8 @@ def run(side, build, data, options, key, root):
 		time.sleep(3)
 		with open(os.path.join(out, "client.log"), "w") as f:
 			client = subprocess.Popen([sys.executable, "-u", os.path.join(TRACE_TOOLS, "run_scenario.py"), "--scenario",
-				options["scenario"], "--out", os.path.join(out, "client"), "--objects", os.path.join(game, "dat",
-				"objects.srv"), "--console", console, "--port", str(options["port"]), "--rsa-key", key],
+				options["scenario"], "--out", os.path.join(out, "client"), "--objects", objects, "--console", console,
+				"--port", str(options["port"]), "--rsa-key", key],
 				stdin=subprocess.DEVNULL, stdout=f, stderr=subprocess.STDOUT, start_new_session=True)
 		status = client.wait()
 		with open(os.path.join(out, "client.log"), encoding="utf-8", errors="replace") as f:

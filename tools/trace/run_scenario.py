@@ -3,10 +3,12 @@
 server and writes one trace per client (JSON lines) to --out.
 
 usage: run_scenario.py --scenario NAME --out DIR --rsa-key HEADER
-                       [--objects objects.srv] [--console FILE]
+                       [--objects items.toml] [--console FILE]
                        [--host H] [--port P] [--list]
 
 --rsa-key: the server's RSA_PrivateKey.hh (the clients need its modulus).
+--objects: the object types, the game's items.toml (default dat/items.toml),
+or an original objects.srv.
 --console: the server's console file with @@ROUND n@@ lines (trace_check.py
 runs the server under gdb); scenario steps then happen at fixed server
 rounds. Without it, rounds are seconds since the start of the scenario.
@@ -80,7 +82,7 @@ def main():
 	ap.add_argument("--scenario")
 	ap.add_argument("--out")
 	ap.add_argument("--rsa-key")
-	ap.add_argument("--objects", default="dat/objects.srv")
+	ap.add_argument("--objects", default="dat/items.toml")
 	ap.add_argument("--console")
 	ap.add_argument("--host", default="127.0.0.1")
 	ap.add_argument("--port", type=int, default=7171)

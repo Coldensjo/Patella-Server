@@ -84,14 +84,32 @@ def tstr(s):
 
 # ---------------------------------------------------------------- object types
 
+def flag_key(name):
+	"""A flag as the client keeps it: lower case without underscores, so that
+	objects.srv's "LiquidContainer" and items.toml's "liquid_container" are
+	the same."""
+	return name.replace("_", "").lower()
+
+
 class ObjectTypes:
-	"""Reads dat/objects.srv: names and the flags that decide whether the
-	server writes an extra byte after a type id (SendMapObject and the
-	inventory/container senders: LiquidContainer, LiquidPool, Cumulative)."""
+	"""Reads the object types from items.toml (the game's data/items.toml) or,
+	for a path that does not end in .toml, from the original objects.srv:
+	names and the flags that decide whether the server writes an extra byte
+	after a type id (SendMapObject and the inventory/container senders:
+	LiquidContainer, LiquidPool, Cumulative)."""
 
 	def __init__(self, path):
 		self.names = {}
 		self.flags = {}
+		if path.endswith(".toml"):
+			import tomllib
+			with open(path, "rb") as f:
+				for item in tomllib.load(f).get("item", []):
+					tid = item["id"]
+					if "name" in item:
+						self.names[tid] = item["name"]
+					self.flags[tid] = set(flag_key(x) for x in item.get("flags", []))
+			return
 		tid = None
 		with open(path, "rb") as f:
 			for raw in f:
@@ -109,14 +127,14 @@ class ObjectTypes:
 					continue
 				m = re.match(r"Flags\s*=\s*\{(.*)\}", line)
 				if m:
-					self.flags[tid] = set(x.strip() for x in m.group(1).split(",") if x.strip())
+					self.flags[tid] = set(flag_key(x.strip()) for x in m.group(1).split(",") if x.strip())
 
 	def extra(self, tid):
 		f = self.flags.get(tid, ())
-		return int("LiquidContainer" in f) + int("LiquidPool" in f) + int("Cumulative" in f)
+		return int("liquidcontainer" in f) + int("liquidpool" in f) + int("cumulative" in f)
 
 	def has(self, tid, flag):
-		return flag in self.flags.get(tid, ())
+		return flag_key(flag) in self.flags.get(tid, ())
 
 	def name(self, tid):
 		return self.names.get(tid, "?")

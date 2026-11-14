@@ -1,6 +1,6 @@
 // objects.hh: the object types (ObjectType, a type number) with their flags
 // and attributes, the special meanings, body positions and liquids, and the
-// loading of the types (objects.cc).
+// loading of the types from items.toml (objects.cc).
 
 #ifndef PATELLA_OBJECTS_HH
 #define PATELLA_OBJECTS_HH
@@ -9,8 +9,6 @@
 #include <cstdlib>
 
 #include "containr.hh"
-
-struct TObjectType;
 
 enum FLAG {
 	BANK = 0,
@@ -260,6 +258,18 @@ const int LIQUID_LEMONADE = 12;
 // sending.hh's UNKNOWNCREATURE and OUTDATEDCREATURE.
 const int TYPEID_CREATURE = 99;
 
+// An entry of the object type table (ObjectTypes): the name and the
+// description (nullptr when items.toml gives none), the flags as bits (flag F
+// is bit F % 8 of Flags[F / 8]), the type attributes, and for each instance
+// attribute its place among an object's attributes (-1: the type has none).
+struct TObjectType {
+	const char *Name;
+	const char *Description;
+	unsigned char Flags[(FLAGS + 7) / 8];
+	uint32_t Attributes[TYPEATTRIBUTES];
+	int AttributeOffsets[INSTANCEATTRIBUTES];
+};
+
 struct ObjectType {
 	ObjectType(const ObjectType &Other) { setTypeID(Other.TypeID); }
 	ObjectType(int TypeID = 0) { setTypeID(TypeID); }
@@ -282,6 +292,7 @@ private:
 
 int GetFlagByName(char *Name);
 int GetTypeAttributeByName(char *Name);
+void LoadItems(const char *FileName);
 void LoadObjects();
 void LoadConversionList();
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number);
@@ -292,6 +303,8 @@ void InitObjects();
 
 extern char FlagNames[FLAGS][20];
 extern char TypeAttributeNames[TYPEATTRIBUTES][30];
+extern const char *const FlagKeys[FLAGS];
+extern const char *const TypeAttributeKeys[TYPEATTRIBUTES];
 extern FLAG TypeAttributeFlags[TYPEATTRIBUTES];
 extern FLAG InstanceAttributeFlags[INSTANCEATTRIBUTES];
 extern vector<TObjectType> ObjectTypes;

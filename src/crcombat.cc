@@ -36,7 +36,7 @@ const int MAX_COMBAT_ENTRIES = 20;
 const int TARGET_LOST_DISTANCE = 8;
 
 // The values of the AMMOSPECIALEFFECT and THROWSPECIALEFFECT attributes that
-// RangeAttack knows (objects.srv: the poison arrow and the burst arrow).
+// RangeAttack knows (items.toml: the poison arrow and the burst arrow).
 const int SPECIALEFFECT_POISON = 1;
 const int SPECIALEFFECT_BURST = 2;
 
