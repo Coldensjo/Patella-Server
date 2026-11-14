@@ -1,5 +1,6 @@
 // magic.hh: the spells (magic.cc): the impacts (TImpact and its kinds) that a
-// shaped spell applies, the spell functions and the spell tables.
+// shaped spell applies and the spell functions. The spell table and the
+// circles are in magicdata.hh.
 
 #ifndef PATELLA_MAGIC_HH
 #define PATELLA_MAGIC_HH
@@ -12,7 +13,6 @@
 struct Object;
 struct ObjectType;
 struct TCreature;
-struct TSpellList;
 
 struct TImpact {
 	virtual void handleField(int, int, int) {}
@@ -187,14 +187,6 @@ int CheckForSpell(uint32_t CreatureID, char *Text);
 void DeleteRune(Object Obj);
 void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest);
 void DrinkPotion(uint32_t CreatureID, Object Obj);
-TSpellList *CreateSpell(int SpellNr, ...);
-void InitSpells();
 void InitMagic();
-
-// The size of SpellSyllable: the syllables 1 to 50 (0 is the empty one).
-const int MAX_SYLLABLES = 51;
-
-extern char SpellSyllable[MAX_SYLLABLES][6];
-extern TSpellList SpellList[MAX_SPELLS];
 
 #endif

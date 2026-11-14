@@ -12,6 +12,8 @@ add_library(convert_common STATIC
 	items_writer.cc
 	circles_dat.cc
 	circles_writer.cc
+	spells_reference.cc
+	spells_writer.cc
 	tomlwrite.cc
 	${GAME_SOURCE}/config.cc
 	${GAME_SOURCE}/magicdata.cc
@@ -74,3 +76,13 @@ add_test(NAME convert_circles COMMAND convert_test_circles)
 add_test(NAME convert_circles_original COMMAND convert_test_circles --original ${PATELLA_ORIGINAL_CIRCLES}
 	${PROJECT_SOURCE_DIR}/data/circles.toml)
 set_tests_properties(convert_circles_original PROPERTIES SKIP_RETURN_CODE 77)
+
+# The round trip of the spells: the spell table the game ends up with from the
+# table it had in its code (InitReferenceSpells) and from spells.toml (through
+# LoadSpells) is the same, field by field. convert_spells uses made-up tables
+# and files; convert_spells_original the committed data/spells.toml, which
+# must also be exactly what patella-convert spells writes.
+add_executable(convert_test_spells tests/test_spells.cc)
+target_link_libraries(convert_test_spells PRIVATE convert_common)
+add_test(NAME convert_spells COMMAND convert_test_spells)
+add_test(NAME convert_spells_original COMMAND convert_test_spells --original ${PROJECT_SOURCE_DIR}/data/spells.toml)
