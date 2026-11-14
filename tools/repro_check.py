@@ -53,7 +53,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DISTRO = "Ubuntu-24.04"
 PREFIX_PATH = "/home/chris/patella-deps/usr"
 CACHE = "~/.cache/patella-check"
-GIT = "git" if os.name == "nt" else "git.exe"
+# Windows' git; in WSL too, since git itself is slow on a /mnt/c checkout (the WSL PATH may lack Windows' folders).
+GIT = "git" if os.name == "nt" else next((p for p in (shutil.which("git.exe"), "/mnt/c/Program Files/Git/cmd/git.exe")
+	if p and os.path.isfile(p)), "git.exe")
 RESULT = "@@RESULT "
 # Flags of the repro builds on top of the normal ones (see the module comment).
 REPRO_FLAGS = ["-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g0 -DNDEBUG", "-DCMAKE_EXE_LINKER_FLAGS=-Wl,--build-id=none"]

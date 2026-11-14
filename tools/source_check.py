@@ -27,11 +27,14 @@ Exit code 0: the check holds. 1: it does not (each finding is printed), or a com
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GIT = "git" if os.name == "nt" else "git.exe"
+# Windows' git; in WSL too, since git itself is slow on a /mnt/c checkout (the WSL PATH may lack Windows' folders).
+GIT = "git" if os.name == "nt" else next((p for p in (shutil.which("git.exe"), "/mnt/c/Program Files/Git/cmd/git.exe")
+	if p and os.path.isfile(p)), "git.exe")
 FOLDERS = ("src", "querymanager", "loginserver", "keygen")
 RAW_STRING = re.compile(r'R"([^()\\ ]{0,16})\(')
 ENCODING_PREFIX = re.compile(r"(?:^|[^A-Za-z0-9_])(?:u8|u|U|L)$")
