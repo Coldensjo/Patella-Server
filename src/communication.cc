@@ -820,12 +820,12 @@ bool HandleLogin(TConnection *Connection) {
 			TerminalType = Buffer.readWord();
 			TerminalVersion = Buffer.readWord();
 		}
-		unsigned char AssymmetricData[128];
-		Buffer.readBytes(AssymmetricData, 128);
+		unsigned char AsymmetricData[128];
+		Buffer.readBytes(AsymmetricData, 128);
 
 		RSAMutex.down();
 		try {
-			PrivateKey.decrypt(AssymmetricData);
+			PrivateKey.decrypt(AsymmetricData);
 		} catch (const char *s) {
 			error("HandleLogin: Fehler beim Entschl\xfcsseln (%s).\n", s);
 			RSAMutex.up();
@@ -834,9 +834,9 @@ bool HandleLogin(TConnection *Connection) {
 		}
 		RSAMutex.up();
 
-		TReadBuffer Help(AssymmetricData, 128);
+		TReadBuffer Help(AsymmetricData, 128);
 		Help.readByte();
-		Connection->SetSymmetricKey(AssymmetricData + Help.getPosition());
+		Connection->SetSymmetricKey(AsymmetricData + Help.getPosition());
 		Help.skip(16);
 		if (!ClientLayout772) {
 			TerminalType = Help.readWord();
@@ -1186,7 +1186,7 @@ void CommunicationThread(int Socket) {
 	sigaddset(&SignalSet, SIGALRM);
 	sigaddset(&SignalSet, SIGIO);
 
-	while (GameRunning() && Connection->ConnectionOk()) {
+	while (GameRunning() && Connection->IsOk()) {
 		siginfo_t Info;
 		int Signal = sigwaitinfo(&SignalSet, &Info);
 		if ((Signal == SIGHUP || Signal == SIGUSR1 || Signal == SIGUSR2 || Signal == SIGALRM)
@@ -1426,7 +1426,7 @@ int AcceptorThreadLoop(void *) {
 	return 0;
 }
 
-void CheckThreadlibVersion() {
+void ChooseThreadStacks() {
 	UseOwnStacks = !FileExists("/etc/image-release");
 	if (UseOwnStacks) {
 		print(2, "Verwende eigene Stacks.\n");
@@ -1437,7 +1437,7 @@ void CheckThreadlibVersion() {
 
 // The original is declared throw(const char *), which C++17 no longer has.
 void InitCommunication() {
-	CheckThreadlibVersion();
+	ChooseThreadStacks();
 	InitCommunicationThreadStacks();
 	QueryManagerConnectionPool.init();
 

@@ -552,7 +552,7 @@ void TCreature::SetID(uint32_t CharacterID) {
 void TCreature::DelID() {
 	uint32_t m = ID % HASH_LIST_SIZE;
 	TCreature *cr = HashList[m];
-	TCreature *ocr = nullptr;
+	TCreature *PreviousEntry = nullptr;
 	if (cr == nullptr) {
 		error("TCreature::DelID: Hasheintrag nicht gefunden id = %d\n", ID);
 		return;
@@ -564,7 +564,7 @@ void TCreature::DelID() {
 	}
 
 	while (cr->NextHashEntry != nullptr) {
-		ocr = cr;
+		PreviousEntry = cr;
 		cr = cr->NextHashEntry;
 		if (cr->ID == ID) {
 			break;
@@ -576,7 +576,7 @@ void TCreature::DelID() {
 		return;
 	}
 
-	ocr->NextHashEntry = cr->NextHashEntry;
+	PreviousEntry->NextHashEntry = cr->NextHashEntry;
 }
 
 void TCreature::SetInCrList() {

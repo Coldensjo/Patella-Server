@@ -249,7 +249,7 @@ struct TCombat {
 	bool DefendReady() { return ServerMilliseconds >= EarliestDefendTime; }
 	int GetAttackDelay() { return (int)(EarliestAttackTime - ServerMilliseconds); }
 	void DelayAttack(int Milliseconds);
-	void CanToDoAttack();
+	void CheckTargetAndChase();
 	int GetDistance();
 	void Attack();
 	void SetAttackDest(uint32_t dfd, bool Follow);
@@ -268,8 +268,8 @@ struct TCombat {
 	void DistributeExperiencePoints(uint32_t Exp);
 	uint32_t GetDamageByCreature(uint32_t CreatureID);
 	uint32_t GetMostDangerousAttacker();
-	short GetAttackDamage();
-	short GetDefendDamage();
+	short RollAttack();
+	short RollDefense();
 private:
 	TCreature *Master;
 	uint32_t EarliestAttackTime;
@@ -525,7 +525,7 @@ struct TPlayer : public TCreature {
 	void SaveData();
 	void LoadInventory(bool SetStandardInventory);
 	void SaveInventory();
-	void StartCoordinates();
+	void SetNewbieStartCoordinates();
 	void SetInList();
 	void DelInList();
 	void CheckOutfit();
