@@ -55,7 +55,7 @@ struct TConnection {
 	pid_t GetPID();
 	int GetSocket();
 	char *GetIPAddress();
-	bool ConnectionOk() { return ConnectionIsOk; }
+	bool IsOk() { return ConnectionIsOk; }
 	bool ClosingDelayed() { return ClosingIsDelayed; }
 	void Free();
 	void Assign();

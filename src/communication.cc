@@ -1186,7 +1186,7 @@ void CommunicationThread(int Socket) {
 	sigaddset(&SignalSet, SIGALRM);
 	sigaddset(&SignalSet, SIGIO);
 
-	while (GameRunning() && Connection->ConnectionOk()) {
+	while (GameRunning() && Connection->IsOk()) {
 		siginfo_t Info;
 		int Signal = sigwaitinfo(&SignalSet, &Info);
 		if ((Signal == SIGHUP || Signal == SIGUSR1 || Signal == SIGUSR2 || Signal == SIGALRM)
