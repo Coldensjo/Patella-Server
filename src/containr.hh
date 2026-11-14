@@ -56,9 +56,7 @@ struct vector {
 	vector(int min, int max, int block);
 	~vector();
 	T &operator()(int i);
-	// inline  containr.h:53  (vector<TDepotInfo>)
 	int low() { return min; }
-	// inline  containr.h:54  (vector<TObjectType>)
 	int high() { return max; }
 	int size();
 private:
@@ -82,11 +80,8 @@ struct listnode {
 template<class T>
 struct listIterator {
 	listIterator();
-	// inline  containr.h:74  (listIterator<TDynamicStringTableBlock>)
 	listIterator(listnode<T> *p) { actNode = p; }
-	// inline  containr.h:75  (listIterator<TDynamicStringTableBlock>)
 	listnode<T> *operator()() { return actNode; }
-	// inline  containr.h:76  (listIterator<TDynamicStringTableBlock>)
 	listnode<T> *operator=(listnode<T> *p) { actNode = p; return actNode; }
 	listnode<T> *operator++(int);
 	listnode<T> *operator--(int);
@@ -101,7 +96,6 @@ struct list {
 	~list();
 	listnode<T> *append();
 	void remove(listnode<T> *node);
-	// inline  containr.h:89  (list<TDynamicStringTableBlock>)
 	listnode<T> *first() { return firstNode; }
 	listnode<T> *last();
 private:
@@ -133,13 +127,9 @@ private:
 
 template<class T>
 struct fifoIterator {
-	// inline  containr.h:125  (fifoIterator<TListener>)
 	fifoIterator(fifo<T> *_Fifo, int _Position) { Fifo = _Fifo; Position = _Position; }
-	// inline  containr.h:126  (fifoIterator<TListener>)
 	T *operator()() { return Fifo->getEntry(Position); }
-	// inline  containr.h:127  (fifoIterator<TListener>)
 	T *operator++(int) { Position++; return Fifo->getEntry(Position); }
-	// inline  containr.h:128  (fifoIterator<TStatement>)
 	T *operator--(int) { Position--; return Fifo->getEntry(Position); }
 private:
 	fifo<T> *Fifo;
@@ -150,9 +140,7 @@ template<class T>
 struct fifo {
 	fifo(int InitialSize);
 	~fifo();
-	// inline  containr.h:137  (fifo<TStatement>)
 	fifoIterator<T> head() { return fifoIterator<T>(this, Head); }
-	// inline  containr.h:138  (fifo<TListener>)
 	fifoIterator<T> tail() { return fifoIterator<T>(this, Tail); }
 	T *append();
 	void remove();
@@ -163,7 +151,6 @@ private:
 	int Size;
 	int Head;
 	int Tail;
-	// inline  containr.h:144  (fifo<TListener>)
 	T *getEntry(int Position) {
 		if (!in(Position, Tail, Head)) {
 			return nullptr;
@@ -184,16 +171,13 @@ private:
 	vector<priority_queue_entry<K, T>> *Entry;
 	int Entries;
 public:
-	// inline  containr.h:601  (priority_queue<long unsigned int,TAttackWave*>)
 	priority_queue(int Size, int Block) {
 		Entry = new vector<priority_queue_entry<K, T>>(1, Size, Block);
 		Entries = 0;
 	}
-	// inline  containr.h:608  (priority_queue<long unsigned int,TAttackWave*>)
 	~priority_queue() {
 		delete Entry;
 	}
-	// inline  containr.h:614  (priority_queue<long unsigned int,TAttackWave*>)
 	bool getMin(K &Key, T &Data) {
 		if (Entries == 0) {
 			return false;
@@ -202,7 +186,6 @@ public:
 		Data = (*Entry)(1).Data;
 		return true;
 	}
-	// 0x080a55e0  containr.h:622  (priority_queue<long unsigned int,long unsigned int>)
 	void deleteMin() {
 		if (Entries == 0) {
 			error("priority_queue::deleteMin: Warteschlange ist leer.\n");
@@ -234,7 +217,6 @@ public:
 
 		Entries--;
 	}
-	// 0x080a67d0  containr.h:645  (priority_queue<long unsigned int,TAttackWave*>)
 	void insert(K Key, T &Data) {
 		Entries++;
 		(*Entry)(Entries).Key = Key;
@@ -254,7 +236,6 @@ public:
 	}
 };
 
-// 0x080a6a40  containr.h:220  (matrix<long unsigned int>)
 template<class T>
 matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax, T init) {
 	this->xmin = xmin;
@@ -273,7 +254,6 @@ matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax, T init) {
 	}
 }
 
-// 0x08072100  containr.h:236  (matrix<int>)
 template<class T>
 matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax) {
 	this->xmin = xmin;
@@ -293,13 +273,11 @@ matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax) {
 	this->entry = new T[this->dx * this->dy];
 }
 
-// inline  containr.h:251  (matrix<TShortwayPoint>)
 template<class T>
 matrix<T>::~matrix() {
 	delete[] entry;
 }
 
-// inline  containr.h:257  (matrix<TShortwayPoint>)
 template<class T>
 T &matrix<T>::operator()(int x, int y) {
 	x -= xmin;
@@ -312,7 +290,6 @@ T &matrix<T>::operator()(int x, int y) {
 	return entry[y * dx + x];
 }
 
-// 0x080608e0  containr.h:269  (matrix3d<TSector*>)
 template<class T>
 matrix3d<T>::matrix3d(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax, T init) {
 	this->xmin = xmin;
@@ -340,13 +317,11 @@ matrix3d<T>::matrix3d(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax
 	}
 }
 
-// inline  containr.h:306  (matrix3d<TSector*>)
 template<class T>
 matrix3d<T>::~matrix3d() {
 	delete[] entry;
 }
 
-// inline  containr.h:312  (matrix3d<TSector*>)
 template<class T>
 T &matrix3d<T>::operator()(int x, int y, int z) {
 	x -= xmin;
@@ -360,8 +335,6 @@ T &matrix3d<T>::operator()(int x, int y, int z) {
 	return entry[z * dx * dy + y * dx + x];
 }
 
-// 0x080a5880  containr.h:329  (vector<long unsigned int>)
-// inline  containr.h:329  (vector<TCreature*>)
 template<class T>
 vector<T>::vector(int min, int max, int block, T init) {
 	this->min = min;
@@ -387,8 +360,6 @@ vector<T>::vector(int min, int max, int block, T init) {
 	}
 }
 
-// 0x08067140  containr.h:352  (vector<THouseGuest>)
-// inline  containr.h:352  (vector<TChannel>)
 template<class T>
 vector<T>::vector(int min, int max, int block) {
 	this->min = min;
@@ -410,13 +381,11 @@ vector<T>::vector(int min, int max, int block) {
 	this->entry = new T[this->space];
 }
 
-// inline  containr.h:373  (vector<TAction>)
 template<class T>
 vector<T>::~vector() {
 	delete[] entry;
 }
 
-// 0x080561a0  containr.h:379  (vector<TObjectType>)
 template<class T>
 T &vector<T>::operator()(int i) {
 	// Growth moves the old elements by swapping their raw bytes with the
@@ -477,14 +446,12 @@ T &vector<T>::operator()(int i) {
 	return entry[i - start];
 }
 
-// inline  containr.h:428
-// The binary keeps no code of it: every use assigns right after it.
+// Every use assigns actNode right after the construction.
 template<class T>
 listIterator<T>::listIterator() {
 	actNode = nullptr;
 }
 
-// inline  containr.h:433  (listIterator<TDynamicStringTableBlock>)
 template<class T>
 listnode<T> *listIterator<T>::operator++(int) {
 	if (actNode == nullptr) {
@@ -496,7 +463,6 @@ listnode<T> *listIterator<T>::operator++(int) {
 	return actNode;
 }
 
-// inline  containr.h:453  (listIterator<TDynamicStringTableBlock>)
 template<class T>
 T *listIterator<T>::operator*() {
 	if (actNode == nullptr) {
@@ -507,14 +473,12 @@ T *listIterator<T>::operator*() {
 	return &actNode->data;
 }
 
-// inline  containr.h:463  (list<TDynamicStringTableBlock>)
 template<class T>
 list<T>::list() {
 	firstNode = nullptr;
 	lastNode = nullptr;
 }
 
-// inline  containr.h:469  (list<TDynamicStringTableBlock>)
 template<class T>
 list<T>::~list() {
 	while (firstNode != nullptr) {
@@ -522,7 +486,6 @@ list<T>::~list() {
 	}
 }
 
-// 0x08052b10  containr.h:474  (list<TStaticStringTableBlock>)
 template<class T>
 listnode<T> *list<T>::append() {
 	listnode<T> *newNode = new listnode<T>();
@@ -538,8 +501,6 @@ listnode<T> *list<T>::append() {
 	return lastNode;
 }
 
-// 0x080bde40  containr.h:491  (list<storeunit<TNode, 256> >)
-// inline  containr.h:491  (list<TDynamicStringTableBlock>)
 template<class T>
 void list<T>::remove(listnode<T> *node) {
 	if (node == nullptr) {
@@ -562,20 +523,17 @@ void list<T>::remove(listnode<T> *node) {
 	delete node;
 }
 
-// inline  containr.h:511  (store<TNode,256>)
 template<class T, int N>
 store<T, N>::store() {
 	Units = new list<storeunit<T, N>>;
 	firstFreeItem = nullptr;
 }
 
-// inline  containr.h:518  (store<TNode,256>)
 template<class T, int N>
 store<T, N>::~store() {
 	delete Units;
 }
 
-// 0x080afba0  containr.h:524  (store<TPlayerIndexLeafNode,100>)
 template<class T, int N>
 T *store<T, N>::getFreeItem() {
 	if (firstFreeItem == nullptr) {
@@ -593,7 +551,6 @@ T *store<T, N>::getFreeItem() {
 	return help;
 }
 
-// inline  containr.h:538  (store<TNode,256>)
 template<class T, int N>
 void store<T, N>::deleteItem(T *Item) {
 	storeitem<T> *help = (storeitem<T> *)Item;
@@ -601,7 +558,6 @@ void store<T, N>::deleteItem(T *Item) {
 	firstFreeItem = help;
 }
 
-// inline  containr.h:551  (fifo<TListener>)
 template<class T>
 fifo<T>::fifo(int InitialSize) {
 	Entry = new T[InitialSize];
@@ -610,13 +566,11 @@ fifo<T>::fifo(int InitialSize) {
 	Tail = 0;
 }
 
-// inline  containr.h:564  (fifo<TListener>)
 template<class T>
 fifo<T>::~fifo() {
 	delete[] Entry;
 }
 
-// 0x0809d4f0  containr.h:570  (fifo<TStatement>)
 template<class T>
 T *fifo<T>::append() {
 	if (Head - Tail + 1 == Size) {
@@ -634,7 +588,6 @@ T *fifo<T>::append() {
 	return &Entry[Head % Size];
 }
 
-// inline  containr.h:586  (fifo<TListener>)
 template<class T>
 void fifo<T>::remove() {
 	if (Tail > Head) {

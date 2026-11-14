@@ -102,9 +102,9 @@ char SpellSyllable[51][6] = {
 	"",
 	"",
 	"",
-};	// magic.c:109
-TCircle Circle[10];	// magic.c:124
-TSpellList SpellList[256];	// magic.c:125
+};
+TCircle Circle[10];
+TSpellList SpellList[256];
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckMagicItem,
 // CheckRing, CheckAffectedPlayers, CheckMana and every spell function from
@@ -114,7 +114,6 @@ TSpellList SpellList[256];	// magic.c:125
 
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
-// 0x0807e530  magic.c:144
 int Direction(int dx, int dy) {
 	if (dx == 0) {
 		if (dy == 0) {
@@ -149,7 +148,6 @@ int Direction(int dx, int dy) {
 	return r;
 }
 
-// 0x0807e5c0  magic.c:166
 void CheckSpellbook(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
 		error("CheckSpellbook: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -164,7 +162,6 @@ void CheckSpellbook(TCreature *cr, int SpellNr) {
 	}
 }
 
-// 0x0807e670  magic.c:182
 void CheckAccount(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
 		error("CheckAccount: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -182,7 +179,6 @@ void CheckAccount(TCreature *cr, int SpellNr) {
 	}
 }
 
-// 0x0807e740  magic.c:202
 void CheckLevel(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
 		error("CheckLevel: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -209,7 +205,6 @@ void CheckLevel(TCreature *cr, int SpellNr) {
 	}
 }
 
-// 0x0807e820  magic.c:222
 void CheckRuneLevel(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
 		error("CheckRuneLevel: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -236,7 +231,6 @@ void CheckRuneLevel(TCreature *cr, int SpellNr) {
 	}
 }
 
-// 0x0807e900  magic.c:243
 void CheckMagicItem(TCreature *cr, ObjectType Type) {
 	if (cr == nullptr) {
 		error("CheckMagicObject: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -249,7 +243,6 @@ void CheckMagicItem(TCreature *cr, ObjectType Type) {
 	}
 }
 
-// 0x0807e9e0  magic.c:259
 void CheckRing(TCreature *cr, int) {
 	if (cr == nullptr) {
 		error("CheckRing: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -265,7 +258,6 @@ void CheckRing(TCreature *cr, int) {
 	}
 }
 
-// 0x0807ea70  magic.c:276
 void CheckAffectedPlayers(TCreature *cr, int x, int y, int z) {
 	if (cr == nullptr) {
 		error("CheckAffectedPlayers: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -288,7 +280,6 @@ void CheckAffectedPlayers(TCreature *cr, int x, int y, int z) {
 	}
 }
 
-// 0x0807ebd0  magic.c:294
 void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	if (cr == nullptr) {
 		error("CheckMana: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -331,7 +322,6 @@ void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	cr->EarliestSpellTime = std::max<uint32_t>(cr->EarliestSpellTime, ServerMilliseconds + Delay);
 }
 
-// 0x0807ed50  magic.c:328
 int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 	if (Variation != 0) {
 		Damage += random(-Variation, Variation);
@@ -356,7 +346,6 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 	return dam;
 }
 
-// 0x0807ee30  magic.c:345
 bool IsAggressiveSpell(int SpellNr) {
 	if (SpellNr < 1 || SpellNr > 255) {
 		error("IsAggressiveSpell: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
@@ -366,7 +355,6 @@ bool IsAggressiveSpell(int SpellNr) {
 	return (SpellList[SpellNr].Flags & 1) != 0;
 }
 
-// 0x0807eee0  magic.c:362
 TDamageImpact::TDamageImpact(TCreature *_Actor, int _DamageType, int _Power, bool _AllowDefense) {
 	if (_Actor == nullptr) {
 		error("TDamageImpact::TDamageImpact: Actor ist NULL.\n");
@@ -378,7 +366,6 @@ TDamageImpact::TDamageImpact(TCreature *_Actor, int _DamageType, int _Power, boo
 	AllowDefense = _AllowDefense;
 }
 
-// 0x0807ef40  magic.c:374
 void TDamageImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
 		error("TDamageImpact::handleCreature: Opfer existiert nicht.\n");
@@ -401,7 +388,6 @@ void TDamageImpact::handleCreature(TCreature *Victim) {
 	Victim->Damage(Actor, Help, DamageType);
 }
 
-// 0x0807f030  magic.c:391
 TFieldImpact::TFieldImpact(TCreature *_Actor, int _FieldType) {
 	if (_Actor == nullptr) {
 		error("TFieldImpact::TFieldImpact: Actor ist NULL.\n");
@@ -411,7 +397,6 @@ TFieldImpact::TFieldImpact(TCreature *_Actor, int _FieldType) {
 	FieldType = _FieldType;
 }
 
-// 0x0807f070  magic.c:401
 void TFieldImpact::handleField(int x, int y, int z) {
 	if (Actor == nullptr) {
 		return;
@@ -423,7 +408,6 @@ void TFieldImpact::handleField(int x, int y, int z) {
 	}
 }
 
-// 0x0807f170  magic.c:412
 THealingImpact::THealingImpact(TCreature *_Actor, int _Power) {
 	if (_Actor == nullptr) {
 		error("THealingImpact::THealingImpact: Actor ist NULL.\n");
@@ -438,7 +422,6 @@ THealingImpact::THealingImpact(TCreature *_Actor, int _Power) {
 	Power = _Power;
 }
 
-// 0x0807f1e0  magic.c:423
 void THealingImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
 		error("THealingImpact::handleCreature: Opfer existiert nicht.\n");
@@ -457,7 +440,6 @@ void THealingImpact::handleCreature(TCreature *Victim) {
 	}
 }
 
-// 0x0807f2e0  magic.c:439
 TSpeedImpact::TSpeedImpact(TCreature *_Actor, int _Percent, int _Duration) {
 	if (_Actor == nullptr) {
 		error("TSpeedImpact::TSpeedImpact: Actor ist NULL.\n");
@@ -468,7 +450,6 @@ TSpeedImpact::TSpeedImpact(TCreature *_Actor, int _Percent, int _Duration) {
 	Duration = _Duration;
 }
 
-// 0x0807f330  magic.c:450
 void TSpeedImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
 		error("TSpeedImpact::handleCreature: Opfer existiert nicht.\n");
@@ -506,7 +487,6 @@ void TSpeedImpact::handleCreature(TCreature *Victim) {
 	Victim->SetTimer(4, Duration, 1, 1, -1);
 }
 
-// 0x0807f4f0  magic.c:473
 TDrunkenImpact::TDrunkenImpact(TCreature *_Actor, int _Power, int _Duration) {
 	if (_Actor == nullptr) {
 		error("TDrunkenImpact::TDrunkenImpact: Actor ist NULL.\n");
@@ -522,7 +502,6 @@ TDrunkenImpact::TDrunkenImpact(TCreature *_Actor, int _Power, int _Duration) {
 	Duration = _Duration;
 }
 
-// 0x0807f560  magic.c:488
 void TDrunkenImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
 		error("TDrunkenImpact::handleCreature: Opfer existiert nicht.\n");
@@ -550,7 +529,6 @@ void TDrunkenImpact::handleCreature(TCreature *Victim) {
 	}
 }
 
-// 0x0807f6a0  magic.c:507
 TStrengthImpact::TStrengthImpact(TCreature *_Actor, int _Skills, int _Percent, int _Duration) {
 	if (_Actor == nullptr) {
 		error("TStrengthImpact::TStrengthImpact: Actor ist NULL.\n");
@@ -562,7 +540,6 @@ TStrengthImpact::TStrengthImpact(TCreature *_Actor, int _Skills, int _Percent, i
 	Duration = _Duration;
 }
 
-// 0x0807f6f0  magic.c:519
 void TStrengthImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
 		error("TStrengthImpact::handleCreature: Opfer existiert nicht.\n");
@@ -612,7 +589,6 @@ void TStrengthImpact::handleCreature(TCreature *Victim) {
 	}
 }
 
-// 0x0807f8f0  magic.c:547
 TOutfitImpact::TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration) {
 	if (_Actor == nullptr) {
 		error("TOutfitImpact::TOutfitImpact: Actor ist NULL.\n");
@@ -623,7 +599,6 @@ TOutfitImpact::TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration) 
 	Duration = _Duration;
 }
 
-// 0x0807f950  magic.c:558
 void TOutfitImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
 		error("TOutfitImpact::handleCreature: Opfer existiert nicht.\n");
@@ -634,7 +609,6 @@ void TOutfitImpact::handleCreature(TCreature *Victim) {
 	Victim->SetTimer(16, 1, Duration, Duration, -1);
 }
 
-// 0x0807fa50  magic.c:572
 TSummonImpact::TSummonImpact(TCreature *_Actor, int _Race, int _Maximum) {
 	if (_Actor == nullptr) {
 		error("TSummonImpact::TSummonImpact: Actor ist NULL.\n");
@@ -649,7 +623,6 @@ TSummonImpact::TSummonImpact(TCreature *_Actor, int _Race, int _Maximum) {
 	Maximum = _Maximum;
 }
 
-// 0x0807fad0  magic.c:584
 void TSummonImpact::handleField(int x, int y, int z) {
 	if (Actor == nullptr) {
 		return;
@@ -661,7 +634,6 @@ void TSummonImpact::handleField(int x, int y, int z) {
 	}
 }
 
-// 0x0807fb80  magic.c:603
 void ActorShapeSpell(TCreature *Actor, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
 		error("ActorShapeSpell: Sprecher existiert nicht.\n");
@@ -678,7 +650,6 @@ void ActorShapeSpell(TCreature *Actor, TImpact *Impact, int Effect) {
 	}
 }
 
-// 0x0807fc30  magic.c:618
 void VictimShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int Animation, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
 		error("VictimShapeSpell: Sprecher existiert nicht.\n");
@@ -711,7 +682,6 @@ void VictimShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int Animat
 	}
 }
 
-// 0x0807fe00  magic.c:638
 void OriginShapeSpell(TCreature *Actor, int Radius, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
 		error("OriginShapeSpell: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -751,7 +721,6 @@ void OriginShapeSpell(TCreature *Actor, int Radius, TImpact *Impact, int Effect)
 	}
 }
 
-// 0x08080020  magic.c:666
 void DestinationShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int Animation, int Radius, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
 		error("DestinationShapeSpell: Sprecher existiert nicht.\n");
@@ -765,7 +734,6 @@ void DestinationShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int A
 	CircleShapeSpell(Actor, Victim->posx, Victim->posy, Victim->posz, Range, Animation, Radius, Impact, Effect);
 }
 
-// 0x080800c0  magic.c:680
 void CircleShapeSpell(TCreature *Actor, int DestX, int DestY, int DestZ, int Range, int Animation, int Radius, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
 		error("CircleShapeSpell: Sprecher existiert nicht.\n");
@@ -821,7 +789,6 @@ void CircleShapeSpell(TCreature *Actor, int DestX, int DestY, int DestZ, int Ran
 	}
 }
 
-// 0x080803f0  magic.c:713
 void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
 		error("AngleShapeSpell: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -892,7 +859,6 @@ void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, in
 	}
 }
 
-// 0x080806b0  magic.c:754
 void MassCombat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, int EffectNr, int Radius, unsigned short DmgType, int Animation) {
 	if (!Target.exists()) {
 		error("MassCombat: \xdc" "bergebenes Ziel existiert nicht.\n");
@@ -916,7 +882,6 @@ void MassCombat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Dama
 	CircleShapeSpell(cr, x, y, z, INT_MAX, Animation, Radius, &Impact, EffectNr);
 }
 
-// 0x08080870  magic.c:783
 void AngleCombat(TCreature *cr, int Mana, int SoulPoints, int Damage, int EffectNr, int Radius, int Angle, unsigned short DmgType) {
 	if (cr == nullptr) {
 		error("AngleCombat: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -928,7 +893,6 @@ void AngleCombat(TCreature *cr, int Mana, int SoulPoints, int Damage, int Effect
 	AngleShapeSpell(cr, Angle, Radius, &Impact, EffectNr);
 }
 
-// 0x08080990  magic.c:802
 void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, int EffectNr, int AnimationNr, unsigned short DmgType) {
 	if (!Target.exists()) {
 		error("Combat: \xdc" "bergebenes Ziel existiert nicht.\n");
@@ -960,7 +924,6 @@ void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, 
 	CircleShapeSpell(cr, x, y, z, INT_MAX, AnimationNr, 0, &Impact, EffectNr);
 }
 
-// 0x08080be0  magic.c:829
 void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 	if (cr == nullptr) {
 		error("KillAllMonsters: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -1001,7 +964,6 @@ void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 	}
 }
 
-// 0x08080ea0  magic.c:896
 void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) {
 	if (cr == nullptr) {
 		error("CreateField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1032,7 +994,6 @@ void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) 
 	}
 }
 
-// 0x080810f0  magic.c:921
 void CreateField(TCreature *cr, int Mana, int SoulPoints, int Type) {
 	if (cr == nullptr) {
 		error("CreateField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1056,7 +1017,6 @@ void CreateField(TCreature *cr, int Mana, int SoulPoints, int Type) {
 	CreateField(cr, GetMapContainer(x, y, z), Mana, SoulPoints, Type);
 }
 
-// 0x08081250  magic.c:945
 void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type, int Radius) {
 	if (cr == nullptr) {
 		error("MassCreateField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1096,7 +1056,6 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 	}
 }
 
-// 0x08081570  magic.c:976
 void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type, int Extension) {
 	if (cr == nullptr) {
 		error("CreateFieldWall: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1200,7 +1159,6 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 	}
 }
 
-// 0x08081b70  magic.c:1030
 void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
 		error("DeleteField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1231,7 +1189,6 @@ void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	GraphicalEffect(x, y, z, 3);
 }
 
-// 0x08081d50  magic.c:1057
 void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
 		error("CleanupField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1265,7 +1222,6 @@ void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	cr->BlockLogout(60, true);
 }
 
-// 0x08081fe0  magic.c:1088
 void CleanupField(TCreature *cr) {
 	if (cr == nullptr) {
 		error("CleanupField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1304,7 +1260,6 @@ void CleanupField(TCreature *cr) {
 	}
 }
 
-// 0x08082150  magic.c:1116
 void Teleport(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
 		error("Teleport: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1416,7 +1371,6 @@ void Teleport(TCreature *cr, char *Param) {
 	}
 }
 
-// 0x08082760  magic.c:1197
 void TeleportToCreature(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
 		error("TeleportToCreature: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1480,7 +1434,6 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 	Log("banish", "%s teleportiert sich zu %s.\n", cr->Name, dest->Name);
 }
 
-// 0x08082a50  magic.c:1245
 void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
 		error("TeleportPlayerToMe: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1538,7 +1491,6 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	GraphicalEffect(x, y, z, 11);
 }
 
-// 0x08082cd0  magic.c:1341
 void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
 		error("MagicRope: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1557,7 +1509,6 @@ void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
 	GraphicalEffect(x, y, z, 11);
 }
 
-// 0x08082e50  magic.c:1360
 void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 	if (cr == nullptr) {
 		error("MagicClimbing: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1610,7 +1561,6 @@ void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 	GraphicalEffect(x, y, z, 11);
 }
 
-// 0x08083190  magic.c:1408
 void MagicClimbing(TCreature *cr, char *Direction) {
 	if (cr == nullptr) {
 		error("MagicClimbing: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1632,7 +1582,6 @@ void MagicClimbing(TCreature *cr, char *Direction) {
 	}
 }
 
-// 0x08083260  magic.c:1434
 void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 	if (cr == nullptr) {
 		error("CreateThing: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1700,7 +1649,6 @@ void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 	GraphicalEffect(Con, 15);
 }
 
-// 0x080835f0  magic.c:1481
 void CreateMoney(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
 		error("CreateMoney: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1744,7 +1692,6 @@ void CreateMoney(TCreature *cr, char *Param) {
 	GraphicalEffect(Con, 15);
 }
 
-// 0x08083850  magic.c:1514
 void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
 		error("CreateFood: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1771,7 +1718,6 @@ void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
 	GraphicalEffect(cr->GetCreatureObject(), 15);
 }
 
-// 0x08083a80  magic.c:1544
 void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount) {
 	if (cr == nullptr) {
 		error("CreateArrows: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1796,7 +1742,6 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08083c40  magic.c:1570
 void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 	if (cr == nullptr) {
 		error("SummonCreature: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1837,7 +1782,6 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08083e90  magic.c:1598
 void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
 	if (cr == nullptr) {
 		error("SummonCreature: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1864,7 +1808,6 @@ void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
 	SummonCreature(cr, Mana, Race, God);
 }
 
-// 0x08083f90  magic.c:1622
 void StartMonsterraid(TCreature *cr, char *RaidName) {
 	if (cr == nullptr) {
 		error("StartMonsterraid: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1896,7 +1839,6 @@ void StartMonsterraid(TCreature *cr, char *RaidName) {
 	}
 }
 
-// 0x08084140  magic.c:1652
 void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
 		error("RaiseDead: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1935,7 +1877,6 @@ void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	CreateMonster(33, x, y, z, 0, cr->ID, true);
 }
 
-// 0x08084440  magic.c:1683
 void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
 	if (cr == nullptr) {
 		error("MassRaiseDead: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -1985,7 +1926,6 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 	}
 }
 
-// 0x08084880  magic.c:1728
 void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 	if (cr == nullptr) {
 		error("Heal: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2012,7 +1952,6 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 	}
 }
 
-// 0x080849d0  magic.c:1751
 void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healing, int Radius) {
 	if (cr == nullptr) {
 		error("MassHeal: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2079,7 +2018,6 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 	}
 }
 
-// 0x08084d90  magic.c:1796
 void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing) {
 	if (cr == nullptr) {
 		error("HealFriend: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2125,7 +2063,6 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 	GraphicalEffect(pl->GetCreatureObject(), 15);
 }
 
-// 0x08084fa0  magic.c:1831
 void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 	if (cr == nullptr) {
 		error("RefreshMana: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2143,7 +2080,6 @@ void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08085070  magic.c:1854
 void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, int percent, int duration) {
 	if (dest == nullptr) {
 		error("MagicGoStrength: \xdc" "bergebene Ziel Kreatur existiert nicht.\n");
@@ -2183,7 +2119,6 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 	GraphicalEffect(dest->GetCreatureObject(), 14);
 }
 
-// 0x08085270  magic.c:1882
 void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	if (cr == nullptr) {
 		error("Shielding: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2195,7 +2130,6 @@ void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08085350  magic.c:1897
 void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 	if (cr == nullptr) {
 		error("NegatePoison: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2212,7 +2146,6 @@ void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 	GraphicalEffect(dest->GetCreatureObject(), 13);
 }
 
-// 0x08085440  magic.c:1916
 void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) {
 	if (cr == nullptr) {
 		error("Enlight: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2227,7 +2160,6 @@ void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) 
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08085530  magic.c:1932
 void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	if (cr == nullptr) {
 		error("Invisibility: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2241,7 +2173,6 @@ void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08085620  magic.c:1949
 void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
 	if (cr == nullptr) {
 		error("CancelInvisibility: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2328,7 +2259,6 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 	}
 }
 
-// 0x08085c30  magic.c:2005
 void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, int Duration) {
 	if (cr == nullptr) {
 		error("CreatureIllusion: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2365,7 +2295,6 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08085df0  magic.c:2036
 void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Duration) {
 	if (cr == nullptr) {
 		error("ObjectIllusion: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2395,7 +2324,6 @@ void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Dur
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08085fc0  magic.c:2061
 void ChangeData(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
 		error("ChangeData: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2463,7 +2391,6 @@ void ChangeData(TCreature *cr, char *Param) {
 	GraphicalEffect(cr->GetCreatureObject(), 15);
 }
 
-// 0x080863e0  magic.c:2111
 void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, ObjectType Target) {
 	if (cr == nullptr) {
 		error("EnchantObject: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2483,7 +2410,6 @@ void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, O
 	GraphicalEffect(cr->GetCreatureObject(), 15);
 }
 
-// 0x08086620  magic.c:2131
 void Convince(TCreature *master, TCreature *slave) {
 	if (slave->Type != MONSTER) {
 		throw ATTACKNOTALLOWED;
@@ -2508,7 +2434,6 @@ void Convince(TCreature *master, TCreature *slave) {
 	GraphicalEffect(slave->GetCreatureObject(), 10);
 }
 
-// 0x08086790  magic.c:2148
 void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	for (int i = 0; i <= Radius; i++) {
@@ -2533,7 +2458,6 @@ void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
 	}
 }
 
-// 0x08086950  magic.c:2175
 void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 	if (cr == nullptr) {
 		error("FindPerson: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2623,7 +2547,6 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
-// 0x08086cd0  magic.c:2231
 void GetPosition(TCreature *cr) {
 	if (cr == nullptr) {
 		error("GetPosition: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2641,7 +2564,6 @@ void GetPosition(TCreature *cr) {
 	}
 }
 
-// 0x08086db0  magic.c:2250
 void GetQuestValue(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
 		error("GetQuestValue: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2672,7 +2594,6 @@ void GetQuestValue(TCreature *cr, char *Param) {
 	}
 }
 
-// 0x08086f00  magic.c:2278
 void SetQuestValue(TCreature *cr, char *Param1, char *Param2) {
 	if (cr == nullptr) {
 		error("SetQuestValue: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2710,7 +2631,6 @@ void SetQuestValue(TCreature *cr, char *Param1, char *Param2) {
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Quest value %d set to %d.", Number, Value);
 }
 
-// 0x080870a0  magic.c:2312
 void ClearQuestValues(TCreature *cr) {
 	if (cr == nullptr) {
 		error("ClearQuestValues: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2734,7 +2654,6 @@ void ClearQuestValues(TCreature *cr) {
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "All quest values deleted.");
 }
 
-// 0x08087190  magic.c:2331
 void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 	if (cr == nullptr) {
 		error("CreateKnowledge: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2775,7 +2694,6 @@ void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 	GraphicalEffect(pl->GetCreatureObject(), 15);
 }
 
-// 0x080872f0  magic.c:2362
 void ChangeProfession(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
 		error("ChangeProfession: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2828,7 +2746,6 @@ void ChangeProfession(TCreature *cr, char *Param) {
 	GraphicalEffect(pl->GetCreatureObject(), 13);
 }
 
-// 0x08087550  magic.c:2408
 void EditGuests(TCreature *cr) {
 	if (cr == nullptr) {
 		error("EditGuests: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2851,7 +2768,6 @@ void EditGuests(TCreature *cr) {
 	SendEditList(pl->GetConnection(), 1, HouseID, Buffer);
 }
 
-// 0x08087660  magic.c:2430
 void EditSubowners(TCreature *cr) {
 	if (cr == nullptr) {
 		error("EditSubowners: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2874,7 +2790,6 @@ void EditSubowners(TCreature *cr) {
 	SendEditList(pl->GetConnection(), 2, HouseID, Buffer);
 }
 
-// 0x08087770  magic.c:2452
 void KickGuest(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
 		error("KickGuest(magic): Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2910,7 +2825,6 @@ void KickGuest(TCreature *cr, char *Name) {
 	KickGuest(HouseID, pl, Guest);
 }
 
-// 0x080878d0  magic.c:2480
 void EditNameDoor(TCreature *cr) {
 	if (cr == nullptr) {
 		error("EditNameDoor: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2969,7 +2883,6 @@ void EditNameDoor(TCreature *cr) {
 	SendEditList(pl->GetConnection(), 3, Door.getObjectID(), Buffer);
 }
 
-// 0x08087b80  magic.c:2532
 void Notation(TCreature *cr, char *Name, char *Comment) {
 	if (cr == nullptr) {
 		error("Notation: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -2995,7 +2908,6 @@ void Notation(TCreature *cr, char *Name, char *Comment) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more. Press Ctrl+Y for the dialog.");
 }
 
-// 0x08087c40  magic.c:2557
 void NameLock(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
 		error("NameLock: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3016,7 +2928,6 @@ void NameLock(TCreature *cr, char *Name) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more. Press Ctrl+Y for the dialog.");
 }
 
-// 0x08087ce0  magic.c:2578
 void BanishAccount(TCreature *cr, char *Name, int, char *Reason) {
 	if (cr == nullptr) {
 		error("BanishAccount: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3042,7 +2953,6 @@ void BanishAccount(TCreature *cr, char *Name, int, char *Reason) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more. Press Ctrl+Y for the dialog.");
 }
 
-// 0x08087da0  magic.c:2603
 void DeleteAccount(TCreature *cr, char *Name, char *Reason) {
 	if (cr == nullptr) {
 		error("DeleteAccount: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3068,7 +2978,6 @@ void DeleteAccount(TCreature *cr, char *Name, char *Reason) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more. Press Ctrl+Y for the dialog.");
 }
 
-// 0x08087e60  magic.c:2628
 void BanishCharacter(TCreature *cr, char *Name, int, char *Reason) {
 	if (cr == nullptr) {
 		error("BanishCharacter: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3094,7 +3003,6 @@ void BanishCharacter(TCreature *cr, char *Name, int, char *Reason) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more. Press Ctrl+Y for the dialog.");
 }
 
-// 0x08087f20  magic.c:2653
 void DeleteCharacter(TCreature *cr, char *Name, char *Reason) {
 	if (cr == nullptr) {
 		error("DeleteCharacter: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3120,7 +3028,6 @@ void DeleteCharacter(TCreature *cr, char *Name, char *Reason) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more. Press Ctrl+Y for the dialog.");
 }
 
-// 0x08087fe0  magic.c:2679
 void IPBanishment(TCreature *cr, char *Name, char *Reason) {
 	if (cr == nullptr) {
 		error("IPBanishment: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3146,7 +3053,6 @@ void IPBanishment(TCreature *cr, char *Name, char *Reason) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more. Press Ctrl+Y for the dialog.");
 }
 
-// 0x080880a0  magic.c:2704
 void SetNameRule(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
 		error("SetNameRule: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3167,7 +3073,6 @@ void SetNameRule(TCreature *cr, char *Name) {
 	SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Spell is not available any more.");
 }
 
-// 0x08088140  magic.c:2725
 void KickPlayer(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
 		error("KickPlayer: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3205,7 +3110,6 @@ void KickPlayer(TCreature *cr, char *Name) {
 	Log("banish", "%s kickt %s.\n", pl->Name, Opp->Name);
 }
 
-// 0x080882f0  magic.c:2757
 void HomeTeleport(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
 		error("HomeTeleport: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
@@ -3245,7 +3149,6 @@ void HomeTeleport(TCreature *cr, char *Name) {
 	Log("banish", "%s teleportiert %s zum Tempel.\n", pl->Name, Opp->Name);
 }
 
-// 0x08088520  magic.c:2796
 void SpellFailed(uint32_t CreatureID) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -3256,7 +3159,6 @@ void SpellFailed(uint32_t CreatureID) {
 	GraphicalEffect(cr->GetCreatureObject(), 3);
 }
 
-// 0x08088570  magic.c:2809
 void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -3341,7 +3243,6 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 	}
 }
 
-// 0x080887f0  magic.c:2850
 void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -3387,7 +3288,6 @@ void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) 
 	}
 }
 
-// 0x08088a00  magic.c:2876
 void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -3548,7 +3448,6 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 	}
 }
 
-// 0x08089500  magic.c:2970
 void RuneSpell(uint32_t CreatureID, int SpellNr) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -3597,7 +3496,6 @@ void RuneSpell(uint32_t CreatureID, int SpellNr) {
 	GraphicalEffect(cr->GetCreatureObject(), 14);
 }
 
-// 0x08089850  magic.c:3019
 int TypeOfSpell(char *Text) {
 	if (Text != nullptr) {
 		for (int i = 1; i <= 5; i++) {
@@ -3610,7 +3508,6 @@ int TypeOfSpell(char *Text) {
 	return 0;
 }
 
-// 0x080898a0  magic.c:3030
 int FindSpell(unsigned char *Syllable) {
 	int Spell = 0;
 	int MinParams = 100;
@@ -3642,7 +3539,6 @@ int FindSpell(unsigned char *Syllable) {
 	return Spell;
 }
 
-// 0x08089940  magic.c:3055
 int FindSpell(Object Obj) {
 	if (!Obj.exists()) {
 		error("FindSpell: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -3663,7 +3559,6 @@ int FindSpell(Object Obj) {
 	return 0;
 }
 
-// 0x08089a20  magic.c:3079
 void GetSpellString(int SpellNr, char *Text) {
 	Text[0] = 0;
 	if (SpellNr < 1 || SpellNr > 255) {
@@ -3687,7 +3582,6 @@ void GetSpellString(int SpellNr, char *Text) {
 	}
 }
 
-// 0x08089ad0  magic.c:3098
 void GetMagicItemDescription(Object Obj, char *SpellString, int &MagicLevel) {
 	MagicLevel = 0;
 	SpellString[0] = 0;
@@ -3711,7 +3605,6 @@ void GetMagicItemDescription(Object Obj, char *SpellString, int &MagicLevel) {
 	MagicLevel = SpellList[SpellNr].RuneLevel;
 }
 
-// 0x08089bb0  magic.c:3128
 void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
@@ -3768,7 +3661,6 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 	}
 }
 
-// 0x08089e40  magic.c:3179
 int GetSpellLevel(int SpellNr) {
 	if (SpellNr < 1 || SpellNr > 255) {
 		error("GetSpellLevel: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
@@ -3778,7 +3670,6 @@ int GetSpellLevel(int SpellNr) {
 	return SpellList[SpellNr].Level;
 }
 
-// 0x08089e80  magic.c:3197
 int CheckForSpell(uint32_t CreatureID, char *Text) {
 	int SpellType = TypeOfSpell(Text);
 	if (SpellType == 0) {
@@ -3874,7 +3765,6 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 	return SpellType;
 }
 
-// 0x0808a5f0  magic.c:3259
 void DeleteRune(Object Obj) {
 	if (!Obj.exists()) {
 		error("DeleteRune: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -3888,7 +3778,6 @@ void DeleteRune(Object Obj) {
 	}
 }
 
-// 0x0808a6c0  magic.c:3273
 void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 	TPlayer *pl = GetPlayer(CreatureID);
 	if (pl == nullptr) {
@@ -4089,7 +3978,6 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 	}
 }
 
-// 0x0808b330  magic.c:3382
 void DrinkPotion(uint32_t CreatureID, Object Obj) {
 	TPlayer *pl = GetPlayer(CreatureID);
 	if (pl == nullptr) {
@@ -4125,7 +4013,6 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 	Change(Obj, CONTAINERLIQUIDTYPE, 0);
 }
 
-// 0x0808b4d0  magic.c:3418
 void InitCircles() {
 	char FileName[4096];
 	std::ifstream IN;
@@ -4168,7 +4055,6 @@ void InitCircles() {
 	}
 }
 
-// 0x0808b930  magic.c:3455
 TSpellList *CreateSpell(int SpellNr, ...) {
 	va_list va;
 	va_start(va, SpellNr);
@@ -4199,7 +4085,6 @@ TSpellList *CreateSpell(int SpellNr, ...) {
 	return &SpellList[SpellNr];
 }
 
-// 0x0808ba20  magic.c:3480
 void InitSpells() {
 	for (int i = 1; i < 256; i++) {
 		memset(&SpellList[i], 0, sizeof(TSpellList));
@@ -4844,18 +4729,15 @@ void InitSpells() {
 	S->Comment = "Start Monsterraid";
 }
 
-// 0x0808db10  magic.c:4157
 void InitMagic() {
 	InitCircles();
 	InitSpells();
 	InitLog("banish");
 }
 
-// 0x0808db50  magic.c:4168
 void ExitMagic() {
 }
 
-// 0x0808db60  magic.c:869
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful) {
 	ObjectType ObjectType;
 	switch (FieldType) {

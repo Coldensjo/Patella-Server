@@ -41,13 +41,12 @@
 #include "receiving.hh"
 #include "main.hh"
 
-bool BeADaemon;	// main.c:39
-int SigUsr1Counter;	// main.c:40
-int SigAlarmCounter;	// main.c:41
-bool SaveMapOn;	// main.c:42
-bool Reboot;	// main.c:43
+bool BeADaemon;
+int SigUsr1Counter;
+int SigAlarmCounter;
+bool SaveMapOn;
+bool Reboot;
 
-// 0x0804b2d0  main.c:54
 void ProcessCommand() {
 	int Command = GetCommand();
 	if (Command != 0) {
@@ -65,7 +64,6 @@ void ProcessCommand() {
 	}
 }
 
-// 0x0804b350  main.c:73
 void AdvanceGame(int Delay) {
 	static int CreaturesTimeCounter = 0;
 	static int SkillTimeCounter = 0;
@@ -206,7 +204,6 @@ void AdvanceGame(int Delay) {
 	SendAll();
 }
 
-// 0x0804b780  main.c:172
 void HandlerSigAlarm(int) {
 	struct itimerval v, ov;
 
@@ -218,19 +215,16 @@ void HandlerSigAlarm(int) {
 	setitimer(ITIMER_REAL, &v, &ov);
 }
 
-// 0x0804b7d0  main.c:186
 void TimeReset() {
 	SigAlarmCounter = 0;
 }
 
-// 0x0804b7e0  main.c:194
 void InitTime() {
 	TimeReset();
 	handler(SIGALRM, HandlerSigAlarm);
 	HandlerSigAlarm(SIGALRM);
 }
 
-// 0x0804b850  main.c:204
 void ExitTime() {
 	struct itimerval v, ov;
 
@@ -242,22 +236,18 @@ void ExitTime() {
 	handler(SIGALRM, SIG_IGN);
 }
 
-// 0x0804b8b0  main.c:223
 void SigHupHandler(int) {
 }
 
-// 0x0804b8c0  main.c:232
 void SigAbortHandler(int) {
 	print(1, "SigAbortHandler: schalte Writer-Thread ab.\n");
 	AbortWriter();
 }
 
-// 0x0804b8f0  main.c:241
 void HandlerSigUsr1(int) {
 	SigUsr1Counter++;
 }
 
-// 0x0804b900  main.c:252
 void DefaultHandler(int signo) {
 	char s[128];
 
@@ -286,7 +276,6 @@ void DefaultHandler(int signo) {
 	Reboot = false;
 }
 
-// 0x0804ba60  main.c:289
 void ErrorHandler(int signo) {
 	char s[128];
 
@@ -297,7 +286,6 @@ void ErrorHandler(int signo) {
 	exit(1);
 }
 
-// 0x0804bad0  main.c:315
 void InitSignalHandler() {
 	int count = 0;
 
@@ -369,11 +357,9 @@ void InitSignalHandler() {
 	print(1, "InitSignalHandler: %d Signalhandler eingerichtet (Soll=%d)\n", count, 28);
 }
 
-// 0x0804bd40  main.c:355
 void ExitSignalHandler() {
 }
 
-// 0x0804bd50  main.c:367
 void UnlockGame() {
 	char FileName[4096];
 	// The original leaves Pid uninitialised. When the read stores nothing
@@ -393,7 +379,6 @@ void UnlockGame() {
 	}
 }
 
-// 0x0804bfd0  main.c:385
 // The original declares throw(const char *), which C++17 no longer has.
 void LockGame() {
 	std::ifstream IF;
@@ -424,7 +409,6 @@ void LockGame() {
 	}
 }
 
-// 0x0804c570  main.c:411
 // The original declares throw(const char *), which C++17 no longer has.
 void LoadWorldConfig() {
 	TQueryManagerConnection Connection;
@@ -446,7 +430,6 @@ void LoadWorldConfig() {
 			HelpGameAddress[0], HelpGameAddress[1], HelpGameAddress[2], HelpGameAddress[3]);
 }
 
-// 0x0804c6d0  main.c:432
 void InitAll() {
 	try {
 		ReadConfig();
@@ -477,7 +460,6 @@ void InitAll() {
 	}
 }
 
-// 0x0804c820  main.c:469
 void ExitAll() {
 	EndGame();
 	ExitTime();
@@ -496,7 +478,6 @@ void ExitAll() {
 	ExitSHM();
 }
 
-// 0x0804c8d0  main.c:493
 void LaunchGame() {
 	SigUsr1Counter = 0;
 	handler(SIGUSR1, HandlerSigUsr1);
@@ -534,7 +515,6 @@ void LaunchGame() {
 	LogoutAllPlayers();
 }
 
-// 0x0804c9c0  main.c:528
 int DaemonInit(bool NoFork) {
 	if (!NoFork) {
 		pid_t Pid = fork();
@@ -563,7 +543,6 @@ int DaemonInit(bool NoFork) {
 	return 0;
 }
 
-// 0x0804ca50  main.c:550
 int main(int argc, char **argv) {
 	bool NoFork = false;
 

@@ -105,30 +105,22 @@ private:
 
 struct TCombat {
 	TCombat();
-	// inline  cr.h:160
 	void SetMaster(TCreature *cr) { Master = cr; }
-	// inline  cr.h:163
 	bool AttackReady() { return ServerMilliseconds >= EarliestAttackTime; }
-	// inline  cr.h:164
 	bool DefendReady() { return ServerMilliseconds >= EarliestDefendTime; }
-	// inline  cr.h:165
 	int GetAttackDelay() { return (int)(EarliestAttackTime - ServerMilliseconds); }
 	void DelayAttack(int Milliseconds);
 	void CanToDoAttack();
 	int GetDistance();
 	void Attack();
 	void SetAttackDest(uint32_t dfd, bool Follow);
-	// inline  cr.h:175
 	uint32_t GetAttackDest() { return AttackDest; }
 	void SetAttackMode(unsigned char b);
 	unsigned char GetAttackMode();
 	void SetChaseMode(unsigned char b);
-	// inline  cr.h:179
 	unsigned char GetChaseMode() { return ChaseMode; }
 	void SetSecureMode(unsigned char b);
-	// inline  cr.h:181
 	unsigned char GetSecureMode() { return SecureMode; }
-	// inline  cr.h:182
 	bool IsFollowing() { return Following; }
 	void StopAttack(int Delay);
 	void CheckCombatValues();
@@ -174,70 +166,44 @@ private:
 struct TSkill {
 	TSkill(int nr, TCreature *cr);
 	virtual ~TSkill();
-	// inline  cr.h:236
 	TCreature *GetMaster() { return Master; }
 	void Load(int act, int max, int min, int dact, int mdact, int cyc, int maxcyc, int cnt, int maxcnt, int addlvl, int exp, int fp, int nextlvl, int delta);
 	void Save(int &act, int &max, int &min, int &dact, int &mdact, int &cyc, int &maxcyc, int &cnt, int &maxcnt, int &addlvl, int &exp, int &fp, int &nextlvl, int &delta);
-	// inline  cr.h:241
 	void SetAct(int value) { Act = value; }
-	// inline  cr.h:242
 	void SetMax(int value) { Max = value; }
-	// inline  cr.h:243
 	void SetMin(int value) { Min = value; }
-	// inline  cr.h:244
 	void SetDAct(int value) { DAct = value; }
 	void SetMDAct(int value);
-	// inline  cr.h:246
 	void SetAddLevel(int value) { AddLevel = value; }
-	// inline  cr.h:247
 	void SetExp(int value) { Exp = value; }
-	// inline  cr.h:248
 	void SetFactorPercent(int value) { FactorPercent = value; }
-	// inline  cr.h:249
 	void SetLastLevel(int value) { LastLevel = value; }
-	// inline  cr.h:250
 	void SetNextLevel(int value) { NextLevel = value; }
-	// inline  cr.h:251
 	void SetDelta(int value) { Delta = value; }
-	// inline  cr.h:252
 	void SetMaxCount(int value) { MaxCount = value; }
 	void SetCount(int);
-	// inline  cr.h:256
 	int GetMax() { return Max; }
 	int GetMin();
-	// inline  cr.h:258
 	int GetAct() { return Act; }
-	// inline  cr.h:259
 	int GetDAct() { return DAct; }
-	// inline  cr.h:260
 	int GetMDAct() { return MDAct; }
-	// inline  cr.h:261
 	int GetExp() { return Exp; }
-	// inline  cr.h:262
 	unsigned short GetSkNr() { return SkNr; }
 	int Get();
 	int GetProgress();
 	virtual void Set(int a);
 	void Change(int a);
 	void Check();
-	// 0x080caa50  cr.h:273
 	virtual void Increase(int) {}
-	// 0x080caa60  cr.h:274
 	virtual void Decrease(int) {}
-	// 0x080caa70  cr.h:275
 	virtual int GetExpForLevel(int) { return 0; }
-	// 0x080caa80  cr.h:276
 	virtual void Advance(int) {}
-	// 0x080caa90  cr.h:277
 	virtual void ChangeSkill(int, int) {}
-	// 0x080caaa0  cr.h:280
 	virtual int ProbeValue(int, bool) { return 0; }
-	// 0x080caab0  cr.h:281
 	virtual bool Probe(int, int, bool) { return false; }
 	virtual bool Process();
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 	virtual bool DelTimer();
-	// 0x080caac0  cr.h:287
 	virtual int TimerValue() { return Cycle; }
 protected:
 	virtual bool Jump(int);
@@ -271,7 +237,6 @@ struct TSkillBase {
 	bool SetTimer(unsigned short SkNr, int cyc, int cou, int maxcou, int additionalvalue);
 	void DelTimer(unsigned short SkNr);
 	void ProcessSkills();
-	// inline  cr.h:327
 	bool TimerActive() { return FirstFreeTimer != 0; }
 	bool NewSkill(unsigned short SkillNo, TCreature *cr);
 	bool SetSkills(int Race);
@@ -290,21 +255,15 @@ struct TCreature : public TSkillBase {
 	int Damage(TCreature *atk, int Damage, int DamageType);
 	virtual void Death();
 	TCombat Combat;
-	// inline  cr.h:351
 	bool IsInvisible() { return Outfit.OutfitID == 0 && Outfit.ObjectType == 0; }
 	virtual bool MovePossible(int x, int y, int z, bool Execute, bool Jump);
-	// 0x080a53a0  cr.h:353
 	virtual bool IsPeaceful() { return true; }
-	// 0x080a53b0  cr.h:354
 	virtual uint32_t GetMaster() { return 0; }
 	void StartLogout(bool Force, bool StopFight);
 	int LogoutPossible();
 	void BlockLogout(int Delay, bool BlockProtectionZone);
-	// inline  cr.h:359
 	bool IsLoggingOut() { return LoggingOut; }
-	// inline  cr.h:361
 	TConnection *GetConnection() { return Connection; }
-	// inline  cr.h:362
 	void SetConnection(TConnection *_Connection) { Connection = _Connection; }
 	void NotifyCreate();
 	void NotifyDelete();
@@ -330,18 +289,12 @@ struct TCreature : public TSkillBase {
 	void ToDoTurn(int x, int y, int z, ObjectType Type, unsigned char RNum);
 	void ToDoAttack();
 	void ToDoChangeState(int NewState);
-	// 0x080a53c0  cr.h:393
 	virtual void TalkStimulus(uint32_t, char *) {}
-	// 0x080a53d0  cr.h:394
 	virtual void DamageStimulus(uint32_t, int, int) {}
-	// 0x080a53e0  cr.h:395
 	virtual void IdleStimulus() {}
 	virtual void CreatureMoveStimulus(uint32_t CreatureID, int Type);
-	// 0x080a53f0  cr.h:397
 	virtual void AttackStimulus(uint32_t) {}
-	// inline  cr.h:399
 	Object GetCreatureObject() { return CrObject; }
-	// inline  cr.h:400
 	void SetCreatureObject(Object Obj) { CrObject = Obj; }
 	uint32_t ID;
 	TCreature *NextHashEntry;
@@ -446,7 +399,6 @@ struct TPlayer : public TCreature {
 	void SetQuestValue(int Number, int Value);
 	bool IsAttacker(uint32_t Victim, bool CheckFormer);
 	bool IsAggressor(bool CheckFormer);
-	// inline  cr.h:512
 	bool IsPlayerkiller() { return PlayerData->PlayerkillerEnd != 0; }
 	bool IsAttackJustified(uint32_t Victim);
 	void RecordAttack(uint32_t Victim);

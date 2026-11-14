@@ -21,13 +21,13 @@
 
 namespace qm {
 
-// Key ReadConfig (config.c, 0x8052d00) passes to DisguisePassword for the
-// QueryManager entries; the static PasswordKey at 0x80f0a71 in bin/game.
+// Key ReadConfig (config.c) passes to DisguisePassword for the QueryManager
+// entries; the static PasswordKey of config.c in bin/game.
 extern const char PasswordKey[];
 
-// DisguisePassword (config.c, 0x8052c10). The game applies it to the
-// password it read from .tibia and sends the result in the login request.
-// Throws std::runtime_error if the key is shorter than the password.
+// DisguisePassword (config.c). The game applies it to the password it read
+// from .tibia and sends the result in the login request. Throws
+// std::runtime_error if the key is shorter than the password.
 std::string disguisePassword(const std::string &password, const std::string &key);
 
 struct QueryManagerEntry {
@@ -55,13 +55,13 @@ struct PlayerFile {
 	bool hasName = false;
 };
 
-// Reads the head of a .usr file (LoadPlayerData, dbfuncs.c, 0x806c240,
-// reads the same keys with the same reader).
+// Reads the head of a .usr file (LoadPlayerData, dbfuncs.c, reads the same
+// keys with the same reader).
 PlayerFile readPlayerFile(const std::string &path);
 
-// Sex for an outfit, from the ranges TPlayer::CheckOutfit (crplayer.c,
-// 0x80addc0) accepts: 128..134 for Sex 1 (male), 136..142 for Sex 2
-// (female). Returns 0 for any other outfit.
+// Sex for an outfit, from the ranges TPlayer::CheckOutfit (crplayer.c)
+// accepts: 128..134 for Sex 1 (male), 136..142 for Sex 2 (female). Returns 0
+// for any other outfit.
 uint8_t sexFromOutfit(uint32_t outfit);
 
 struct OwnerEntry {
@@ -70,8 +70,8 @@ struct OwnerEntry {
 	uint32_t paidUntil = 0;
 };
 
-// Reads the house owners from dat/owners.dat (LoadOwners, houses.c,
-// 0x80663d0, reads the same file).
+// Reads the house owners from dat/owners.dat (LoadOwners, houses.c, reads
+// the same file).
 std::vector<OwnerEntry> readOwners(const std::string &path);
 
 struct SeedOptions {

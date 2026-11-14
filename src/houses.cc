@@ -26,7 +26,6 @@
 
 struct THouseGuest {
 	char Name[60];
-	// inline  houses.c:31
 	operator char *() { return Name; }
 };
 
@@ -66,20 +65,19 @@ struct THouse {
 	vector<THouseGuest> Guest;
 	int Guests;
 	int Help;
-	// inline  houses.c:67
 	THouse() : Subowner(0, 4, 5), Guest(0, 9, 10) {}
 };
 
-vector<THouseArea> HouseArea(0, 99, 50);	// houses.c:71
-int HouseAreas;	// houses.c:72
-vector<THouse> House(0, 99, 100);	// houses.c:73
-int Houses;	// houses.c:74
-int MaxHouseX;	// houses.c:75
-int MaxHouseY;	// houses.c:75
-static TQueryManagerConnection *QueryManagerConnection;	// houses.c:76
-int PaymentExtension;	// houses.c:77
-vector<THelpDepot> HelpDepot(1, 10, 10);	// houses.c:78
-int HelpDepots;	// houses.c:79
+vector<THouseArea> HouseArea(0, 99, 50);
+int HouseAreas;
+vector<THouse> House(0, 99, 100);
+int Houses;
+int MaxHouseX;
+int MaxHouseY;
+static TQueryManagerConnection *QueryManagerConnection;
+int PaymentExtension;
+vector<THelpDepot> HelpDepot(1, 10, 10);
+int HelpDepots;
 
 // The original declares exception specifications: throw(RESULT) on
 // ShowSubownerList, ShowGuestList, ChangeSubowners, ChangeGuests, both
@@ -89,7 +87,6 @@ int HelpDepots;	// houses.c:79
 // specifications, so an exception of another type now propagates instead of
 // ending in std::unexpected().
 
-// 0x08060d60  houses.c:90
 THouseArea *GetHouseArea(unsigned short ID) {
 	for (int i = 0; i < HouseAreas; i++) {
 		if (HouseArea(i).ID == ID) {
@@ -101,7 +98,6 @@ THouseArea *GetHouseArea(unsigned short ID) {
 	return nullptr;
 }
 
-// 0x08060dd0  houses.c:104
 int CheckAccessRight(char *Rule, TPlayer *pl) {
 	if (Rule == nullptr) {
 		error("CheckAccessRight: Regel ist NULL.\n");
@@ -143,7 +139,6 @@ int CheckAccessRight(char *Rule, TPlayer *pl) {
 	return PositiveRule ? 1 : -1;
 }
 
-// 0x08060ef0  houses.c:133
 THouse *GetHouse(unsigned short ID) {
 	int low = 0;
 	int high = Houses - 1;
@@ -166,7 +161,6 @@ THouse *GetHouse(unsigned short ID) {
 	return nullptr;
 }
 
-// 0x08060fa0  houses.c:150
 bool IsOwner(unsigned short HouseID, TPlayer *pl) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -182,7 +176,6 @@ bool IsOwner(unsigned short HouseID, TPlayer *pl) {
 	return house->OwnerID == pl->ID;
 }
 
-// 0x08061010  houses.c:167
 bool IsSubowner(unsigned short HouseID, TPlayer *pl, int TimeStamp) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -209,7 +202,6 @@ bool IsSubowner(unsigned short HouseID, TPlayer *pl, int TimeStamp) {
 	return false;
 }
 
-// 0x080610b0  houses.c:190
 bool IsGuest(unsigned short HouseID, TPlayer *pl, int TimeStamp) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -236,7 +228,6 @@ bool IsGuest(unsigned short HouseID, TPlayer *pl, int TimeStamp) {
 	return false;
 }
 
-// 0x08061150  houses.c:213
 bool IsInvited(unsigned short HouseID, TPlayer *pl, int TimeStamp) {
 	if (pl == nullptr) {
 		error("IsInvited: pl ist NULL.\n");
@@ -246,7 +237,6 @@ bool IsInvited(unsigned short HouseID, TPlayer *pl, int TimeStamp) {
 	return IsOwner(HouseID, pl) || IsSubowner(HouseID, pl, TimeStamp) || IsGuest(HouseID, pl, TimeStamp);
 }
 
-// 0x08061200  houses.c:230
 char *GetHouseName(unsigned short HouseID) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -257,7 +247,6 @@ char *GetHouseName(unsigned short HouseID) {
 	return house->Name;
 }
 
-// 0x08061240  houses.c:243
 char *GetHouseOwner(unsigned short HouseID) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -268,7 +257,6 @@ char *GetHouseOwner(unsigned short HouseID) {
 	return house->OwnerName;
 }
 
-// 0x08061280  houses.c:262
 void ShowSubownerList(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -298,7 +286,6 @@ void ShowSubownerList(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	}
 }
 
-// 0x08061410  houses.c:291
 void ShowGuestList(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -328,7 +315,6 @@ void ShowGuestList(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	}
 }
 
-// 0x080615d0  houses.c:321
 void ChangeSubowners(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -385,7 +371,6 @@ void ChangeSubowners(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	KickGuests(HouseID);
 }
 
-// 0x080617b0  houses.c:367
 void ChangeGuests(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -442,7 +427,6 @@ void ChangeGuests(unsigned short HouseID, TPlayer *pl, char *Buffer) {
 	KickGuests(HouseID);
 }
 
-// 0x080619d0  houses.c:418
 void GetExitPosition(unsigned short HouseID, int &x, int &y, int &z) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -455,7 +439,6 @@ void GetExitPosition(unsigned short HouseID, int &x, int &y, int &z) {
 	z = house->ExitZ;
 }
 
-// 0x08061a40  houses.c:434
 void KickGuest(unsigned short HouseID, TPlayer *Guest) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -488,7 +471,6 @@ void KickGuest(unsigned short HouseID, TPlayer *Guest) {
 	GraphicalEffect(Obj, 11);
 }
 
-// 0x08061ce0  houses.c:466
 void KickGuest(unsigned short HouseID, TPlayer *Host, TPlayer *Guest) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -526,7 +508,6 @@ void KickGuest(unsigned short HouseID, TPlayer *Host, TPlayer *Guest) {
 	KickGuest(HouseID, Guest);
 }
 
-// 0x08061ed0  houses.c:493
 void KickGuests(unsigned short HouseID) {
 	THouse *house = GetHouse(HouseID);
 	if (house == nullptr) {
@@ -550,7 +531,6 @@ void KickGuests(unsigned short HouseID) {
 	}
 }
 
-// 0x08062010  houses.c:521
 bool MayOpenDoor(Object Door, TPlayer *pl) {
 	if (!Door.exists()) {
 		error("MayOpenDoor: T\xfcr existiert nicht.\n");
@@ -600,7 +580,6 @@ bool MayOpenDoor(Object Door, TPlayer *pl) {
 	return false;
 }
 
-// 0x08062180  houses.c:566
 void ShowNameDoor(Object Door, TPlayer *pl, char *Buffer) {
 	if (!Door.exists()) {
 		error("ShowNameDoor: T\xfcr existiert nicht.\n");
@@ -645,7 +624,6 @@ void ShowNameDoor(Object Door, TPlayer *pl, char *Buffer) {
 	}
 }
 
-// 0x080623f0  houses.c:606
 void ChangeNameDoor(Object Door, TPlayer *pl, char *Buffer) {
 	if (!Door.exists()) {
 		error("ChangeNameDoor: T\xfcr existiert nicht.\n");
@@ -685,7 +663,6 @@ void ChangeNameDoor(Object Door, TPlayer *pl, char *Buffer) {
 	Change(Door, TEXTSTRING, AddDynamicString(Buffer));
 }
 
-// 0x08062620  houses.c:647
 int DeleteCoins(Object Con, ObjectType Type, int Amount) {
 again:
 	if (Amount == 0) {
@@ -718,7 +695,6 @@ again:
 	return Amount;
 }
 
-// 0x080627a0  houses.c:675
 void DeleteMoney(Object Con, int Amount) {
 	int Crystal = CountObjects(GetFirstContainerObject(Con), GetSpecialObject(MONEY_TENTHOUSAND), 0);
 	int Platinum = CountObjects(GetFirstContainerObject(Con), GetSpecialObject(MONEY_HUNDRED), 0);
@@ -746,7 +722,6 @@ void DeleteMoney(Object Con, int Amount) {
 	}
 }
 
-// 0x08062a00  houses.c:693
 void CleanField(int x, int y, int z, Object Box) {
 	if (Box == NONE) {
 		error("CleanField: Depot-Box existiert nicht.\n");
@@ -787,7 +762,6 @@ void CleanField(int x, int y, int z, Object Box) {
 	}
 }
 
-// 0x08062ce0  houses.c:737
 void CleanHouse(THouse *house, TPlayerData *PlayerData) {
 	if (house == nullptr) {
 		error("CleanHouse: house ist NULL.\n");
@@ -840,7 +814,6 @@ void CleanHouse(THouse *house, TPlayerData *PlayerData) {
 	}
 }
 
-// 0x08063070  houses.c:778
 void ClearHouse(THouse *house) {
 	house->OwnerID = 0;
 	house->OwnerName[0] = 0;
@@ -848,7 +821,6 @@ void ClearHouse(THouse *house) {
 	house->Guests = 0;
 }
 
-// 0x080630a0  houses.c:790
 void FinishAuctions() {
 	int x, y, z;
 	GetStartPosition(x, y, z, true);
@@ -944,7 +916,6 @@ void FinishAuctions() {
 	DeleteObject(Con);
 }
 
-// 0x08063760  houses.c:879
 void CollectRents() {
 	int x, y, z;
 	GetStartPosition(x, y, z, true);
@@ -1220,7 +1191,6 @@ void CollectRents() {
 	DeleteObject(Con);
 }
 
-// 0x08064b30  houses.c:1097
 void StartAuctions() {
 	Log("houses", "Starte neue Versteigerungen...\n");
 
@@ -1313,12 +1283,10 @@ void StartAuctions() {
 	}
 }
 
-// 0x08065120  houses.c:1178
 void PrepareHouseCleanup() {
 	HelpDepots = 0;
 }
 
-// 0x08065130  houses.c:1186
 void FinishHouseCleanup() {
 	for (int i = 1; i <= HelpDepots; i++) {
 		TPlayerData *PlayerData = AssignPlayerPoolSlot(HelpDepot(i).CharacterID, false);
@@ -1335,7 +1303,6 @@ void FinishHouseCleanup() {
 	HelpDepots = 0;
 }
 
-// 0x08065210  houses.c:1204
 void CleanHouseField(int x, int y, int z) {
 	unsigned short HouseID = GetHouseID(x, y, z);
 	if (HouseID == 0 && CoordinateFlag(x, y, z, HOOKSOUTH)) {
@@ -1399,7 +1366,6 @@ void CleanHouseField(int x, int y, int z) {
 	CleanField(x, y, z, HelpDepot(DepotLoaded).Box);
 }
 
-// 0x080655b0  houses.c:1258
 void LoadHouseAreas() {
 	Log("houses", "Lade Daten der H\xe4usergebiete...\n");
 
@@ -1438,7 +1404,6 @@ void LoadHouseAreas() {
 	Script.close();
 }
 
-// 0x08065790  houses.c:1293
 void LoadHouses() {
 	Log("houses", "Lade H\xe4userdaten...\n");
 
@@ -1586,7 +1551,6 @@ void LoadHouses() {
 	}
 }
 
-// 0x080663d0  houses.c:1407
 void LoadOwners() {
 	Log("houses", "Lade Mieterdaten...\n");
 
@@ -1745,7 +1709,6 @@ void LoadOwners() {
 	}
 }
 
-// 0x08066c10  houses.c:1522
 void SaveOwners() {
 	Log("houses", "Speichere Mieterdaten...\n");
 
@@ -1804,7 +1767,6 @@ void SaveOwners() {
 	Script.close();
 }
 
-// 0x08066f30  houses.c:1578
 void InitHouses() {
 	try {
 		InitLog("houses");
@@ -1821,7 +1783,6 @@ void InitHouses() {
 	}
 }
 
-// 0x08067000  houses.c:1599
 void ExitHouses() {
 	try {
 		SaveOwners();

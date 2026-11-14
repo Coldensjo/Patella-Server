@@ -20,7 +20,6 @@
 #include "utils.hh"
 #include "time.hh"
 
-// 0x0806df00  info.c:29
 const char *GetName(Object Obj) {
 	char ObjectName[50];
 	const char *Help;
@@ -53,7 +52,6 @@ const char *GetName(Object Obj) {
 	return Plural(ObjectName, Obj.getFlag(CUMULATIVE) ? Obj.getAttribute(AMOUNT) : 1);
 }
 
-// 0x0806e100  info.c:57
 const char *GetInfo(Object Obj) {
 	if (!Obj.exists()) {
 		error("GetInfo: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -63,7 +61,6 @@ const char *GetInfo(Object Obj) {
 	return Obj.getObjectType().getDescription();
 }
 
-// 0x0806e150  info.c:71
 int GetWeight(Object Obj, int Count) {
 	if (!Obj.exists()) {
 		error("GetWeight: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -99,7 +96,6 @@ int GetWeight(Object Obj, int Count) {
 	return Weight;
 }
 
-// 0x0806e2e0  info.c:96
 int GetRowWeight(Object Obj) {
 	if (Obj == NONE) {
 		return 0;
@@ -114,7 +110,6 @@ int GetRowWeight(Object Obj) {
 	return Weight;
 }
 
-// 0x0806e3f0  info.c:110
 int GetCompleteWeight(Object Obj) {
 	int Weight = GetWeight(Obj, -1);
 	if (Obj.getFlag(CONTAINER) || Obj.getFlag(CHEST)) {
@@ -124,7 +119,6 @@ int GetCompleteWeight(Object Obj) {
 	return Weight;
 }
 
-// 0x0806e490  info.c:121
 uint32_t GetObjectCreatureID(Object Obj) {
 	if (!Obj.exists()) {
 		error("GetObjectCreatureID: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -141,7 +135,6 @@ uint32_t GetObjectCreatureID(Object Obj) {
 	return Obj.getCreatureID();
 }
 
-// 0x0806e520  info.c:138
 int GetObjectBodyPosition(Object Obj) {
 	if (!Obj.exists()) {
 		error("GetObjectBodyPosition: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -155,7 +148,6 @@ int GetObjectBodyPosition(Object Obj) {
 	return Obj.getObjectType().getTypeID();
 }
 
-// 0x0806e5d0  info.c:151
 int GetObjectRNum(Object Obj) {
 	if (!Obj.exists()) {
 		error("GetObjectRNum: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -181,7 +173,6 @@ int GetObjectRNum(Object Obj) {
 	return Count;
 }
 
-// 0x0806e6b0  info.c:178
 bool ObjectInRange(uint32_t CreatureID, Object Obj, int Range) {
 	int x, y, z;
 	TCreature *cr = GetCreature(CreatureID);
@@ -199,7 +190,6 @@ bool ObjectInRange(uint32_t CreatureID, Object Obj, int Range) {
 	return abs(cr->posx - x) <= Range && abs(cr->posy - y) <= Range && cr->posz == z;
 }
 
-// 0x0806e790  info.c:199
 bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range) {
 	if (!Obj.exists()) {
 		error("ObjectAccessible: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -246,7 +236,6 @@ bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range) {
 	return ObjectInRange(CreatureID, Obj, Range);
 }
 
-// 0x0806ea50  info.c:227
 const char *GetLiquidName(uint32_t nr) {
 	switch (nr) {
 		case 0: return "nothing";
@@ -269,7 +258,6 @@ const char *GetLiquidName(uint32_t nr) {
 	}
 }
 
-// 0x0806eae0  info.c:252
 unsigned char GetLiquidColor(uint32_t nr) {
 	switch (nr) {
 		case 0: return 0;
@@ -292,7 +280,6 @@ unsigned char GetLiquidColor(uint32_t nr) {
 	}
 }
 
-// 0x0806eb50  info.c:277
 int ObjectDistance(Object Obj1, Object Obj2) {
 	if (!Obj1.exists() || !Obj2.exists()) {
 		error("ObjectDistance: \xdc" "bergebene Objekte existieren nicht.\n");
@@ -309,7 +296,6 @@ int ObjectDistance(Object Obj1, Object Obj2) {
 	return std::max(abs(x1 - x2), abs(y1 - y2));
 }
 
-// 0x0806ec30  info.c:300
 Object GetBodyContainer(uint32_t CreatureID, int Position) {
 	if ((Position < 1 || Position > 10) && (Position < 64 || Position > 79)) {
 		error("GetBodyContainer: ung\xfcltige Position: %d\n", Position);
@@ -343,7 +329,6 @@ Object GetBodyContainer(uint32_t CreatureID, int Position) {
 	return GetContainerObject(cr->GetCreatureObject(), Position - 1);
 }
 
-// 0x0806ed50  info.c:327
 Object GetBodyObject(uint32_t CreatureID, int Position) {
 	if (Position < 1 || Position > 10) {
 		error("GetBodyObject: ung\xfcltige Position %d\n", Position);
@@ -358,7 +343,6 @@ Object GetBodyObject(uint32_t CreatureID, int Position) {
 	return GetFirstContainerObject(BodyCon);
 }
 
-// 0x0806edd0  info.c:343
 Object GetTopObject(int x, int y, int z, bool Move) {
 	Object Obj = GetFirstObject(x, y, z);
 	while (Obj != NONE) {
@@ -377,7 +361,6 @@ Object GetTopObject(int x, int y, int z, bool Move) {
 	return Obj;
 }
 
-// 0x0806ef40  info.c:357
 Object GetContainer(uint32_t CreatureID, int x, int y, int z) {
 	if (x == 0xFFFF) {
 		return GetBodyContainer(CreatureID, y);
@@ -386,7 +369,6 @@ Object GetContainer(uint32_t CreatureID, int x, int y, int z) {
 	return GetMapContainer(x, y, z);
 }
 
-// 0x0806efa0  info.c:368
 Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType Type) {
 	Object Obj;
 	if (x == 0xFFFF) {
@@ -459,7 +441,6 @@ Object GetObject(uint32_t CreatureID, int x, int y, int z, int RNum, ObjectType 
 	return NONE;
 }
 
-// 0x0806f2f0  info.c:415
 Object GetRowObject(Object Obj, ObjectType Type, uint32_t Value, bool Recurse) {
 	while (Obj != NONE) {
 		if (Recurse && Obj.getFlag(CONTAINER)) {
@@ -481,7 +462,6 @@ Object GetRowObject(Object Obj, ObjectType Type, uint32_t Value, bool Recurse) {
 	return NONE;
 }
 
-// 0x0806f4a0  info.c:435
 Object GetInventoryObject(uint32_t CreatureID, ObjectType Type, uint32_t Value) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -509,7 +489,6 @@ Object GetInventoryObject(uint32_t CreatureID, ObjectType Type, uint32_t Value) 
 	return NONE;
 }
 
-// 0x0806f740  info.c:464
 int CountObjectsInContainer(Object Con) {
 	if (!Con.exists()) {
 		error("CountObjectsInContainer: Container existiert nicht.\n");
@@ -526,7 +505,6 @@ int CountObjectsInContainer(Object Con) {
 	return Count;
 }
 
-// 0x0806f7d0  info.c:483
 int CountObjects(Object Obj) {
 	if (!Obj.exists()) {
 		return 0;
@@ -544,7 +522,6 @@ int CountObjects(Object Obj) {
 	return count;
 }
 
-// 0x0806f8a0  info.c:501
 int CountObjects(Object Obj, ObjectType Type, uint32_t Value) {
 	int count = 0;
 	if (!Obj.exists()) {
@@ -573,7 +550,6 @@ int CountObjects(Object Obj, ObjectType Type, uint32_t Value) {
 	return count;
 }
 
-// 0x0806fa80  info.c:519
 int CountInventoryObjects(uint32_t CreatureID, ObjectType Type, uint32_t Value) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -589,7 +565,6 @@ int CountInventoryObjects(uint32_t CreatureID, ObjectType Type, uint32_t Value) 
 	return CountObjects(GetFirstContainerObject(cr->GetCreatureObject()), Type, Value);
 }
 
-// 0x0806fb40  info.c:536
 int CountMoney(Object Obj) {
 	int count = 0;
 	if (!Obj.exists()) {
@@ -621,7 +596,6 @@ int CountMoney(Object Obj) {
 	return count;
 }
 
-// 0x0806fce0  info.c:553
 int CountInventoryMoney(uint32_t CreatureID) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -637,7 +611,6 @@ int CountInventoryMoney(uint32_t CreatureID) {
 	return CountMoney(GetFirstContainerObject(cr->GetCreatureObject()));
 }
 
-// 0x0806fd70  info.c:573
 void CalculateChange(int Amount, int &Gold, int &Platinum, int &Crystal) {
 	print(3, "Zahle %d mit %d/%d/%d M\xfcnzen...\n", Amount, Gold, Platinum, Crystal);
 	if (Crystal * 10000 + Platinum * 100 + Gold < Amount) {
@@ -678,7 +651,6 @@ void CalculateChange(int Amount, int &Gold, int &Platinum, int &Crystal) {
 	}
 }
 
-// 0x0806ff60  info.c:618
 int GetHeight(int x, int y, int z) {
 	int Height = 0;
 	Object Obj = GetFirstObject(x, y, z);
@@ -692,7 +664,6 @@ int GetHeight(int x, int y, int z) {
 	return Height;
 }
 
-// 0x08070030  info.c:629
 bool JumpPossible(int x, int y, int z, bool AvoidPlayers) {
 	Object Obj = GetFirstObject(x, y, z);
 	if (Obj == NONE) {
@@ -722,7 +693,6 @@ bool JumpPossible(int x, int y, int z, bool AvoidPlayers) {
 	return BankThere;
 }
 
-// 0x08070190  info.c:649
 bool FieldPossible(int x, int y, int z, int Type) {
 	Object Obj = GetFirstObject(x, y, z);
 	if (Obj == NONE || !Obj.getFlag(BANK)) {
@@ -748,7 +718,6 @@ bool FieldPossible(int x, int y, int z, int Type) {
 	return true;
 }
 
-// 0x08070320  info.c:668
 bool SearchFreeField(int &x, int &y, int &z, int Distance, unsigned short HouseID, bool Jump) {
 	int Direction = 4;
 	int Dist = 0;
@@ -801,7 +770,6 @@ bool SearchFreeField(int &x, int &y, int &z, int Distance, unsigned short HouseI
 	return false;
 }
 
-// 0x080705d0  info.c:696
 bool SearchLoginField(int &x, int &y, int &z, int Distance, bool Player) {
 	unsigned short HouseID = GetHouseID(x, y, z);
 	if (SearchFreeField(x, y, z, Distance, HouseID, false)
@@ -892,7 +860,6 @@ next:
 	return false;
 }
 
-// 0x08070950  info.c:742
 bool SearchSpawnField(int &x, int &y, int &z, int Distance, bool Player) {
 	bool Minimize = Distance >= 0;
 	Distance = abs(Distance);
@@ -1000,7 +967,6 @@ bool SearchSpawnField(int &x, int &y, int &z, int Distance, bool Player) {
 	return true;
 }
 
-// 0x08071090  info.c:808
 bool SearchFlightField(uint32_t FugitiveID, uint32_t PursuerID, int &x, int &y, int &z) {
 	TCreature *Fugitive = GetCreature(FugitiveID);
 	if (Fugitive == nullptr) {
@@ -1097,7 +1063,6 @@ bool SearchFlightField(uint32_t FugitiveID, uint32_t PursuerID, int &x, int &y, 
 	return false;
 }
 
-// 0x08071310  info.c:869
 bool SearchSummonField(int &x, int &y, int &z, int Distance) {
 	int TieBreaker = -1;
 	int BestX = 0, BestY = 0;
@@ -1126,7 +1091,6 @@ bool SearchSummonField(int &x, int &y, int &z, int Distance) {
 	return true;
 }
 
-// 0x08071520  info.c:894
 bool ThrowPossible(int sx, int sy, int sz, int zx, int zy, int zz, int Power) {
 	int zmin = sz - Power;
 	if (zmin < 0) {
@@ -1192,7 +1156,6 @@ bool ThrowPossible(int sx, int sy, int sz, int zx, int zy, int zz, int Power) {
 	return false;
 }
 
-// 0x08071830  info.c:941
 void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -1238,7 +1201,6 @@ void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 	Color = (Red / Brightness) * 36 + (Green / Brightness) * 6 + Blue / Brightness;
 }
 
-// 0x08071ad0  info.c:979
 int GetInventoryWeight(uint32_t CreatureID) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -1249,7 +1211,6 @@ int GetInventoryWeight(uint32_t CreatureID) {
 	return GetRowWeight(GetFirstContainerObject(cr->GetCreatureObject()));
 }
 
-// 0x08071b30  info.c:997
 bool CheckRight(uint32_t CharacterID, RIGHT Right) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
@@ -1266,7 +1227,6 @@ bool CheckRight(uint32_t CharacterID, RIGHT Right) {
 	return (pl->Rights[static_cast<int>(Right) / 8] & (1 << (static_cast<int>(Right) % 8))) != 0;
 }
 
-// 0x08071bb0  info.c:1014
 bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
@@ -1329,7 +1289,6 @@ bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action) {
 	return false;
 }
 
-// 0x08071f70  info.c:1052
 const char *GetBanishmentReason(int Reason) {
 	switch (Reason + FIRST_BANISHMENT_RIGHT) {
 		case NAME_INSULTING: return "NAME_INSULTING";
@@ -1371,10 +1330,8 @@ const char *GetBanishmentReason(int Reason) {
 	}
 }
 
-// 0x080720c0  info.c:1100
 void InitInfo() {
 }
 
-// 0x080720d0  info.c:1108
 void ExitInfo() {
 }

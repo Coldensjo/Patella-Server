@@ -40,7 +40,6 @@ struct TChannel {
 	int Subscribers;
 	vector<uint32_t> InvitedPlayer;
 	int InvitedPlayers;
-	// 0x0809cc80  operate.c:2155
 	// ModeratorName stays uninitialised, as in the original.
 	TChannel() : Subscriber(0, 10, 10), InvitedPlayer(0, 10, 10) {
 		Moderator = 0;
@@ -70,7 +69,6 @@ struct TParty {
 	int Members;
 	vector<uint32_t> InvitedPlayer;
 	int InvitedPlayers;
-	// 0x0809cd10  operate.c:2663
 	TParty() : Member(0, 10, 10), InvitedPlayer(0, 10, 10) {
 		Leader = 0;
 		Members = 0;
@@ -78,15 +76,15 @@ struct TParty {
 	}
 };
 
-int Channels = 8;	// operate.c:2159
-int StatementID = 0;	// operate.c:2507
-int Parties = 0;	// operate.c:2667
-vector<TChannel> Channel(0, 18, 10);	// operate.c:2158
-int CurrentChannelID;	// operate.c:2160
-int CurrentSubscriberNumber;	// operate.c:2161
-fifo<TStatement> Statements(1024);	// operate.c:2508
-fifo<TListener> Listeners(1024);	// operate.c:2509
-vector<TParty> Party(0, 100, 50);	// operate.c:2666
+int Channels = 8;
+int StatementID = 0;
+int Parties = 0;
+vector<TChannel> Channel(0, 18, 10);
+int CurrentChannelID;
+int CurrentSubscriberNumber;
+fifo<TStatement> Statements(1024);
+fifo<TListener> Listeners(1024);
+vector<TParty> Party(0, 100, 50);
 
 // CheckTopMoveObject through both CheckWeight overloads, Create, Copy, Move,
 // Merge, both Change overloads, Delete, Empty and Look are declared
@@ -94,7 +92,6 @@ vector<TParty> Party(0, 100, 50);	// operate.c:2666
 // specifications, so an exception of another type now propagates instead of
 // ending in std::unexpected().
 
-// 0x0808e2c0  operate.c:42
 void AnnounceMovingCreature(uint32_t CreatureID, Object Con) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -118,7 +115,6 @@ void AnnounceMovingCreature(uint32_t CreatureID, Object Con) {
 	}
 }
 
-// 0x0808e400  operate.c:65
 void AnnounceChangedCreature(uint32_t CreatureID, int Type) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -159,7 +155,6 @@ void AnnounceChangedCreature(uint32_t CreatureID, int Type) {
 	}
 }
 
-// 0x0808e530  operate.c:95
 void AnnounceChangedField(Object Obj, int Type) {
 	if (!Obj.exists()) {
 		error("AnnounceChangedField: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -201,7 +196,6 @@ void AnnounceChangedField(Object Obj, int Type) {
 	}
 }
 
-// 0x0808e6d0  operate.c:122
 void AnnounceChangedContainer(Object Obj, int Type) {
 	if (!Obj.exists()) {
 		error("AnnounceChangedContainer: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -243,7 +237,6 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 	}
 }
 
-// 0x0808e830  operate.c:149
 void AnnounceChangedInventory(Object Obj, int Type) {
 	if (!Obj.exists()) {
 		error("AnnounceChangedInventory: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -274,7 +267,6 @@ void AnnounceChangedInventory(Object Obj, int Type) {
 	}
 }
 
-// 0x0808e920  operate.c:173
 void AnnounceChangedObject(Object Obj, int Type) {
 	if (!Obj.exists()) {
 		error("AnnounceChangedObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -290,7 +282,6 @@ void AnnounceChangedObject(Object Obj, int Type) {
 	}
 }
 
-// 0x0808ea10  operate.c:187
 void AnnounceGraphicalEffect(int x, int y, int z, int Type) {
 	if (!IsOnMap(x, y, z)) {
 		return;
@@ -310,7 +301,6 @@ void AnnounceGraphicalEffect(int x, int y, int z, int Type) {
 	}
 }
 
-// 0x0808eae0  operate.c:203
 void AnnounceTextualEffect(int x, int y, int z, int Color, char *Text) {
 	if (!IsOnMap(x, y, z)) {
 		return;
@@ -330,7 +320,6 @@ void AnnounceTextualEffect(int x, int y, int z, int Color, char *Text) {
 	}
 }
 
-// 0x0808ebc0  operate.c:219
 void AnnounceMissile(int sx, int sy, int sz, int zx, int zy, int zz, int Type) {
 	if (!IsOnMap(sx, sy, sz) || !IsOnMap(zx, zy, zz)) {
 		return;
@@ -354,7 +343,6 @@ void AnnounceMissile(int sx, int sy, int sz, int zx, int zy, int zz, int Type) {
 	}
 }
 
-// 0x0808ed40  operate.c:241
 void CheckTopMoveObject(uint32_t CreatureID, Object Obj, Object Ignore) {
 	if (!Obj.exists()) {
 		error("CheckTopMoveObject: Objekt existiert nicht.\n");
@@ -394,7 +382,6 @@ void CheckTopMoveObject(uint32_t CreatureID, Object Obj, Object Ignore) {
 	}
 }
 
-// 0x0808f010  operate.c:265
 void CheckTopUseObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
 		error("CheckTopUseObject: Objekt existiert nicht.\n");
@@ -430,7 +417,6 @@ void CheckTopUseObject(uint32_t CreatureID, Object Obj) {
 	}
 }
 
-// 0x0808f2b0  operate.c:288
 void CheckTopMultiuseObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
 		error("CheckTopMultiuseObject: Objekt existiert nicht.\n");
@@ -466,7 +452,6 @@ void CheckTopMultiuseObject(uint32_t CreatureID, Object Obj) {
 	}
 }
 
-// 0x0808f520  operate.c:310
 void CheckMoveObject(uint32_t CreatureID, Object Obj, bool Take) {
 	if (CreatureID == 0) {
 		return;
@@ -497,7 +482,6 @@ void CheckMoveObject(uint32_t CreatureID, Object Obj, bool Take) {
 	}
 }
 
-// 0x0808f6c0  operate.c:330
 void CheckMapDestination(uint32_t CreatureID, Object Obj, Object MapCon) {
 	if (CreatureID == 0) {
 		return;
@@ -597,7 +581,6 @@ fieldOk:
 	}
 }
 
-// 0x0808fe90  operate.c:372
 void CheckMapPlace(uint32_t CreatureID, ObjectType Type, Object MapCon) {
 	int x, y, z;
 	GetObjectCoordinates(MapCon, x, y, z);
@@ -620,7 +603,6 @@ void CheckMapPlace(uint32_t CreatureID, ObjectType Type, Object MapCon) {
 	}
 }
 
-// 0x08090140  operate.c:389
 void CheckContainerDestination(Object Obj, Object Con) {
 	Object Help = Con;
 	while (!Help.isMapContainer()) {
@@ -637,7 +619,6 @@ void CheckContainerDestination(Object Obj, Object Con) {
 	}
 }
 
-// 0x08090260  operate.c:404
 void CheckContainerPlace(ObjectType Type, Object Con, Object oldObj) {
 	if (Type == GetSpecialObject(DEPOT_CHEST)) {
 		return;
@@ -664,7 +645,6 @@ void CheckContainerPlace(ObjectType Type, Object Con, Object oldObj) {
 	}
 }
 
-// 0x080903b0  operate.c:418
 void CheckDepotSpace(uint32_t CreatureID, Object Source, Object Destination, int Count) {
 	if (CreatureID == 0) {
 		return;
@@ -705,7 +685,6 @@ void CheckDepotSpace(uint32_t CreatureID, Object Source, Object Destination, int
 	}
 }
 
-// 0x08090560  operate.c:446
 void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 	int Position = GetObjectBodyPosition(Con);
 	if (Position != 5 && Position != 6 && Position != 10) {
@@ -763,7 +742,6 @@ void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 	}
 }
 
-// 0x080909e0  operate.c:478
 void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 	int Position = GetObjectBodyPosition(Con);
 	if (Position != 5 && Position != 6 && Position != 10) {
@@ -813,7 +791,6 @@ void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 	}
 }
 
-// 0x08090ec0  operate.c:507
 void CheckWeight(uint32_t CreatureID, Object Obj, int Count) {
 	if (GetObjectCreatureID(Obj) == CreatureID) {
 		return;
@@ -855,7 +832,6 @@ void CheckWeight(uint32_t CreatureID, Object Obj, int Count) {
 	}
 }
 
-// 0x08091090  operate.c:531
 void CheckWeight(uint32_t CreatureID, ObjectType Type, uint32_t Data, int oldWeight) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -895,7 +871,6 @@ void CheckWeight(uint32_t CreatureID, ObjectType Type, uint32_t Data, int oldWei
 	}
 }
 
-// 0x08091210  operate.c:561
 void NotifyCreature(uint32_t CreatureID, Object Obj, bool Inventory) {
 	if (CreatureID == 0) {
 		return;
@@ -918,7 +893,6 @@ void NotifyCreature(uint32_t CreatureID, Object Obj, bool Inventory) {
 	cr->NotifyChangeInventory();
 }
 
-// 0x080912c0  operate.c:577
 void NotifyCreature(uint32_t CreatureID, ObjectType Type, bool Inventory) {
 	if (CreatureID == 0) {
 		return;
@@ -937,7 +911,6 @@ void NotifyCreature(uint32_t CreatureID, ObjectType Type, bool Inventory) {
 	cr->NotifyChangeInventory();
 }
 
-// 0x08091360  operate.c:594
 void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 	if (!Obj.exists()) {
 		error("NotifyAllCreatures: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -997,7 +970,6 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 	}
 }
 
-// 0x080916a0  operate.c:644
 void NotifyTrades(Object Obj) {
 	if (!Obj.exists()) {
 		error("NotifyTrades: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1055,7 +1027,6 @@ void NotifyTrades(Object Obj) {
 	}
 }
 
-// 0x080918c0  operate.c:680
 void NotifyDepot(uint32_t CreatureID, Object Obj, int Count) {
 	if (CreatureID == 0) {
 		return;
@@ -1091,7 +1062,6 @@ void NotifyDepot(uint32_t CreatureID, Object Obj, int Count) {
 	}
 }
 
-// 0x08091a00  operate.c:711
 void CloseContainer(Object Con, bool Force) {
 	if (!Con.exists()) {
 		error("CloseContainer: \xdc" "bergebener Container existiert nicht.\n");
@@ -1137,7 +1107,6 @@ void CloseContainer(Object Con, bool Force) {
 	}
 }
 
-// 0x08091bf0  operate.c:752
 Object Create(Object Con, ObjectType Type, uint32_t Value) {
 	if (!Con.exists()) {
 		error("Create: Zielobjekt existiert nicht.\n");
@@ -1233,7 +1202,6 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 	return Obj;
 }
 
-// 0x08092350  operate.c:821
 Object Copy(Object Con, Object Source) {
 	if (!Con.exists()) {
 		error("Copy: Ziel existiert nicht.\n");
@@ -1286,7 +1254,6 @@ Object Copy(Object Con, Object Source) {
 	return Obj;
 }
 
-// 0x08092750  operate.c:872
 void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, Object Ignore) {
 	if (!Obj.exists()) {
 		error("Move: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1424,7 +1391,6 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 	NotifyAllCreatures(Obj, 3, oldCon);
 }
 
-// 0x08093130  operate.c:974
 void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignore) {
 	if (!Obj.exists()) {
 		error("Merge: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1504,7 +1470,6 @@ void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignor
 	NotifyAllCreatures(Dest, 2, NONE);
 }
 
-// 0x080936f0  operate.c:1036
 void Change(Object Obj, ObjectType NewType, uint32_t Value) {
 	if (!Obj.exists()) {
 		error("Change: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1589,7 +1554,6 @@ void Change(Object Obj, ObjectType NewType, uint32_t Value) {
 	NotifyAllCreatures(Obj, 2, NONE);
 }
 
-// 0x08093f50  operate.c:1098
 void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	if (!Obj.exists()) {
 		error("Change: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1616,7 +1580,6 @@ void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	NotifyCreature(GetObjectCreatureID(Obj), Obj, Obj.getContainer().isBodyContainer());
 }
 
-// 0x08094170  operate.c:1130
 void Delete(Object Obj, int Count) {
 	if (!Obj.exists()) {
 		error("Delete: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1681,7 +1644,6 @@ void Delete(Object Obj, int Count) {
 	NotifyCreature(oldCreature, oldType, oldCon.isBodyContainer());
 }
 
-// 0x08094530  operate.c:1184
 void Empty(Object Con, int Rest) {
 	if (!Con.exists()) {
 		error("Empty: \xdc" "bergebener Container existiert nicht.\n");
@@ -1712,12 +1674,10 @@ void Empty(Object Con, int Rest) {
 	}
 }
 
-// 0x080946e0  operate.c:1212
 void GraphicalEffect(int x, int y, int z, int Type) {
 	AnnounceGraphicalEffect(x, y, z, Type);
 }
 
-// 0x080946f0  operate.c:1220
 void GraphicalEffect(Object Obj, int Type) {
 	if (!Obj.exists()) {
 		return;
@@ -1728,7 +1688,6 @@ void GraphicalEffect(Object Obj, int Type) {
 	AnnounceGraphicalEffect(x, y, z, Type);
 }
 
-// 0x08094760  operate.c:1231
 void TextualEffect(Object Obj, int Color, char *Text, ...) {
 	if (!Obj.exists()) {
 		error("TextualEffect: \xdc" "bergebener Mapcontainer existiert nicht.\n");
@@ -1749,7 +1708,6 @@ void TextualEffect(Object Obj, int Color, char *Text, ...) {
 	AnnounceTextualEffect(x, y, z, Color, Buffer);
 }
 
-// 0x08094850  operate.c:1253
 void Missile(Object Start, Object Dest, int Type) {
 	if (!Start.exists()) {
 		error("Missile: \xdc" "bergebener Startpunkt existiert nicht.\n");
@@ -1767,7 +1725,6 @@ void Missile(Object Start, Object Dest, int Type) {
 	AnnounceMissile(sx, sy, sz, zx, zy, zz, Type);
 }
 
-// 0x08094930  operate.c:1273
 void Look(uint32_t CreatureID, Object Obj) {
 	TPlayer *pl = GetPlayer(CreatureID);
 	if (pl == nullptr) {
@@ -2073,7 +2030,6 @@ void Look(uint32_t CreatureID, Object Obj) {
 // exception specifications, so an exception of another type now propagates
 // instead of ending in std::unexpected().
 
-// 0x08095fe0  operate.c:1477
 void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool CheckSpamming) {
 	int x, y, z;
 	char *Name;
@@ -2330,7 +2286,6 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 	}
 }
 
-// 0x08097090  operate.c:1660
 void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 	if (!Obj1.exists()) {
 		error("Use: \xdc" "bergebenes Objekt Obj 1 existiert nicht.\n");
@@ -2412,7 +2367,6 @@ void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 	}
 }
 
-// 0x080978f0  operate.c:1712
 void Turn(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
 		error("Turn: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -2435,7 +2389,6 @@ void Turn(uint32_t CreatureID, Object Obj) {
 	Change(Obj, NewType, 0);
 }
 
-// 0x08097a80  operate.c:1730
 void CreatePool(Object MapCon, ObjectType Type, uint32_t LiquidType) {
 	if (!MapCon.exists()) {
 		error("CreatePool: \xdc" "bergebener MapContainer existiert nicht.\n");
@@ -2467,7 +2420,6 @@ void CreatePool(Object MapCon, ObjectType Type, uint32_t LiquidType) {
 	Create(MapCon, Type, LiquidType);
 }
 
-// 0x08097c90  operate.c:1760
 void EditText(uint32_t CreatureID, Object Obj, char *Text) {
 	if (!Obj.exists()) {
 		error("EditText: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -2504,7 +2456,6 @@ void EditText(uint32_t CreatureID, Object Obj, char *Text) {
 	}
 }
 
-// 0x08097f50  operate.c:1797
 Object CreateAtCreature(uint32_t CreatureID, ObjectType Type, uint32_t Value) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -2551,7 +2502,6 @@ again:
 	return Create(GetMapContainer(cr->GetCreatureObject()), Type, Value);
 }
 
-// 0x08098250  operate.c:1835
 void DeleteAtCreature(uint32_t CreatureID, ObjectType Type, int Amount, uint32_t Data) {
 	while (Amount > 0) {
 		Object Obj = GetInventoryObject(CreatureID, Type, Data);
@@ -2573,7 +2523,6 @@ void DeleteAtCreature(uint32_t CreatureID, ObjectType Type, int Amount, uint32_t
 	}
 }
 
-// 0x080983f0  operate.c:1859
 void ProcessCronSystem() {
 	while (true) {
 		Object Obj = CronCheck();
@@ -2598,7 +2547,6 @@ void ProcessCronSystem() {
 	}
 }
 
-// 0x080985b0  operate.c:1889
 bool SectorRefreshable(int SectorX, int SectorY, int SectorZ) {
 	TFindCreatures SearchPlayers(31, 31, SectorX * 32 + 16, SectorY * 32 + 16, 1);
 	while (true) {
@@ -2625,7 +2573,6 @@ bool SectorRefreshable(int SectorX, int SectorY, int SectorZ) {
 	return true;
 }
 
-// 0x08098660  operate.c:1909
 void RefreshSector(int SectorX, int SectorY, int SectorZ, unsigned char *Data, int Size) {
 	if (!SectorRefreshable(SectorX, SectorY, SectorZ)) {
 		return;
@@ -2683,7 +2630,6 @@ void RefreshSector(int SectorX, int SectorY, int SectorZ, unsigned char *Data, i
 	}
 }
 
-// 0x08098a50  operate.c:1957
 void RefreshMap() {
 	TDynamicWriteBuffer HelpBuffer(65536);
 	for (int x = SectorXMin; x <= SectorXMax; x++) {
@@ -2754,7 +2700,6 @@ void RefreshMap() {
 	}
 }
 
-// 0x08098df0  operate.c:2014
 void RefreshCylinders() {
 	static int RefreshX = 2147483647;
 	static int RefreshY = 2147483647;
@@ -2778,7 +2723,6 @@ void RefreshCylinders() {
 	}
 }
 
-// 0x08098ec0  operate.c:2032
 void ApplyPatch(int SectorX, int SectorY, int SectorZ, bool FullSector, TReadScriptFile &Script, bool SaveHouses) {
 	if (!in(SectorX, SectorXMin, SectorXMax) || !in(SectorY, SectorYMin, SectorYMax) || !in(SectorZ, SectorZMin, SectorZMax)) {
 		return;
@@ -2840,7 +2784,6 @@ void ApplyPatch(int SectorX, int SectorY, int SectorZ, bool FullSector, TReadScr
 	}
 }
 
-// 0x08099380  operate.c:2088
 void ApplyPatches() {
 	char FileName[4096];
 	sprintf(FileName, "%s/save-houses", SAVEPATH);
@@ -2909,12 +2852,10 @@ void ApplyPatches() {
 	}
 }
 
-// 0x080997b0  operate.c:2167
 int GetNumberOfChannels() {
 	return Channels;
 }
 
-// 0x080997c0  operate.c:2175
 bool ChannelActive(int ChannelID) {
 	if (ChannelID < 0 || ChannelID >= Channels) {
 		error("ChannelActive: Ung\xfcltige Kanalnummer %d.\n", ChannelID);
@@ -2924,7 +2865,6 @@ bool ChannelActive(int ChannelID) {
 	return ChannelID < PUBLIC_CHANNELS || Channel(ChannelID).Moderator != 0;
 }
 
-// 0x08099820  operate.c:2188
 bool ChannelAvailable(int ChannelID, uint32_t CharacterID) {
 	if (!ChannelActive(ChannelID)) {
 		return false;
@@ -2970,7 +2910,6 @@ bool ChannelAvailable(int ChannelID, uint32_t CharacterID) {
 	return false;
 }
 
-// 0x08099950  operate.c:2218
 char *GetChannelName(int ChannelID, uint32_t CharacterID) {
 	static char ChannelName[40];
 
@@ -3014,7 +2953,6 @@ char *GetChannelName(int ChannelID, uint32_t CharacterID) {
 	return "Unknown";
 }
 
-// 0x08099a80  operate.c:2249
 bool ChannelSubscribed(int ChannelID, uint32_t CharacterID) {
 	if (!ChannelActive(ChannelID)) {
 		return false;
@@ -3030,7 +2968,6 @@ bool ChannelSubscribed(int ChannelID, uint32_t CharacterID) {
 	return false;
 }
 
-// 0x08099b30  operate.c:2261
 uint32_t GetFirstSubscriber(int ChannelID) {
 	if (!ChannelActive(ChannelID)) {
 		return 0;
@@ -3041,7 +2978,6 @@ uint32_t GetFirstSubscriber(int ChannelID) {
 	return GetNextSubscriber();
 }
 
-// 0x08099c40  operate.c:2273
 uint32_t GetNextSubscriber() {
 	if (!ChannelActive(CurrentChannelID)) {
 		return 0;
@@ -3055,7 +2991,6 @@ uint32_t GetNextSubscriber() {
 	return C.Subscriber(CurrentSubscriberNumber++);
 }
 
-// 0x08099ce0  operate.c:2284
 bool MayOpenChannel(uint32_t CharacterID) {
 	if (Channels >= 65535) {
 		return false;
@@ -3074,7 +3009,6 @@ bool MayOpenChannel(uint32_t CharacterID) {
 	return true;
 }
 
-// 0x08099d60  operate.c:2296
 void OpenChannel(uint32_t CharacterID) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
@@ -3118,7 +3052,6 @@ void OpenChannel(uint32_t CharacterID) {
 	SendOpenOwnChannel(pl->GetConnection(), ChannelID);
 }
 
-// 0x08099f10  operate.c:2330
 void CloseChannel(int ChannelID) {
 	if (ChannelID < PUBLIC_CHANNELS || ChannelID >= Channels) {
 		error("CloseChannel: Ung\xfcltige ChannelID %d.\n", ChannelID);
@@ -3134,7 +3067,6 @@ void CloseChannel(int ChannelID) {
 	C.Moderator = 0;
 }
 
-// 0x08099f70  operate.c:2347
 void InviteToChannel(uint32_t CharacterID, char *Name) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
@@ -3197,7 +3129,6 @@ void InviteToChannel(uint32_t CharacterID, char *Name) {
 	}
 }
 
-// 0x0809a240  operate.c:2391
 void ExcludeFromChannel(uint32_t CharacterID, char *Name) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
@@ -3266,7 +3197,6 @@ void ExcludeFromChannel(uint32_t CharacterID, char *Name) {
 	}
 }
 
-// 0x0809a520  operate.c:2441
 bool JoinChannel(int ChannelID, uint32_t CharacterID) {
 	if (!ChannelActive(ChannelID)) {
 		throw ERROR;
@@ -3285,7 +3215,6 @@ bool JoinChannel(int ChannelID, uint32_t CharacterID) {
 	return CharacterID == C.Moderator;
 }
 
-// 0x0809a650  operate.c:2459
 void LeaveChannel(int ChannelID, uint32_t CharacterID, bool Close) {
 	if (!ChannelActive(ChannelID)) {
 		return;
@@ -3315,7 +3244,6 @@ void LeaveChannel(int ChannelID, uint32_t CharacterID, bool Close) {
 	}
 }
 
-// 0x0809a800  operate.c:2481
 void LeaveAllChannels(uint32_t CharacterID) {
 	for (int ChannelID = 0; ChannelID < Channels; ChannelID++) {
 		if (ChannelActive(ChannelID)) {
@@ -3324,7 +3252,6 @@ void LeaveAllChannels(uint32_t CharacterID) {
 	}
 }
 
-// 0x0809a890  operate.c:2516
 uint32_t LogCommunication(uint32_t CharacterID, int Mode, int Channel, char *Text) {
 	if (Text == nullptr) {
 		error("LogCommunication: Text ist NULL.\n");
@@ -3348,7 +3275,6 @@ uint32_t LogCommunication(uint32_t CharacterID, int Mode, int Channel, char *Tex
 	return StatementID;
 }
 
-// 0x0809a920  operate.c:2543
 uint32_t LogListener(uint32_t StatementID, TPlayer *pl) {
 	if (StatementID == 0 || pl == nullptr || !CheckRight(pl->ID, LOG_COMMUNICATION)) {
 		return 0;
@@ -3360,7 +3286,6 @@ uint32_t LogListener(uint32_t StatementID, TPlayer *pl) {
 	return StatementID;
 }
 
-// 0x0809a990  operate.c:2558
 void ProcessCommunicationControl() {
 	uint32_t Limit = (uint32_t)time(nullptr) - 1800;
 	while (true) {
@@ -3386,7 +3311,6 @@ void ProcessCommunicationControl() {
 	}
 }
 
-// 0x0809ab60  operate.c:2584
 int GetCommunicationContext(uint32_t CharacterID, uint32_t StatementID, int &NumberOfStatements, vector<TReportedStatement> *&ReportedStatements) {
 	fifoIterator<TStatement> iter = Statements.head();
 	while (iter() != nullptr && iter()->StatementID != StatementID) {
@@ -3484,7 +3408,6 @@ int GetCommunicationContext(uint32_t CharacterID, uint32_t StatementID, int &Num
 	return 0;
 }
 
-// 0x0809b640  operate.c:2673
 TParty *GetParty(uint32_t Leader) {
 	for (int i = 0; i < Parties; i++) {
 		if (Party(i).Leader == Leader) {
@@ -3495,7 +3418,6 @@ TParty *GetParty(uint32_t Leader) {
 	return nullptr;
 }
 
-// 0x0809b6a0  operate.c:2683
 bool IsInvitedToParty(uint32_t Guest, uint32_t Host) {
 	TParty *P = GetParty(Host);
 	if (P != nullptr) {
@@ -3509,7 +3431,6 @@ bool IsInvitedToParty(uint32_t Guest, uint32_t Host) {
 	return false;
 }
 
-// 0x0809b740  operate.c:2695
 void DisbandParty(uint32_t Leader) {
 	TPlayer *leader = GetPlayer(Leader);
 	TParty *P = GetParty(Leader);
@@ -3549,7 +3470,6 @@ void DisbandParty(uint32_t Leader) {
 	}
 }
 
-// 0x0809b960  operate.c:2729
 void InviteToParty(uint32_t Host, uint32_t Guest) {
 	if (Host == Guest) {
 		return;
@@ -3621,7 +3541,6 @@ void InviteToParty(uint32_t Host, uint32_t Guest) {
 	}
 }
 
-// 0x0809bdd0  operate.c:2799
 void RevokeInvitation(uint32_t Host, uint32_t Guest) {
 	if (Host == Guest) {
 		return;
@@ -3680,7 +3599,6 @@ void RevokeInvitation(uint32_t Host, uint32_t Guest) {
 	}
 }
 
-// 0x0809c0c0  operate.c:2840
 void JoinParty(uint32_t Guest, uint32_t Host) {
 	if (Guest == Host) {
 		return;
@@ -3740,7 +3658,6 @@ void JoinParty(uint32_t Guest, uint32_t Host) {
 	}
 }
 
-// 0x0809c440  operate.c:2888
 void PassLeadership(uint32_t OldLeader, uint32_t NewLeader) {
 	if (OldLeader == NewLeader) {
 		return;
@@ -3806,7 +3723,6 @@ void PassLeadership(uint32_t OldLeader, uint32_t NewLeader) {
 	}
 }
 
-// 0x0809c740  operate.c:2941
 void LeaveParty(uint32_t Member, bool Forced) {
 	TPlayer *member = GetPlayer(Member);
 	if (member == nullptr) {

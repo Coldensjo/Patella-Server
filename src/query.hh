@@ -24,7 +24,6 @@ struct TQueryManagerConnection {
 	// element of its new[] (0x4000); default arguments are not in the DWARF.
 	TQueryManagerConnection(int QueryBufferSize = 16384);
 	~TQueryManagerConnection();
-	// inline  query.h:32
 	bool isConnected() { return Socket >= 0; }
 	int checkAccountPassword(uint32_t AccountID, char *Password, char *IPAddress);
 	int loginAdmin(uint32_t AccountID, bool PrivateWorld, int &NumberOfCharacters, char (*Characters)[30], char (*Worlds)[30], unsigned char (*IPAddresses)[4], unsigned short *Ports, unsigned short &PremiumDaysLeft);
@@ -122,7 +121,6 @@ private:
 struct TQueryManagerPoolConnection {
 	TQueryManagerPoolConnection(TQueryManagerConnectionPool *Pool);
 	~TQueryManagerPoolConnection();
-	// inline  query.h:138
 	TQueryManagerConnection *operator->() { return QueryManagerConnection; }
 private:
 	TQueryManagerConnectionPool *QueryManagerConnectionPool;

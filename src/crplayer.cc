@@ -58,21 +58,19 @@ struct TPlayerIndexLeafNode : public TPlayerIndexNode {
 	TPlayerIndexEntry Entry[10];
 };
 
-vector<TPlayer *> PlayerList(0, 100, 10, nullptr);	// crplayer.c:59
-int FirstFreePlayer;	// crplayer.c:60
-Semaphore PlayerMutex(1);	// crplayer.c:61
-TPlayerData PlayerDataPool[2000];	// crplayer.c:63
-Semaphore PlayerDataPoolMutex(1);	// crplayer.c:64
-store<TPlayerIndexInternalNode, 100> PlayerIndexInternalNodes;	// crplayer.c:66
-store<TPlayerIndexLeafNode, 100> PlayerIndexLeafNodes;	// crplayer.c:67
-TPlayerIndexInternalNode PlayerIndexHead;	// crplayer.c:68
+vector<TPlayer *> PlayerList(0, 100, 10, nullptr);
+int FirstFreePlayer;
+Semaphore PlayerMutex(1);
+TPlayerData PlayerDataPool[2000];
+Semaphore PlayerDataPoolMutex(1);
+store<TPlayerIndexInternalNode, 100> PlayerIndexInternalNodes;
+store<TPlayerIndexLeafNode, 100> PlayerIndexLeafNodes;
+TPlayerIndexInternalNode PlayerIndexHead;
 
-// 0x080a7170  crplayer.c:79
 int GetNumberOfPlayers() {
 	return FirstFreePlayer;
 }
 
-// 0x080a7180  crplayer.c:87
 TPlayer *GetPlayer(char *Name) {
 	for (int i = 0; i < FirstFreePlayer; i++) {
 		TPlayer *pl = PlayerList(i);
@@ -84,7 +82,6 @@ TPlayer *GetPlayer(char *Name) {
 	return nullptr;
 }
 
-// 0x080a71e0  crplayer.c:99
 TPlayer *GetPlayer(uint32_t CharacterID) {
 	TCreature *cr = GetCreature(CharacterID);
 	if (cr == nullptr) {
@@ -99,7 +96,6 @@ TPlayer *GetPlayer(uint32_t CharacterID) {
 	return (TPlayer *)cr;
 }
 
-// 0x080a7220  crplayer.c:113
 bool IsPlayerOnline(char *Name) {
 	PlayerMutex.down();
 	bool IsOnline = GetPlayer(Name) != nullptr;
@@ -107,7 +103,6 @@ bool IsPlayerOnline(char *Name) {
 	return IsOnline;
 }
 
-// 0x080a72a0  crplayer.c:130
 int IdentifyPlayer(char *Name, bool ExactMatch, bool IgnoreGamemasters, TPlayer *&pl) {
 	if (Name == nullptr) {
 		error("IdentifyPlayer: Name ist NULL.\n");
@@ -156,7 +151,6 @@ int IdentifyPlayer(char *Name, bool ExactMatch, bool IgnoreGamemasters, TPlayer 
 	return -1;
 }
 
-// 0x080a7420  crplayer.c:167
 void LogoutAllPlayers() {
 	print(1, "LogoutAllPlayers: Werde alle Spieler ausloggen!\n");
 
@@ -174,7 +168,6 @@ void LogoutAllPlayers() {
 	}
 }
 
-// 0x080a7490  crplayer.c:188
 void CloseProcessedRequests(uint32_t CharacterID) {
 	for (int i = 0; i < FirstFreePlayer; i++) {
 		TPlayer *pl = PlayerList(i);
@@ -190,7 +183,6 @@ void CloseProcessedRequests(uint32_t CharacterID) {
 	}
 }
 
-// 0x080a7510  crplayer.c:208
 void NotifyBuddies(uint32_t CharacterID, char *Name, bool Login) {
 	if (Name == nullptr || Name[0] == 0) {
 		error("NotifyBuddies: Name existiert nicht.\n");
@@ -223,7 +215,6 @@ void NotifyBuddies(uint32_t CharacterID, char *Name, bool Login) {
 	}
 }
 
-// 0x080a76a0  crplayer.c:234
 void CreatePlayerList(bool Online) {
 	char *PlayerNames = new char[FirstFreePlayer * 30];
 	int *PlayerLevels = new int[FirstFreePlayer];
@@ -251,7 +242,6 @@ void CreatePlayerList(bool Online) {
 	}
 }
 
-// 0x080a7830  crplayer.c:258
 void PrintPlayerPositions() {
 	for (int i = 0; i < FirstFreePlayer; i++) {
 		TPlayer *Player = PlayerList(i);
@@ -260,7 +250,6 @@ void PrintPlayerPositions() {
 	}
 }
 
-// 0x080a7900  crplayer.c:269
 void LoadDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 	if (PlayerData == nullptr) {
 		error("LoadDepot: PlayerData ist NULL.\n");
@@ -296,7 +285,6 @@ void LoadDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 	}
 }
 
-// 0x080a7ad0  crplayer.c:304
 void SaveDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 	if (PlayerData == nullptr) {
 		error("SaveDepot: PlayerData ist NULL.\n");
@@ -337,7 +325,6 @@ void SaveDepot(TPlayerData *PlayerData, int DepotNr, Object Con) {
 	}
 }
 
-// 0x080a7cf0  crplayer.c:348
 void GetProfessionName(char *Buffer, int Profession, bool Article, bool Capitals) {
 	if (Article) {
 		if (Profession == 11 || Profession == 14) {
@@ -388,7 +375,6 @@ void GetProfessionName(char *Buffer, int Profession, bool Article, bool Capitals
 	}
 }
 
-// 0x080a7df0  crplayer.c:375
 void SendExistingRequests(TConnection *Connection) {
 	if (Connection == nullptr) {
 		error("SendExistingRequests: Verbindung ist NULL.\n");
@@ -426,14 +412,12 @@ void SendExistingRequests(TConnection *Connection) {
 	}
 }
 
-// 0x080a7f60  crplayer.c:420
 void InitPlayerPool() {
 	for (int i = 0; i < PLAYERDATA_POOLSIZE; i++) {
 		PlayerDataPool[i].CharacterID = 0;
 	}
 }
 
-// 0x080a7f90  crplayer.c:430
 void SavePlayerPoolSlot(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("SavePlayerPoolSlot: Slot existiert nicht.\n");
@@ -446,7 +430,6 @@ void SavePlayerPoolSlot(TPlayerData *Slot) {
 	}
 }
 
-// 0x080a7fd0  crplayer.c:445
 void FreePlayerPoolSlot(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("FreePlayerPoolSlot: Slot ist NULL.\n");
@@ -483,7 +466,6 @@ void FreePlayerPoolSlot(TPlayerData *Slot) {
 	Slot->CharacterID = 0;
 }
 
-// 0x080a80b0  crplayer.c:478
 TPlayerData *GetPlayerPoolSlot(uint32_t CharacterID) {
 	if (CharacterID == 0) {
 		error("GetPlayerPoolSlot: CharacterID ist Null.\n");
@@ -499,7 +481,6 @@ TPlayerData *GetPlayerPoolSlot(uint32_t CharacterID) {
 	return nullptr;
 }
 
-// 0x080a8100  crplayer.c:497
 TPlayerData *AssignPlayerPoolSlot(uint32_t CharacterID, bool DontWait) {
 	if (CharacterID == 0) {
 		error("AssignPlayerPoolSlot: CharacterID ist Null.\n");
@@ -591,7 +572,6 @@ again:
 	return Slot;
 }
 
-// 0x080a8410  crplayer.c:573
 TPlayerData *AttachPlayerPoolSlot(uint32_t CharacterID, bool DontWait) {
 	if (CharacterID == 0) {
 		error("AttachPlayerPoolSlot: CharacterID ist Null.\n");
@@ -624,7 +604,6 @@ again:
 	return Slot;
 }
 
-// 0x080a84e0  crplayer.c:603
 void AttachPlayerPoolSlot(TPlayerData *Slot, bool DontWait) {
 	if (Slot == nullptr) {
 		error("AttachPlayerPoolSlot: Slot ist NULL.\n");
@@ -648,7 +627,6 @@ again:
 	PlayerDataPoolMutex.up();
 }
 
-// 0x080a8580  crplayer.c:627
 void IncreasePlayerPoolSlotSticky(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("IncreasePlayerPoolSlotSticky: Slot ist NULL.\n");
@@ -660,7 +638,6 @@ void IncreasePlayerPoolSlotSticky(TPlayerData *Slot) {
 	PlayerDataPoolMutex.up();
 }
 
-// 0x080a85d0  crplayer.c:641
 void DecreasePlayerPoolSlotSticky(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("DecreasePlayerPoolSlotSticky: Slot ist NULL.\n");
@@ -672,7 +649,6 @@ void DecreasePlayerPoolSlotSticky(TPlayerData *Slot) {
 	PlayerDataPoolMutex.up();
 }
 
-// 0x080a8620  crplayer.c:655
 void DecreasePlayerPoolSlotSticky(uint32_t CharacterID) {
 	if (CharacterID == 0) {
 		error("DecreasePlayerPoolSlotSticky: CharacterID ist Null.\n");
@@ -689,7 +665,6 @@ void DecreasePlayerPoolSlotSticky(uint32_t CharacterID) {
 	PlayerDataPoolMutex.up();
 }
 
-// 0x080a8690  crplayer.c:671
 void ReleasePlayerPoolSlot(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("ReleasePlayerPoolSlot: Slot ist NULL.\n");
@@ -710,7 +685,6 @@ void ReleasePlayerPoolSlot(TPlayerData *Slot) {
 	Slot->Locked = 0;
 }
 
-// 0x080a8710  crplayer.c:693
 void SavePlayerPoolSlots() {
 	print(3, "Speichere alle Spielerdaten...\n");
 	for (int i = 0; i < PLAYERDATA_POOLSIZE; i++) {
@@ -731,7 +705,6 @@ void SavePlayerPoolSlots() {
 	}
 }
 
-// 0x080a8860  crplayer.c:713
 void ExitPlayerPool() {
 	for (int i = 0; i < PLAYERDATA_POOLSIZE; i++) {
 		uint32_t CharacterID = PlayerDataPool[i].CharacterID;
@@ -760,7 +733,6 @@ void ExitPlayerPool() {
 	print(1, "Alle Spielerdaten gespeichert.\n");
 }
 
-// 0x080a8a90  crplayer.c:745
 int GetPlayerIndexEntryNumber(char *Name, int Position) {
 	if (Name == nullptr) {
 		error("GetPlayerIndexEntryNumber: Name ist NULL.\n");
@@ -783,7 +755,6 @@ int GetPlayerIndexEntryNumber(char *Name, int Position) {
 	return 0;
 }
 
-// 0x080a8b00  crplayer.c:762
 void InsertPlayerIndex(TPlayerIndexInternalNode *Node, int Position, char *Name, uint32_t CharacterID) {
 	if (Node == nullptr) {
 		error("InsertPlayerIndex: Node ist NULL.\n");
@@ -841,7 +812,6 @@ void InsertPlayerIndex(TPlayerIndexInternalNode *Node, int Position, char *Name,
 	InsertPlayerIndex(InternalNode, Position + 1, Name, CharacterID);
 }
 
-// 0x080a8ce0  crplayer.c:811
 TPlayerIndexEntry *SearchPlayerIndex(char *Name) {
 	if (Name == nullptr) {
 		error("SearchPlayerIndex: Name ist NULL.\n");
@@ -868,7 +838,6 @@ TPlayerIndexEntry *SearchPlayerIndex(char *Name) {
 	return nullptr;
 }
 
-// 0x080a8d80  crplayer.c:835
 void InitPlayerIndex() {
 	PlayerIndexHead.InternalNode = true;
 	for (int i = 0; i < 27; i++) {
@@ -907,7 +876,6 @@ void InitPlayerIndex() {
 	delete Connection;
 }
 
-// 0x080a8ef0  crplayer.c:869
 bool PlayerExists(char *Name) {
 	if (Name == nullptr) {
 		error("PlayerExists: Name ist NULL.\n");
@@ -918,7 +886,6 @@ bool PlayerExists(char *Name) {
 	return Entry != nullptr;
 }
 
-// 0x080a8f30  crplayer.c:883
 uint32_t GetCharacterID(char *Name) {
 	if (Name == nullptr) {
 		error("GetCharacterID: Name ist NULL.\n");
@@ -933,7 +900,6 @@ uint32_t GetCharacterID(char *Name) {
 	return Entry->CharacterID;
 }
 
-// 0x080a8f70  crplayer.c:898
 char *GetCharacterName(char *Name) {
 	if (Name == nullptr) {
 		error("GetCharacterName: Name ist NULL.\n");
@@ -949,7 +915,6 @@ char *GetCharacterName(char *Name) {
 	return Entry->Name;
 }
 
-// 0x080a9a60  crplayer.c:917
 TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayers(0, 10, 10), FormerAttackedPlayers(0, 10, 10) {
 	Profession = 0;
 	ConstructError = NOERROR;
@@ -1109,7 +1074,6 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 	}
 }
 
-// 0x080aa9e0  crplayer.c:1073
 TPlayer::~TPlayer() {
 	LogoutOrder(this);
 	if (ConstructError != NOERROR) {
@@ -1195,7 +1159,6 @@ TPlayer::~TPlayer() {
 	ReleasePlayerPoolSlot(PlayerData);
 }
 
-// 0x080ab380  crplayer.c:1136
 void TPlayer::SetInList() {
 	SetInCrList();
 	PlayerMutex.down();
@@ -1209,7 +1172,6 @@ void TPlayer::SetInList() {
 	}
 }
 
-// 0x080ab410  crplayer.c:1151
 void TPlayer::DelInList() {
 	NotifyBuddies(ID, Name, false);
 	for (int i = 0; i < FirstFreePlayer; i++) {
@@ -1228,7 +1190,6 @@ void TPlayer::DelInList() {
 	}
 }
 
-// 0x080ab500  crplayer.c:1169
 void TPlayer::ClearConnection() {
 	SetConnection(nullptr);
 	if (Request != 0) {
@@ -1245,7 +1206,6 @@ void TPlayer::ClearConnection() {
 	}
 }
 
-// 0x080ab590  crplayer.c:1185
 void TPlayer::LoadData() {
 	if (PlayerData == nullptr) {
 		error("TPlayer::LoadData: PlayerData ist NULL.\n");
@@ -1297,7 +1257,6 @@ void TPlayer::LoadData() {
 	NumberOfMutings = PlayerData->NumberOfMutings;
 }
 
-// 0x080ab840  crplayer.c:1231
 void TPlayer::SaveData() {
 	if (PlayerData == nullptr) {
 		error("TPlayer::SaveData: PlayerData ist NULL.\n");
@@ -1338,7 +1297,6 @@ void TPlayer::SaveData() {
 	PlayerData->NumberOfMutings = NumberOfMutings;
 }
 
-// 0x080abac0  crplayer.c:1268
 void TPlayer::LoadInventory(bool SetStandardInventory) {
 	if (PlayerData == nullptr) {
 		error("TPlayer::LoadInventory: PlayerData ist NULL.\n");
@@ -1380,7 +1338,6 @@ void TPlayer::LoadInventory(bool SetStandardInventory) {
 	}
 }
 
-// 0x080abdf0  crplayer.c:1308
 void TPlayer::SaveInventory() {
 	if (PlayerData == nullptr) {
 		error("TPlayer::SaveInventory: PlayerData ist NULL.\n");
@@ -1420,12 +1377,10 @@ void TPlayer::SaveInventory() {
 	}
 }
 
-// 0x080abfd0  crplayer.c:1345
 void TPlayer::StartCoordinates() {
 	GetStartPosition(startx, starty, startz, true);
 }
 
-// 0x080ac010  crplayer.c:1353
 void TPlayer::TakeOver(TConnection *Connection) {
 	Log("game", "Spieler %s \xfc" "bernimmt Verbindung.\n", Name);
 	LoggingOut = false;
@@ -1492,7 +1447,6 @@ void TPlayer::TakeOver(TConnection *Connection) {
 	SendBuddies();
 }
 
-// 0x080ac450  crplayer.c:1419
 void TPlayer::Death() {
 	if (CheckRight(ID, INVULNERABLE)) {
 		error("TPlayer::Death: Aha, so geht das aber nicht!! Goetter kann man nicht toeten!!\n");
@@ -1539,21 +1493,18 @@ void TPlayer::Death() {
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
 }
 
-// 0x080ac7e0  crplayer.c:1462
 void TPlayer::AttackStimulus(uint32_t) {
 	if (!IsDead) {
 		BlockLogout(60, false);
 	}
 }
 
-// 0x080ac810  crplayer.c:1469
 void TPlayer::DamageStimulus(uint32_t, int, int) {
 	if (!IsDead) {
 		BlockLogout(60, false);
 	}
 }
 
-// 0x080ac840  crplayer.c:1477
 void TPlayer::IdleStimulus() {
 	if (Combat.GetAttackDest() == 0) {
 		return;
@@ -1574,7 +1525,6 @@ void TPlayer::IdleStimulus() {
 	}
 }
 
-// 0x080ac8e0  crplayer.c:1496
 void TPlayer::SetOpenContainer(int Window, Object Con) {
 	if (Window < 0 || Window > 15) {
 		// Original bug: the window number for %d is not passed.
@@ -1590,7 +1540,6 @@ void TPlayer::SetOpenContainer(int Window, Object Con) {
 	OpenContainer[Window] = Con;
 }
 
-// 0x080ac990  crplayer.c:1512
 Object TPlayer::GetOpenContainer(int Window) {
 	if (Window < 0 || Window > 15) {
 		// Original bug: the window number for %d is not passed.
@@ -1601,7 +1550,6 @@ Object TPlayer::GetOpenContainer(int Window) {
 	return OpenContainer[Window];
 }
 
-// 0x080ac9e0  crplayer.c:1524
 void TPlayer::CloseAllContainers() {
 	for (int i = 0; i < 16; i++) {
 		if (GetOpenContainer(i) != NONE) {
@@ -1611,7 +1559,6 @@ void TPlayer::CloseAllContainers() {
 	}
 }
 
-// 0x080aca70  crplayer.c:1535
 Object TPlayer::InspectTrade(bool OwnOffer, int Position) {
 	if (TradeObject == NONE) {
 		return NONE;
@@ -1651,7 +1598,6 @@ Object TPlayer::InspectTrade(bool OwnOffer, int Position) {
 	return Obj;
 }
 
-// 0x080acbd0  crplayer.c:1564
 void TPlayer::AcceptTrade() {
 	if (TradeObject == NONE) {
 		return;
@@ -1795,7 +1741,6 @@ void TPlayer::AcceptTrade() {
 	}
 }
 
-// 0x080ad5e0  crplayer.c:1665
 void TPlayer::RejectTrade() {
 	if (TradeObject == NONE) {
 		return;
@@ -1810,7 +1755,6 @@ void TPlayer::RejectTrade() {
 	}
 }
 
-// 0x080ad6c0  crplayer.c:1683
 void TPlayer::ClearProfession() {
 	if (Profession == 0) {
 		return;
@@ -1821,7 +1765,6 @@ void TPlayer::ClearProfession() {
 	IncrementNewbiesOnline();
 }
 
-// 0x080ad700  crplayer.c:1697
 void TPlayer::SetProfession(unsigned char prof) {
 	if (prof == 10) {
 		if (Profession == 0) {
@@ -1908,12 +1851,10 @@ void TPlayer::SetProfession(unsigned char prof) {
 	DecrementNewbiesOnline();
 }
 
-// 0x080adb80  crplayer.c:1781
 unsigned char TPlayer::GetRealProfession() {
 	return Profession;
 }
 
-// 0x080adb90  crplayer.c:1789
 unsigned char TPlayer::GetEffectiveProfession() {
 	if (Profession >= 10) {
 		return Profession - 10;
@@ -1922,7 +1863,6 @@ unsigned char TPlayer::GetEffectiveProfession() {
 	return Profession;
 }
 
-// 0x080adbb0  crplayer.c:1797
 unsigned char TPlayer::GetActiveProfession() {
 	if (CheckRight(ID, PREMIUM_ACCOUNT)) {
 		return Profession;
@@ -1931,12 +1871,10 @@ unsigned char TPlayer::GetActiveProfession() {
 	return GetEffectiveProfession();
 }
 
-// 0x080adc00  crplayer.c:1805
 bool TPlayer::GetActivePromotion() {
 	return CheckRight(ID, PREMIUM_ACCOUNT) && Profession >= 10;
 }
 
-// 0x080adc50  crplayer.c:1813
 bool TPlayer::SpellKnown(int SpellNumber) {
 	if (SpellNumber < 0 || SpellNumber > 255) {
 		error("TPlayer::SpellKnown: Ung\xfcltige Spruchnummer %d.\n", SpellNumber);
@@ -1946,7 +1884,6 @@ bool TPlayer::SpellKnown(int SpellNumber) {
 	return SpellList[SpellNumber] != 0;
 }
 
-// 0x080adc90  crplayer.c:1825
 void TPlayer::LearnSpell(int SpellNumber) {
 	if (SpellNumber < 0 || SpellNumber > 255) {
 		error("TPlayer::LearnSpell: Ung\xfcltige Spruchnummer %d.\n", SpellNumber);
@@ -1961,7 +1898,6 @@ void TPlayer::LearnSpell(int SpellNumber) {
 	SpellList[SpellNumber] = 1;
 }
 
-// 0x080adcd0  crplayer.c:1841
 int TPlayer::GetQuestValue(int Number) {
 	if (Number < 0 || Number > 499) {
 		error("TPlayer::GetQuestValue: Ung\xfcltige Nummer %d.\n", Number);
@@ -1972,7 +1908,6 @@ int TPlayer::GetQuestValue(int Number) {
 	return QuestValues[Number];
 }
 
-// 0x080add40  crplayer.c:1854
 void TPlayer::SetQuestValue(int Number, int Value) {
 	if (Number < 0 || Number > 499) {
 		error("TPlayer::SetQuestValue: Ung\xfcltige Nummer %d.\n", Number);
@@ -1983,7 +1918,6 @@ void TPlayer::SetQuestValue(int Number, int Value) {
 	QuestValues[Number] = Value;
 }
 
-// 0x080addc0  crplayer.c:1868
 void TPlayer::CheckOutfit() {
 	if (CheckRight(ID, GAMEMASTER_OUTFIT)) {
 		if (OrgOutfit.OutfitID == 75) {
@@ -2020,7 +1954,6 @@ void TPlayer::CheckOutfit() {
 	Outfit = OrgOutfit;
 }
 
-// 0x080adec0  crplayer.c:1903
 void TPlayer::CheckState() {
 	if (GetConnection() == nullptr) {
 		return;
@@ -2065,7 +1998,6 @@ void TPlayer::CheckState() {
 	}
 }
 
-// 0x080adfc0  crplayer.c:1925
 bool TPlayer::MovePossible(int x, int y, int z, bool Execute, bool Jump) {
 	if (Jump) {
 		if (!JumpPossible(x, y, z, false)) {
@@ -2097,7 +2029,6 @@ bool TPlayer::MovePossible(int x, int y, int z, bool Execute, bool Jump) {
 	return true;
 }
 
-// 0x080ae1b0  crplayer.c:1941
 void TPlayer::AddBuddy(char *Name) {
 	if (Name == nullptr) {
 		error("TPlayer::AddBuddy: Name ist NULL.\n");
@@ -2150,7 +2081,6 @@ void TPlayer::AddBuddy(char *Name) {
 	PlayerData->Buddies++;
 }
 
-// 0x080ae480  crplayer.c:1994
 void TPlayer::RemoveBuddy(uint32_t CharacterID) {
 	if (PlayerData == nullptr) {
 		error("TPlayer::RemoveBuddy: PlayerData ist NULL.\n");
@@ -2175,7 +2105,6 @@ void TPlayer::RemoveBuddy(uint32_t CharacterID) {
 	RemoveBuddyOrder(this, CharacterID);
 }
 
-// 0x080ae550  crplayer.c:2013
 void TPlayer::SendBuddies() {
 	if (PlayerData == nullptr) {
 		error("TPlayer::SendBuddies: PlayerData ist NULL.\n");
@@ -2194,7 +2123,6 @@ void TPlayer::SendBuddies() {
 	}
 }
 
-// 0x080ae6c0  crplayer.c:2030
 void TPlayer::Regenerate() {
 	Object Bed = GetFirstObject(posx, posy, posz);
 	while (Bed != NONE) {
@@ -2250,7 +2178,6 @@ void TPlayer::Regenerate() {
 	}
 }
 
-// 0x080ae990  crplayer.c:2072
 bool TPlayer::IsAttacker(uint32_t Victim, bool CheckFormer) {
 	for (int i = 0; i < NumberOfAttackedPlayers; i++) {
 		if (AttackedPlayers(i) == Victim) {
@@ -2269,13 +2196,11 @@ bool TPlayer::IsAttacker(uint32_t Victim, bool CheckFormer) {
 	return false;
 }
 
-// 0x080aea50  crplayer.c:2085
 bool TPlayer::IsAggressor(bool CheckFormer) {
 	return Aggressor
 			|| (CheckFormer && RoundNr <= FormerLogoutRound + PLAYERKILLINGMARK_DELAY && FormerAggressor);
 }
 
-// 0x080aeaa0  crplayer.c:2096
 bool TPlayer::IsAttackJustified(uint32_t Victim) {
 	TPlayer *pl = GetPlayer(Victim);
 	if (pl == nullptr) {
@@ -2302,7 +2227,6 @@ bool TPlayer::IsAttackJustified(uint32_t Victim) {
 	return pl->IsAttacker(ID, true);
 }
 
-// 0x080aebf0  crplayer.c:2113
 void TPlayer::RecordAttack(uint32_t Victim) {
 	if (WorldType != NORMAL) {
 		return;
@@ -2337,7 +2261,6 @@ void TPlayer::RecordAttack(uint32_t Victim) {
 	}
 }
 
-// 0x080aee30  crplayer.c:2139
 void TPlayer::RecordMurder(uint32_t Victim) {
 	if (WorldType != NORMAL) {
 		return;
@@ -2380,7 +2303,6 @@ void TPlayer::RecordMurder(uint32_t Victim) {
 	}
 }
 
-// 0x080af030  crplayer.c:2169
 int TPlayer::CheckPlayerkilling() {
 	int LastDay = 0;
 	int LastWeek = 0;
@@ -2415,7 +2337,6 @@ int TPlayer::CheckPlayerkilling() {
 	return 0;
 }
 
-// 0x080af0f0  crplayer.c:2189
 void TPlayer::ClearAttacker(uint32_t Victim) {
 	for (int i = 0; i < NumberOfAttackedPlayers; i++) {
 		if (AttackedPlayers(i) == Victim) {
@@ -2434,7 +2355,6 @@ void TPlayer::ClearAttacker(uint32_t Victim) {
 	}
 }
 
-// 0x080af220  crplayer.c:2207
 void TPlayer::ClearPlayerkillingMarks() {
 	print(3, "L\xf6sche Markierungen von Spieler %s.\n", Name);
 	FormerLogoutRound = RoundNr;
@@ -2476,7 +2396,6 @@ void TPlayer::ClearPlayerkillingMarks() {
 	}
 }
 
-// 0x080af470  crplayer.c:2248
 int TPlayer::GetPlayerkillingMark(TPlayer *Observer) {
 	if (WorldType != NORMAL) {
 		return 0;
@@ -2506,7 +2425,6 @@ int TPlayer::GetPlayerkillingMark(TPlayer *Observer) {
 	return 0;
 }
 
-// 0x080af550  crplayer.c:2265
 uint32_t TPlayer::GetPartyLeader(bool CheckFormer) {
 	if (PartyLeavingRound != 0) {
 		if (!CheckFormer) {
@@ -2521,18 +2439,15 @@ uint32_t TPlayer::GetPartyLeader(bool CheckFormer) {
 	return PartyLeader;
 }
 
-// 0x080af590  crplayer.c:2276
 void TPlayer::JoinParty(uint32_t Leader) {
 	PartyLeader = Leader;
 	PartyLeavingRound = 0;
 }
 
-// 0x080af5b0  crplayer.c:2285
 void TPlayer::LeaveParty() {
 	PartyLeavingRound = RoundNr;
 }
 
-// 0x080af5d0  crplayer.c:2293
 int TPlayer::GetPartyMark(TPlayer *Observer) {
 	if (Observer == nullptr) {
 		error("TPlayer::GetPartyMark: Beobachter existiert nicht.\n");
@@ -2558,7 +2473,6 @@ int TPlayer::GetPartyMark(TPlayer *Observer) {
 	return 0;
 }
 
-// 0x080af6e0  crplayer.c:2310
 int TPlayer::RecordTalk() {
 	if (ServerMilliseconds >= TalkBufferFullTime) {
 		TalkBufferFullTime = ServerMilliseconds + TALKBUFFER_MILLISECONDS_PER_LINE;
@@ -2574,7 +2488,6 @@ int TPlayer::RecordTalk() {
 	return 0;
 }
 
-// 0x080af740  crplayer.c:2330
 int TPlayer::RecordMessage(uint32_t Addressee) {
 	int FreeSlot = -1;
 	for (int i = 0; i < 20; i++) {
@@ -2600,7 +2513,6 @@ int TPlayer::RecordMessage(uint32_t Addressee) {
 	return 0;
 }
 
-// 0x080af7d0  crplayer.c:2356
 int TPlayer::CheckForMuting() {
 	if (RoundNr < MutingEndRound) {
 		return (int)(MutingEndRound - RoundNr);
@@ -2609,7 +2521,6 @@ int TPlayer::CheckForMuting() {
 	return 0;
 }
 
-// 0x080af800  crplayer.c:2370
 void InitPlayer() {
 	FirstFreePlayer = 0;
 	InitPlayerPool();
@@ -2617,7 +2528,6 @@ void InitPlayer() {
 	InitPlayerIndex();
 }
 
-// 0x080af860  crplayer.c:2381
 void ExitPlayer() {
 	ExitPlayerPool();
 	CreatePlayerList(false);

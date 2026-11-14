@@ -13,11 +13,8 @@ struct TCreature;
 struct TSpellList;
 
 struct TImpact {
-	// 0x0808de10  magic.h:21
 	virtual void handleField(int, int, int) {}
-	// 0x0808de20  magic.h:22
 	virtual void handleCreature(TCreature *) {}
-	// 0x0808de30  magic.h:23
 	virtual bool isAggressive() { return true; }
 };
 
@@ -42,7 +39,6 @@ private:
 struct THealingImpact : public TImpact {
 	THealingImpact(TCreature *_Actor, int _Power);
 	virtual void handleCreature(TCreature *Victim);
-	// 0x0808de40  magic.h:49
 	virtual bool isAggressive() { return false; }
 private:
 	TCreature *Actor;

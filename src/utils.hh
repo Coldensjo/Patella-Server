@@ -38,11 +38,8 @@ struct TReadBuffer : public TReadStream {
 	virtual void readBytes(unsigned char *Buffer, int Count);
 	virtual bool eof();
 	virtual void skip(int Count);
-	// inline  utils.h:76
 	void rewind() { Position = 0; }
-	// inline  utils.h:77
 	void resize(int size) { Size = size; }
-	// inline  utils.h:78
 	int getPosition() { return Position; }
 private:
 	unsigned char *Data;
@@ -56,9 +53,7 @@ struct TWriteBuffer : public TWriteStream {
 	virtual void writeWord(unsigned short w);
 	virtual void writeQuad(uint32_t q);
 	virtual void writeBytes(unsigned char *Buffer, int Count);
-	// inline  utils.h:92
 	int getDataSize() { return Position; }
-	// inline  utils.h:93
 	void rewind() { Position = 0; }
 protected:
 	unsigned char *Data;
@@ -73,13 +68,11 @@ struct TDynamicWriteBuffer : public TWriteBuffer {
 	virtual void writeWord(unsigned short w);
 	virtual void writeQuad(uint32_t q);
 	virtual void writeBytes(unsigned char *Buffer, int Count);
-	// inline  utils.h:108
 	unsigned char *getData() { return Data; }
 private:
 	void resizeBuffer();
 };
 
-// inline  utils.h:118
 inline bool in(int x, int min, int max) { return x >= min && x <= max; }
 
 void SetPrintFunction(TPrintFunction *Function);
@@ -105,7 +98,6 @@ extern TPrintFunction *PrintFunction;
 extern TErrorFunction *ErrorFunction;
 extern char StandardLogfile[4096];
 
-// 0x080721b0  utils.h:132  (RandomShuffle<int>)
 // Defined below the prototypes it uses; the original header declares them first.
 template<class T>
 void RandomShuffle(T *Buffer, int Size) {

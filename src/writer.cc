@@ -142,31 +142,29 @@ void GetOrder(TWriterThreadOrderType &OrderType, void *&Data);
 void InsertReply(TWriterThreadReplyType ReplyType, void *Data);
 bool GetReply(TWriterThreadReplyType &ReplyType, void *&Data);
 
-static Thread ProtocolThread = 0;	// writer.c:137
-static Thread WriterThread = 0;	// writer.c:138
-static TQueryManagerConnection *QueryManagerConnection = nullptr;	// writer.c:139
-static TProtocolThreadOrder ProtocolBuffer[1000];	// writer.c:144
-static TWriterThreadOrder OrderBuffer[2000];	// writer.c:145
-static TWriterThreadReply ReplyBuffer[100];	// writer.c:146
-static int ProtocolPointerWrite;	// writer.c:147
-static int ProtocolPointerRead;	// writer.c:148
-static int OrderPointerWrite;	// writer.c:149
-static int OrderPointerRead;	// writer.c:150
-static int ReplyPointerWrite;	// writer.c:151
-static int ReplyPointerRead;	// writer.c:152
-static Semaphore ProtocolMutex(1);	// writer.c:154
-static Semaphore ProtocolBufferEmpty(1000);	// writer.c:155
-static Semaphore ProtocolBufferFull(0);	// writer.c:156
-static Semaphore OrderBufferEmpty(2000);	// writer.c:157
-static Semaphore OrderBufferFull(0);	// writer.c:158
+static Thread ProtocolThread = 0;
+static Thread WriterThread = 0;
+static TQueryManagerConnection *QueryManagerConnection = nullptr;
+static TProtocolThreadOrder ProtocolBuffer[1000];
+static TWriterThreadOrder OrderBuffer[2000];
+static TWriterThreadReply ReplyBuffer[100];
+static int ProtocolPointerWrite;
+static int ProtocolPointerRead;
+static int OrderPointerWrite;
+static int OrderPointerRead;
+static int ReplyPointerWrite;
+static int ReplyPointerRead;
+static Semaphore ProtocolMutex(1);
+static Semaphore ProtocolBufferEmpty(1000);
+static Semaphore ProtocolBufferFull(0);
+static Semaphore OrderBufferEmpty(2000);
+static Semaphore OrderBufferFull(0);
 
-// 0x08068b80  writer.c:170
 void InitProtocol() {
 	ProtocolPointerWrite = 0;
 	ProtocolPointerRead = 0;
 }
 
-// 0x08068ba0  writer.c:180
 void InsertProtocolOrder(char *ProtocolName, char *Text) {
 	if (ProtocolName == nullptr) {
 		error("InsertProtocolOrder: Protokoll-Name nicht angegeben.\n");
@@ -191,7 +189,6 @@ void InsertProtocolOrder(char *ProtocolName, char *Text) {
 	ProtocolMutex.up();
 }
 
-// 0x08068cd0  writer.c:206
 void GetProtocolOrder(char *ProtocolName, char *Text) {
 	ProtocolBufferFull.down();
 	strcpy(ProtocolName, ProtocolBuffer[ProtocolPointerRead % PROTOCOL_BUFFER_SIZE].ProtocolName);
@@ -200,7 +197,6 @@ void GetProtocolOrder(char *ProtocolName, char *Text) {
 	ProtocolBufferEmpty.up();
 }
 
-// 0x08068d80  writer.c:219
 void WriteProtocol(char *ProtocolName, char *Text) {
 	char FileName[4096];
 
@@ -214,7 +210,6 @@ void WriteProtocol(char *ProtocolName, char *Text) {
 	}
 }
 
-// 0x08068e10  writer.c:233
 int ProtocolThreadLoop(void *) {
 	char ProtocolName[20];
 	char Text[256];
@@ -231,7 +226,6 @@ int ProtocolThreadLoop(void *) {
 	return 0;
 }
 
-// 0x08068f80  writer.c:248
 void InitLog(char *ProtocolName) {
 	time_t Time;
 	char FileName[4096];
@@ -255,7 +249,6 @@ void InitLog(char *ProtocolName) {
 	fclose(f);
 }
 
-// 0x08069060  writer.c:274
 void Log(char *ProtocolName, char *Text, ...) {
 	if (ProtocolName == nullptr || ProtocolName[0] == 0) {
 		error("Log: Protokoll-Name nicht angegeben.\n");
@@ -297,7 +290,6 @@ void Log(char *ProtocolName, char *Text, ...) {
 	}
 }
 
-// 0x080692b0  writer.c:315
 void InitWriterBuffers() {
 	OrderPointerWrite = 0;
 	OrderPointerRead = 0;
@@ -305,7 +297,6 @@ void InitWriterBuffers() {
 	ReplyPointerRead = 0;
 }
 
-// 0x080692e0  writer.c:327
 int GetOrderBufferSpace() {
 	if (WriterThread == 0) {
 		return 0x7fffffff;
@@ -314,7 +305,6 @@ int GetOrderBufferSpace() {
 	return ORDER_BUFFER_SIZE - (OrderPointerWrite - OrderPointerRead);
 }
 
-// 0x08069310  writer.c:337
 void InsertOrder(TWriterThreadOrderType OrderType, void *Data) {
 	if (WriterThread == 0) {
 		return;
@@ -331,7 +321,6 @@ void InsertOrder(TWriterThreadOrderType OrderType, void *Data) {
 	OrderBufferFull.up();
 }
 
-// 0x080693c0  writer.c:353
 void GetOrder(TWriterThreadOrderType &OrderType, void *&Data) {
 	OrderBufferFull.down();
 	OrderType = OrderBuffer[OrderPointerRead % ORDER_BUFFER_SIZE].OrderType;
@@ -340,7 +329,6 @@ void GetOrder(TWriterThreadOrderType &OrderType, void *&Data) {
 	OrderBufferEmpty.up();
 }
 
-// 0x08069440  writer.c:366
 void InsertReply(TWriterThreadReplyType ReplyType, void *Data) {
 	if (ReplyPointerWrite - ReplyPointerRead >= REPLY_BUFFER_SIZE) {
 		error("InsertReply (Writer): Puffer ist voll; R\xfc" "ckmeldung wird verworfen.\n");
@@ -352,7 +340,6 @@ void InsertReply(TWriterThreadReplyType ReplyType, void *Data) {
 	ReplyPointerWrite++;
 }
 
-// 0x080694d0  writer.c:381
 void DirectReply(uint32_t CharacterID, char *Text, ...) {
 	if (CharacterID == 0) {
 		return;
@@ -374,7 +361,6 @@ void DirectReply(uint32_t CharacterID, char *Text, ...) {
 	InsertReply(REPLY_DIRECT, Data);
 }
 
-// 0x080695a0  writer.c:402
 void LogoutReply(char *PlayerName) {
 	int Length = static_cast<int>(strlen(PlayerName));
 	char *Buffer = new char[Length + 1];
@@ -382,7 +368,6 @@ void LogoutReply(char *PlayerName) {
 	InsertReply(REPLY_LOGOUT, Buffer);
 }
 
-// 0x08069640  writer.c:416
 bool GetReply(TWriterThreadReplyType &ReplyType, void *&Data) {
 	if (ReplyPointerRead == ReplyPointerWrite) {
 		return false;
@@ -394,12 +379,10 @@ bool GetReply(TWriterThreadReplyType &ReplyType, void *&Data) {
 	return true;
 }
 
-// 0x080696b0  writer.c:435
 void TerminateWriterOrder() {
 	InsertOrder(ORDER_TERMINATE, nullptr);
 }
 
-// 0x08069740  writer.c:444
 void LogoutOrder(TPlayer *Player) {
 	if (Player == nullptr) {
 		error("LogoutOrder: \xdc" "bergebener Spieler existiert nicht.\n");
@@ -458,7 +441,6 @@ void LogoutOrder(TPlayer *Player) {
 	InsertOrder(ORDER_LOGOUT, Data);
 }
 
-// 0x08069a00  writer.c:483
 void PlayerlistOrder(int NumberOfPlayers, char *PlayerNames, int *PlayerLevels, int *PlayerProfessions) {
 	if (PlayerNames == nullptr) {
 		error("PlayerlistOrder: PlayerNames ist NULL.\n");
@@ -483,7 +465,6 @@ void PlayerlistOrder(int NumberOfPlayers, char *PlayerNames, int *PlayerLevels, 
 	InsertOrder(ORDER_PLAYERLIST, Data);
 }
 
-// 0x08069b20  writer.c:510
 void KillStatisticsOrder(int NumberOfRaces, char *RaceNames, int *KilledPlayers, int *KilledCreatures) {
 	if (RaceNames == nullptr) {
 		error("KillStatisticsOrder: RaceNames ist NULL.\n");
@@ -508,7 +489,6 @@ void KillStatisticsOrder(int NumberOfRaces, char *RaceNames, int *KilledPlayers,
 	InsertOrder(ORDER_KILLSTATISTICS, Data);
 }
 
-// 0x08069c40  writer.c:538
 void PunishmentOrder(TCreature *cr, char *Name, char *IPAddress, int Reason, int Action, char *Comment, int NumberOfStatements, vector<TReportedStatement> *ReportedStatements, uint32_t StatementID, bool IPBanishment) {
 	if (Name == nullptr) {
 		error("PunishmentOrder: Name ist NULL.\n");
@@ -539,7 +519,6 @@ void PunishmentOrder(TCreature *cr, char *Name, char *IPAddress, int Reason, int
 	InsertOrder(ORDER_PUNISHMENT, Data);
 }
 
-// 0x08069df0  writer.c:569
 void CharacterDeathOrder(TCreature *cr, int OldLevel, uint32_t Offender, char *Remark, bool Unjustified) {
 	if (cr == nullptr) {
 		error("CharacterDeathOrder: cr ist NULL.\n");
@@ -561,7 +540,6 @@ void CharacterDeathOrder(TCreature *cr, int OldLevel, uint32_t Offender, char *R
 	InsertOrder(ORDER_CHARACTERDEATH, Data);
 }
 
-// 0x08069f20  writer.c:594
 void AddBuddyOrder(TCreature *cr, uint32_t Buddy) {
 	if (cr == nullptr) {
 		error("AddBuddyOrder: cr ist NULL.\n");
@@ -579,7 +557,6 @@ void AddBuddyOrder(TCreature *cr, uint32_t Buddy) {
 	InsertOrder(ORDER_ADDBUDDY, Data);
 }
 
-// 0x0806a030  writer.c:615
 void RemoveBuddyOrder(TCreature *cr, uint32_t Buddy) {
 	if (cr == nullptr) {
 		error("RemoveBuddyOrder: cr ist NULL.\n");
@@ -597,18 +574,15 @@ void RemoveBuddyOrder(TCreature *cr, uint32_t Buddy) {
 	InsertOrder(ORDER_REMOVEBUDDY, Data);
 }
 
-// 0x0806a140  writer.c:636
 void DecrementIsOnlineOrder(uint32_t CharacterID) {
 	// the character ID itself travels in the order's data pointer
 	InsertOrder(ORDER_DECREMENTISONLINE, reinterpret_cast<void *>(static_cast<uintptr_t>(CharacterID)));
 }
 
-// 0x0806a1e0  writer.c:645
 void SavePlayerDataOrder() {
 	InsertOrder(ORDER_SAVEPLAYERDATA, nullptr);
 }
 
-// 0x0806a270  writer.c:659
 void ProcessLogoutOrder(void *RawData) {
 	TLogoutOrderData *Data = static_cast<TLogoutOrderData *>(RawData);
 	if (Data == nullptr) {
@@ -629,7 +603,6 @@ void ProcessLogoutOrder(void *RawData) {
 	delete Data;
 }
 
-// 0x0806a340  writer.c:680
 void ProcessPlayerlistOrder(void *RawData) {
 	TPlayerlistOrderData *Data = static_cast<TPlayerlistOrderData *>(RawData);
 	if (Data == nullptr) {
@@ -673,7 +646,6 @@ void ProcessPlayerlistOrder(void *RawData) {
 	delete Data;
 }
 
-// 0x0806a560  writer.c:730
 void ProcessKillStatisticsOrder(void *RawData) {
 	TKillStatisticsOrderData *Data = static_cast<TKillStatisticsOrderData *>(RawData);
 	if (Data == nullptr) {
@@ -702,7 +674,6 @@ void ProcessKillStatisticsOrder(void *RawData) {
 	delete Data;
 }
 
-// 0x0806a670  writer.c:766
 void ProcessPunishmentOrder(void *RawData) {
 	TPunishmentOrderData *Data = static_cast<TPunishmentOrderData *>(RawData);
 	if (Data == nullptr) {
@@ -903,7 +874,6 @@ void ProcessPunishmentOrder(void *RawData) {
 	delete Data;
 }
 
-// 0x0806b150  writer.c:911
 void ProcessCharacterDeathOrder(void *RawData) {
 	TCharacterDeathOrderData *Data = static_cast<TCharacterDeathOrderData *>(RawData);
 	if (Data == nullptr) {
@@ -918,7 +888,6 @@ void ProcessCharacterDeathOrder(void *RawData) {
 	delete Data;
 }
 
-// 0x0806b1e0  writer.c:928
 void ProcessAddBuddyOrder(void *RawData) {
 	TBuddyOrderData *Data = static_cast<TBuddyOrderData *>(RawData);
 	if (Data == nullptr) {
@@ -933,7 +902,6 @@ void ProcessAddBuddyOrder(void *RawData) {
 	delete Data;
 }
 
-// 0x0806b250  writer.c:945
 void ProcessRemoveBuddyOrder(void *RawData) {
 	TBuddyOrderData *Data = static_cast<TBuddyOrderData *>(RawData);
 	if (Data == nullptr) {
@@ -948,7 +916,6 @@ void ProcessRemoveBuddyOrder(void *RawData) {
 	delete Data;
 }
 
-// 0x0806b2c0  writer.c:962
 void ProcessDecrementIsOnlineOrder(void *RawData) {
 	uint32_t CharacterID = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(RawData));
 	if (QueryManagerConnection->decrementIsOnline(CharacterID) != 0) {
@@ -956,7 +923,6 @@ void ProcessDecrementIsOnlineOrder(void *RawData) {
 	}
 }
 
-// 0x0806b300  writer.c:973
 int WriterThreadLoop(void *) {
 	while (true) {
 		TWriterThreadOrderType OrderType;
@@ -999,7 +965,6 @@ int WriterThreadLoop(void *) {
 	}
 }
 
-// 0x0806b570  writer.c:1011
 void ProcessBroadcastReply(void *RawData) {
 	char *Data = static_cast<char *>(RawData);
 	if (Data == nullptr) {
@@ -1012,7 +977,6 @@ void ProcessBroadcastReply(void *RawData) {
 	delete[] Data;
 }
 
-// 0x0806b5c0  writer.c:1027
 void ProcessDirectReply(void *RawData) {
 	TDirectReplyData *Data = static_cast<TDirectReplyData *>(RawData);
 	if (Data == nullptr) {
@@ -1028,7 +992,6 @@ void ProcessDirectReply(void *RawData) {
 	delete Data;
 }
 
-// 0x0806b630  writer.c:1044
 void ProcessLogoutReply(void *RawData) {
 	char *CharacterName = static_cast<char *>(RawData);
 	if (CharacterName == nullptr) {
@@ -1045,7 +1008,6 @@ void ProcessLogoutReply(void *RawData) {
 	delete[] CharacterName;
 }
 
-// 0x0806b6b0  writer.c:1064
 void ProcessWriterThreadReplies() {
 	while (true) {
 		TWriterThreadReplyType ReplyType;
@@ -1071,7 +1033,6 @@ void ProcessWriterThreadReplies() {
 	}
 }
 
-// 0x0806b7e0  writer.c:1088
 void ClearPlayers() {
 	int NumberOfAffectedPlayers;
 	if (QueryManagerConnection->clearIsOnline(NumberOfAffectedPlayers) != 0) {
@@ -1084,7 +1045,6 @@ void ClearPlayers() {
 	}
 }
 
-// 0x0806b830  writer.c:1103
 // The original is declared throw(const char *). C++17 has no dynamic exception
 // specifications, so an exception of another type now propagates instead of
 // ending in std::unexpected().
@@ -1109,7 +1069,6 @@ void InitWriter() {
 	}
 }
 
-// 0x0806ba00  writer.c:1121
 void AbortWriter() {
 	if (WriterThread != 0) {
 		WriterThread = 0;
@@ -1122,7 +1081,6 @@ void AbortWriter() {
 	}
 }
 
-// 0x0806ba40  writer.c:1133
 void ExitWriter() {
 	if (ProtocolThread != 0) {
 		InsertProtocolOrder("", "");

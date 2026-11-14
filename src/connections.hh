@@ -41,12 +41,9 @@ struct TConnection {
 	void Process();
 	void ResetTimer(int Command);
 	void EmergencyPing();
-	// inline  connections.h:56
 	void SetSymmetricKey(unsigned char *_SymmetricKey) { SymmetricKey.init(_SymmetricKey); }
 	TXTEASymmetricKey &GetSymmetricKey() { return SymmetricKey; }
-	// inline  connections.h:60
 	CONNECTIONSTATE GetState() { return State; }
-	// inline  connections.h:61
 	bool IsOnline() { return State >= CONNECTION_LOGIN && State <= CONNECTION_LOGOUT; }
 	pid_t GetPID();
 	int GetSocket();
@@ -63,15 +60,11 @@ struct TConnection {
 	void Logout(int Delay, bool StopFight);
 	void Close(bool Delay);
 	void Disconnect();
-	// inline  connections.h:81
 	int GetTerminalType() { return TerminalType; }
-	// inline  connections.h:82
 	int GetTerminalVersion() { return TerminalVersion; }
 	int GetTerminalOffsetX() { return TerminalOffsetX; }
 	int GetTerminalOffsetY() { return TerminalOffsetY; }
-	// inline  connections.h:85
 	int GetTerminalWidth() { return TerminalWidth; }
-	// inline  connections.h:86
 	int GetTerminalHeight() { return TerminalHeight; }
 	unsigned char InData[2048];
 	int InDataSize;

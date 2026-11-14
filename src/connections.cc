@@ -32,17 +32,15 @@
 const int PINGTIME = 30;
 const int IDLETIME = 900;
 
-TConnection Connections[1100];	// connections.c:32
-TConnection *FirstSendingConnection;	// connections.c:33
-Semaphore ConnectionMutex(1);	// connections.c:34
-int ConnectionIterator;	// connections.c:515
+TConnection Connections[1100];
+TConnection *FirstSendingConnection;
+Semaphore ConnectionMutex(1);
+int ConnectionIterator;
 
-// 0x080cad10  connections.c:45
 TConnection::TConnection() {
 	Free();
 }
 
-// 0x080cad40  connections.c:53
 void TConnection::Process() {
 	if (State == CONNECTION_LOGIN) {
 		if (!GameRunning() || !ConnectionIsOk) {
@@ -83,7 +81,6 @@ void TConnection::Process() {
 	}
 }
 
-// 0x080cb0c0  connections.c:75
 void TConnection::ResetTimer(int Command) {
 	if (State == CONNECTION_GAME || State == CONNECTION_DEAD) {
 		TimeStamp = RoundNr;
@@ -93,7 +90,6 @@ void TConnection::ResetTimer(int Command) {
 	}
 }
 
-// 0x080cb120  connections.c:85
 void TConnection::EmergencyPing() {
 	if (State == CONNECTION_GAME || State == CONNECTION_DEAD) {
 		if (RoundNr - TimeStamp < 80) {
@@ -103,7 +99,6 @@ void TConnection::EmergencyPing() {
 	}
 }
 
-// 0x080cb170  connections.c:95
 pid_t TConnection::GetPID() {
 	if (State == CONNECTION_FREE) {
 		error("TConnection::GetPID: Verbindung ist nicht zugewiesen.\n");
@@ -113,7 +108,6 @@ pid_t TConnection::GetPID() {
 	return PID;
 }
 
-// 0x080cb1a0  connections.c:107
 int TConnection::GetSocket() {
 	if (State < CONNECTION_CONNECTED) {
 		error("TConnection::GetSocket: Verbindung ist nicht angeschlossen.\n");
@@ -123,7 +117,6 @@ int TConnection::GetSocket() {
 	return Socket;
 }
 
-// 0x080cb1e0  connections.c:119
 char *TConnection::GetIPAddress() {
 	if (State < CONNECTION_CONNECTED) {
 		error("TConnection::GetIPAddress: Verbindung ist nicht angeschlossen.\n");
@@ -133,12 +126,10 @@ char *TConnection::GetIPAddress() {
 	return IPAddress;
 }
 
-// 0x080cb220  connections.c:131
 void TConnection::Free() {
 	State = CONNECTION_FREE;
 }
 
-// 0x080cb230  connections.c:139
 void TConnection::Assign() {
 	if (State != CONNECTION_FREE) {
 		error("TConnection::Assign: Verbindung ist nicht frei.\n");
@@ -150,7 +141,6 @@ void TConnection::Assign() {
 	PID = gettid();
 }
 
-// 0x080cb280  connections.c:150
 void TConnection::Connect(int _Socket) {
 	if (State != CONNECTION_ASSIGNED) {
 		error("TConnection::Connect: Verbindung ist keinem Thread zugewiesen .\n");
@@ -171,7 +161,6 @@ void TConnection::Connect(int _Socket) {
 	RandomSeed = rand();
 }
 
-// 0x080cb330  connections.c:172
 void TConnection::Login() {
 	if (State != CONNECTION_CONNECTED) {
 		error("TConnection::Connect: Ung\xfcltiger Verbindungs-Zustand %d.\n", State);
@@ -180,7 +169,6 @@ void TConnection::Login() {
 	State = CONNECTION_LOGIN;
 }
 
-// 0x080cb370  connections.c:183
 bool TConnection::JoinGame(TReadBuffer &Buffer) {
 	if (State != CONNECTION_LOGIN) {
 		error("TConnection::JoinGame: Ung\xfcltiger Verbindungszustand %d.\n", State);
@@ -260,7 +248,6 @@ bool TConnection::JoinGame(TReadBuffer &Buffer) {
 	return true;
 }
 
-// 0x080cb6c0  connections.c:270
 void TConnection::EnterGame() {
 	if (State != CONNECTION_LOGIN) {
 		error("TConnection::EnterGame: Ung\xfcltiger Verbindungszustand %d.\n", State);
@@ -269,14 +256,12 @@ void TConnection::EnterGame() {
 	State = CONNECTION_GAME;
 }
 
-// 0x080cb700  connections.c:280
 void TConnection::Die() {
 	if (State == CONNECTION_GAME) {
 		State = CONNECTION_DEAD;
 	}
 }
 
-// 0x080cb720  connections.c:290
 void TConnection::Logout(int Delay, bool StopFight) {
 	if (State != CONNECTION_GAME && State != CONNECTION_DEAD && State != CONNECTION_LOGOUT) {
 		error("TConnection::Logout: Ung\xfcltiger Verbindungszustand %d.\n", State);
@@ -295,7 +280,6 @@ void TConnection::Logout(int Delay, bool StopFight) {
 	ClosingIsDelayed = false;
 }
 
-// 0x080cb7e0  connections.c:309
 void TConnection::Close(bool Delay) {
 	if (State < CONNECTION_CONNECTED) {
 		error("TConnection::Close: Ung\xfcltiger Verbindungszustand %d.\n", State);
@@ -308,7 +292,6 @@ void TConnection::Close(bool Delay) {
 	}
 }
 
-// 0x080cb850  connections.c:321
 void TConnection::Disconnect() {
 	if (State < CONNECTION_CONNECTED) {
 		error("TConnection::Close: Ung\xfcltiger Verbindungszustand %d.\n", State);
@@ -322,7 +305,6 @@ void TConnection::Disconnect() {
 	tgkill(getpid(), PID, SIGHUP);
 }
 
-// 0x080cb900  connections.c:334
 TPlayer *TConnection::GetPlayer() {
 	if (!IsOnline()) {
 		error("TConnection::GetPlayer: Ung\xfcltiger Verbindungszustand %d.\n", State);
@@ -336,7 +318,6 @@ TPlayer *TConnection::GetPlayer() {
 	return ::GetPlayer(CharacterID);
 }
 
-// 0x080cb950  connections.c:347
 const char *TConnection::GetName() {
 	if (!IsOnline()) {
 		error("TConnection::GetName: Ung\xfcltiger Verbindungszustand %d.\n", State);
@@ -346,7 +327,6 @@ const char *TConnection::GetName() {
 	return Name;
 }
 
-// 0x080cb990  connections.c:359
 void TConnection::GetPosition(int &x, int &y, int &z) {
 	TPlayer *pl = GetPlayer();
 	if (pl == nullptr) {
@@ -360,7 +340,6 @@ void TConnection::GetPosition(int &x, int &y, int &z) {
 	}
 }
 
-// 0x080cba30  connections.c:376
 bool TConnection::IsVisible(int x, int y, int z) {
 	int posx, posy, posz;
 	GetPosition(posx, posy, posz);
@@ -381,7 +360,6 @@ bool TConnection::IsVisible(int x, int y, int z) {
 	return x >= 0 && x < TerminalWidth && y >= 0 && y < TerminalHeight;
 }
 
-// 0x080cbae0  connections.c:393
 KNOWNCREATURESTATE TConnection::KnownCreature(uint32_t ID, bool UpdateFollows) {
 	for (int i = 0; i < 150; i++) {
 		TKnownCreature &K = KnownCreatureTable[i];
@@ -397,7 +375,6 @@ KNOWNCREATURESTATE TConnection::KnownCreature(uint32_t ID, bool UpdateFollows) {
 	return KNOWNCREATURE_FREE;
 }
 
-// 0x080cbb30  connections.c:409
 uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 	uint32_t OldID = 0;
 	int FreeEntry = -1;
@@ -463,7 +440,6 @@ uint32_t TConnection::NewKnownCreature(uint32_t NewID) {
 	return OldID;
 }
 
-// 0x080cbd40  connections.c:465
 void TConnection::ClearKnownCreatureTable(bool Unchain) {
 	for (int i = 0; i < 150; i++) {
 		TKnownCreature &K = KnownCreatureTable[i];
@@ -477,7 +453,6 @@ void TConnection::ClearKnownCreatureTable(bool Unchain) {
 	}
 }
 
-// 0x080cbdb0  connections.c:479
 void TConnection::UnchainKnownCreature(uint32_t ID) {
 	TCreature *cr = GetCreature(ID);
 	if (cr == nullptr) {
@@ -509,7 +484,6 @@ void TConnection::UnchainKnownCreature(uint32_t ID) {
 	error("TUserCom::UnchainKnownCreature: Kreatur %lu ist nicht bekannt.\n", static_cast<unsigned long>(ID));
 }
 
-// 0x080cbe50  connections.c:522
 TConnection *AssignFreeConnection() {
 	ConnectionMutex.down();
 	for (int i = 0; i < 1100; i++) {
@@ -524,13 +498,11 @@ TConnection *AssignFreeConnection() {
 	return nullptr;
 }
 
-// 0x080cbec0  connections.c:537
 TConnection *GetFirstConnection() {
 	ConnectionIterator = -1;
 	return GetNextConnection();
 }
 
-// 0x080cbf10  connections.c:546
 TConnection *GetNextConnection() {
 	while (ConnectionIterator < 1099) {
 		ConnectionIterator++;
@@ -542,7 +514,6 @@ TConnection *GetNextConnection() {
 	return nullptr;
 }
 
-// 0x080cbf60  connections.c:558
 void ProcessConnections() {
 	TConnection *Connection = GetFirstConnection();
 	while (Connection != nullptr) {
@@ -551,7 +522,6 @@ void ProcessConnections() {
 	}
 }
 
-// 0x080cbfd0  connections.c:572
 void InitConnections() {
 	for (int i = 0; i < 1100; i++) {
 		Connections[i].Free();
@@ -560,6 +530,5 @@ void InitConnections() {
 	FirstSendingConnection = nullptr;
 }
 
-// 0x080cc000  connections.c:581
 void ExitConnections() {
 }

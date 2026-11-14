@@ -11,91 +11,90 @@ namespace qm {
 // recorded here as read from the method bodies, so that they can be added
 // later without going back to the binary.
 //
-//  10 checkAccountPassword (0x80e1440)
+//  10 checkAccountPassword
 //       request:  quad AccountID, string Password, string IPAddress
 //       response: OK: nothing. ERROR: byte code 1..4.
 //  11 loginAccount: not in bin/game, see handlers.cc.
-//  12 loginAdmin (0x80e1610)
+//  12 loginAdmin
 //       request:  quad AccountID, flag PrivateWorld
 //       response: OK: byte NumberOfCharacters, then per character
 //                 string Name, string World, 4 bytes IPAddress, word Port;
 //                 then word PremiumDaysLeft. ERROR: byte code 1.
-//  23 setNamelock (0x80e34f0)
+//  23 setNamelock
 //       request:  quad GamemasterID, string PlayerName, string IPAddress,
 //                 string Reason, string Comment
 //       response: OK: nothing. ERROR: byte code 1..4.
-//  25 banishAccount (0x80e3760)
+//  25 banishAccount
 //       request:  quad GamemasterID, string PlayerName, string IPAddress,
 //                 string Reason, string Comment, flag FinalWarning
 //       response: OK: quad BanishmentID, byte Days (0xFF = unlimited),
 //                 flag FinalWarning. ERROR: byte code 1..3.
-//  26 setNotation (0x80e3240)
+//  26 setNotation
 //       request:  quad GamemasterID, string PlayerName, string IPAddress,
 //                 string Reason, string Comment
 //       response: OK: quad BanishmentID. ERROR: byte code 1..2.
-//  27 reportStatement (0x80e3b00)
+//  27 reportStatement
 //       request:  quad ReporterID, string PlayerName, string Reason,
 //                 string Comment, quad BanishmentID, quad StatementID,
 //                 word Count, then per statement with a StatementID
 //                 other than 0: quad StatementID, quad TimeStamp,
 //                 quad CharacterID, string Channel, string Text.
 //                 Count is NumberOfStatements minus the LEADING entries
-//                 with StatementID 0 only (the loop at 0x80e3b9d stops at
+//                 with StatementID 0 only (reportStatement's loop stops at
 //                 the first other one), but every entry with StatementID 0
 //                 is left out, so Count can be larger than the number of
 //                 entries that follow. Read entries to the end of the
 //                 request, not by Count.
 //       response: OK: nothing. ERROR: byte code 1..2.
-//  28 banishIPAddress (0x80e3fc0)
+//  28 banishIPAddress
 //       request:  quad GamemasterID, string PlayerName, string IPAddress,
 //                 string Reason, string Comment
 //       response: OK: nothing. ERROR: byte code 1..2.
-// 200 getKeptCharacters (0x80e6770), 201 getDeletedCharacters (0x80e6900),
-// 203 getHiddenCharacters (0x80e6b90)
+// 200 getKeptCharacters, 201 getDeletedCharacters, 203 getHiddenCharacters
 //       request:  quad MinimumCharacterID
 //       response: quad NumberOfPlayers, then that many quad CharacterID
-// 202 deleteOldCharacter (0x80e6a90)
+// 202 deleteOldCharacter
 //       request:  quad CharacterID
 //       response: nothing
-// 204 createHighscores (0x80e6d20)
+// 204 createHighscores
 //       request:  quad NumberOfPlayers, then per player quad CharacterID,
 //                 quad ExpPoints, word ExpLevel, word Fist, word Club,
 //                 word Axe, word Sword, word Distance, word Shielding,
 //                 word Magic, word Fishing
 //       response: nothing
-// 205 createCensus (0x80e7150), 206 createKillStatistics (0x80e7200)
+// 205 createCensus, 206 createKillStatistics
 //       request:  nothing
 //       response: nothing
-// 207 getPlayersOnline (0x80e72b0)
+// 207 getPlayersOnline
 //       request:  nothing
 //       response: byte NumberOfWorlds, then per world string Name,
 //                 word Players
-// 208 getWorlds (0x80e7450)
+// 208 getWorlds
 //       request:  nothing
 //       response: byte NumberOfWorlds, then that many string Name
-// 209 getServerLoad (0x80e75b0)
+// 209 getServerLoad
 //       request:  string World, byte Period
 //       response: 600 words (0xFFFF = no value)
-// 210 insertPaymentDataOld (0x80e7740), 213 insertPaymentDataNew (0x80e81e0)
+// 210 insertPaymentDataOld, 213 insertPaymentDataNew
 //       request:  quad PurchaseNr, quad ReferenceNr, strings FirstName,
 //                 LastName, Company, Street, Zip, City, Country, State,
 //                 Phone, Fax, EMail, PaymentMethod, quad ProductID,
 //                 string Registrant, then quad AccountID (old) or
 //                 string PaymentKey (new)
 //       response: OK: quad PaymentID. ERROR: byte code 1.
-// 211 addPaymentOld (0x80e7d00)
+// 211 addPaymentOld
 //       request:  quad AccountID, string Description, quad PaymentID,
 //                 word Days
 //       response: OK: byte ActionTaken. ERROR: byte code 1..2.
-// 212 cancelPaymentOld (0x80e7f70)
+// 212 cancelPaymentOld
 //       request:  quad PurchaseNr, quad ReferenceNr, quad AccountID
 //       response: OK: flag IllegalUse, string EMailAddress.
 //                 ERROR: byte code 1..2.
-// 214 addPaymentNew (0x80e87a0)
+// 214 addPaymentNew
 //       request:  string PaymentKey, quad PaymentID
 //       response: OK: byte ActionTaken, and if ActionTaken is 5 a
 //                 string EMailReceiver. ERROR: byte code 1..3.
-// 215 cancelPaymentNew (0x80e89e0)
+// 215 cancelPaymentNew
 //       request:  quad PurchaseNr, quad ReferenceNr, string PaymentKey
 //       response: OK: flag IllegalUse, flag Present, string EMailAddress.
 //                 ERROR: byte code 1.
@@ -171,7 +170,7 @@ const char *queryName(uint8_t type) {
 	return info != nullptr ? info->name : "unknown";
 }
 
-// In the order of the compares in loginGame (0x80e1c10).
+// In the order of the compares in loginGame.
 static const char *const RightNames[] = {
 	"PREMIUM_ACCOUNT", "NOTATION", "NAMELOCK", "STATEMENT_REPORT",
 	"BANISHMENT", "FINAL_WARNING", "IP_BANISHMENT", "KICK", "HOME_TELEPORT",

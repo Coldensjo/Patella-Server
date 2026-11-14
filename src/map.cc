@@ -76,39 +76,38 @@ char InstanceAttributeNames[18][30] = {
 	"RemainingExpireTime",
 	"SavedExpireTime",
 	"RemainingUses",
-};	// map.c:38
-matrix3d<TSector *> *Sector;	// map.c:81
-TObjectBlock **ObjectBlock;	// map.c:82
-TObject *FirstFreeObject;	// map.c:83
-uintptr_t *HashTableData;	// map.c:84
-unsigned char *HashTableType;	// map.c:85
-int HashTableSize;	// map.c:86
-uint32_t HashTableMask;	// map.c:87
-int HashTableFree;	// map.c:88
-int ObjectCounter;	// map.c:89
-vector<TCronEntry> CronEntry(0, 256, 256);	// map.c:90
-int CronHashTable[2047];	// map.c:91
-int CronEntries;	// map.c:92
-int OBCount;	// map.c:93
-int SectorXMin;	// map.c:94
-int SectorXMax;	// map.c:95
-int SectorYMin;	// map.c:96
-int SectorYMax;	// map.c:97
-int SectorZMin;	// map.c:98
-int SectorZMax;	// map.c:99
-int RefreshedCylinders;	// map.c:100
-vector<TDepotInfo> DepotInfo(0, 4, 5);	// map.c:101
-vector<TMark> Mark(0, 4, 5);	// map.c:102
-int Marks;	// map.c:103
-int NewbieStartPositionX;	// map.c:104
-int NewbieStartPositionY;	// map.c:105
-int NewbieStartPositionZ;	// map.c:106
-int VeteranStartPositionX;	// map.c:107
-int VeteranStartPositionY;	// map.c:108
-int VeteranStartPositionZ;	// map.c:109
-static TDynamicWriteBuffer HelpBuffer(65536);	// map.c:110
+};
+matrix3d<TSector *> *Sector;
+TObjectBlock **ObjectBlock;
+TObject *FirstFreeObject;
+uintptr_t *HashTableData;
+unsigned char *HashTableType;
+int HashTableSize;
+uint32_t HashTableMask;
+int HashTableFree;
+int ObjectCounter;
+vector<TCronEntry> CronEntry(0, 256, 256);
+int CronHashTable[2047];
+int CronEntries;
+int OBCount;
+int SectorXMin;
+int SectorXMax;
+int SectorYMin;
+int SectorYMax;
+int SectorZMin;
+int SectorZMax;
+int RefreshedCylinders;
+vector<TDepotInfo> DepotInfo(0, 4, 5);
+vector<TMark> Mark(0, 4, 5);
+int Marks;
+int NewbieStartPositionX;
+int NewbieStartPositionY;
+int NewbieStartPositionZ;
+int VeteranStartPositionX;
+int VeteranStartPositionY;
+int VeteranStartPositionZ;
+static TDynamicWriteBuffer HelpBuffer(65536);
 
-// 0x080572f0  map.c:128
 TObject &AccessObject(Object Obj) {
 	if (Obj == NONE) {
 		error("AccessObject: Ung\xfcltige Objektnummer Null.\n");
@@ -127,7 +126,6 @@ TObject &AccessObject(Object Obj) {
 	return *(TObject *)HashTableData[0];
 }
 
-// 0x08057390  map.c:143
 bool Object::exists() {
 	if (ObjectID == 0) {
 		return false;
@@ -141,12 +139,10 @@ bool Object::exists() {
 	return HashTableType[Position] == 1 && ((TObject *)HashTableData[Position])->ObjectID == ObjectID;
 }
 
-// 0x08057400  map.c:155
 ObjectType Object::getObjectType() {
 	return AccessObject(*this).Type;
 }
 
-// 0x08057440  map.c:163
 uint32_t Object::getAttribute(INSTANCEATTRIBUTE Attribute) {
 	int Offset = getObjectType().getAttributeOffset(Attribute);
 	if (Offset == -1) {
@@ -164,7 +160,6 @@ uint32_t Object::getAttribute(INSTANCEATTRIBUTE Attribute) {
 	return AccessObject(*this).Attributes[Offset];
 }
 
-// 0x08057540  map.c:180
 void Object::setAttribute(INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	int Offset = getObjectType().getAttributeOffset(Attribute);
 	if (Offset == -1) {
@@ -190,17 +185,14 @@ void Object::setAttribute(INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	AccessObject(*this).Attributes[Offset] = Value;
 }
 
-// 0x080576c0  map.c:199
 Object Object::getNextObject() {
 	return AccessObject(*this).NextObject;
 }
 
-// 0x080576f0  map.c:207
 Object Object::getContainer() {
 	return AccessObject(*this).Container;
 }
 
-// 0x08057720  map.c:215
 uint32_t Object::getCreatureID() {
 	if (!isCreature()) {
 		error("Object::getCreatureID: Objekt ist keine Kreatur.\n");
@@ -210,7 +202,6 @@ uint32_t Object::getCreatureID() {
 	return AccessObject(*this).Attributes[1];
 }
 
-// 0x08057790  map.c:227
 void GetObjectCoordinates(Object Obj, int &x, int &y, int &z) {
 	if (!Obj.exists()) {
 		error("GetObjectCoordinates: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -229,7 +220,6 @@ void GetObjectCoordinates(Object Obj, int &x, int &y, int &z) {
 	z = AccessObject(Obj).Attributes[3] & 0xFF;
 }
 
-// 0x080578d0  map.c:243
 unsigned char GetMapContainerFlags(Object Obj) {
 	if (!Obj.exists() || !Obj.isMapContainer()) {
 		error("GetMapContainerFlags: Objekt ist kein MapContainer.\n");
@@ -239,7 +229,6 @@ unsigned char GetMapContainerFlags(Object Obj) {
 	return (unsigned char)(AccessObject(Obj).Attributes[3] >> 8);
 }
 
-// 0x080579a0  map.c:261
 void CronMove(int Destination, int Source) {
 	CronEntry(Destination) = CronEntry(Source);
 	TCronEntry *Entry = &CronEntry(Destination);
@@ -254,7 +243,6 @@ void CronMove(int Destination, int Source) {
 	}
 }
 
-// 0x08057a80  map.c:273
 void CronHeapify(int Position) {
 	while (Position != 1) {
 		int Father = Position / 2;
@@ -290,7 +278,6 @@ void CronHeapify(int Position) {
 	}
 }
 
-// 0x08057bc0  map.c:300
 void CronSet(Object Obj, uint32_t Delay) {
 	if (!Obj.exists()) {
 		error("CronSet: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -310,7 +297,6 @@ void CronSet(Object Obj, uint32_t Delay) {
 	CronHeapify(CronEntries);
 }
 
-// 0x08057d80  map.c:320
 void CronDelete(int Position) {
 	if (!in(Position, 1, CronEntries)) {
 		error("CronDelete: Ung\xfcltige Position %d.\n", Position);
@@ -335,7 +321,6 @@ void CronDelete(int Position) {
 	}
 }
 
-// 0x08057e90  map.c:341
 Object CronCheck() {
 	if (CronEntries == 0) {
 		return NONE;
@@ -348,7 +333,6 @@ Object CronCheck() {
 	return CronEntry(1).Obj;
 }
 
-// 0x08057ef0  map.c:351
 uint32_t CronInfo(Object Obj, bool Delete) {
 	if (!Obj.exists()) {
 		error("CronInfo: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -377,7 +361,6 @@ uint32_t CronInfo(Object Obj, bool Delete) {
 	return Delay;
 }
 
-// 0x08058040  map.c:373
 uint32_t CronStop(Object Obj) {
 	if (!Obj.exists()) {
 		error("CronStop: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -387,7 +370,6 @@ uint32_t CronStop(Object Obj) {
 	return CronInfo(Obj, true);
 }
 
-// 0x080580e0  map.c:386
 void CronExpire(Object Obj, int Delay) {
 	if (!Obj.exists()) {
 		error("CronExpire: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -403,7 +385,6 @@ void CronExpire(Object Obj, int Delay) {
 	}
 }
 
-// 0x08058200  map.c:400
 void CronChange(Object Obj, int NewDelay) {
 	if (!Obj.exists()) {
 		error("CronChange: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -424,7 +405,6 @@ void CronChange(Object Obj, int NewDelay) {
 	CronHeapify(Position);
 }
 
-// 0x08058330  map.c:425
 Object SplitObject(Object Obj, int Count) {
 	if (!Obj.exists()) {
 		error("SplitObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -451,7 +431,6 @@ Object SplitObject(Object Obj, int Count) {
 	return Copy;
 }
 
-// 0x080584e0  map.c:449
 void MergeObjects(Object Obj, Object Dest) {
 	if (!Obj.exists()) {
 		error("MergeObjects: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -495,7 +474,6 @@ void MergeObjects(Object Obj, Object Dest) {
 	DeleteObject(Obj);
 }
 
-// 0x080588b0  map.c:486
 void MoveObject(Object Obj, Object Con) {
 	if (!Obj.exists()) {
 		error("MoveObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -511,7 +489,6 @@ void MoveObject(Object Obj, Object Con) {
 	PlaceObject(Obj, Con, false);
 }
 
-// 0x080589f0  map.c:503
 void ChangeObject(Object Obj, ObjectType Type) {
 	int Delay = -1;
 	uint32_t Amount = 0;
@@ -586,7 +563,6 @@ newObject:
 	CronExpire(Obj, Delay);
 }
 
-// 0x08058fe0  map.c:544
 void ChangeObject(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	if (!Obj.exists()) {
 		error("ChangeObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -596,7 +572,6 @@ void ChangeObject(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	Obj.setAttribute(Attribute, Value);
 }
 
-// 0x08059090  map.c:561
 TObject *GetFreeObjectSlot() {
 	if (FirstFreeObject == nullptr) {
 		SwapSector();
@@ -615,7 +590,6 @@ TObject *GetFreeObjectSlot() {
 	return Help;
 }
 
-// 0x08059110  map.c:577
 void ResizeHashTable() {
 	int NewSize = HashTableSize * 2;
 	int NewMask = NewSize - 1;
@@ -654,7 +628,6 @@ void ResizeHashTable() {
 	HashTableMask = NewMask;
 }
 
-// 0x08059260  map.c:619
 Object CreateObject() {
 	static int Iterator = 0;
 
@@ -680,7 +653,6 @@ Object CreateObject() {
 	return Object(Iterator);
 }
 
-// 0x080593b0  map.c:641
 int GetObjectPriority(Object Obj) {
 	if (!Obj.exists()) {
 		error("GetObjectPriority: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -710,7 +682,6 @@ int GetObjectPriority(Object Obj) {
 	return 5;
 }
 
-// 0x08059560  map.c:659
 void PlaceObject(Object Obj, Object Con, bool Append) {
 	Object Search;
 	Object *pAddr;
@@ -773,7 +744,6 @@ void PlaceObject(Object Obj, Object Con, bool Append) {
 	*pAddr = Obj;
 }
 
-// 0x08059aa0  map.c:714
 Object AppendObject(Object Con, ObjectType Type) {
 	if (!Con.exists()) {
 		error("AppendObject: \xdc" "bergebener Container existiert nicht.\n");
@@ -786,7 +756,6 @@ Object AppendObject(Object Con, ObjectType Type) {
 	return Obj;
 }
 
-// 0x08059ba0  map.c:731
 Object SetObject(Object Con, ObjectType Type, uint32_t CreatureID) {
 	if (!Con.exists()) {
 		error("SetObject: \xdc" "bergebener Container existiert nicht.\n");
@@ -807,7 +776,6 @@ Object SetObject(Object Con, ObjectType Type, uint32_t CreatureID) {
 	return Obj;
 }
 
-// 0x08059cf0  map.c:751
 Object CopyObject(Object Con, Object Source) {
 	if (!Source.exists()) {
 		error("CopyObject: Vorlage existiert nicht.\n");
@@ -847,7 +815,6 @@ Object CopyObject(Object Con, Object Source) {
 	return Obj;
 }
 
-// 0x0805a070  map.c:782
 void PutFreeObjectSlot(TObject *Entry) {
 	if (Entry == nullptr) {
 		error("PutFreeObjectSlot: Entry ist NULL.\n");
@@ -859,7 +826,6 @@ void PutFreeObjectSlot(TObject *Entry) {
 	FirstFreeObject = Entry;
 }
 
-// 0x0805a0b0  map.c:795
 void CutObject(Object Obj) {
 	if (!Obj.exists()) {
 		error("CutObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -882,7 +848,6 @@ void CutObject(Object Obj) {
 	AccessObject(Obj).Container = NONE;
 }
 
-// 0x0805a300  map.c:815
 void DestroyObject(Object Obj) {
 	if (!Obj.exists()) {
 		error("DestroyObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -922,7 +887,6 @@ void DestroyObject(Object Obj) {
 	DecrementObjectCounter();
 }
 
-// 0x0805a5d0  map.c:848
 void DeleteObject(Object Obj) {
 	if (!Obj.exists()) {
 		error("DeleteObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -933,7 +897,6 @@ void DeleteObject(Object Obj) {
 	DestroyObject(Obj);
 }
 
-// 0x0805a670  map.c:866
 Object GetMapContainer(int x, int y, int z) {
 	int sx = x / 32;
 	int sy = y / 32;
@@ -949,7 +912,6 @@ Object GetMapContainer(int x, int y, int z) {
 	return (*Sector)(sx, sy, z)->MapCon[x % 32][y % 32];
 }
 
-// 0x0805a9a0  map.c:879
 Object GetMapContainer(Object Obj) {
 	if (!Obj.exists()) {
 		error("GetMapContainer: \xfc" "bergebenes Objekt existiert nicht\n");
@@ -963,7 +925,6 @@ Object GetMapContainer(Object Obj) {
 	return Obj;
 }
 
-// 0x0805aa80  map.c:892
 Object GetFirstObject(int x, int y, int z) {
 	Object MapCon = GetMapContainer(x, y, z);
 	if (MapCon != NONE) {
@@ -973,7 +934,6 @@ Object GetFirstObject(int x, int y, int z) {
 	}
 }
 
-// 0x0805aaf0  map.c:901
 Object GetFirstSpecObject(int x, int y, int z, ObjectType Type) {
 	for (Object Obj = GetFirstObject(x, y, z); Obj != NONE; Obj++) {
 		if (Obj.getObjectType() == Type) {
@@ -984,7 +944,6 @@ Object GetFirstSpecObject(int x, int y, int z, ObjectType Type) {
 	return NONE;
 }
 
-// 0x0805abb0  map.c:911
 Object GetFirstContainerObject(Object Con) {
 	if (Con == NONE) {
 		error("GetFirstContainerObject: \xdc" "bergebener Container existiert nicht.\n");
@@ -999,7 +958,6 @@ Object GetFirstContainerObject(Object Con) {
 	return Object(Con.getAttribute(CONTENT));
 }
 
-// 0x0805acc0  map.c:927
 Object GetContainerObject(Object Con, int nr) {
 	if (!Con.exists()) {
 		error("GetContainerObject: \xdc" "bergebener Container existiert nicht.\n");
@@ -1024,7 +982,6 @@ Object GetContainerObject(Object Con, int nr) {
 	return NONE;
 }
 
-// 0x0805adf0  map.c:954
 bool IsOnMap(int x, int y, int z) {
 	int sx = x / 32;
 	int sy = y / 32;
@@ -1033,7 +990,6 @@ bool IsOnMap(int x, int y, int z) {
 			&& in(z, SectorZMin, SectorZMax);
 }
 
-// 0x0805aea0  map.c:964
 bool CoordinateFlag(int x, int y, int z, FLAG Flag) {
 	for (Object Obj = GetFirstObject(x, y, z); Obj != NONE; Obj++) {
 		if (Obj.getFlag(Flag)) {
@@ -1044,7 +1000,6 @@ bool CoordinateFlag(int x, int y, int z, FLAG Flag) {
 	return false;
 }
 
-// 0x0805af60  map.c:974
 bool IsPremiumArea(int x, int y, int) {
 	if (x / 32 >= 1036) {
 		return true;
@@ -1069,7 +1024,6 @@ bool IsPremiumArea(int x, int y, int) {
 	return y / 32 >= 1016;
 }
 
-// 0x0805b000  map.c:991
 bool IsProtectionZone(int x, int y, int z) {
 	Object Con = GetMapContainer(x, y, z);
 	if (Con == NONE) {
@@ -1079,7 +1033,6 @@ bool IsProtectionZone(int x, int y, int z) {
 	return (GetMapContainerFlags(Con) & 4) != 0;
 }
 
-// 0x0805b070  map.c:1001
 bool IsNoLogoutField(int x, int y, int z) {
 	Object Con = GetMapContainer(x, y, z);
 	if (Con == NONE) {
@@ -1089,12 +1042,10 @@ bool IsNoLogoutField(int x, int y, int z) {
 	return (GetMapContainerFlags(Con) & 2) != 0;
 }
 
-// 0x0805b0e0  map.c:1011
 bool IsHouse(int x, int y, int z) {
 	return GetHouseID(x, y, z) != 0;
 }
 
-// 0x0805b180  map.c:1019
 unsigned short GetHouseID(int x, int y, int z) {
 	Object Con = GetMapContainer(x, y, z);
 	if (Con == NONE) {
@@ -1109,7 +1060,6 @@ unsigned short GetHouseID(int x, int y, int z) {
 	return (unsigned short)(AccessObject(Con).Attributes[3] >> 16);
 }
 
-// 0x0805b260  map.c:1033
 void SetHouseID(int x, int y, int z, unsigned short ID) {
 	if (!IsOnMap(x, y, z)) {
 		return;
@@ -1131,7 +1081,6 @@ void SetHouseID(int x, int y, int z, unsigned short ID) {
 	AccessObject(Con).Attributes[3] += (uint32_t)ID << 16;
 }
 
-// 0x0805b430  map.c:1052
 int GetDepotNumber(char *Town) {
 	if (Town == nullptr) {
 		error("GetDepotNumber: Town ist NULL.\n");
@@ -1151,7 +1100,6 @@ int GetDepotNumber(char *Town) {
 	return -1;
 }
 
-// 0x0805b4c0  map.c:1067
 char *GetDepotName(int DepotNumber) {
 	if (DepotNumber < DepotInfo.low() || DepotNumber > DepotInfo.high()) {
 		error("GetDepotName: Ung\xfcltige Depotnummer %d.\n", DepotNumber);
@@ -1168,7 +1116,6 @@ char *GetDepotName(int DepotNumber) {
 	return DepotInfo(DepotNumber).Town;
 }
 
-// 0x0805b540  map.c:1083
 int GetDepotSize(int DepotNumber, bool PremiumAccount) {
 	if (DepotNumber < DepotInfo.low() || DepotNumber > DepotInfo.high()) {
 		error("GetDepotSize: Ung\xfcltige Depotnummer %d.\n", DepotNumber);
@@ -1188,7 +1135,6 @@ int GetDepotSize(int DepotNumber, bool PremiumAccount) {
 	}
 }
 
-// 0x0805b610  map.c:1099
 void GetStartPosition(int &x, int &y, int &z, bool Newbie) {
 	if (Newbie) {
 		x = NewbieStartPositionX;
@@ -1201,7 +1147,6 @@ void GetStartPosition(int &x, int &y, int &z, bool Newbie) {
 	}
 }
 
-// 0x0805b660  map.c:1115
 bool GetMarkPosition(char *Name, int &x, int &y, int &z) {
 	for (int i = 0; i < Marks; i++) {
 		if (stricmp(Mark(i).Name, Name, -1) == 0) {
@@ -1215,7 +1160,6 @@ bool GetMarkPosition(char *Name, int &x, int &y, int &z) {
 	return false;
 }
 
-// 0x0805b710  map.c:1136
 void InitSector(int x, int y, int z) {
 	if ((*Sector)(x, y, z) != nullptr) {
 		error("InitSector: Sektor %d/%d/%d existiert schon.\n", x, y, z);
@@ -1241,7 +1185,6 @@ void InitSector(int x, int y, int z) {
 	Sec->Status = 1;
 }
 
-// 0x0805b970  map.c:1163
 void SwapObject(TWriteBinaryFile &File, Object Obj, uint32_t FileNumber) {
 	if (!Obj.exists()) {
 		error("SwapObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1264,7 +1207,6 @@ void SwapObject(TWriteBinaryFile &File, Object Obj, uint32_t FileNumber) {
 	HashTableData[Obj.getObjectID() & HashTableMask] = FileNumber;
 }
 
-// 0x0805bb60  map.c:1187
 void SwapSector() {
 	static uint32_t FileNumber = 0;
 	char FileName[4096];
@@ -1328,7 +1270,6 @@ again:
 	}
 }
 
-// 0x0805bf30  map.c:1241
 void UnswapSector(uint32_t FileNumber) {
 	char FileName[4096];
 	sprintf(FileName, "%s/%08ld.swp", SAVEPATH, (long)(int32_t)FileNumber);
@@ -1376,7 +1317,6 @@ void UnswapSector(uint32_t FileNumber) {
 	}
 }
 
-// 0x0805c2b0  map.c:1288
 void DeleteSwappedSectors() {
 	dirent *DirEntry;
 	DIR *WorkDir = opendir(SAVEPATH);
@@ -1397,7 +1337,6 @@ void DeleteSwappedSectors() {
 	closedir(WorkDir);
 }
 
-// 0x0805c390  map.c:1315
 int GetInstanceAttributeByName(char *Name) {
 	for (int i = 0; i < 18; i++) {
 		if (stricmp(InstanceAttributeNames[i], Name, -1) == 0) {
@@ -1408,7 +1347,6 @@ int GetInstanceAttributeByName(char *Name) {
 	return -1;
 }
 
-// 0x0805c3f0  map.c:1326
 void LoadObjects(TReadScriptFile &Script, TWriteStream &Stream, bool Skip) {
 	int Depth = 1;
 	Script.readSymbol('{');
@@ -1488,7 +1426,6 @@ void LoadObjects(TReadScriptFile &Script, TWriteStream &Stream, bool Skip) {
 	}
 }
 
-// 0x0805c680  map.c:1376
 void LoadObjects(TReadStream &Stream, Object Con) {
 	int Depth = 1;
 	bool ProcessObjects = true;
@@ -1536,7 +1473,6 @@ void LoadObjects(TReadStream &Stream, Object Con) {
 	}
 }
 
-// 0x0805c890  map.c:1423
 void LoadSector(char *FileName, int x, int y, int z) {
 	if (!in(x, SectorXMin, SectorXMax) || !in(y, SectorYMin, SectorYMax) || !in(z, SectorZMin, SectorZMax)) {
 		return;
@@ -1605,7 +1541,6 @@ void LoadSector(char *FileName, int x, int y, int z) {
 	}
 }
 
-// 0x0805ce00  map.c:1483
 void LoadMap() {
 	dirent *DirEntry;
 	char FileName[4096];
@@ -1636,7 +1571,6 @@ void LoadMap() {
 	print(1, "%d Objekte geladen.\n", ObjectCounter);
 }
 
-// 0x0805cfd0  map.c:1514
 void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 	Object LastObj = NONE;
 	int Depth = 1;
@@ -1734,7 +1668,6 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 	}
 }
 
-// 0x0805d370  map.c:1575
 void SaveObjects(TReadStream &Stream, TWriteScriptFile &Script) {
 	int Depth = 1;
 	bool ProcessObjects = true;
@@ -1781,7 +1714,6 @@ void SaveObjects(TReadStream &Stream, TWriteScriptFile &Script) {
 	}
 }
 
-// 0x0805d530  map.c:1622
 void SaveSector(char *FileName, int x, int y, int z) {
 	TSector *Sec = (*Sector)(x, y, z);
 	if (Sec == nullptr) {
@@ -1852,7 +1784,6 @@ void SaveSector(char *FileName, int x, int y, int z) {
 	}
 }
 
-// 0x0805d980  map.c:1682
 void SaveMap() {
 	static bool SavingMap = false;
 	char FileName[4096];
@@ -1878,7 +1809,6 @@ void SaveMap() {
 	SavingMap = false;
 }
 
-// 0x0805daa0  map.c:1707
 void RefreshSector(int x, int y, int z, TReadStream &Stream) {
 	TSector *Sec = (*Sector)(x, y, z);
 	if (Sec == nullptr || (Sec->MapFlags & 1) == 0) {
@@ -1910,7 +1840,6 @@ void RefreshSector(int x, int y, int z, TReadStream &Stream) {
 	}
 }
 
-// 0x0805dcf0  map.c:1737
 void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, bool SaveHouses) {
 	bool NewSector = ((*Sector)(x, y, z) == nullptr);
 	if (NewSector) {
@@ -2200,7 +2129,6 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 	}
 }
 
-// 0x0805f050  map.c:1929
 void ReadMapConfig() {
 	SectorXMin = 1000;
 	SectorXMax = 1015;
@@ -2374,7 +2302,6 @@ void ReadMapConfig() {
 	}
 }
 
-// 0x0805f860  map.c:2020
 void InitMap() {
 	ReadMapConfig();
 	Sector = new matrix3d<TSector *>(SectorXMin, SectorXMax, SectorYMin, SectorYMax, SectorZMin, SectorZMax, nullptr);
@@ -2419,7 +2346,6 @@ void InitMap() {
 	LoadMap();
 }
 
-// 0x0805faf0  map.c:2062
 void ExitMap(bool save) {
 	if (save) {
 		SaveMap();

@@ -15,7 +15,6 @@
 #include "config.hh"
 #include "utils.hh"
 
-// 0x0806c040  dbfuncs.c:31
 void TOutfit::load(TReadScriptFile &Script) {
 	Script.readSymbol('(');
 	OutfitID = Script.readNumber();
@@ -28,7 +27,6 @@ void TOutfit::load(TReadScriptFile &Script) {
 	Script.readSymbol(')');
 }
 
-// 0x0806c0d0  dbfuncs.c:44
 void TOutfit::save(TWriteScriptFile &Script) {
 	Script.writeText("(");
 	Script.writeNumber(OutfitID);
@@ -41,13 +39,11 @@ void TOutfit::save(TWriteScriptFile &Script) {
 	Script.writeText(")");
 }
 
-// 0x0806c180  dbfuncs.c:59
 void PlayerDataPath(uint32_t CharacterID, char *Extension, char *Path) {
 	// The original passes the unsigned 32-bit ID to %ld, which prints it as a signed 32-bit number.
 	sprintf(Path, "%s/%02ld/%ld.%s", USERPATH, (long)(CharacterID % 100), (long)(int32_t)CharacterID, Extension);
 }
 
-// 0x0806c1d0  dbfuncs.c:67
 bool PlayerDataExists(uint32_t CharacterID) {
 	char FileName[4096];
 
@@ -55,7 +51,6 @@ bool PlayerDataExists(uint32_t CharacterID) {
 	return FileExists(FileName);
 }
 
-// 0x0806c240  dbfuncs.c:78
 bool LoadPlayerData(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("LoadPlayerData: Slot ist NULL.\n");
@@ -338,7 +333,6 @@ bool LoadPlayerData(TPlayerData *Slot) {
 	return true;
 }
 
-// 0x0806d210  dbfuncs.c:290
 void SavePlayerData(TPlayerData *Slot) {
 	if (Slot == nullptr) {
 		error("SavePlayerData: Slot ist NULL.\n");
@@ -543,7 +537,6 @@ void SavePlayerData(TPlayerData *Slot) {
 	}
 }
 
-// 0x0806de50  dbfuncs.c:426
 void UnlinkPlayerData(uint32_t CharacterID) {
 	char FileName[4096];
 

@@ -23,10 +23,9 @@ struct TDynamicStringTableBlock {
 	char Text[32768];
 };
 
-list<TStaticStringTableBlock> StaticStringTable;	// strings.c:33
-list<TDynamicStringTableBlock> DynamicStringTable;	// strings.c:34
+list<TStaticStringTableBlock> StaticStringTable;
+list<TDynamicStringTableBlock> DynamicStringTable;
 
-// 0x08051900  strings.c:46
 const char *AddStaticString(const char *String) {
 	int Length = static_cast<int>(strlen(String));
 	if (Length >= 65536) {
@@ -57,7 +56,6 @@ const char *AddStaticString(const char *String) {
 	return p;
 }
 
-// 0x08051a20  strings.c:77
 uint32_t AddDynamicString(char *String) {
 	int Length = static_cast<int>(strlen(String));
 	if (Length >= 32768) {
@@ -113,7 +111,6 @@ uint32_t AddDynamicString(char *String) {
 	return count * 256 + pos + 1;
 }
 
-// 0x08051be0  strings.c:124
 char *GetDynamicString(uint32_t Number) {
 	if (Number == 0) {
 		return nullptr;
@@ -143,7 +140,6 @@ char *GetDynamicString(uint32_t Number) {
 	return p->Text + p->StringOffset[pos];
 }
 
-// 0x08051c80  strings.c:151
 void DeleteDynamicString(uint32_t Number) {
 	if (Number == 0) {
 		return;
@@ -174,7 +170,6 @@ void DeleteDynamicString(uint32_t Number) {
 	p->Dirty = true;
 }
 
-// 0x08051d10  strings.c:182
 void CleanupDynamicStrings() {
 	listIterator<TDynamicStringTableBlock> iter(DynamicStringTable.first());
 	while (iter() != nullptr) {
@@ -211,7 +206,6 @@ void CleanupDynamicStrings() {
 	}
 }
 
-// 0x08051e30  strings.c:216
 bool IsCountable(const char *s) {
 	if (strncmp(s, "some ", 5) == 0) {
 		return false;
@@ -220,7 +214,6 @@ bool IsCountable(const char *s) {
 	return strncmp(s, "a ", 2) == 0 || strncmp(s, "an ", 3) == 0;
 }
 
-// 0x08051ea0  strings.c:234
 char *Plural(const char *s, int Count) {
 	static char ObjectNameString[50];
 	char Help[50];
@@ -315,7 +308,6 @@ cont:
 	return ObjectNameString;
 }
 
-// 0x08052330  strings.c:314
 char *SearchForWord(char *Pattern, char *Text) {
 	if (Pattern == nullptr || Pattern[0] == 0) {
 		error("SearchForWord: \xdc" "bergebenes Suchwort existiert nicht.\n");
@@ -364,7 +356,6 @@ char *SearchForWord(char *Pattern, char *Text) {
 	return nullptr;
 }
 
-// 0x08052450  strings.c:350
 char *SearchForNumber(int Count, char *Text) {
 	if (Count < 1) {
 		error("SearchForNumber: Illegale Suchnummer %d.\n", Count);
@@ -408,7 +399,6 @@ char *SearchForNumber(int Count, char *Text) {
 	return nullptr;
 }
 
-// 0x08052520  strings.c:386
 bool MatchString(char *Pattern, char *String) {
 	if (Pattern == nullptr) {
 		error("MatchString: Pattern ist NULL.\n");
@@ -450,7 +440,6 @@ bool MatchString(char *Pattern, char *String) {
 	return d[sl][pl] == 0;
 }
 
-// 0x08052730  strings.c:420
 void AddSlashes(char *Destination, const char *Source) {
 	if (Source == nullptr) {
 		error("AddSlashes: Source ist NULL.\n");
@@ -474,7 +463,6 @@ void AddSlashes(char *Destination, const char *Source) {
 	*Destination = 0;
 }
 
-// 0x08052790  strings.c:446
 void Trim(char *Text) {
 	if (Text == nullptr) {
 		error("Trim: Text ist NULL.\n");
@@ -498,7 +486,6 @@ void Trim(char *Text) {
 	}
 }
 
-// 0x08052840  strings.c:467
 void Trim(char *Destination, char *Source) {
 	if (Source == nullptr) {
 		error("Trim: Source ist NULL.\n");
@@ -524,7 +511,6 @@ void Trim(char *Destination, char *Source) {
 	}
 }
 
-// 0x080528f0  strings.c:491
 void ChangeWildcards(char *String) {
 	if (String == nullptr) {
 		error("ChangeWildcards: String ist NULL.\n");
@@ -541,7 +527,6 @@ void ChangeWildcards(char *String) {
 	}
 }
 
-// 0x08052960  strings.c:506
 char *Capitals(char *Text) {
 	bool start = true;
 	for (int i = 0; i < static_cast<int>(strlen(Text)); i++) {
@@ -558,10 +543,8 @@ char *Capitals(char *Text) {
 	return Text;
 }
 
-// 0x080529d0  strings.c:526
 void InitStrings() {
 }
 
-// 0x080529e0  strings.c:534
 void ExitStrings() {
 }

@@ -57,7 +57,6 @@ struct TNode {
 };
 
 struct TCondition {
-	// inline  crnonpl.c:56
 	TCondition() { Type = 0; Text = 0; }
 	bool set(int Type, void *Data);
 	void clear();
@@ -69,7 +68,6 @@ struct TCondition {
 };
 
 struct TAction {
-	// inline  crnonpl.c:68
 	TAction() { Type = 0; Text = 0; }
 	bool set(int Type, void *Data, void *Data2, void *Data3, void *Data4);
 	void clear();
@@ -164,7 +162,6 @@ struct TMonster : public TNonplayer {
 	virtual void CreatureMoveStimulus(uint32_t CreatureID, int Type);
 	virtual bool MovePossible(int x, int y, int z, bool Execute, bool);
 	virtual bool IsPeaceful();
-	// 0x080bc810  crnonpl.c:161
 	virtual uint32_t GetMaster() { return Master; }
 	void Convince(TCreature *newMaster);
 	void SetTarget(TCreature *NewTarget);
@@ -177,14 +174,13 @@ private:
 	uint32_t Target;
 };
 
-vector<TNonplayer *> NonplayerList(0, 10000, 1000, nullptr);	// crnonpl.c:174
-int FirstFreeNonplayer;	// crnonpl.c:175
-int CurrentNonplayer;	// crnonpl.c:176
-vector<TMonsterhome> Monsterhome(1, 5000, 1000);	// crnonpl.c:177
-int Monsterhomes;	// crnonpl.c:178
-store<TNode, 256> *NodeTable;	// crnonpl.c:179
+vector<TNonplayer *> NonplayerList(0, 10000, 1000, nullptr);
+int FirstFreeNonplayer;
+int CurrentNonplayer;
+vector<TMonsterhome> Monsterhome(1, 5000, 1000);
+int Monsterhomes;
+store<TNode, 256> *NodeTable;
 
-// 0x080afff0  crnonpl.c:190
 // Data stays as the store hands it out.
 TNode *NewNode(int op, TNode *left, TNode *right) {
 	TNode *Node = NodeTable->getFreeItem();
@@ -194,7 +190,6 @@ TNode *NewNode(int op, TNode *left, TNode *right) {
 	return Node;
 }
 
-// 0x080b0020  crnonpl.c:202
 TNode *NewNode(int type, int val) {
 	TNode *Node = NodeTable->getFreeItem();
 	Node->Type = type;
@@ -204,7 +199,6 @@ TNode *NewNode(int type, int val) {
 	return Node;
 }
 
-// 0x080b0050  crnonpl.c:215
 void DeleteNode(TNode *Node) {
 	if (Node != nullptr) {
 		DeleteNode(Node->Left);
@@ -213,7 +207,6 @@ void DeleteNode(TNode *Node) {
 	}
 }
 
-// 0x080b0090  crnonpl.c:226
 bool TCondition::set(int Type, void *Data) {
 	if (Type != 5 && Data == nullptr) {
 		error("TCondition::set: Data ist NULL.\n");
@@ -290,7 +283,6 @@ bool TCondition::set(int Type, void *Data) {
 	return true;
 }
 
-// 0x080b02c0  crnonpl.c:268
 void TCondition::clear() {
 	if (this->Type == 4) {
 		DeleteNode(this->Expression);
@@ -301,7 +293,6 @@ void TCondition::clear() {
 	this->Type = 0;
 }
 
-// 0x080b0330  crnonpl.c:278
 bool TAction::set(int Type, void *Data, void *Data2, void *Data3, void *Data4) {
 	this->Type = Type;
 	switch (Type) {
@@ -340,7 +331,6 @@ bool TAction::set(int Type, void *Data, void *Data2, void *Data3, void *Data4) {
 	return true;
 }
 
-// 0x080b03d0  crnonpl.c:314
 void TAction::clear() {
 	if (this->Type == 2 || this->Type == 3 || this->Type == 4 || this->Type == 5
 			|| this->Type == 8 || this->Type == 10) {
@@ -358,13 +348,11 @@ void TAction::clear() {
 	this->Type = 0;
 }
 
-// 0x080b0560  crnonpl.c:323
 TBehaviour::TBehaviour() : Condition(0, 5, 5), Action(0, 5, 5) {
 	this->Conditions = 0;
 	this->Actions = 0;
 }
 
-// 0x080b0680  crnonpl.c:335
 TBehaviour::~TBehaviour() {
 	for (int i = 0; i < this->Conditions; i++) {
 		this->Condition(i).clear();
@@ -374,7 +362,6 @@ TBehaviour::~TBehaviour() {
 	}
 }
 
-// 0x080b0710  crnonpl.c:344
 bool TBehaviour::addCondition(int Type, void *Data) {
 	bool Result = this->Condition(this->Conditions).set(Type, Data);
 	if (Result) {
@@ -383,7 +370,6 @@ bool TBehaviour::addCondition(int Type, void *Data) {
 	return Result;
 }
 
-// 0x080b0760  crnonpl.c:355
 bool TBehaviour::addAction(int Type, void *Data, void *Data2, void *Data3, void *Data4) {
 	bool Result = this->Action(this->Actions).set(Type, Data, Data2, Data3, Data4);
 	if (Result) {
@@ -392,7 +378,6 @@ bool TBehaviour::addAction(int Type, void *Data, void *Data2, void *Data3, void 
 	return Result;
 }
 
-// 0x080b1d50  crnonpl.c:363
 TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 50, 25) {
 	this->Behaviours = 0;
 	Script.readSymbol('{');
@@ -644,7 +629,6 @@ TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 5
 	}
 }
 
-// 0x080b32d0  crnonpl.c:501
 TNode *TBehaviourDatabase::readValue(TReadScriptFile &Script) {
 	TNode *First;
 	TNode *Second;
@@ -750,7 +734,6 @@ TNode *TBehaviourDatabase::readValue(TReadScriptFile &Script) {
 	return Node;
 }
 
-// 0x080b3e60  crnonpl.c:573
 TNode *TBehaviourDatabase::readFactor(TReadScriptFile &Script) {
 	TNode *Left = this->readValue(Script);
 	while (Script.Token == SPECIAL && Script.getSpecial() == '*') {
@@ -761,7 +744,6 @@ TNode *TBehaviourDatabase::readFactor(TReadScriptFile &Script) {
 	return Left;
 }
 
-// 0x080b3ef0  crnonpl.c:588
 TNode *TBehaviourDatabase::readTerm(TReadScriptFile &Script) {
 	TNode *Left = this->readFactor(Script);
 	while (Script.Token == SPECIAL && (Script.getSpecial() == '+' || Script.getSpecial() == '-')) {
@@ -773,7 +755,6 @@ TNode *TBehaviourDatabase::readTerm(TReadScriptFile &Script) {
 	return Left;
 }
 
-// 0x080b4060  crnonpl.c:604
 int TBehaviourDatabase::evaluate(TNPC *npc, TNode *Node, int *Number) {
 	if (Node == nullptr) {
 		error("TBehaviourDatabase::evaluate: Knoten existiert nicht.\n");
@@ -896,7 +877,6 @@ int TBehaviourDatabase::evaluate(TNPC *npc, TNode *Node, int *Number) {
 	}
 }
 
-// 0x080b4590  crnonpl.c:672
 void TBehaviourDatabase::react(TNPC *npc, char *Text, SITUATION Situation) {
 	if (npc == nullptr) {
 		error("TBehaviourDatabase::react: NPC existiert nicht.\n");
@@ -1249,7 +1229,6 @@ PreviousPattern:
 	}
 }
 
-// 0x080b56e0  crnonpl.c:900
 void StartMonsterhomeTimer(int nr) {
 	if (nr < 1 || nr > Monsterhomes) {
 		error("StartMonsterhomeTimer: Ung\xfcltige Monsterhome-Nummer %d.\n", nr);
@@ -1278,7 +1257,6 @@ void StartMonsterhomeTimer(int nr) {
 	MH.Timer = random(PlayerAdjustedTime / 2, PlayerAdjustedTime);
 }
 
-// 0x080b5800  crnonpl.c:929
 void LoadMonsterhomes() {
 	char FileName[4096];
 	print(1, "Initialisiere Monsterhomes ...\n");
@@ -1338,7 +1316,6 @@ void LoadMonsterhomes() {
 	}
 }
 
-// 0x080b5c50  crnonpl.c:978
 void ProcessMonsterhomes() {
 	for (int i = 1; i <= Monsterhomes; i++) {
 		TMonsterhome &MH = Monsterhome(i);
@@ -1395,7 +1372,6 @@ void ProcessMonsterhomes() {
 	}
 }
 
-// 0x080b5f70  crnonpl.c:1018
 void NotifyMonsterhomeOfDeath(int nr) {
 	if (nr < 1 || nr > Monsterhomes) {
 		error("NotifyMonsterhomeOfDeath: Ung\xfcltige Monsterhome-Nummer %d.\n", nr);
@@ -1417,7 +1393,6 @@ void NotifyMonsterhomeOfDeath(int nr) {
 	}
 }
 
-// 0x080b6010  crnonpl.c:1040
 bool MonsterhomeInRange(int nr, int x, int y, int z) {
 	if (nr == 0) {
 		return true;
@@ -1432,24 +1407,20 @@ bool MonsterhomeInRange(int nr, int x, int y, int z) {
 	return abs(z - MH.z) <= 2 && abs(x - MH.x) <= MH.Radius && abs(y - MH.y) <= MH.Radius;
 }
 
-// 0x080b60f0  crnonpl.c:1062
 TNonplayer::TNonplayer() {
 	this->State = SLEEPING;
 }
 
-// 0x080b61d0  crnonpl.c:1070
 TNonplayer::~TNonplayer() {
 	this->DelInList();
 }
 
-// 0x080b6330  crnonpl.c:1078
 void TNonplayer::SetInList() {
 	this->SetInCrList();
 	NonplayerList(FirstFreeNonplayer) = this;
 	FirstFreeNonplayer++;
 }
 
-// 0x080b6370  crnonpl.c:1088
 void TNonplayer::DelInList() {
 	for (int i = 0; i < FirstFreeNonplayer; i++) {
 		if (NonplayerList(i) == this) {
@@ -1463,7 +1434,6 @@ void TNonplayer::DelInList() {
 	error("TNonplayer::DelInList: Kreatur nicht gefunden.\n");
 }
 
-// 0x080b6af0  crnonpl.c:1104
 TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) {
 	print(1, "Lade NPC-Daten aus Datei %s...\n", FileName);
 	this->Type = NPC;
@@ -1580,12 +1550,10 @@ TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) 
 	this->ToDoYield();
 }
 
-// 0x080b7280  crnonpl.c:1191
 TNPC::~TNPC() {
 	delete this->Behaviour;
 }
 
-// 0x080b7400  crnonpl.c:1202
 void TNPC::TalkStimulus(uint32_t Speaker, char *Text) {
 	if (Speaker == this->ID) {
 		return;
@@ -1618,7 +1586,6 @@ void TNPC::TalkStimulus(uint32_t Speaker, char *Text) {
 	}
 }
 
-// 0x080b75a0  crnonpl.c:1232
 void TNPC::IdleStimulus() {
 	if (this->State == TALKING) {
 		if (RoundNr <= this->LastTalk + 30) {
@@ -1702,7 +1669,6 @@ Again:
 	}
 }
 
-// 0x080b79f0  crnonpl.c:1306
 void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	for (int i = 0; i < this->QueueLength; i++) {
 		if (CreatureID == this->QueuedPlayers(i) || CreatureID == this->ID) {
@@ -1760,11 +1726,9 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	}
 }
 
-// 0x080b7d80  crnonpl.c:1349
 void TNPC::DamageStimulus(uint32_t, int, int) {
 }
 
-// 0x080b7d90  crnonpl.c:1356
 bool TNPC::MovePossible(int x, int y, int z, bool, bool) {
 	return ::MovePossible(x, y, z)
 		&& !CoordinateAvoid(x, y, z)
@@ -1774,7 +1738,6 @@ bool TNPC::MovePossible(int x, int y, int z, bool, bool) {
 		&& !IsHouse(x, y, z);
 }
 
-// 0x080b7ec0  crnonpl.c:1369
 void TNPC::GiveTo(ObjectType Type, int Amount) {
 	if (Amount == 0) {
 		return;
@@ -1802,7 +1765,6 @@ void TNPC::GiveTo(ObjectType Type, int Amount) {
 	}
 }
 
-// 0x080b80d0  crnonpl.c:1391
 void TNPC::GetFrom(ObjectType Type, int Amount) {
 	if (Amount == 0) {
 		return;
@@ -1816,7 +1778,6 @@ void TNPC::GetFrom(ObjectType Type, int Amount) {
 	}
 }
 
-// 0x080b81d0  crnonpl.c:1405
 void TNPC::GiveMoney(int Amount) {
 	int Crystal = Amount / 10000;
 	int Platinum = (Amount % 10000) / 100;
@@ -1826,7 +1787,6 @@ void TNPC::GiveMoney(int Amount) {
 	this->GiveTo(GetSpecialObject(MONEY_ONE), Gold);
 }
 
-// 0x080b82b0  crnonpl.c:1419
 void TNPC::GetMoney(int Amount) {
 	int Crystal = CountInventoryObjects(this->Interlocutor, GetSpecialObject(MONEY_TENTHOUSAND), 0);
 	int Platinum = CountInventoryObjects(this->Interlocutor, GetSpecialObject(MONEY_HUNDRED), 0);
@@ -1849,7 +1809,6 @@ void TNPC::GetMoney(int Amount) {
 	}
 }
 
-// 0x080b8470  crnonpl.c:1437
 void TNPC::Enqueue(uint32_t Interlocutor, char *Text) {
 	if (Interlocutor == 0) {
 		error("TNPC::Enqueue: Gespr\xe4" "chspartner ist Null.\n");
@@ -1872,7 +1831,6 @@ void TNPC::Enqueue(uint32_t Interlocutor, char *Text) {
 	this->QueueLength++;
 }
 
-// 0x080b8540  crnonpl.c:1457
 void TNPC::TurnToInterlocutor() {
 	TCreature *Opp = GetCreature(this->Interlocutor);
 	if (Opp == nullptr) {
@@ -1899,7 +1857,6 @@ void TNPC::TurnToInterlocutor() {
 	this->Rotate((unsigned char)Dir);
 }
 
-// 0x080b85e0  crnonpl.c:1475
 void TNPC::ChangeState(STATE NewState, bool Stimulus) {
 	this->State = NewState;
 	if (Stimulus) {
@@ -1907,7 +1864,6 @@ void TNPC::ChangeState(STATE NewState, bool Stimulus) {
 	}
 }
 
-// 0x080b8600  crnonpl.c:1484
 void ChangeNPCState(TCreature *npc, int NewState, bool Stimulus) {
 	if (npc == nullptr) {
 		error("ChangeNPCState: npc ist NULL.\n");
@@ -1922,7 +1878,6 @@ void ChangeNPCState(TCreature *npc, int NewState, bool Stimulus) {
 	((TNPC *)npc)->ChangeState((STATE)NewState, Stimulus);
 }
 
-// 0x080b8c70  crnonpl.c:1506
 TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 	this->Type = MONSTER;
 	this->State = IDLE;
@@ -2029,7 +1984,6 @@ TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 	this->ToDoStart();
 }
 
-// 0x080b9370  crnonpl.c:1582
 TMonster::~TMonster() {
 	if (!this->IsDead) {
 		GraphicalEffect(this->posx, this->posy, this->posz, 3);
@@ -2049,7 +2003,6 @@ TMonster::~TMonster() {
 	}
 }
 
-// 0x080b9530  crnonpl.c:1600
 void TMonster::IdleStimulus() {
 	if (this->LockToDo) {
 		return;
@@ -2557,7 +2510,6 @@ RandomMove:
 	}
 }
 
-// 0x080baef0  crnonpl.c:1935
 void TMonster::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	if (CreatureID == this->ID) {
 		if (this->State == SLEEPING && Type != 0) {
@@ -2595,7 +2547,6 @@ void TMonster::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	TCreature::CreatureMoveStimulus(CreatureID, Type);
 }
 
-// 0x080baff0  crnonpl.c:1965
 void TMonster::DamageStimulus(uint32_t Attacker, int Damage, int) {
 	if (Attacker == 0 || Damage == 0) {
 		return;
@@ -2616,7 +2567,6 @@ void TMonster::DamageStimulus(uint32_t Attacker, int Damage, int) {
 	}
 }
 
-// 0x080bb070  crnonpl.c:1982
 bool TMonster::MovePossible(int x, int y, int z, bool Execute, bool) {
 	if (this->posz != z) {
 		error("TMonster::MovePossible: Pr\xfc" "fung \xfc" "ber Ebenen hinweg ([%d,%d,%d] -> [%d,%d,%d]).\n",
@@ -2767,12 +2717,10 @@ Again:
 	return true;
 }
 
-// 0x080bb870  crnonpl.c:2057
 bool TMonster::IsPeaceful() {
 	return this->Master != 0 && this->Master < 0x40000000;
 }
 
-// 0x080bb890  crnonpl.c:2067
 bool TMonster::CanKickBoxes() {
 	if (RaceData[this->Race].KickBoxes) {
 		return true;
@@ -2790,7 +2738,6 @@ bool TMonster::CanKickBoxes() {
 	return ((TMonster *)master)->CanKickBoxes();
 }
 
-// 0x080bb900  crnonpl.c:2079
 void TMonster::KickBoxes(Object Obj) {
 	if (!Obj.exists()) {
 		error("TMonster::KickBoxes: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -2821,7 +2768,6 @@ void TMonster::KickBoxes(Object Obj) {
 	}
 }
 
-// 0x080bbd20  crnonpl.c:2104
 bool TMonster::KickCreature(TCreature *Obstacle) {
 	if (Obstacle == nullptr) {
 		error("TMonster::KickCreature: \xdc" "bergebene Kreatur existiert nicht.\n");
@@ -2896,7 +2842,6 @@ bool TMonster::KickCreature(TCreature *Obstacle) {
 	return false;
 }
 
-// 0x080bc230  crnonpl.c:2146
 void TMonster::Convince(TCreature *newMaster) {
 	if (this->Home != 0) {
 		NotifyMonsterhomeOfDeath(this->Home);
@@ -2917,7 +2862,6 @@ void TMonster::Convince(TCreature *newMaster) {
 	this->ToDoStart();
 }
 
-// 0x080bc2c0  crnonpl.c:2164
 void TMonster::SetTarget(TCreature *NewTarget) {
 	if (NewTarget == nullptr) {
 		error("TMonster::SetTarget: NewTarget ist NULL.\n");
@@ -2933,7 +2877,6 @@ void TMonster::SetTarget(TCreature *NewTarget) {
 	this->ToDoYield();
 }
 
-// 0x080bc330  crnonpl.c:2183
 TCreature *CreateMonster(int Race, int x, int y, int z, int Home, uint32_t Father, bool ShowEffect) {
 	if (Race < 1 || Race > 511) {
 		error("CreateMonster: Ung\xfcltige Rassennummer %d.\n", Race);
@@ -2953,7 +2896,6 @@ TCreature *CreateMonster(int Race, int x, int y, int z, int Home, uint32_t Fathe
 	return cr;
 }
 
-// 0x080bc450  crnonpl.c:2203
 void ConvinceMonster(TCreature *Master, TCreature *Slave) {
 	if (Master == nullptr) {
 		error("ConvinceMonster: Master existiert nicht.\n");
@@ -2973,7 +2915,6 @@ void ConvinceMonster(TCreature *Master, TCreature *Slave) {
 	((TMonster *)Slave)->Convince(Master);
 }
 
-// 0x080bc4a0  crnonpl.c:2224
 void ChallengeMonster(TCreature *Challenger, TCreature *Monster) {
 	if (Challenger == nullptr) {
 		error("ChallengeMonster: Herausforderer existiert nicht.\n");
@@ -2993,7 +2934,6 @@ void ChallengeMonster(TCreature *Challenger, TCreature *Monster) {
 	((TMonster *)Monster)->SetTarget(Challenger);
 }
 
-// 0x080bc530  crnonpl.c:2251
 void InitNPCs() {
 	DIR *WorkDir = opendir(NPCPATH);
 	if (WorkDir == nullptr) {
@@ -3018,7 +2958,6 @@ void InitNPCs() {
 	closedir(WorkDir);
 }
 
-// 0x080bc660  crnonpl.c:2278
 void InitNonplayer() {
 	print(1, "Initializing Nonplayers ...\n");
 	FirstFreeNonplayer = 0;
@@ -3028,7 +2967,6 @@ void InitNonplayer() {
 	LoadMonsterhomes();
 }
 
-// 0x080bc720  crnonpl.c:2292
 void ExitNonplayer() {
 	// A NULL entry at position 0 would loop forever, as in the original.
 	while (FirstFreeNonplayer > 0) {

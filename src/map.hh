@@ -20,46 +20,32 @@ struct TWriteScriptFile;
 struct TWriteStream;
 
 struct Object {
-	// inline  map.h:22
 	Object() { ObjectID = 0; }
-	// inline  map.h:23
 	Object(const Object &Other) { ObjectID = Other.ObjectID; }
-	// inline  map.h:24
 	Object(uint32_t _ObjectID) { ObjectID = _ObjectID; }
-	// inline  map.h:25
 	Object operator=(Object Other) { ObjectID = Other.ObjectID; return *this; }
-	// inline  map.h:26
 	bool operator==(Object Other) { return ObjectID == Other.ObjectID; }
-	// inline  map.h:27
 	bool operator!=(Object Other) { return !(*this == Other); }
 	bool exists();
-	// inline  map.h:30
 	uint32_t getObjectID() { return ObjectID; }
 	ObjectType getObjectType();
-	// inline  map.h:32
 	bool getFlag(FLAG Flag) { return getObjectType().getFlag(Flag); }
-	// inline  map.h:33
 	uint32_t getAttribute(TYPEATTRIBUTE Attribute) { return getObjectType().getAttribute(Attribute); }
 	uint32_t getAttribute(INSTANCEATTRIBUTE Attribute);
 	void setAttribute(INSTANCEATTRIBUTE Attribute, uint32_t Value);
-	// inline  map.h:37
 	void changeAttribute(INSTANCEATTRIBUTE Attribute, int Delta) { setAttribute(Attribute, getAttribute(Attribute) + Delta); }
-	// inline  map.h:39
 	Object operator++(int) { ObjectID = getNextObject().getObjectID(); return *this; }
 	Object getNextObject();
 	Object getContainer();
-	// inline  map.h:42
 	bool isMapContainer() { return getObjectType().isMapContainer(); }
-	// inline  map.h:43
 	bool isBodyContainer() { return getObjectType().isBodyContainer(); }
-	// inline  map.h:44
 	bool isCreature() { return getObjectType().isCreature(); }
 	uint32_t getCreatureID();
 private:
 	uint32_t ObjectID;
 };
 
-static const Object NONE;	// map.h:50
+static const Object NONE;
 
 extern int SectorXMin;
 extern int SectorXMax;

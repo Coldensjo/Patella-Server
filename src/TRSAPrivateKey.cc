@@ -4,15 +4,12 @@
 #include "TRSAPrivateKey.hh"
 #include "TRSAPublicKey.hh"
 
-// 0x080e93f0  TRSAPrivateKey.c:29
 TRSAPrivateKey::TRSAPrivateKey() {
 }
 
-// 0x080e9510  TRSAPrivateKey.c:35
 TRSAPrivateKey::~TRSAPrivateKey() {
 }
 
-// 0x080e95c0  TRSAPrivateKey.c:41
 void TRSAPrivateKey::init(const char *PrimeP, const char *PrimeQ) {
 	if (PrimeP == nullptr) {
 		throw "PrimeP pointer is NULL";
@@ -45,7 +42,6 @@ void TRSAPrivateKey::init(const char *PrimeP, const char *PrimeQ) {
 	m_DQ = d % (m_PrimeQ - 1);
 }
 
-// 0x080e9b20  TRSAPrivateKey.c:110
 void TRSAPrivateKey::decrypt(unsigned char *Data) const {
 	if (Data == nullptr) {
 		throw "Data pointer is NULL";

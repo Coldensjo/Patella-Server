@@ -87,7 +87,7 @@ char FlagNames[66][20] = {
 	"Disguise",
 	"ShowDetail",
 	"Special",
-};	// objects.c:19
+};
 char TypeAttributeNames[62][30] = {
 	"Waypoints",
 	"Capacity",
@@ -151,7 +151,7 @@ char TypeAttributeNames[62][30] = {
 	"Elevation",
 	"DisguiseTarget",
 	"Meaning",
-};	// objects.c:32
+};
 FLAG TypeAttributeFlags[62] = {
 	BANK, CONTAINER, CHANGEUSE, KEYDOOR,
 	NAMEDOOR, LEVELDOOR, QUESTDOOR, FOOD,
@@ -169,21 +169,20 @@ FLAG TypeAttributeFlags[62] = {
 	WAND, AMMO, AMMO, AMMO,
 	AMMO, AMMO, ARMOR, HEIGHT,
 	DISGUISE, BANK,
-};	// objects.c:45
+};
 FLAG InstanceAttributeFlags[18] = {
 	CONTAINER, CHEST, CUMULATIVE, KEY,
 	KEYDOOR, LEVELDOOR, QUESTDOOR, QUESTDOOR,
 	RUNE, TEXT, TEXT, LIQUIDCONTAINER,
 	LIQUIDPOOL, TELEPORTABSOLUTE, MAGICFIELD, EXPIRE,
 	EXPIRESTOP, WEAROUT,
-};	// objects.c:57
-vector<TObjectType> ObjectTypes(0, 5000, 1000);	// objects.c:72
-ObjectType SpecialObjects[49];	// objects.c:74
-unsigned char OldGroup[8192];	// objects.c:182
-unsigned char OldNumber[8192];	// objects.c:183
-int NewType[65536];	// objects.c:184
+};
+vector<TObjectType> ObjectTypes(0, 5000, 1000);
+ObjectType SpecialObjects[49];
+unsigned char OldGroup[8192];
+unsigned char OldNumber[8192];
+int NewType[65536];
 
-// 0x08054d10  objects.c:91
 int GetFlagByName(char *Name) {
 	for (int i = 0; i < FLAGS; i++) {
 		if (stricmp(FlagNames[i], Name, -1) == 0) {
@@ -193,7 +192,6 @@ int GetFlagByName(char *Name) {
 	return -1;
 }
 
-// 0x08054d70  objects.c:101
 int GetTypeAttributeByName(char *Name) {
 	for (int i = 0; i < TYPEATTRIBUTES; i++) {
 		if (stricmp(TypeAttributeNames[i], Name, -1) == 0) {
@@ -203,7 +201,6 @@ int GetTypeAttributeByName(char *Name) {
 	return -1;
 }
 
-// 0x08054dd0  objects.c:112
 void LoadObjects() {
 	char FileName[4096];
 	sprintf(FileName, "%s/objects.srv", DATAPATH);
@@ -315,7 +312,6 @@ void LoadObjects() {
 	Script.close();
 }
 
-// 0x08055650  objects.c:190
 void LoadConversionList() {
 	std::ifstream IN;
 	char FileName[4096];
@@ -367,7 +363,6 @@ void LoadConversionList() {
 	NewType[250 * 256 + 0] = 99;
 }
 
-// 0x08055a40  objects.c:231
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
 	int Type = NewType[Group * 256 + Number];
 	if (Type == -1) {
@@ -377,7 +372,6 @@ ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
 	return ObjectType(Type);
 }
 
-// 0x08055b00  objects.c:244
 void GetOldObjectType(ObjectType Type, unsigned char &Group, unsigned char &Number) {
 	if (!in(Type.getTypeID(), ObjectTypes.low(), ObjectTypes.high())) {
 		error("GetOldObjectType: Ung\xfcltiger Typ %d.\n", Type.getTypeID());
@@ -388,12 +382,10 @@ void GetOldObjectType(ObjectType Type, unsigned char &Group, unsigned char &Numb
 	Number = OldNumber[Type.getTypeID()];
 }
 
-// 0x08055b80  objects.c:257
 bool ObjectTypeExists(unsigned char Group, unsigned char Number) {
 	return NewType[Group * 256 + Number] >= 0;
 }
 
-// 0x08055ba0  objects.c:270
 void ObjectType::setTypeID(int _TypeID) {
 	if (!in(_TypeID, ObjectTypes.low(), ObjectTypes.high())) {
 		error("ObjectType::setTypeID: Ung\xfcltiger Typ %d.\n", _TypeID);
@@ -402,7 +394,6 @@ void ObjectType::setTypeID(int _TypeID) {
 	TypeID = _TypeID;
 }
 
-// 0x08055bf0  objects.c:282
 const char *ObjectType::getName(int Count) {
 	char ObjectName[50];
 	ObjectName[0] = 0;
@@ -419,18 +410,15 @@ const char *ObjectType::getName(int Count) {
 	return Plural(ObjectName, Count);
 }
 
-// 0x08055c60  objects.c:298
 const char *ObjectType::getDescription() {
 	return ObjectTypes(getTypeID()).Description;
 }
 
-// 0x08055c90  objects.c:306
 bool ObjectType::getFlag(FLAG Flag) {
 	unsigned char b = static_cast<unsigned char>(1 << (Flag % 8));
 	return (ObjectTypes(getTypeID()).Flags[Flag / 8] & b) == b;
 }
 
-// 0x08055cf0  objects.c:315
 uint32_t ObjectType::getAttribute(TYPEATTRIBUTE Attribute) {
 	if (!getFlag(TypeAttributeFlags[Attribute])) {
 		error("ObjectType::getAttribute: Typ %d hat kein Flag %d f\xfc" "r Attribut %d.\n",
@@ -440,7 +428,6 @@ uint32_t ObjectType::getAttribute(TYPEATTRIBUTE Attribute) {
 	return ObjectTypes(getTypeID()).Attributes[Attribute];
 }
 
-// 0x08055da0  objects.c:328
 int ObjectType::getAttributeOffset(INSTANCEATTRIBUTE Attribute) {
 	if (!getFlag(InstanceAttributeFlags[Attribute])
 			&& (Attribute != CONTENT || !getFlag(CHEST))) {
@@ -449,12 +436,10 @@ int ObjectType::getAttributeOffset(INSTANCEATTRIBUTE Attribute) {
 	return ObjectTypes(getTypeID()).AttributeOffsets[Attribute];
 }
 
-// 0x08055e50  objects.c:337
 bool ObjectTypeExists(int TypeID) {
 	return in(TypeID, ObjectTypes.low(), ObjectTypes.high());
 }
 
-// 0x08055e80  objects.c:345
 ObjectType GetSpecialObject(SPECIALMEANING Meaning) {
 	if (!in(Meaning, 1, SPECIALMEANINGS)) {
 		error("GetSpecialObject: Ung\xfcltige Bedeutung %d.\n", Meaning);
@@ -469,7 +454,6 @@ ObjectType GetSpecialObject(SPECIALMEANING Meaning) {
 	return SpecialObjects[Meaning];
 }
 
-// 0x08055f20  objects.c:362
 ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
 	if (SearchName == nullptr) {
 		error("GetObjectTypeByName: SearchName ist NULL.\n");
@@ -509,12 +493,10 @@ ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
 	return BestType;
 }
 
-// 0x08056120  objects.c:394
 void InitObjects() {
 	LoadObjects();
 	LoadConversionList();
 }
 
-// 0x08056150  objects.c:403
 void ExitObjects() {
 }

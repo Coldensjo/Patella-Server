@@ -49,12 +49,11 @@ struct TSharedMemory {
 static_assert(sizeof(TSharedMemory) == 25892, "TSharedMemory is mapped by the operator tools; keep the 32-bit layout");
 static_assert(offsetof(TSharedMemory, RoundNr) == 260, "TSharedMemory is mapped by the operator tools; keep the 32-bit layout");
 
-bool IsGameServer = false;	// shm.c:46
-bool VerboseOutput = false;	// shm.c:47
-TSharedMemory *SHM = nullptr;	// shm.c:48
-Semaphore LogfileMutex(1);	// shm.c:49
+bool IsGameServer = false;
+bool VerboseOutput = false;
+TSharedMemory *SHM = nullptr;
+Semaphore LogfileMutex(1);
 
-// 0x08056670  shm.c:61
 void StartGame() {
 	if (SHM == nullptr) {
 		error("StartGame: SharedMemory existiert nicht.\n");
@@ -66,7 +65,6 @@ void StartGame() {
 	}
 }
 
-// 0x080566b0  shm.c:74
 void CloseGame() {
 	if (SHM == nullptr) {
 		error("CloseGame: SharedMemory existiert nicht.\n");
@@ -78,7 +76,6 @@ void CloseGame() {
 	}
 }
 
-// 0x080566f0  shm.c:87
 void EndGame() {
 	if (SHM == nullptr) {
 		error("EndGame: SharedMemory existiert nicht.\n");
@@ -88,7 +85,6 @@ void EndGame() {
 	SHM->GameState = GAME_ENDING;
 }
 
-// 0x08056720  shm.c:99
 bool LoginAllowed() {
 	if (SHM == nullptr) {
 		error("IsLoginAllowed: SharedMemory existiert nicht.\n");
@@ -98,7 +94,6 @@ bool LoginAllowed() {
 	return SHM->GameState == GAME_RUNNING;
 }
 
-// 0x08056750  shm.c:111
 bool GameRunning() {
 	if (SHM == nullptr) {
 		error("GameRunning: SharedMemory existiert nicht.\n");
@@ -110,7 +105,6 @@ bool GameRunning() {
 		|| SHM->GameState == GAME_CLOSING;
 }
 
-// 0x08056780  shm.c:123
 bool GameStarting() {
 	if (SHM == nullptr) {
 		error("GameStarting: SharedMemory existiert nicht.\n");
@@ -120,7 +114,6 @@ bool GameStarting() {
 	return SHM->GameState == GAME_STARTING;
 }
 
-// 0x080567c0  shm.c:135
 bool GameEnding() {
 	if (SHM == nullptr) {
 		error("GameEnding: SharedMemory existiert nicht.\n");
@@ -131,7 +124,6 @@ bool GameEnding() {
 		|| SHM->GameState == GAME_ENDING;
 }
 
-// 0x08056800  shm.c:147
 pid_t GetGameThreadPID() {
 	if (SHM == nullptr) {
 		return 0;
@@ -140,7 +132,6 @@ pid_t GetGameThreadPID() {
 	return SHM->GameThreadPID;
 }
 
-// 0x08056820  shm.c:162
 void ErrorHandler(char *Text) {
 	if (VerboseOutput) {
 		printf("%s", Text);
@@ -159,7 +150,6 @@ void ErrorHandler(char *Text) {
 	}
 }
 
-// 0x080568b0  shm.c:179
 void PrintHandler(int Level, char *Text) {
 	if (Level > DebugLevel) {
 		return;
@@ -187,7 +177,6 @@ void PrintHandler(int Level, char *Text) {
 	}
 }
 
-// 0x080569e0  shm.c:202
 int GetPrintlogPosition() {
 	if (SHM == nullptr) {
 		return 0;
@@ -196,7 +185,6 @@ int GetPrintlogPosition() {
 	return SHM->PrintBufferPosition;
 }
 
-// 0x08056a00  shm.c:211
 char *GetPrintlogLine(int Line) {
 	// Only the upper bound is checked, as in the original.
 	if (SHM == nullptr || Line >= PRINTBUFFERENTRIES) {
@@ -206,21 +194,18 @@ char *GetPrintlogLine(int Line) {
 	return SHM->PrintBuffer[Line];
 }
 
-// 0x08056a30  shm.c:220
 void IncrementObjectCounter() {
 	if (SHM != nullptr) {
 		SHM->ObjectCounter++;
 	}
 }
 
-// 0x08056a50  shm.c:228
 void DecrementObjectCounter() {
 	if (SHM != nullptr) {
 		SHM->ObjectCounter--;
 	}
 }
 
-// 0x08056a70  shm.c:236
 uint32_t GetObjectCounter() {
 	if (SHM == nullptr) {
 		return 0;
@@ -229,21 +214,18 @@ uint32_t GetObjectCounter() {
 	return SHM->ObjectCounter;
 }
 
-// 0x08056a90  shm.c:245
 void IncrementPlayersOnline() {
 	if (SHM != nullptr) {
 		SHM->PlayersOnline++;
 	}
 }
 
-// 0x08056ab0  shm.c:253
 void DecrementPlayersOnline() {
 	if (SHM != nullptr) {
 		SHM->PlayersOnline--;
 	}
 }
 
-// 0x08056ad0  shm.c:261
 int GetPlayersOnline() {
 	if (SHM == nullptr) {
 		return 0;
@@ -252,21 +234,18 @@ int GetPlayersOnline() {
 	return SHM->PlayersOnline;
 }
 
-// 0x08056af0  shm.c:270
 void IncrementNewbiesOnline() {
 	if (SHM != nullptr) {
 		SHM->NewbiesOnline++;
 	}
 }
 
-// 0x08056b10  shm.c:278
 void DecrementNewbiesOnline() {
 	if (SHM != nullptr) {
 		SHM->NewbiesOnline--;
 	}
 }
 
-// 0x08056b30  shm.c:286
 int GetNewbiesOnline() {
 	if (SHM == nullptr) {
 		return 0;
@@ -275,14 +254,12 @@ int GetNewbiesOnline() {
 	return SHM->NewbiesOnline;
 }
 
-// 0x08056b50  shm.c:295
 void SetRoundNr(uint32_t RoundNr) {
 	if (SHM != nullptr) {
 		SHM->RoundNr = RoundNr;
 	}
 }
 
-// 0x08056b70  shm.c:303
 uint32_t GetRoundNr() {
 	if (SHM == nullptr) {
 		return 0;
@@ -291,7 +268,6 @@ uint32_t GetRoundNr() {
 	return SHM->RoundNr;
 }
 
-// 0x08056b90  shm.c:312
 void SetCommand(int Command, char *Text) {
 	if (SHM != nullptr) {
 		SHM->Command = Command;
@@ -304,7 +280,6 @@ void SetCommand(int Command, char *Text) {
 	}
 }
 
-// 0x08056be0  shm.c:325
 int GetCommand() {
 	if (SHM == nullptr) {
 		return 0;
@@ -313,7 +288,6 @@ int GetCommand() {
 	return SHM->Command;
 }
 
-// 0x08056c00  shm.c:334
 char *GetCommandBuffer() {
 	if (SHM == nullptr || SHM->Command == 0) {
 		return nullptr;
@@ -322,7 +296,6 @@ char *GetCommandBuffer() {
 	return SHM->CommandBuffer;
 }
 
-// 0x08056c30  shm.c:349
 bool DeleteSHM() {
 	int SHMID = shmget(SHMKey, 0, 0);
 	if (SHMID == -1) {
@@ -343,7 +316,6 @@ bool DeleteSHM() {
 	return true;
 }
 
-// 0x08056cc0  shm.c:367
 void CreateSHM() {
 	int iter = 0;
 
@@ -365,7 +337,6 @@ again:
 	}
 }
 
-// 0x08056d90  shm.c:389
 void AttachSHM() {
 	int SHMID = shmget(SHMKey, sizeof(TSharedMemory), 0);
 	if (SHMID == -1) {
@@ -386,7 +357,6 @@ void AttachSHM() {
 	}
 }
 
-// 0x08056e70  shm.c:408
 void DetachSHM() {
 	if (SHM != nullptr) {
 		int result = shmdt(SHM);
@@ -397,7 +367,6 @@ void DetachSHM() {
 	}
 }
 
-// 0x08056eb0  shm.c:427
 void InitSHM(bool Verbose) {
 	IsGameServer = true;
 	VerboseOutput = Verbose;
@@ -419,7 +388,6 @@ void InitSHM(bool Verbose) {
 	SHM->GameThreadPID = getpid();
 }
 
-// 0x08057000  shm.c:448
 void ExitSHM() {
 	SetErrorFunction(nullptr);
 	SetPrintFunction(nullptr);
@@ -427,13 +395,11 @@ void ExitSHM() {
 	DeleteSHM();
 }
 
-// 0x08057060  shm.c:460
 void InitSHMExtern(bool Verbose) {
 	VerboseOutput = Verbose;
 	AttachSHM();
 }
 
-// 0x08057090  shm.c:469
 void ExitSHMExtern() {
 	DetachSHM();
 }

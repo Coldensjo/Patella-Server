@@ -2,31 +2,31 @@
 //
 // Everything in this file was read from the client side of the protocol in
 // bin/game (compile unit query.c, class TQueryManagerConnection) and from
-// the stream classes in utils.c. Addresses are those of the May 2006 binary.
+// the stream classes in utils.c. The method addresses in the query table
+// (protocol.cc) are those of the May 2006 binary.
 //
-// Framing, both directions (TQueryManagerConnection::executeQuery, 0x80e0f10):
+// Framing, both directions (TQueryManagerConnection::executeQuery):
 //   u16 length                 little-endian, number of payload bytes
 //   [u32 length]               only if the u16 is 0xFFFF; replaces it
 //   payload
 // A request payload is `u8 query type` followed by the request fields
-// (prepareQuery, 0x80e09e0). A response payload is `u8 status` followed by
-// the response fields. The game closes the socket on a zero-length response
-// and on one that is longer than the buffer of that connection.
+// (prepareQuery). A response payload is `u8 status` followed by the response
+// fields. The game closes the socket on a zero-length response and on one
+// that is longer than the buffer of that connection.
 //
-// Timing (executeQuery, 0x80e0f10, and read, 0x80e0900): the game waits up
-// to a per-query timeout for every read of a response, between 30 seconds
-// (most queries) and 1800 seconds (getKeptCharacters); loginGame and
-// logoutGame have 120, loadPlayers 900. A timeout fails the query. If the
-// connection turns out to be closed, the game connects and logs in again
-// and repeats the request once, so this server can be restarted while the
-// game runs.
+// Timing (executeQuery and read): the game waits up to a per-query timeout
+// for every read of a response, between 30 seconds (most queries) and 1800
+// seconds (getKeptCharacters); loginGame and logoutGame have 120,
+// loadPlayers 900. A timeout fails the query. If the connection turns out to
+// be closed, the game connects and logs in again and repeats the request
+// once, so this server can be restarted while the game runs.
 //
-// Scalars (TWriteBuffer/TReadBuffer, 0x804db10..0x804dc00, 0x804d790..0x804d880):
+// Scalars (TWriteBuffer/TReadBuffer):
 //   byte   u8
 //   flag   u8, 0 = false, anything else = true
 //   word   u16 little-endian
 //   quad   u32 little-endian
-// Strings (TWriteStream::writeString 0x804d580, TReadStream::readString 0x804d2d0):
+// Strings (TWriteStream::writeString, TReadStream::readString):
 //   u16 length, or 0xFFFF followed by a u32 length; then the bytes, with no
 //   terminator. The bytes are in the game's 8-bit character set (ISO-8859-1).
 //   The game reads a string into a fixed buffer and silently drops what does
@@ -54,7 +54,7 @@ enum Status : uint8_t {
 };
 
 // Application types sent in the login request. bin/game always sends 1
-// together with its world name (InitAll 0x804c6d0 calls
+// together with its world name (InitAll calls
 // SetQueryManagerLoginData(1, WorldName)). Other values belong to other
 // CipSoft programs and are not known from this binary; 2 is this project's
 // choice for its own login server (loginserver/), which sends no login data.
@@ -123,9 +123,9 @@ enum QueryType : uint8_t {
 };
 
 // Error codes that follow STATUS_ERROR in a loginGame response. The valid
-// range is 1..15 (loginGame 0x80e1c10 rejects anything else); the meaning of
-// each comes from the switch in PerformRegistration (0x80dce70). Code 5 is
-// in the valid range but has no case there.
+// range is 1..15 (loginGame rejects anything else); the meaning of each
+// comes from the switch in PerformRegistration. Code 5 is in the valid range
+// but has no case there.
 enum LoginGameError : uint8_t {
 	LOGIN_CHARACTER_UNKNOWN = 1,        // "Spieler existiert nicht."
 	LOGIN_CHARACTER_DELETED = 2,        // "Spieler wurde geloescht."
@@ -154,8 +154,8 @@ enum LoginAccountError : uint8_t {
 
 // Limits the game applies to responses.
 enum Limits : uint32_t {
-	// loadPlayers: InitPlayerIndex (0x80a8d80) has room for 10000 entries
-	// per request and asks again while it receives exactly 10000.
+	// loadPlayers: InitPlayerIndex has room for 10000 entries per request
+	// and asks again while it receives exactly 10000.
 	MAX_PLAYERS_PER_LOAD = 10000,
 	// loginGame: 100 buddies are stored, more are read and discarded.
 	MAX_BUDDIES = 100,
@@ -180,9 +180,9 @@ const QueryInfo *findQueryInfo(uint8_t type);
 // Name for logging; "unknown" for a type that is not in the catalogue.
 const char *queryName(uint8_t type);
 
-// The right names the game knows (string compares in loginGame, 0x80e1c10).
-// A right is sent to the game by name; names it does not know are logged
-// there as "Unbekanntes Recht".
+// The right names the game knows (string compares in loginGame). A right is
+// sent to the game by name; names it does not know are logged there as
+// "Unbekanntes Recht".
 const char *const *rightNames(size_t &count);
 bool isKnownRight(const std::string &name);
 

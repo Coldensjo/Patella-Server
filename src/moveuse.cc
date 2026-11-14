@@ -150,7 +150,6 @@ struct TMoveUseRule {
 struct TMoveUseDatabase {
 	vector<TMoveUseRule> Rules;
 	int NumberOfRules;
-	// inline  moveuse.c:88
 	TMoveUseDatabase() : Rules(1, 100, 100) { NumberOfRules = 0; }
 };
 
@@ -166,13 +165,13 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp);
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2);
 
-vector<TMoveUseCondition> MoveUseConditions(1, 1000, 1000);	// moveuse.c:99
-int NumberOfMoveUseConditions;	// moveuse.c:100
-vector<TMoveUseAction> MoveUseActions(1, 1000, 1000);	// moveuse.c:101
-int NumberOfMoveUseActions;	// moveuse.c:102
-TMoveUseDatabase MoveUseDatabases[5];	// moveuse.c:103
-vector<TDelayedMail> DelayedMail(0, 10, 10);	// moveuse.c:104
-int DelayedMails;	// moveuse.c:105
+vector<TMoveUseCondition> MoveUseConditions(1, 1000, 1000);
+int NumberOfMoveUseConditions;
+vector<TMoveUseAction> MoveUseActions(1, 1000, 1000);
+int NumberOfMoveUseActions;
+TMoveUseDatabase MoveUseDatabases[5];
+vector<TDelayedMail> DelayedMail(0, 10, 10);
+int DelayedMails;
 
 // The original declares exception specifications: throw(RESULT) on
 // ChangeObject, LoadDepotBox, SaveDepotBox, SendMail, UseContainer, UseChest,
@@ -184,7 +183,6 @@ int DelayedMails;	// moveuse.c:105
 // specifications, so an exception of another type now propagates instead of
 // ending in std::unexpected().
 
-// 0x08072450  moveuse.c:116
 Object GetEventObject(int Number, Object User, Object Obj1, Object Obj2, Object Temp) {
 	switch (Number) {
 		case 0:
@@ -203,7 +201,6 @@ Object GetEventObject(int Number, Object User, Object Obj1, Object Obj2, Object 
 	}
 }
 
-// 0x080724c0  moveuse.c:132
 bool Compare(int Value1, int Operator, int Value2) {
 	switch (Operator) {
 		case '<':
@@ -224,7 +221,6 @@ bool Compare(int Value1, int Operator, int Value2) {
 	}
 }
 
-// 0x08072530  moveuse.c:154
 bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp) {
 	Object Obj;
 	int x1, y1, z1;
@@ -409,7 +405,6 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 	}
 }
 
-// 0x08073880  moveuse.c:357
 Object CreateObject(Object Con, ObjectType Type, uint32_t Value) {
 again:
 	try {
@@ -430,7 +425,6 @@ again:
 	}
 }
 
-// 0x08073a00  moveuse.c:378
 void ChangeObject(Object Obj, ObjectType NewType, uint32_t Value) {
 	if (!Obj.exists()) {
 		error("ChangeObject: \xdc" "bergebenes Objekt existiert nicht (1, NewType=%d).\n", NewType.getTypeID());
@@ -468,7 +462,6 @@ again:
 	}
 }
 
-// 0x08073cf0  moveuse.c:412
 void MoveOneObject(Object Obj, Object Con) {
 	if (!Obj.exists()) {
 		error("MoveOneObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -503,7 +496,6 @@ void MoveOneObject(Object Obj, Object Con) {
 	}
 }
 
-// 0x08073ef0  moveuse.c:441
 void MoveAllObjects(Object Obj, Object Dest, Object Exclude, bool MoveUnmovable) {
 	if (Obj == NONE) {
 		return;
@@ -535,7 +527,6 @@ void MoveAllObjects(Object Obj, Object Dest, Object Exclude, bool MoveUnmovable)
 	}
 }
 
-// 0x08074120  moveuse.c:465
 void DeleteAllObjects(Object Obj, Object Exclude, bool DeleteUnmovable) {
 	if (Obj == NONE) {
 		return;
@@ -562,7 +553,6 @@ void DeleteAllObjects(Object Obj, Object Exclude, bool DeleteUnmovable) {
 	}
 }
 
-// 0x080742e0  moveuse.c:487
 void ClearField(Object Obj, Object Exclude) {
 	if (!Obj.exists()) {
 		error("ClearField: Objekt existiert nicht.\n");
@@ -595,7 +585,6 @@ void ClearField(Object Obj, Object Exclude) {
 	MoveAllObjects(Obj.getNextObject(), Con, Exclude, true);
 }
 
-// 0x080746f0  moveuse.c:509
 void LoadDepotBox(uint32_t CreatureID, int Nr, Object Con) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -631,7 +620,6 @@ void LoadDepotBox(uint32_t CreatureID, int Nr, Object Con) {
 	}
 }
 
-// 0x080748b0  moveuse.c:544
 void SaveDepotBox(uint32_t CreatureID, int Nr, Object Con) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
@@ -669,7 +657,6 @@ void SaveDepotBox(uint32_t CreatureID, int Nr, Object Con) {
 	}
 }
 
-// 0x08074a60  moveuse.c:581
 void SendMail(Object Obj) {
 	if (!Obj.exists()) {
 		error("SendMail: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -792,7 +779,6 @@ void SendMail(Object Obj) {
 	}
 }
 
-// 0x08075220  moveuse.c:679
 void SendMails(TPlayerData *PlayerData) {
 	if (PlayerData == nullptr) {
 		error("SendMails: PlayerData ist NULL.\n");
@@ -857,7 +843,6 @@ void SendMails(TPlayerData *PlayerData) {
 	}
 }
 
-// 0x080754b0  moveuse.c:733
 void TextEffect(char *Text, int x, int y, int z, int Radius) {
 	if (Text == nullptr) {
 		error("TextEffect: Text existiert nicht.\n");
@@ -895,7 +880,6 @@ void TextEffect(char *Text, int x, int y, int z, int Radius) {
 	}
 }
 
-// 0x080755c0  moveuse.c:758
 void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp) {
 	Object Obj, Con;
 	int x, y, z, dx, dy, dz;
@@ -1235,7 +1219,6 @@ void ExecuteAction(EventType Event, TMoveUseAction &Action, Object User, Object 
 	}
 }
 
-// 0x08077e80  moveuse.c:1106
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 	static int RecursionDepth = 0;
 	if (RecursionDepth > 10) {
@@ -1271,7 +1254,6 @@ bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 	return false;
 }
 
-// 0x08078010  moveuse.c:1145
 void UseContainer(uint32_t CreatureID, Object Con, unsigned char Window) {
 	if (!Con.exists()) {
 		error("UseContainer: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1310,7 +1292,6 @@ void UseContainer(uint32_t CreatureID, Object Con, unsigned char Window) {
 	SendContainer(pl->GetConnection(), Window);
 }
 
-// 0x080781d0  moveuse.c:1180
 void UseChest(uint32_t CreatureID, Object Chest) {
 	if (!Chest.exists()) {
 		error("UseChest: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1404,7 +1385,6 @@ again:
 	pl->SetQuestValue(Number, 1);
 }
 
-// 0x08078960  moveuse.c:1259
 void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest) {
 	if (!Obj.exists()) {
 		error("UseLiquidContainer: \xdc" "bergebenes Objekt Obj existiert nicht.\n");
@@ -1504,7 +1484,6 @@ void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest) {
 	CreatePool(GetMapContainer(Dest), GetSpecialObject(BLOOD_POOL), LiquidType);
 }
 
-// 0x08078f60  moveuse.c:1341
 void UseFood(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
 		error("UseFood: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1531,7 +1510,6 @@ void UseFood(uint32_t CreatureID, Object Obj) {
 	Delete(Obj, 1);
 }
 
-// 0x08079110  moveuse.c:1367
 void UseTextObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
 		error("UseTextObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1552,7 +1530,6 @@ void UseTextObject(uint32_t CreatureID, Object Obj) {
 	SendEditText(pl->GetConnection(), Obj);
 }
 
-// 0x08079200  moveuse.c:1390
 void UseAnnouncer(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
 		error("UseAnnouncer: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1620,7 +1597,6 @@ void UseAnnouncer(uint32_t CreatureID, Object Obj) {
 	}
 }
 
-// 0x08079620  moveuse.c:1437
 void UseKeyDoor(uint32_t, Object Key, Object Door) {
 	if (!Key.exists()) {
 		error("UseKeyDoor: \xdc" "bergebenes Objekt Key existiert nicht.\n");
@@ -1659,7 +1635,6 @@ void UseKeyDoor(uint32_t, Object Key, Object Door) {
 	Change(Door, Target, 0);
 }
 
-// 0x08079870  moveuse.c:1470
 void UseNameDoor(uint32_t CreatureID, Object Door) {
 	if (!Door.exists()) {
 		error("UseNameDoor: \xdc" "bergebenes Objekt Door existiert nicht.\n");
@@ -1707,7 +1682,6 @@ void UseNameDoor(uint32_t CreatureID, Object Door) {
 	Change(Door, Target, 0);
 }
 
-// 0x08079b10  moveuse.c:1513
 void UseLevelDoor(uint32_t CreatureID, Object Door) {
 	if (!Door.exists() || !Door.getFlag(LEVELDOOR) || !Door.getContainer().isMapContainer()) {
 		error("UseLevelDoor: \xdc" "bergebenes Objekt Door ist keine Level-T\xfcr.\n");
@@ -1739,7 +1713,6 @@ void UseLevelDoor(uint32_t CreatureID, Object Door) {
 	Move(0, pl->GetCreatureObject(), Door.getContainer(), -1, false, NONE);
 }
 
-// 0x08079db0  moveuse.c:1543
 void UseQuestDoor(uint32_t CreatureID, Object Door) {
 	if (!Door.exists() || !Door.getFlag(QUESTDOOR) || !Door.getContainer().isMapContainer()) {
 		error("UseQuestDoor: \xdc" "bergebenes Objekt Door ist keine Quest-T\xfcr.\n");
@@ -1771,7 +1744,6 @@ void UseQuestDoor(uint32_t CreatureID, Object Door) {
 	Move(0, pl->GetCreatureObject(), Door.getContainer(), -1, false, NONE);
 }
 
-// 0x0807a060  moveuse.c:1573
 void UseWeapon(uint32_t CreatureID, Object Weapon, Object Target) {
 	if (!Weapon.exists() || !Weapon.getFlag(WEAPON) || !in(Weapon.getAttribute(WEAPONTYPE), 1, 3)) {
 		error("UseWeapon: \xdc" "bergebene Waffe existiert nicht oder ist keine Waffe.\n");
@@ -1806,7 +1778,6 @@ void UseWeapon(uint32_t CreatureID, Object Weapon, Object Target) {
 	Change(Target, Dest, 0);
 }
 
-// 0x0807a2f0  moveuse.c:1603
 void UseChangeObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists() || !Obj.getFlag(CHANGEUSE)) {
 		error("UseChangeObject: Objekt existiert nicht oder ist kein CHANGEUSE-Objekt.\n");
@@ -1839,7 +1810,6 @@ void UseChangeObject(uint32_t CreatureID, Object Obj) {
 	Change(Obj, NewType, 0);
 }
 
-// 0x0807a870  moveuse.c:1634
 void UseObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
 		error("UseObjects: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1866,7 +1836,6 @@ void UseObject(uint32_t CreatureID, Object Obj) {
 	}
 }
 
-// 0x0807a9a0  moveuse.c:1654
 void UseObjects(uint32_t CreatureID, Object Obj1, Object Obj2) {
 	if (!Obj1.exists()) {
 		error("UseObjects: \xdc" "bergebenes Objekt Obj1 existiert nicht.\n");
@@ -1898,7 +1867,6 @@ void UseObjects(uint32_t CreatureID, Object Obj1, Object Obj2) {
 	}
 }
 
-// 0x0807aaf0  moveuse.c:1684
 void MovementEvent(Object Obj, Object Start, Object Dest) {
 	if (!Obj.exists()) {
 		error("MovementEvent: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1925,7 +1893,6 @@ void MovementEvent(Object Obj, Object Start, Object Dest) {
 	}
 }
 
-// 0x0807ace0  moveuse.c:1708
 void SeparationEvent(Object Obj, Object Start) {
 	if (!Obj.exists()) {
 		error("SeparationEvent: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -1995,7 +1962,6 @@ void SeparationEvent(Object Obj, Object Start) {
 	}
 }
 
-// 0x0807b180  moveuse.c:1757
 void CollisionEvent(Object Obj, Object Dest) {
 	if (!Obj.exists()) {
 		error("CollisionEvent: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -2089,7 +2055,6 @@ void CollisionEvent(Object Obj, Object Dest) {
 	}
 }
 
-// 0x0807b8b0  moveuse.c:1833
 void LoadParameters(TReadScriptFile &Script, int *Parameters, int NumberOfParameters, ...) {
 	if (NumberOfParameters > 5) {
 		error("LoadParameters: Zu viele Parameter (%d).\n", NumberOfParameters);
@@ -2198,7 +2163,6 @@ void LoadParameters(TReadScriptFile &Script, int *Parameters, int NumberOfParame
 	Script.nextToken();
 }
 
-// 0x0807bcf0  moveuse.c:1914
 void LoadCondition(TReadScriptFile &Script, TMoveUseCondition &Condition) {
 	char Ident[30];
 	strcpy(Ident, Script.getIdentifier());
@@ -2309,7 +2273,6 @@ void LoadCondition(TReadScriptFile &Script, TMoveUseCondition &Condition) {
 	}
 }
 
-// 0x0807c500  moveuse.c:1953
 void LoadAction(TReadScriptFile &Script, TMoveUseAction &Action) {
 	char Ident[30];
 	strcpy(Ident, Script.getIdentifier());
@@ -2468,7 +2431,6 @@ void LoadAction(TReadScriptFile &Script, TMoveUseAction &Action) {
 	}
 }
 
-// 0x0807d100  moveuse.c:2002
 void LoadDataBase() {
 	char FileName[4096];
 	print(1, "Lade Move/Use-Datenbank ...\n");
@@ -2567,7 +2529,6 @@ void LoadDataBase() {
 			MoveUseDatabases[3].NumberOfRules, MoveUseDatabases[4].NumberOfRules);
 }
 
-// 0x0807d520  moveuse.c:2084
 void InitMoveUse() {
 	NumberOfMoveUseConditions = 0;
 	NumberOfMoveUseActions = 0;
@@ -2575,7 +2536,6 @@ void InitMoveUse() {
 	DelayedMails = 0;
 }
 
-// 0x0807d560  moveuse.c:2095
 void ExitMoveUse() {
 	for (int i = 0; i < DelayedMails; i++) {
 		error("ExitMoveUse: Paket an %ld wurde nicht zugestellt.\n", (long)(int32_t)DelayedMail(i).CharacterID);

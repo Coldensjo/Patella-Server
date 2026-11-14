@@ -202,23 +202,14 @@ enum SPECIALMEANING {
 const int SPECIALMEANINGS = 49;
 
 struct ObjectType {
-	// inline  objects.h:79
 	ObjectType(const ObjectType &Other) { setTypeID(Other.TypeID); }
-	// inline  objects.h:80
 	ObjectType(int TypeID = 0) { setTypeID(TypeID); }
-	// inline  objects.h:81
 	ObjectType operator=(ObjectType Other) { setTypeID(Other.TypeID); return *this; }
-	// inline  objects.h:82
 	bool operator==(ObjectType Other) { return TypeID == Other.TypeID; }
-	// inline  objects.h:83
 	bool operator!=(ObjectType Other) { return !(*this == Other); }
-	// inline  objects.h:85
 	int getTypeID() { return TypeID; }
-	// inline  objects.h:86
 	bool isMapContainer() { return TypeID == 0; }
-	// inline  objects.h:87
 	bool isBodyContainer() { return in(TypeID, 1, 10); }
-	// inline  objects.h:88
 	bool isCreature() { return TypeID == 99; }
 	const char *getName(int Count);
 	const char *getDescription();

@@ -206,15 +206,15 @@ uint32_t Dispatcher::requireWorld(const Session &session) const {
 	return session.worldId;
 }
 
-// Query 0, login. Sent by TQueryManagerConnection::connect (0x80e04b0) right
-// after the TCP connect, with a 30 second timeout.
+// Query 0, login. Sent by TQueryManagerConnection::connect right after the
+// TCP connect, with a 30 second timeout.
 //   request:  byte ApplicationType, string Password,
 //             string LoginData (only if ApplicationType is 1)
 //   response: status only
 // connect() treats every status other than 0 as "Anmeldung fehlgeschlagen"
 // and reads nothing else. The password is the one from the QueryManager
-// entry in .tibia after DisguisePassword (config.c, 0x8052c10); for the game
-// server LoginData is its world name (InitAll 0x804c6d0).
+// entry in .tibia after DisguisePassword (config.c); for the game server
+// LoginData is its world name (InitAll).
 void Dispatcher::handleLogin(Session &session, ReadBuffer &in, WriteBuffer &out) {
 	uint8_t applicationType = in.readByte();
 	std::string password = in.readString();
@@ -335,8 +335,8 @@ void Dispatcher::handleLoginAccount(Session &session, ReadBuffer &in, WriteBuffe
 	Detail += format(" characters=%zu premium_days=%u", entries.size(), premiumDays);
 }
 
-// Query 53, loadWorldConfig (0x80e1950), called once by LoadWorldConfig
-// (main.c, 0x804c570) on a connection of its own.
+// Query 53, loadWorldConfig, called once by LoadWorldConfig (main.c) on a
+// connection of its own.
 //   request:  nothing
 //   response: byte WorldType, byte RebootTime, 4 bytes IPAddress, word Port,
 //             word MaxPlayers, word PremiumPlayerBuffer, word MaxNewbies,
@@ -368,8 +368,8 @@ void Dispatcher::handleLoadWorldConfig(Session &session, ReadBuffer &, WriteBuff
 		static_cast<unsigned>(config.premiumNewbieBuffer));
 }
 
-// Query 50, loadPlayers (0x80e6590), called by InitPlayerIndex (crplayer.c,
-// 0x80a8d80) to build the name index of all characters of the world.
+// Query 50, loadPlayers, called by InitPlayerIndex (crplayer.c) to build the
+// name index of all characters of the world.
 //   request:  quad MinimumCharacterID
 //   response: quad NumberOfPlayers, then per player string Name,
 //             quad CharacterID
@@ -388,8 +388,8 @@ void Dispatcher::handleLoadPlayers(Session &session, ReadBuffer &in, WriteBuffer
 	Detail = format("minimum=%u players=%zu", minimumId, players.size());
 }
 
-// Query 20, loginGame (0x80e1c10), called by PerformRegistration
-// (communication.c, 0x80dce70) on a pool connection when a client logs in.
+// Query 20, loginGame, called by PerformRegistration (communication.c) on a
+// pool connection when a client logs in.
 //   request:  quad AccountID, string PlayerName, string Password,
 //             string IPAddress, flag PrivateWorld,
 //             flag PremiumAccountRequired, flag GamemasterRequired
@@ -519,8 +519,8 @@ void Dispatcher::handleLoginGame(Session &session, ReadBuffer &in, WriteBuffer &
 	Detail += format(" buddies=%zu rights=%zu", buddies.size(), rights.size());
 }
 
-// Query 21, logoutGame (0x80e3010), called by ProcessLogoutOrder (writer.c,
-// 0x806a270) on the writer thread's connection when a player leaves.
+// Query 21, logoutGame, called by ProcessLogoutOrder (writer.c) on the
+// writer thread's connection when a player leaves.
 //   request:  quad CharacterID, word Level, string Profession,
 //             string Residence, quad LastLoginTime, word TutorActivities
 //   response: status only
@@ -542,10 +542,10 @@ void Dispatcher::handleLogoutGame(Session &session, ReadBuffer &in, WriteBuffer 
 		static_cast<unsigned>(tutorActivities));
 }
 
-// Query 32, decrementIsOnline (0x80e46e0), called by PerformRegistration
-// (0x80dce70) and HandleLogin (0x80dd5b0) when a login that loginGame
-// accepted does not lead to the player entering the game (connection gone,
-// no free slot, waiting list, premium-only world).
+// Query 32, decrementIsOnline, called by PerformRegistration and HandleLogin
+// when a login that loginGame accepted does not lead to the player entering
+// the game (connection gone, no free slot, waiting list, premium-only
+// world).
 //   request:  quad CharacterID
 //   response: status only
 void Dispatcher::handleDecrementIsOnline(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -558,8 +558,8 @@ void Dispatcher::handleDecrementIsOnline(Session &session, ReadBuffer &in, Write
 	Detail = format("character=%u", characterId);
 }
 
-// Query 46, clearIsOnline (0x80e6080), called by InitWriter (writer.c,
-// 0x806b830) at start and by ClearPlayers (0x806b7e0).
+// Query 46, clearIsOnline, called by InitWriter (writer.c) at start and by
+// ClearPlayers.
 //   request:  nothing
 //   response: word NumberOfAffectedPlayers
 // The game logs an error if the number is not zero ("%d Spieler waren als
@@ -571,9 +571,8 @@ void Dispatcher::handleClearIsOnline(Session &session, ReadBuffer &, WriteBuffer
 	Detail = format("affected=%u", affected);
 }
 
-// Query 47, createPlayerlist (0x80e6170), called by ProcessPlayerlistOrder
-// (writer.c, 0x806a340); the order comes from CreatePlayerList (crplayer.c,
-// 0x80a76a0).
+// Query 47, createPlayerlist, called by ProcessPlayerlistOrder (writer.c);
+// the order comes from CreatePlayerList (crplayer.c).
 //   request:  word NumberOfPlayers, then per player string Name, word Level,
 //             string Profession
 //   response: flag NewRecord
@@ -614,8 +613,8 @@ void Dispatcher::handleCreatePlayerlist(Session &session, ReadBuffer &in, WriteB
 	out.writeFlag(newRecord);
 }
 
-// Query 48, logKilledCreatures (0x80e63b0), called by
-// ProcessKillStatisticsOrder (writer.c, 0x806a560).
+// Query 48, logKilledCreatures, called by ProcessKillStatisticsOrder
+// (writer.c).
 //   request:  word NumberOfRaces, then per race string Name,
 //             quad KilledPlayers, quad KilledCreatures
 //   response: status only
@@ -636,8 +635,8 @@ void Dispatcher::handleLogKilledCreatures(Session &session, ReadBuffer &in, Writ
 	Detail = format("races=%u", static_cast<unsigned>(count));
 }
 
-// Query 29, logCharacterDeath (0x80e4230), called by
-// ProcessCharacterDeathOrder (writer.c, 0x806b150).
+// Query 29, logCharacterDeath, called by ProcessCharacterDeathOrder
+// (writer.c).
 //   request:  quad CharacterID, word Level, quad Offender, string Remark,
 //             flag Unjustified, quad Time
 //   response: status only
@@ -655,8 +654,7 @@ void Dispatcher::handleLogCharacterDeath(Session &session, ReadBuffer &in, Write
 	Detail = format("character=%u offender=%u", death.characterId, death.offenderId);
 }
 
-// Query 30, addBuddy (0x80e4480), called by ProcessAddBuddyOrder (writer.c,
-// 0x806b1e0).
+// Query 30, addBuddy, called by ProcessAddBuddyOrder (writer.c).
 //   request:  quad AccountID, quad Buddy (a character id)
 //   response: status only
 void Dispatcher::handleAddBuddy(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -668,8 +666,7 @@ void Dispatcher::handleAddBuddy(Session &session, ReadBuffer &in, WriteBuffer &o
 	Detail = format("account=%u buddy=%u", accountId, buddyId);
 }
 
-// Query 31, removeBuddy (0x80e45b0), called by ProcessRemoveBuddyOrder
-// (writer.c, 0x806b250).
+// Query 31, removeBuddy, called by ProcessRemoveBuddyOrder (writer.c).
 //   request:  quad AccountID, quad Buddy
 //   response: status only
 void Dispatcher::handleRemoveBuddy(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -681,8 +678,8 @@ void Dispatcher::handleRemoveBuddy(Session &session, ReadBuffer &in, WriteBuffer
 	Detail = format("account=%u buddy=%u", accountId, buddyId);
 }
 
-// Query 45, insertHouses (0x80e5c80), called by LoadHouses (houses.c,
-// 0x8065790) at every start with all houses of dat/houses.dat.
+// Query 45, insertHouses, called by LoadHouses (houses.c) at every start
+// with all houses of dat/houses.dat.
 //   request:  word NumberOfHouses, then per house word HouseID, string Name,
 //             quad Rent, string Description, word Size, word PositionX,
 //             word PositionY, byte PositionZ, string Town, flag Guildhouse
@@ -711,8 +708,8 @@ void Dispatcher::handleInsertHouses(Session &session, ReadBuffer &in, WriteBuffe
 	Detail = format("houses=%u", static_cast<unsigned>(count));
 }
 
-// Query 42, getHouseOwners (0x80e57c0), called by LoadOwners (houses.c,
-// 0x80663d0) and StartAuctions (0x8064b30).
+// Query 42, getHouseOwners, called by LoadOwners (houses.c) and
+// StartAuctions.
 //   request:  nothing
 //   response: word NumberOfHouses, then per house word HouseID,
 //             quad OwnerID, string OwnerName, quad PaidUntil
@@ -733,8 +730,8 @@ void Dispatcher::handleGetHouseOwners(Session &session, ReadBuffer &, WriteBuffe
 	Detail = format("owners=%zu", owners.size());
 }
 
-// Query 39, insertHouseOwner (0x80e53e0), called by StartAuctions
-// (0x8064b30) for a rented house the query manager did not list.
+// Query 39, insertHouseOwner, called by StartAuctions for a rented house the
+// query manager did not list.
 //   request:  word HouseID, quad OwnerID, quad PaidUntil
 //   response: status only
 void Dispatcher::handleInsertHouseOwner(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -749,8 +746,8 @@ void Dispatcher::handleInsertHouseOwner(Session &session, ReadBuffer &in, WriteB
 	Detail = format("house=%u owner=%u", static_cast<unsigned>(houseId), ownerId);
 }
 
-// Query 40, updateHouseOwner (0x80e5550), called by StartAuctions
-// (0x8064b30) for a listed house whose owner or PaidUntil differs.
+// Query 40, updateHouseOwner, called by StartAuctions for a listed house
+// whose owner or PaidUntil differs.
 //   request:  word HouseID, quad OwnerID, quad PaidUntil
 //   response: status only
 // StartAuctions sends this for every listed house that differs, also for
@@ -770,10 +767,10 @@ void Dispatcher::handleUpdateHouseOwner(Session &session, ReadBuffer &in, WriteB
 		existed ? "" : " (no entry)");
 }
 
-// Query 41, deleteHouseOwner (0x80e56c0), called by CollectRents (0x8063760)
-// for the houses it emptied because of a transfer or one of the three evict
-// lists, and by StartAuctions (0x8064b30) for a listed house that has no
-// owner any more (a tenant thrown out for the rent).
+// Query 41, deleteHouseOwner, called by CollectRents for the houses it
+// emptied because of a transfer or one of the three evict lists, and by
+// StartAuctions for a listed house that has no owner any more (a tenant
+// thrown out for the rent).
 //   request:  word HouseID
 //   response: status only
 // A missing entry is not an error, as with updateHouseOwner: the house has
@@ -785,7 +782,7 @@ void Dispatcher::handleDeleteHouseOwner(Session &session, ReadBuffer &in, WriteB
 	Detail = format("house=%u%s", static_cast<unsigned>(houseId), existed ? "" : " (no entry)");
 }
 
-// Query 43, getAuctions (0x80e5a10), called by StartAuctions (0x8064b30).
+// Query 43, getAuctions, called by StartAuctions.
 //   request:  nothing
 //   response: word NumberOfAuctions, then that many word HouseID
 // The game starts an auction for every house without an owner that is not
@@ -800,7 +797,7 @@ void Dispatcher::handleGetAuctions(Session &session, ReadBuffer &, WriteBuffer &
 	Detail = format("auctions=%zu", houses.size());
 }
 
-// Query 44, startAuction (0x80e5b80), called by StartAuctions (0x8064b30).
+// Query 44, startAuction, called by StartAuctions.
 //   request:  word HouseID
 //   response: status only
 void Dispatcher::handleStartAuction(Session &session, ReadBuffer &in, WriteBuffer &out) {
@@ -813,8 +810,7 @@ void Dispatcher::handleStartAuction(Session &session, ReadBuffer &in, WriteBuffe
 	Detail = format("house=%u", static_cast<unsigned>(houseId));
 }
 
-// Query 33, finishAuctions (0x80e47e0), called by FinishAuctions (houses.c,
-// 0x80630a0) at start.
+// Query 33, finishAuctions, called by FinishAuctions (houses.c) at start.
 //   request:  nothing
 //   response: word NumberOfAuctions, then per auction word HouseID,
 //             quad CharacterID, string CharacterName, quad Bid
@@ -836,10 +832,9 @@ void Dispatcher::handleFinishAuctions(Session &session, ReadBuffer &, WriteBuffe
 	Detail = format("finished=%zu", results.size());
 }
 
-// Query 51, excludeFromAuctions (0x80e4a30), called by FinishAuctions
-// (0x80630a0) with Banish = true for an auction winner who cannot pay, and
-// by CollectRents (0x8063760) with Banish = false for a tenant who is thrown
-// out for not paying the rent.
+// Query 51, excludeFromAuctions, called by FinishAuctions with
+// Banish = true for an auction winner who cannot pay, and by CollectRents
+// with Banish = false for a tenant who is thrown out for not paying the rent.
 //   request:  quad CharacterID, flag Banish
 //   response: status only
 // How long a banished character stays excluded is not visible in bin/game;
@@ -852,8 +847,8 @@ void Dispatcher::handleExcludeFromAuctions(Session &session, ReadBuffer &in, Wri
 	Detail = format("character=%u banish=%d", characterId, banish ? 1 : 0);
 }
 
-// Query 35, transferHouses (0x80e4b40), called by CollectRents (0x8063760)
-// at start ("Bearbeite freiwillige Kuendigungen").
+// Query 35, transferHouses, called by CollectRents at start ("Bearbeite
+// freiwillige Kuendigungen").
 //   request:  nothing
 //   response: word NumberOfTransfers, then per transfer word HouseID,
 //             quad NewOwnerID, string NewOwnerName, quad Price
@@ -874,8 +869,8 @@ void Dispatcher::handleTransferHouses(Session &session, ReadBuffer &, WriteBuffe
 	Detail = format("transfers=%zu", transfers.size());
 }
 
-// Query 52, cancelHouseTransfer (0x80e4d90), called by CollectRents
-// (0x8063760) when the buyer of a house cannot pay the price.
+// Query 52, cancelHouseTransfer, called by CollectRents when the buyer of a
+// house cannot pay the price.
 //   request:  word HouseID
 //   response: status only
 // The game logs the statement this stands for: "UPDATE HouseOwners SET
@@ -888,8 +883,7 @@ void Dispatcher::handleCancelHouseTransfer(Session &session, ReadBuffer &in, Wri
 	Detail = format("house=%u%s", static_cast<unsigned>(houseId), existed ? "" : " (no entry)");
 }
 
-// Query 36, evictFreeAccounts (0x80e4e90), called by CollectRents
-// (0x8063760) at start.
+// Query 36, evictFreeAccounts, called by CollectRents at start.
 //   request:  nothing
 //   response: word NumberOfEvictions, then per eviction word HouseID,
 //             quad OwnerID
@@ -907,8 +901,7 @@ void Dispatcher::handleEvictFreeAccounts(Session &session, ReadBuffer &, WriteBu
 	Detail = format("evictions=%zu", evictions.size());
 }
 
-// Query 37, evictDeletedCharacters (0x80e5030), called by CollectRents
-// (0x8063760) at start.
+// Query 37, evictDeletedCharacters, called by CollectRents at start.
 //   request:  nothing
 //   response: word NumberOfEvictions, then that many word HouseID
 // The game empties each listed house ("Besitzer von Haus %d ist geloescht").
@@ -922,8 +915,8 @@ void Dispatcher::handleEvictDeletedCharacters(Session &session, ReadBuffer &, Wr
 	Detail = format("evictions=%zu", houses.size());
 }
 
-// Query 38, evictExGuildleaders (0x80e51a0), called by CollectRents
-// (0x8063760) at start if at least one guildhouse is rented.
+// Query 38, evictExGuildleaders, called by CollectRents at start if at least
+// one guildhouse is rented.
 //   request:  word NumberOfGuildhouses, then per guildhouse word HouseID,
 //             quad Guildleader (the owner of the house)
 //   response: word NumberOfEvictions, then that many word HouseID
