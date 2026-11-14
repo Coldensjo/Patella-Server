@@ -1,15 +1,18 @@
 // The login protocol: a login packet built the way the client builds it,
-// the answers and their encryption. All data is made up.
+// the answers and their encryption. All data is made up; the RSA key is made
+// when the test runs and read from a key file, as the login server reads it.
 
-#include "RSA_PrivateKey.hh"
 #include "TRSAPublicKey.hh"
 #include "login.hh"
+#include "rsakeyfile.hh"
 #include "test.hh"
 #include "vlong.hh"
 
+#include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 using namespace ls;
@@ -17,6 +20,27 @@ using namespace ls;
 namespace {
 
 const uint8_t TestKey[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+// The test's RSA key: its file and its modulus P*Q.
+std::string KeyFile;
+vlong Modulus;
+
+// Makes a new key and writes it into a key file in a new folder.
+void makeKey(char *folder) {
+	if (mkdtemp(folder) == nullptr) {
+		throw std::runtime_error("cannot make a folder for the key file");
+	}
+	std::string p;
+	std::string q;
+	GenerateRSAPrimes(p, q);
+	KeyFile = std::string(folder) + "/key.pem";
+	WriteRSAKeyFile(KeyFile, MakeRSAKeyPEM(p, q));
+	vlong primeP;
+	vlong primeQ;
+	vlong::convert(p.c_str(), primeP);
+	vlong::convert(q.c_str(), primeQ);
+	Modulus = primeP * primeQ;
+}
 
 void putWord(std::vector<uint8_t> &data, uint16_t value) {
 	data.push_back(static_cast<uint8_t>(value));
@@ -42,13 +66,9 @@ std::vector<uint8_t> loginPacket(uint16_t system, uint16_t version, uint32_t acc
 	}
 	block.resize(RSA_BLOCK_SIZE);
 
-	vlong p;
-	vlong q;
-	vlong::convert(RSA_PRIME_P, p);
-	vlong::convert(RSA_PRIME_Q, q);
 	vlong plain;
 	vlong::convert(block.data(), RSA_BLOCK_SIZE, plain);
-	vlong cipher = vlong::modexp(plain, RSA_EXPONENT, p * q);
+	vlong cipher = vlong::modexp(plain, RSA_EXPONENT, Modulus);
 	uint8_t encrypted[RSA_BLOCK_SIZE];
 	vlong::convert(cipher, encrypted, RSA_BLOCK_SIZE);
 
@@ -83,10 +103,28 @@ void testParse(LoginKey &key) {
 	CHECK(parseLogin(loginPacket(2, 772, 1, std::string(40, 'x')), key, request) == ParseResult::Ok);
 	CHECK(request.password == std::string(29, 'x'));
 
-	// A block made with another key does not start with 0.
-	std::vector<uint8_t> packet = loginPacket(2, 772, 1, "a");
-	packet[40] ^= 0x01;
-	CHECK(parseLogin(packet, key, request) == ParseResult::BadBlock);
+	// A block that does not decrypt to one starting with 0, as one made with
+	// another key: the client's block with 1 in front.
+	CHECK(parseLogin(loginPacket(2, 772, 1, "a", 1), key, request) == ParseResult::BadBlock);
+
+	// A block changed on the way. One change in 256 still decrypts to a block
+	// starting with 0 (issue #1), and which ones do depends on the key, so
+	// the first bit flip from packet[40] on that does not is taken.
+	const std::vector<uint8_t> packet = loginPacket(2, 772, 1, "a");
+	const size_t blockStart = LOGIN_PACKET_SIZE - RSA_BLOCK_SIZE;
+	bool flipped = false;
+	for (size_t bit = 40 * 8; bit < LOGIN_PACKET_SIZE * 8 && !flipped; bit++) {
+		std::vector<uint8_t> changed = packet;
+		changed[bit / 8] ^= static_cast<uint8_t>(1 << (bit % 8));
+		uint8_t block[RSA_BLOCK_SIZE];
+		std::memcpy(block, changed.data() + blockStart, RSA_BLOCK_SIZE);
+		key.decrypt(block);
+		if (block[0] != 0) {
+			CHECK(parseLogin(changed, key, request) == ParseResult::BadBlock);
+			flipped = true;
+		}
+	}
+	CHECK(flipped);
 
 	// A password longer than the block.
 	LoginRequest corrupt;
@@ -185,12 +223,31 @@ void testFrames() {
 	CHECK_THROWS(encryptFrame(std::vector<uint8_t>(MAX_ANSWER_SIZE + 1, 1), TestKey, seed), std::runtime_error);
 }
 
+void testKeyFile(const char *folder) {
+	LoginKey key(KeyFile);
+	CHECK(!key.modulus().empty() && key.modulus().find_first_not_of("0123456789") == std::string::npos);
+
+	std::string missing = std::string(folder) + "/missing.pem";
+	std::string error;
+	try {
+		LoginKey none(missing);
+	} catch (const std::runtime_error &e) {
+		error = e.what();
+	}
+	CHECK(error == missing + ": cannot open the key file: No such file or directory");
+}
+
 void all() {
-	LoginKey key;
+	char folder[] = "/tmp/patella-ls-test-XXXXXX";
+	makeKey(folder);
+	LoginKey key(KeyFile);
 	testTerminals();
 	testParse(key);
 	testAnswers();
 	testFrames();
+	testKeyFile(folder);
+	unlink(KeyFile.c_str());
+	rmdir(folder);
 }
 
 } // namespace

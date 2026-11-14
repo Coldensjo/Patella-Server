@@ -2,12 +2,14 @@
 
 find_package(Threads REQUIRED)
 
-# The game server's own crypto units, built with the game's flags (see
-# src/CMakeLists.txt): the login server uses the same RSA key and XTEA.
+# The game server's own crypto units and key file reader, built with the
+# game's flags (see src/CMakeLists.txt): the login server uses the same RSA
+# key file and XTEA.
 add_library(ls_crypto STATIC
 	${PROJECT_SOURCE_DIR}/src/TRSAPrivateKey.cc
 	${PROJECT_SOURCE_DIR}/src/TXTEASymmetricKey.cc
 	${PROJECT_SOURCE_DIR}/src/vlong.cc
+	${PROJECT_SOURCE_DIR}/src/rsakeyfile.cc
 )
 target_include_directories(ls_crypto PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_compile_options(ls_crypto PRIVATE
@@ -24,7 +26,7 @@ add_library(ls_login STATIC
 	${PROJECT_SOURCE_DIR}/querymanager/src/log.cc
 )
 target_include_directories(ls_login PUBLIC src)
-target_link_libraries(ls_login PUBLIC ls_crypto rsa_private_key qm_protocol Threads::Threads)
+target_link_libraries(ls_login PUBLIC ls_crypto qm_protocol Threads::Threads)
 
 add_executable(loginserver src/main.cc)
 target_link_libraries(loginserver PRIVATE ls_login)

@@ -3,8 +3,9 @@
 // The client side is Patella-Plus (C:\Tibia\Patella-Plus\src); the names of
 // the packet types are those of its Protocol.h, the field layouts those of
 // the functions named at each item. Encryption is the game server's own:
-// the RSA key and the XTEA cipher of src/ (TRSAPrivateKey, TXTEASymmetricKey,
-// RSA_PrivateKey.hh), so the client uses one RsaModulus for both servers.
+// the RSA key and the XTEA cipher of src/ (TRSAPrivateKey, TXTEASymmetricKey),
+// with the game server's key file (src/rsakeyfile.hh), so the client uses one
+// RsaModulus for both servers.
 //
 // Framing (Network.cpp SendCommand and PrepareNextPacket):
 //   client to server, the login packet only, unencrypted:
@@ -111,16 +112,23 @@ const int TERMINAL_TYPES = 3;
 const uint16_t TERMINAL_VERSION[TERMINAL_TYPES] = {770, 770, 770};
 bool isTerminalSupported(uint16_t terminalType, uint16_t terminalVersion);
 
-// The game server's RSA key. The decryption is serialised, as in the game
-// (RSAMutex): vlong shares its values between copies without locking.
+// The game server's RSA key, from its key file. The decryption is
+// serialised, as in the game (RSAMutex): vlong shares its values between
+// copies without locking.
 class LoginKey {
 public:
-	LoginKey();
+	// Reads the key file (src/rsakeyfile.hh). Throws std::runtime_error
+	// "<file>: <what>" when it cannot be read or holds no key the client can
+	// use.
+	explicit LoginKey(const std::string &fileName);
 	// Decrypts the block in place. Throws std::runtime_error.
 	void decrypt(uint8_t block[RSA_BLOCK_SIZE]);
+	// The modulus, in decimal: the client's RsaModulus.
+	const std::string &modulus() const { return Modulus; }
 
 private:
 	TRSAPrivateKey Key;
+	std::string Modulus;
 	std::mutex Mutex;
 };
 
