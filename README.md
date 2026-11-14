@@ -4,8 +4,9 @@ A C++ rebuild of the 2006 Tibia game server (`bin/game`), with its own query
 manager (SQLite) and a login server for 7.72 clients.
 
 This repository contains no CipSoft files apart from what `data/` holds: the
-original installation's config, converted to TOML. To run the server you need
-your own copy of the original installation (data, maps, monsters, NPCs).
+original installation's config and object types, converted to TOML. To run the
+server you need your own copy of the original installation (data, maps,
+monsters, NPCs).
 
 ## Build
 
@@ -31,6 +32,16 @@ installation. Keep the installation's `.tibia` there too: the original scripts
 and operator tools in its `bin/` still read it (`reboot-daily`, which the game
 runs for its daily reboot, and `gamelogs-backup` from `/game/.tibia`;
 `highscores`, `deloldusr`, `pl` and the other programs from `$HOME/.tibia`).
+
+## Object types
+
+The game reads the object types (items, grounds, walls, corpses, ...) from
+`items.toml` in its data folder (`[paths] data`). `data/items.toml` is the
+original installation's `dat/objects.srv` converted with
+`patella-convert items objects.srv items.toml`; copy it into the
+installation's data folder. The comments at its top explain the fields. Keep
+`objects.srv` there too: the original operator tools (`highscores`,
+`deloldusr`, `mgrep`, `ugrep`, `tempel`) still read it.
 
 ## License
 

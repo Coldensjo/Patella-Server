@@ -8,17 +8,24 @@
 //     config.toml then belongs in the installation's folder. OUTPUT "-" is
 //     standard output. Entries the game read and dropped are named on
 //     standard error and left out.
+//
+//   patella-convert items OBJECTS_SRV OUTPUT
+//     The object types: objects.srv to items.toml, which belongs in the
+//     installation's data folder. OUTPUT "-" is standard output.
 
 #include <cstdio>
 #include <cstring>
 #include <string>
 
 #include "config_writer.hh"
+#include "items_writer.hh"
+#include "objects_srv.hh"
 #include "tibia_config.hh"
 #include "tomlwrite.hh"
 
 static int Usage() {
-	fprintf(stderr, "usage: patella-convert config [--base DIR] TIBIA OUTPUT\n");
+	fprintf(stderr, "usage: patella-convert config [--base DIR] TIBIA OUTPUT\n"
+			"       patella-convert items OBJECTS_SRV OUTPUT\n");
 	return 2;
 }
 
@@ -51,6 +58,17 @@ static int ConvertConfig(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertItems(int argc, char **argv) {
+	if (argc != 2 || (argv[0][0] == '-' && argv[0][1] != 0)) {
+		return Usage();
+	}
+
+	TObjectsSrvExtras Extras;
+	ReadObjectsSrv(argv[0], Extras);
+	WriteTextFile(argv[1], ItemsToToml(Extras));
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		return Usage();
@@ -59,6 +77,9 @@ int main(int argc, char **argv) {
 	try {
 		if (strcmp(argv[1], "config") == 0) {
 			return ConvertConfig(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "items") == 0) {
+			return ConvertItems(argc - 2, argv + 2);
 		}
 	} catch (const char *Text) {
 		fprintf(stderr, "patella-convert: %s\n", Text);

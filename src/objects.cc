@@ -1,13 +1,18 @@
 // objects.cc: the object types: their table (ObjectTypes), loaded from
-// objects.srv, the names of their flags and attributes, the special objects
-// (GetSpecialObject), and the conversion of an old group and number to a type
-// number (conversion.lst).
+// items.toml (data/items.toml in the repository, converted from the original
+// objects.srv by tools/convert), the names of their flags and attributes, the
+// special objects (GetSpecialObject), and the conversion of an old group and
+// number to a type number (conversion.lst).
+
+#include "tomlfile.hh"
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <string>
+#include <vector>
 
 #include "config.hh"
 #include "script.hh"
@@ -16,14 +21,6 @@
 #include "mudinc.hh"
 #include "strings.hh"
 #include "utils.hh"
-
-struct TObjectType {
-	const char *Name;
-	const char *Description;
-	unsigned char Flags[(FLAGS + 7) / 8];
-	uint32_t Attributes[TYPEATTRIBUTES];
-	int AttributeOffsets[INSTANCEATTRIBUTES];
-};
 
 char FlagNames[FLAGS][20] = {
 	"Bank",
@@ -157,6 +154,141 @@ char TypeAttributeNames[TYPEATTRIBUTES][30] = {
 	"DisguiseTarget",
 	"Meaning",
 };
+// The flags and type attributes as items.toml names them: the names above in
+// snake_case ("Keydoor" and "Wearout" as "key_door" and "wear_out", as the
+// flags write them).
+const char *const FlagKeys[FLAGS] = {
+	"bank",
+	"clip",
+	"bottom",
+	"top",
+	"container",
+	"chest",
+	"cumulative",
+	"use_event",
+	"change_use",
+	"force_use",
+	"multi_use",
+	"dist_use",
+	"movement_event",
+	"collision_event",
+	"separation_event",
+	"key",
+	"key_door",
+	"name_door",
+	"level_door",
+	"quest_door",
+	"bed",
+	"food",
+	"rune",
+	"information",
+	"text",
+	"write",
+	"write_once",
+	"liquid_container",
+	"liquid_source",
+	"liquid_pool",
+	"teleport_absolute",
+	"teleport_relative",
+	"unpass",
+	"unmove",
+	"unthrow",
+	"unlay",
+	"avoid",
+	"magic_field",
+	"restrict_level",
+	"restrict_profession",
+	"take",
+	"hang",
+	"hook_south",
+	"hook_east",
+	"rotate",
+	"destroy",
+	"clothes",
+	"skill_boost",
+	"protection",
+	"light",
+	"rope_spot",
+	"corpse",
+	"expire",
+	"expire_stop",
+	"wear_out",
+	"weapon",
+	"shield",
+	"bow",
+	"throw",
+	"wand",
+	"ammo",
+	"armor",
+	"height",
+	"disguise",
+	"show_detail",
+	"special",
+};
+const char *const TypeAttributeKeys[TYPEATTRIBUTES] = {
+	"waypoints",
+	"capacity",
+	"change_target",
+	"key_door_target",
+	"name_door_target",
+	"level_door_target",
+	"quest_door_target",
+	"nutrition",
+	"information_type",
+	"font_size",
+	"max_length",
+	"max_length_once",
+	"source_liquid_type",
+	"abs_teleport_effect",
+	"rel_teleport_displacement",
+	"rel_teleport_effect",
+	"avoid_damage_types",
+	"minimum_level",
+	"professions",
+	"weight",
+	"rotate_target",
+	"destroy_target",
+	"body_position",
+	"skill_number",
+	"skill_modification",
+	"protection_damage_types",
+	"damage_reduction",
+	"brightness",
+	"light_color",
+	"corpse_type",
+	"total_expire_time",
+	"expire_target",
+	"total_uses",
+	"wear_out_target",
+	"weapon_type",
+	"weapon_attack_value",
+	"weapon_defend_value",
+	"shield_defend_value",
+	"bow_range",
+	"bow_ammo_type",
+	"throw_range",
+	"throw_attack_value",
+	"throw_defend_value",
+	"throw_missile",
+	"throw_special_effect",
+	"throw_effect_strength",
+	"throw_fragility",
+	"wand_range",
+	"wand_mana_consumption",
+	"wand_attack_strength",
+	"wand_attack_variation",
+	"wand_damage_type",
+	"wand_missile",
+	"ammo_type",
+	"ammo_attack_value",
+	"ammo_missile",
+	"ammo_special_effect",
+	"ammo_effect_strength",
+	"armor_value",
+	"elevation",
+	"disguise_target",
+	"meaning",
+};
 FLAG TypeAttributeFlags[TYPEATTRIBUTES] = {
 	BANK, CONTAINER, CHANGEUSE, KEYDOOR,
 	NAMEDOOR, LEVELDOOR, QUESTDOOR, FOOD,
@@ -205,115 +337,149 @@ int GetTypeAttributeByName(char *Name) {
 	return -1;
 }
 
-void LoadObjects() {
-	char FileName[4096];
-	sprintf(FileName, "%s/objects.srv", DATAPATH);
+// The longest name or description: the longest string the script reader of
+// objects.srv took.
+const int MAX_OBJECT_TEXT_LENGTH = TReadScriptFile::MAXIMUMSTRINGLENGTH - 2;
 
-	TReadScriptFile Script;
-	Script.open(FileName);
+// The highest type number items.toml may give: a type is a 16-bit number on
+// the wire.
+const int MAX_TYPEID = 65535;
+
+static int GetFlagByKey(const std::string &Key) {
+	for (int i = 0; i < FLAGS; i++) {
+		if (Key == FlagKeys[i]) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+static int GetTypeAttributeByKey(const std::string &Key) {
+	for (int i = 0; i < TYPEATTRIBUTES; i++) {
+		if (Key == TypeAttributeKeys[i]) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+// The name or the description of an [[item]] as a static string, or nullptr
+// when the entry has none.
+static const char *ReadObjectText(const toml::table &Entry, const char *Key) {
+	static char Text[MAX_OBJECT_TEXT_LENGTH + 1];
+	if (!TomlGetString(Entry, Key, Text, sizeof(Text))) {
+		return nullptr;
+	}
+	return AddStaticString(Text);
+}
+
+// One [[item]] of items.toml. The type's entry in ObjectTypes is filled anew
+// from its name, description, flags and attributes, as a TypeID of objects.srv
+// did. Defined notes the types filled so far.
+static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
+	if (!Node.is_table()) {
+		TomlError(Node.source(), "an entry of item must be a table");
+	}
+
+	const toml::table &Entry = *Node.as_table();
+	TomlCheckKeys(Entry, "[[item]]", {"id", "name", "description", "flags", "attributes"});
+	if (!Entry.contains("id")) {
+		TomlError(Node.source(), "an entry of item needs id");
+	}
 
 	int TypeID = -1;
-	while (true) {
-		Script.nextToken();
-		if (Script.Token == ENDOFFILE) {
-			break;
-		}
+	TomlGetNumber(Entry, "id", TypeID, 0, MAX_TYPEID);
+	if (Defined[TypeID]) {
+		TomlError(Entry.get("id")->source(), "type %d is defined twice", TypeID);
+	}
+	Defined[TypeID] = true;
 
-		if (Script.Token != IDENTIFIER) {
-			Script.error("Identifier expected");
-		}
+	TObjectType &Type = ObjectTypes(TypeID);
+	Type.Name = nullptr;
+	Type.Description = nullptr;
+	memset(Type.Flags, 0, sizeof(Type.Flags));
+	for (int i = 0; i < TYPEATTRIBUTES; i++) {
+		Type.Attributes[i] = 0;
+	}
+	for (int i = 0; i < INSTANCEATTRIBUTES; i++) {
+		Type.AttributeOffsets[i] = -1;
+	}
 
-		char Ident[30];
-		strcpy(Ident, Script.getIdentifier());
-		Script.readSymbol('=');
+	Type.Name = ReadObjectText(Entry, "name");
+	Type.Description = ReadObjectText(Entry, "description");
 
-		if (strcmp(Ident, "typeid") == 0) {
-			TypeID = Script.readNumber();
-			ObjectTypes(TypeID).Name = nullptr;
-			ObjectTypes(TypeID).Description = nullptr;
-			memset(ObjectTypes(TypeID).Flags, 0, sizeof(ObjectTypes(TypeID).Flags));
-			for (int i = 0; i < TYPEATTRIBUTES; i++) {
-				ObjectTypes(TypeID).Attributes[i] = 0;
+	if (const toml::array *Flags = TomlGetArray(Entry, "flags")) {
+		for (const toml::node &FlagNode : *Flags) {
+			if (!FlagNode.is_string()) {
+				TomlError(FlagNode.source(), "a flag must be a string");
 			}
-			for (int i = 0; i < INSTANCEATTRIBUTES; i++) {
-				ObjectTypes(TypeID).AttributeOffsets[i] = -1;
+			const std::string &Key = FlagNode.as_string()->get();
+			int Flag = GetFlagByKey(Key);
+			if (Flag == -1) {
+				TomlError(FlagNode.source(), "unknown flag \"%s\"", Key.c_str());
 			}
-		}
-
-		if (TypeID < 0) {
-			Script.error("Invalid type id");
-		}
-
-		if (strcmp(Ident, "name") == 0) {
-			ObjectTypes(TypeID).Name = AddStaticString(Script.readString());
-		}
-
-		if (strcmp(Ident, "description") == 0) {
-			ObjectTypes(TypeID).Description = AddStaticString(Script.readString());
-		}
-
-		if (strcmp(Ident, "flags") == 0) {
-			Script.readSymbol('{');
-			while (true) {
-				Script.nextToken();
-				if (Script.Token == SPECIAL && Script.getSpecial() == '}') {
-					break;
-				}
-				if (Script.Token == SPECIAL && Script.getSpecial() == ',') {
-					continue;
-				}
-
-				int Flag = GetFlagByName(Script.getIdentifier());
-				if (Flag == -1) {
-					Script.error("Unknown flag");
-				}
-				ObjectTypes(TypeID).Flags[Flag / 8] |= 1 << (Flag % 8);
-			}
-
-			for (int Offset = 0, i = 0; i < INSTANCEATTRIBUTES; i++) {
-				if (ObjectType(TypeID).getFlag(InstanceAttributeFlags[i])
-						|| (i == CONTENT && ObjectType(TypeID).getFlag(CHEST))) {
-					ObjectTypes(TypeID).AttributeOffsets[i] = Offset;
-					Offset++;
-				}
-			}
-		}
-
-		if (strcmp(Ident, "attributes") == 0) {
-			Script.readSymbol('{');
-			while (true) {
-				Script.nextToken();
-				if (Script.Token == SPECIAL && Script.getSpecial() == '}') {
-					break;
-				}
-				if (Script.Token == SPECIAL && Script.getSpecial() == ',') {
-					continue;
-				}
-
-				int Attribute = GetTypeAttributeByName(Script.getIdentifier());
-				if (Attribute == -1) {
-					Script.error("Unknown attribute");
-				}
-				Script.readSymbol('=');
-				ObjectTypes(TypeID).Attributes[Attribute] = Script.readNumber();
-
-				if (Attribute == MEANING) {
-					int Meaning = ObjectTypes(TypeID).Attributes[MEANING];
-					// Quirk: 49 passes here and in GetSpecialObject, one past
-					// the last element of SpecialObjects.
-					if (!in(Meaning, 1, SPECIALMEANINGS)) {
-						Script.error("Unknown meaning");
-					}
-					if (SpecialObjects[Meaning] != ObjectType(0)) {
-						Script.error("Special object already defined");
-					}
-					SpecialObjects[Meaning] = ObjectType(TypeID);
-				}
-			}
+			Type.Flags[Flag / 8] |= 1 << (Flag % 8);
 		}
 	}
 
-	Script.close();
+	// The instance attributes the flags give an object of the type, in their
+	// order.
+	for (int Offset = 0, i = 0; i < INSTANCEATTRIBUTES; i++) {
+		if (ObjectType(TypeID).getFlag(InstanceAttributeFlags[i])
+				|| (i == CONTENT && ObjectType(TypeID).getFlag(CHEST))) {
+			Type.AttributeOffsets[i] = Offset;
+			Offset++;
+		}
+	}
+
+	if (const toml::table *Attributes = TomlGetTable(Entry, "attributes")) {
+		for (const auto &Pair : *Attributes) {
+			std::string Key(Pair.first.str());
+			int Attribute = GetTypeAttributeByKey(Key);
+			if (Attribute == -1) {
+				TomlError(Pair.first.source(), "unknown attribute \"%s\"", Key.c_str());
+			}
+			// A 32-bit number, written signed or unsigned.
+			if (!Pair.second.is_integer()) {
+				TomlError(Pair.second.source(), "%s must be an integer", Key.c_str());
+			}
+			int64_t Value = Pair.second.as_integer()->get();
+			if (Value < INT32_MIN || Value > static_cast<int64_t>(UINT32_MAX)) {
+				TomlError(Pair.second.source(), "%s must lie between %d and %u", Key.c_str(), INT32_MIN, UINT32_MAX);
+			}
+			Type.Attributes[Attribute] = static_cast<uint32_t>(Value);
+
+			if (Attribute == MEANING) {
+				int Meaning = static_cast<int>(Type.Attributes[MEANING]);
+				if (!in(Meaning, 1, SPECIALMEANINGS - 1)) {
+					TomlError(Pair.second.source(), "meaning must lie between 1 and %d", SPECIALMEANINGS - 1);
+				}
+				if (SpecialObjects[Meaning] != ObjectType(0)) {
+					TomlError(Pair.second.source(), "meaning %d is already the one of type %d", Meaning,
+							SpecialObjects[Meaning].getTypeID());
+				}
+				SpecialObjects[Meaning] = ObjectType(TypeID);
+			}
+		}
+	}
+}
+
+void LoadItems(const char *FileName) {
+	toml::table Items = TomlParseFile(FileName);
+	TomlCheckKeys(Items, "the top level", {"item"});
+
+	std::vector<bool> Defined(MAX_TYPEID + 1, false);
+	if (const toml::array *Entries = TomlGetArray(Items, "item")) {
+		for (const toml::node &Node : *Entries) {
+			ReadItem(Node, Defined);
+		}
+	}
+}
+
+void LoadObjects() {
+	char FileName[4096];
+	sprintf(FileName, "%s/items.toml", DATAPATH);
+	LoadItems(FileName);
 }
 
 void LoadConversionList() {
