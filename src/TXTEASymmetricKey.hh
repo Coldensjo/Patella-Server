@@ -16,7 +16,7 @@ struct TXTEASymmetricKey {
 private:
 	static void encrypt(uint32_t *v, uint32_t *k);
 	static void decrypt(uint32_t *v, uint32_t *k);
-	unsigned char m_SymmetricKey[16];
+	unsigned char m_SymmetricKey[XTEA_KEY_LENGTH];
 };
 
 #endif
