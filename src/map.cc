@@ -57,7 +57,20 @@ struct TMark {
 	int z;
 };
 
-char InstanceAttributeNames[18][30] = {
+// The number of instance attributes (objects.hh's INSTANCEATTRIBUTE, CONTENT
+// to REMAININGUSES); InstanceAttributeNames holds their names in the sector
+// files.
+const int NUMBER_OF_INSTANCE_ATTRIBUTES = 18;
+
+// The object streams of LoadObjects and SaveObjects: each object is its type
+// number (a word) followed by its attributes, each an attribute number (a
+// byte) and its value, and END_OF_ATTRIBUTES. The attribute CONTENT has no
+// value; the objects inside follow it, ended by END_OF_OBJECTS, and then the
+// container's END_OF_ATTRIBUTES.
+const int END_OF_OBJECTS = 0xFFFF;
+const int END_OF_ATTRIBUTES = 0xFF;
+
+char InstanceAttributeNames[NUMBER_OF_INSTANCE_ATTRIBUTES][30] = {
 	"Content",
 	"ChestQuestNumber",
 	"Amount",
@@ -1338,7 +1351,7 @@ void DeleteSwappedSectors() {
 }
 
 int GetInstanceAttributeByName(char *Name) {
-	for (int i = 0; i < 18; i++) {
+	for (int i = 0; i < NUMBER_OF_INSTANCE_ATTRIBUTES; i++) {
 		if (stricmp(InstanceAttributeNames[i], Name, -1) == 0) {
 			return i;
 		}
@@ -1357,7 +1370,7 @@ void LoadObjects(TReadScriptFile &Script, TWriteStream &Stream, bool Skip) {
 			unsigned short TypeID;
 			if (Script.Token == SPECIAL && Script.getSpecial() == '}') {
 				if (!Skip) {
-					Stream.writeWord(0xFFFF);
+					Stream.writeWord(END_OF_OBJECTS);
 				}
 
 				Depth--;
@@ -1387,7 +1400,7 @@ void LoadObjects(TReadScriptFile &Script, TWriteStream &Stream, bool Skip) {
 			int Attribute;
 			if (Script.Token == SPECIAL) {
 				if (!Skip) {
-					Stream.writeByte(0xFF);
+					Stream.writeByte(END_OF_ATTRIBUTES);
 				}
 
 				ProcessObjects = true;
@@ -1433,7 +1446,7 @@ void LoadObjects(TReadStream &Stream, Object Con) {
 	while (Depth > 0) {
 		if (ProcessObjects) {
 			unsigned short TypeID = Stream.readWord();
-			if (TypeID == 0xFFFF) {
+			if (TypeID == END_OF_OBJECTS) {
 				Depth--;
 				Obj = Con;
 				Con = Con.getContainer();
@@ -1451,7 +1464,7 @@ void LoadObjects(TReadStream &Stream, Object Con) {
 			ProcessObjects = false;
 		} else {
 			unsigned char Attribute = Stream.readByte();
-			if (Attribute == 0xFF) {
+			if (Attribute == END_OF_ATTRIBUTES) {
 				ProcessObjects = true;
 			} else if (Attribute == CONTENT) {
 				Depth++;
@@ -1579,13 +1592,13 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 	while (Depth > 0) {
 		if (ProcessObjects) {
 			if (Obj == NONE) {
-				Stream.writeWord(0xFFFF);
+				Stream.writeWord(END_OF_OBJECTS);
 				Depth--;
 				if (Depth <= 0) {
 					break;
 				}
 
-				Stream.writeByte(0xFF);
+				Stream.writeByte(END_OF_ATTRIBUTES);
 				ObjectCounter++;
 				if (Stop && Depth == 1) {
 					break;
@@ -1624,7 +1637,7 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 				error("Obj ist NONE (2)\n");
 			}
 
-			for (int Attribute = 0; Attribute <= 17; Attribute++) {
+			for (int Attribute = 0; Attribute <= NUMBER_OF_INSTANCE_ATTRIBUTES - 1; Attribute++) {
 				if (Attribute == CONTENT) {
 					continue;
 				}
@@ -1654,7 +1667,7 @@ void SaveObjects(Object Obj, TWriteStream &Stream, bool Stop) {
 				Obj = GetFirstContainerObject(Obj);
 				Stream.writeByte(CONTENT);
 			} else {
-				Stream.writeByte(0xFF);
+				Stream.writeByte(END_OF_ATTRIBUTES);
 				ObjectCounter++;
 				if (Stop && Depth == 1) {
 					break;
@@ -1677,7 +1690,7 @@ void SaveObjects(TReadStream &Stream, TWriteScriptFile &Script) {
 	while (Depth > 0) {
 		if (ProcessObjects) {
 			unsigned short TypeID = Stream.readWord();
-			if (TypeID == 0xFFFF) {
+			if (TypeID == END_OF_OBJECTS) {
 				Depth--;
 				ProcessObjects = false;
 				Script.writeText("}");
@@ -1691,7 +1704,7 @@ void SaveObjects(TReadStream &Stream, TWriteScriptFile &Script) {
 			}
 		} else {
 			unsigned char Attribute = Stream.readByte();
-			if (Attribute == 0xFF) {
+			if (Attribute == END_OF_ATTRIBUTES) {
 				ProcessObjects = true;
 				FirstObject = false;
 			} else {
