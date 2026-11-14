@@ -154,6 +154,18 @@ never replaces newer data saved since. While the file cannot be sent, the
 character cannot log in: a load that fails refuses the login, so that a
 character never starts as new because its data could not be read.
 
+## Play
+
+`tools/play.sh` starts the query manager, the login server (port 7171) and
+the game (port 7172) for a 7.72 client; Ctrl-C stops them, the game first.
+On first use it makes a play copy of your original installation
+(`PLAY_INSTALL`, a tar or a folder) laid out with this repository's `data/`,
+and a database with the installation's characters and player data.
+`tools/play.sh seed --add-account N --password P --new-character NAME --world
+Zanera` adds an account, `tools/play.sh modulus` prints the `RsaModulus=` the
+client needs, and `tools/play.sh reset` deletes the copy and the database. The
+comments at the top of the script list its settings.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Tibia and its files belong to CipSoft GmbH and are
