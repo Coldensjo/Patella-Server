@@ -24,6 +24,15 @@
 int ApplicationType;
 char LoginData[30];
 
+// The ApplicationType that the game server sends in its login request
+// (main.cc's SetQueryManagerLoginData), followed by its world name. The same
+// name as in the query manager's protocol.hh.
+const int APPLICATION_GAME = 1;
+
+// The word that stands for the size of a request or response that does not
+// fit in a word: the size follows as a quad.
+const int QUERY_LONG_SIZE_MARKER = 0xFFFF;
+
 void SetQueryManagerLoginData(int Type, char *Data) {
 	ApplicationType = Type;
 	if (Data != nullptr) {
@@ -33,6 +42,8 @@ void SetQueryManagerLoginData(int Type, char *Data) {
 	}
 }
 
+// 16384 is the smallest buffer a connection gets. It stays a number: a named
+// constant given to std::max by reference compiles to different code.
 TQueryManagerConnection::TQueryManagerConnection(int QueryBufferSize) : Buffer(new unsigned char[std::max(QueryBufferSize, 16384)]), ReadBuffer(Buffer, std::max(QueryBufferSize, 16384)), WriteBuffer(Buffer, std::max(QueryBufferSize, 16384)) {
 	BufferSize = std::max(QueryBufferSize, 16384);
 	Socket = -1;
@@ -79,15 +90,15 @@ void TQueryManagerConnection::connect() {
 			continue;
 		}
 
-		prepareQuery(0);
+		prepareQuery(QUERY_LOGIN);
 		sendByte(static_cast<unsigned char>(ApplicationType));
 		sendString(QUERY_MANAGER[Try].Password);
-		if (ApplicationType == 1) {
+		if (ApplicationType == APPLICATION_GAME) {
 			sendString(LoginData);
 		}
 
 		int Result = executeQuery(30, false);
-		if (Result == 0) {
+		if (Result == STATUS_OK) {
 			return;
 		}
 
@@ -280,30 +291,30 @@ void TQueryManagerConnection::getBytes(unsigned char *Buffer, int Count) {
 int TQueryManagerConnection::executeQuery(int Timeout, bool AutoReconnect) {
 	int DataSize = WriteBuffer.getDataSize();
 	WriteBuffer.rewind();
-	if (DataSize < 0xFFFF) {
+	if (DataSize < QUERY_LONG_SIZE_MARKER) {
 		sendWord(static_cast<unsigned short>(DataSize - 2));
 	} else {
 		DataSize += 4;
 		if (DataSize > BufferSize) {
 			error("TQueryManagerConnection::executeQuery: Puffer zu klein.\n");
-			return 3;
+			return STATUS_FAILED;
 		}
 
 		memmove(Buffer + 6, Buffer + 2, DataSize - 6);
-		sendWord(0xFFFF);
+		sendWord(QUERY_LONG_SIZE_MARKER);
 		sendQuad(DataSize - 6);
 	}
 
 	bool SecondChance = true;
 	if (!QueryOk) {
 		error("TQueryManagerConnection::executeQuery: Fehler beim Zusammenbauen der Anfrage.\n");
-		return 3;
+		return STATUS_FAILED;
 	}
 
 again:
 	if (!isConnected()) {
 		if (!AutoReconnect) {
-			return 3;
+			return STATUS_FAILED;
 		}
 
 		// connect() sends its login request through the same buffer.
@@ -321,7 +332,7 @@ again:
 		}
 
 		if (!isConnected()) {
-			return 3;
+			return STATUS_FAILED;
 		}
 	}
 
@@ -333,7 +344,7 @@ again:
 		}
 
 		error("TQueryManagerConnection::executeQuery: Fehler beim Abschicken der Anfrage.\n");
-		return 3;
+		return STATUS_FAILED;
 	}
 
 	unsigned char Help[2];
@@ -345,15 +356,15 @@ again:
 			goto again;
 		}
 
-		return 3;
+		return STATUS_FAILED;
 	}
 
 	int Size = Help[0] + (Help[1] << 8);
-	if (Size == 0xFFFF) {
+	if (Size == QUERY_LONG_SIZE_MARKER) {
 		unsigned char Help2[4];
 		if (read(Help2, 4, Timeout) != 4) {
 			disconnect();
-			return 3;
+			return STATUS_FAILED;
 		}
 
 		Size = static_cast<int>(static_cast<uint32_t>(Help2[0])
@@ -365,20 +376,20 @@ again:
 	if (Size == 0 || Size > BufferSize) {
 		disconnect();
 		error("TQueryManagerConnection::executeQuery: Ung\xfcltige Datengr\xf6\xdf" "e %d.\n", Size);
-		return 3;
+		return STATUS_FAILED;
 	}
 
 	Result = read(Buffer, Size, Timeout);
 	if (Result != Size) {
 		disconnect();
 		error("TQueryManagerConnection::executeQuery: Fehler beim Auslesen der Daten.\n");
-		return 3;
+		return STATUS_FAILED;
 	}
 
 	ReadBuffer.resize(Result);
 	ReadBuffer.rewind();
 	Result = getByte();
-	if (Result == 3) {
+	if (Result == STATUS_FAILED) {
 		error("TQueryManagerConnection::executeQuery: Anfrage fehlgeschlagen.\n");
 	}
 
@@ -386,16 +397,16 @@ again:
 }
 
 int TQueryManagerConnection::checkAccountPassword(uint32_t AccountID, char *Password, char *IPAddress) {
-	prepareQuery(10);
+	prepareQuery(QUERY_CHECK_ACCOUNT_PASSWORD);
 	sendQuad(AccountID);
 	sendString(Password);
 	sendString(IPAddress);
 	int Result = executeQuery(30, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 4)) {
 			return FailureCode;
@@ -408,11 +419,11 @@ int TQueryManagerConnection::checkAccountPassword(uint32_t AccountID, char *Pass
 }
 
 int TQueryManagerConnection::loginAdmin(uint32_t AccountID, bool PrivateWorld, int &NumberOfCharacters, char (*Characters)[30], char (*Worlds)[30], unsigned char (*IPAddresses)[4], unsigned short *Ports, unsigned short &PremiumDaysLeft) {
-	prepareQuery(12);
+	prepareQuery(QUERY_LOGIN_ADMIN);
 	sendQuad(AccountID);
 	sendFlag(PrivateWorld);
 	int Result = executeQuery(30, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		NumberOfCharacters = getByte();
 		for (int i = 0; i < NumberOfCharacters; i++) {
 			getString(Characters[i], 30);
@@ -425,7 +436,7 @@ int TQueryManagerConnection::loginAdmin(uint32_t AccountID, bool PrivateWorld, i
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (FailureCode == 1) {
 			return FailureCode;
@@ -438,9 +449,9 @@ int TQueryManagerConnection::loginAdmin(uint32_t AccountID, bool PrivateWorld, i
 }
 
 int TQueryManagerConnection::loadWorldConfig(int &WorldType, int &RebootTime, int *IPAddress, int &Port, int &MaxPlayers, int &PremiumPlayerBuffer, int &MaxNewbies, int &PremiumNewbieBuffer) {
-	prepareQuery(53);
+	prepareQuery(QUERY_LOAD_WORLD_CONFIG);
 	int Result = executeQuery(30, true);
-	if (Result != 0) {
+	if (Result != STATUS_OK) {
 		return -1;
 	}
 
@@ -459,7 +470,7 @@ int TQueryManagerConnection::loadWorldConfig(int &WorldType, int &RebootTime, in
 }
 
 int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, char *Password, char *IPAddress, bool PrivateWorld, bool PremiumAccountRequired, bool GamemasterRequired, uint32_t &CharacterID, int &Sex, char *Guild, char *Rank, char *Title, int &NumberOfBuddies, uint32_t *BuddyIDs, char (*BuddyNames)[30], unsigned char *Rights, bool &PremiumAccountActivated) {
-	prepareQuery(20);
+	prepareQuery(QUERY_LOGIN_GAME);
 	sendQuad(AccountID);
 	sendString(PlayerName);
 	sendString(Password);
@@ -468,7 +479,7 @@ int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, cha
 	sendFlag(PremiumAccountRequired);
 	sendFlag(GamemasterRequired);
 	int Result = executeQuery(120, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		CharacterID = getQuad();
 		getString(PlayerName, 30);
 		Sex = getByte();
@@ -476,16 +487,16 @@ int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, cha
 		getString(Rank, 30);
 		getString(Title, 30);
 		NumberOfBuddies = getByte();
-		if (NumberOfBuddies > 100) {
+		if (NumberOfBuddies > MAX_BUDDIES) {
 			error("TQueryManagerConnection::loginGame: zu viele Buddys (%d) f\xfcr %s.\n", NumberOfBuddies, PlayerName);
 		}
 
-		for (int i = 0; i < std::min(NumberOfBuddies, 100); i++) {
+		for (int i = 0; i < std::min(NumberOfBuddies, MAX_BUDDIES); i++) {
 			BuddyIDs[i] = getQuad();
 			getString(BuddyNames[i], 30);
 		}
 
-		for (int i = 100; i < NumberOfBuddies; i++) {
+		for (int i = MAX_BUDDIES; i < NumberOfBuddies; i++) {
 			char Help[30];
 			getQuad();
 			getString(Help, 30);
@@ -623,9 +634,9 @@ int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, cha
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
-		if (in(FailureCode, 1, 15)) {
+		if (in(FailureCode, LOGIN_CHARACTER_UNKNOWN, LOGIN_WRONG_ACCOUNT)) {
 			return FailureCode;
 		}
 
@@ -636,14 +647,14 @@ int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, cha
 }
 
 int TQueryManagerConnection::logoutGame(uint32_t CharacterID, int Level, char *Profession, char *Residence, time_t LastLoginTime, int TutorActivities) {
-	prepareQuery(21);
+	prepareQuery(QUERY_LOGOUT_GAME);
 	sendQuad(CharacterID);
 	sendWord(static_cast<unsigned short>(Level));
 	sendString(Profession);
 	sendString(Residence);
 	sendQuad(static_cast<uint32_t>(LastLoginTime));
 	sendWord(static_cast<unsigned short>(TutorActivities));
-	if (executeQuery(120, true) != 0) {
+	if (executeQuery(120, true) != STATUS_OK) {
 		return -1;
 	}
 
@@ -651,19 +662,19 @@ int TQueryManagerConnection::logoutGame(uint32_t CharacterID, int Level, char *P
 }
 
 int TQueryManagerConnection::setNotation(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment, uint32_t &BanishmentID) {
-	prepareQuery(26);
+	prepareQuery(QUERY_SET_NOTATION);
 	sendQuad(GamemasterID);
 	sendString(PlayerName);
 	sendString(IPAddress);
 	sendString(Reason);
 	sendString(Comment);
 	int Result = executeQuery(30, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		BanishmentID = getQuad();
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 2)) {
 			return FailureCode;
@@ -678,18 +689,18 @@ int TQueryManagerConnection::setNotation(uint32_t GamemasterID, char *PlayerName
 }
 
 int TQueryManagerConnection::setNamelock(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment) {
-	prepareQuery(23);
+	prepareQuery(QUERY_SET_NAMELOCK);
 	sendQuad(GamemasterID);
 	sendString(PlayerName);
 	sendString(IPAddress);
 	sendString(Reason);
 	sendString(Comment);
 	int Result = executeQuery(30, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 4)) {
 			return FailureCode;
@@ -704,7 +715,7 @@ int TQueryManagerConnection::setNamelock(uint32_t GamemasterID, char *PlayerName
 }
 
 int TQueryManagerConnection::banishAccount(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment, bool &FinalWarning, int &Days, uint32_t &BanishmentID) {
-	prepareQuery(25);
+	prepareQuery(QUERY_BANISH_ACCOUNT);
 	sendQuad(GamemasterID);
 	sendString(PlayerName);
 	sendString(IPAddress);
@@ -712,7 +723,7 @@ int TQueryManagerConnection::banishAccount(uint32_t GamemasterID, char *PlayerNa
 	sendString(Comment);
 	sendByte(FinalWarning);
 	int Result = executeQuery(30, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		BanishmentID = getQuad();
 		Days = getByte();
 		if (Days == 0xFF) {
@@ -723,7 +734,7 @@ int TQueryManagerConnection::banishAccount(uint32_t GamemasterID, char *PlayerNa
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 3)) {
 			return FailureCode;
@@ -738,7 +749,7 @@ int TQueryManagerConnection::banishAccount(uint32_t GamemasterID, char *PlayerNa
 }
 
 int TQueryManagerConnection::reportStatement(uint32_t ReporterID, char *PlayerName, char *Reason, char *Comment, uint32_t BanishmentID, uint32_t StatementID, int NumberOfStatements, uint32_t *StatementIDs, uint32_t *TimeStamps, uint32_t *CharacterIDs, char (*Channels)[30], char (*Texts)[256]) {
-	prepareQuery(27);
+	prepareQuery(QUERY_REPORT_STATEMENT);
 	sendQuad(ReporterID);
 	sendString(PlayerName);
 	sendString(Reason);
@@ -764,11 +775,11 @@ int TQueryManagerConnection::reportStatement(uint32_t ReporterID, char *PlayerNa
 	}
 
 	int Result = executeQuery(180, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 2)) {
 			return FailureCode;
@@ -783,18 +794,18 @@ int TQueryManagerConnection::reportStatement(uint32_t ReporterID, char *PlayerNa
 }
 
 int TQueryManagerConnection::banishIPAddress(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment) {
-	prepareQuery(28);
+	prepareQuery(QUERY_BANISH_IP_ADDRESS);
 	sendQuad(GamemasterID);
 	sendString(PlayerName);
 	sendString(IPAddress);
 	sendString(Reason);
 	sendString(Comment);
 	int Result = executeQuery(30, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 2)) {
 			return FailureCode;
@@ -809,14 +820,14 @@ int TQueryManagerConnection::banishIPAddress(uint32_t GamemasterID, char *Player
 }
 
 int TQueryManagerConnection::logCharacterDeath(uint32_t CharacterID, int Level, uint32_t Offender, char *Remark, bool Unjustified, time_t Time) {
-	prepareQuery(29);
+	prepareQuery(QUERY_LOG_CHARACTER_DEATH);
 	sendQuad(CharacterID);
 	sendWord(static_cast<unsigned short>(Level));
 	sendQuad(Offender);
 	sendString(Remark);
 	sendByte(Unjustified);
 	sendQuad(static_cast<uint32_t>(Time));
-	if (executeQuery(90, true) != 0) {
+	if (executeQuery(90, true) != STATUS_OK) {
 		error("TQueryManagerConnection::logCharacterDeath: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -825,10 +836,10 @@ int TQueryManagerConnection::logCharacterDeath(uint32_t CharacterID, int Level, 
 }
 
 int TQueryManagerConnection::addBuddy(uint32_t AccountID, uint32_t Buddy) {
-	prepareQuery(30);
+	prepareQuery(QUERY_ADD_BUDDY);
 	sendQuad(AccountID);
 	sendQuad(Buddy);
-	if (executeQuery(90, true) != 0) {
+	if (executeQuery(90, true) != STATUS_OK) {
 		error("TQueryManagerConnection::addBuddy: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -837,10 +848,10 @@ int TQueryManagerConnection::addBuddy(uint32_t AccountID, uint32_t Buddy) {
 }
 
 int TQueryManagerConnection::removeBuddy(uint32_t AccountID, uint32_t Buddy) {
-	prepareQuery(31);
+	prepareQuery(QUERY_REMOVE_BUDDY);
 	sendQuad(AccountID);
 	sendQuad(Buddy);
-	if (executeQuery(90, true) != 0) {
+	if (executeQuery(90, true) != STATUS_OK) {
 		error("TQueryManagerConnection::removeBuddy: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -849,9 +860,9 @@ int TQueryManagerConnection::removeBuddy(uint32_t AccountID, uint32_t Buddy) {
 }
 
 int TQueryManagerConnection::decrementIsOnline(uint32_t CharacterID) {
-	prepareQuery(32);
+	prepareQuery(QUERY_DECREMENT_IS_ONLINE);
 	sendQuad(CharacterID);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::decrementIsOnline: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -860,8 +871,8 @@ int TQueryManagerConnection::decrementIsOnline(uint32_t CharacterID) {
 }
 
 int TQueryManagerConnection::finishAuctions(int &NumberOfAuctions, unsigned short *HouseIDs, uint32_t *CharacterIDs, char (*CharacterNames)[30], int *Bids) {
-	prepareQuery(33);
-	if (executeQuery(60, true) != 0) {
+	prepareQuery(QUERY_FINISH_AUCTIONS);
+	if (executeQuery(60, true) != STATUS_OK) {
 		error("TQueryManagerConnection::finishAuctions: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -884,10 +895,10 @@ int TQueryManagerConnection::finishAuctions(int &NumberOfAuctions, unsigned shor
 }
 
 int TQueryManagerConnection::excludeFromAuctions(uint32_t CharacterID, bool Banish) {
-	prepareQuery(51);
+	prepareQuery(QUERY_EXCLUDE_FROM_AUCTIONS);
 	sendQuad(CharacterID);
 	sendFlag(Banish);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::excludeFromAuctions: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -896,8 +907,8 @@ int TQueryManagerConnection::excludeFromAuctions(uint32_t CharacterID, bool Bani
 }
 
 int TQueryManagerConnection::transferHouses(int &NumberOfTransfers, unsigned short *HouseIDs, uint32_t *NewOwnerIDs, char (*NewOwnerNames)[30], int *Prices) {
-	prepareQuery(35);
-	if (executeQuery(60, true) != 0) {
+	prepareQuery(QUERY_TRANSFER_HOUSES);
+	if (executeQuery(60, true) != STATUS_OK) {
 		error("TQueryManagerConnection::transferHouses: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -920,9 +931,9 @@ int TQueryManagerConnection::transferHouses(int &NumberOfTransfers, unsigned sho
 }
 
 int TQueryManagerConnection::cancelHouseTransfer(unsigned short HouseID) {
-	prepareQuery(52);
+	prepareQuery(QUERY_CANCEL_HOUSE_TRANSFER);
 	sendWord(HouseID);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::cancelHouseTransfer: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -931,8 +942,8 @@ int TQueryManagerConnection::cancelHouseTransfer(unsigned short HouseID) {
 }
 
 int TQueryManagerConnection::evictFreeAccounts(int &NumberOfEvictions, unsigned short *HouseIDs, uint32_t *OwnerIDs) {
-	prepareQuery(36);
-	if (executeQuery(60, true) != 0) {
+	prepareQuery(QUERY_EVICT_FREE_ACCOUNTS);
+	if (executeQuery(60, true) != STATUS_OK) {
 		error("TQueryManagerConnection::evictFreeAccounts: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -953,8 +964,8 @@ int TQueryManagerConnection::evictFreeAccounts(int &NumberOfEvictions, unsigned 
 }
 
 int TQueryManagerConnection::evictDeletedCharacters(int &NumberOfEvictions, unsigned short *HouseIDs) {
-	prepareQuery(37);
-	if (executeQuery(60, true) != 0) {
+	prepareQuery(QUERY_EVICT_DELETED_CHARACTERS);
+	if (executeQuery(60, true) != STATUS_OK) {
 		error("TQueryManagerConnection::evictDeletedCharacters: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -974,14 +985,14 @@ int TQueryManagerConnection::evictDeletedCharacters(int &NumberOfEvictions, unsi
 }
 
 int TQueryManagerConnection::evictExGuildleaders(int NumberOfGuildhouses, int &NumberOfEvictions, unsigned short *HouseIDs, uint32_t *Guildleaders) {
-	prepareQuery(38);
+	prepareQuery(QUERY_EVICT_EX_GUILDLEADERS);
 	sendWord(static_cast<unsigned short>(NumberOfGuildhouses));
 	for (int i = 0; i < NumberOfGuildhouses; i++) {
 		sendWord(HouseIDs[i]);
 		sendQuad(Guildleaders[i]);
 	}
 
-	if (executeQuery(60, true) != 0) {
+	if (executeQuery(60, true) != STATUS_OK) {
 		error("TQueryManagerConnection::evictExGuildleaders: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -995,11 +1006,11 @@ int TQueryManagerConnection::evictExGuildleaders(int NumberOfGuildhouses, int &N
 }
 
 int TQueryManagerConnection::insertHouseOwner(unsigned short HouseID, uint32_t OwnerID, int PaidUntil) {
-	prepareQuery(39);
+	prepareQuery(QUERY_INSERT_HOUSE_OWNER);
 	sendWord(HouseID);
 	sendQuad(OwnerID);
 	sendQuad(PaidUntil);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::insertHouseOwner: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1008,11 +1019,11 @@ int TQueryManagerConnection::insertHouseOwner(unsigned short HouseID, uint32_t O
 }
 
 int TQueryManagerConnection::updateHouseOwner(unsigned short HouseID, uint32_t OwnerID, int PaidUntil) {
-	prepareQuery(40);
+	prepareQuery(QUERY_UPDATE_HOUSE_OWNER);
 	sendWord(HouseID);
 	sendQuad(OwnerID);
 	sendQuad(PaidUntil);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::updateHouseOwner: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1021,9 +1032,9 @@ int TQueryManagerConnection::updateHouseOwner(unsigned short HouseID, uint32_t O
 }
 
 int TQueryManagerConnection::deleteHouseOwner(unsigned short HouseID) {
-	prepareQuery(41);
+	prepareQuery(QUERY_DELETE_HOUSE_OWNER);
 	sendWord(HouseID);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::deleteHouseOwner: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1032,8 +1043,8 @@ int TQueryManagerConnection::deleteHouseOwner(unsigned short HouseID) {
 }
 
 int TQueryManagerConnection::getHouseOwners(int &NumberOfHouses, unsigned short *HouseIDs, uint32_t *OwnerIDs, char (*OwnerNames)[30], int *PaidUntils) {
-	prepareQuery(42);
-	if (executeQuery(60, true) != 0) {
+	prepareQuery(QUERY_GET_HOUSE_OWNERS);
+	if (executeQuery(60, true) != STATUS_OK) {
 		error("TQueryManagerConnection::getHouseOwners: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1056,8 +1067,8 @@ int TQueryManagerConnection::getHouseOwners(int &NumberOfHouses, unsigned short 
 }
 
 int TQueryManagerConnection::getAuctions(int &NumberOfAuctions, unsigned short *HouseIDs) {
-	prepareQuery(43);
-	if (executeQuery(120, true) != 0) {
+	prepareQuery(QUERY_GET_AUCTIONS);
+	if (executeQuery(120, true) != STATUS_OK) {
 		error("TQueryManagerConnection::getAuctions: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1077,9 +1088,9 @@ int TQueryManagerConnection::getAuctions(int &NumberOfAuctions, unsigned short *
 }
 
 int TQueryManagerConnection::startAuction(unsigned short HouseID) {
-	prepareQuery(44);
+	prepareQuery(QUERY_START_AUCTION);
 	sendWord(HouseID);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::startAuction: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1088,7 +1099,7 @@ int TQueryManagerConnection::startAuction(unsigned short HouseID) {
 }
 
 int TQueryManagerConnection::insertHouses(int NumberOfHouses, unsigned short *HouseIDs, char **Names, int *Rents, char **Descriptions, int *Sizes, int *PositionsX, int *PositionsY, int *PositionsZ, char (*Towns)[30], bool *Guildhouses) {
-	prepareQuery(45);
+	prepareQuery(QUERY_INSERT_HOUSES);
 	sendWord(static_cast<unsigned short>(NumberOfHouses));
 	for (int i = 0; i < NumberOfHouses; i++) {
 		sendWord(HouseIDs[i]);
@@ -1103,7 +1114,7 @@ int TQueryManagerConnection::insertHouses(int NumberOfHouses, unsigned short *Ho
 		sendByte(Guildhouses[i]);
 	}
 
-	if (executeQuery(60, true) != 0) {
+	if (executeQuery(60, true) != STATUS_OK) {
 		error("TQueryManagerConnection::insertHouses: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1112,8 +1123,8 @@ int TQueryManagerConnection::insertHouses(int NumberOfHouses, unsigned short *Ho
 }
 
 int TQueryManagerConnection::clearIsOnline(int &NumberOfAffectedPlayers) {
-	prepareQuery(46);
-	if (executeQuery(120, true) != 0) {
+	prepareQuery(QUERY_CLEAR_IS_ONLINE);
+	if (executeQuery(120, true) != STATUS_OK) {
 		error("TQueryManagerConnection::clearIsOnline: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1123,7 +1134,7 @@ int TQueryManagerConnection::clearIsOnline(int &NumberOfAffectedPlayers) {
 }
 
 int TQueryManagerConnection::createPlayerlist(int NumberOfPlayers, char **Names, int *Levels, char (*Professions)[30], bool &NewRecord) {
-	prepareQuery(47);
+	prepareQuery(QUERY_CREATE_PLAYERLIST);
 	sendWord(NumberOfPlayers >= 0 ? static_cast<unsigned short>(NumberOfPlayers) : 0xFFFF);
 	for (int i = 0; i < NumberOfPlayers; i++) {
 		sendString(Names[i]);
@@ -1131,7 +1142,7 @@ int TQueryManagerConnection::createPlayerlist(int NumberOfPlayers, char **Names,
 		sendString(Professions[i]);
 	}
 
-	if (executeQuery(240, true) != 0) {
+	if (executeQuery(240, true) != STATUS_OK) {
 		error("TQueryManagerConnection::createPlayerlist: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1141,7 +1152,7 @@ int TQueryManagerConnection::createPlayerlist(int NumberOfPlayers, char **Names,
 }
 
 int TQueryManagerConnection::logKilledCreatures(int NumberOfRaces, char **Names, int *KilledPlayers, int *KilledCreatures) {
-	prepareQuery(48);
+	prepareQuery(QUERY_LOG_KILLED_CREATURES);
 	sendWord(static_cast<unsigned short>(NumberOfRaces));
 	for (int i = 0; i < NumberOfRaces; i++) {
 		sendString(Names[i]);
@@ -1149,7 +1160,7 @@ int TQueryManagerConnection::logKilledCreatures(int NumberOfRaces, char **Names,
 		sendQuad(KilledCreatures[i]);
 	}
 
-	if (executeQuery(240, true) != 0) {
+	if (executeQuery(240, true) != STATUS_OK) {
 		error("TQueryManagerConnection::logKilledCreatures: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1158,9 +1169,9 @@ int TQueryManagerConnection::logKilledCreatures(int NumberOfRaces, char **Names,
 }
 
 int TQueryManagerConnection::loadPlayers(uint32_t MinimumCharacterID, int &NumberOfPlayers, char (*Names)[30], uint32_t *CharacterIDs) {
-	prepareQuery(50);
+	prepareQuery(QUERY_LOAD_PLAYERS);
 	sendQuad(MinimumCharacterID);
-	if (executeQuery(900, true) != 0) {
+	if (executeQuery(900, true) != STATUS_OK) {
 		error("TQueryManagerConnection::loadPlayers: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1175,9 +1186,9 @@ int TQueryManagerConnection::loadPlayers(uint32_t MinimumCharacterID, int &Numbe
 }
 
 int TQueryManagerConnection::getKeptCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs) {
-	prepareQuery(200);
+	prepareQuery(QUERY_GET_KEPT_CHARACTERS);
 	sendQuad(MinimumCharacterID);
-	if (executeQuery(1800, true) != 0) {
+	if (executeQuery(1800, true) != STATUS_OK) {
 		error("TQueryManagerConnection::getKeptCharacters: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1191,9 +1202,9 @@ int TQueryManagerConnection::getKeptCharacters(uint32_t MinimumCharacterID, int 
 }
 
 int TQueryManagerConnection::getDeletedCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs) {
-	prepareQuery(201);
+	prepareQuery(QUERY_GET_DELETED_CHARACTERS);
 	sendQuad(MinimumCharacterID);
-	if (executeQuery(900, true) != 0) {
+	if (executeQuery(900, true) != STATUS_OK) {
 		// The original logs this failure under the name getKeptCharacters.
 		error("TQueryManagerConnection::getKeptCharacters: Anfrage fehlgeschlagen.\n");
 		return -1;
@@ -1208,9 +1219,9 @@ int TQueryManagerConnection::getDeletedCharacters(uint32_t MinimumCharacterID, i
 }
 
 int TQueryManagerConnection::deleteOldCharacter(uint32_t CharacterID) {
-	prepareQuery(202);
+	prepareQuery(QUERY_DELETE_OLD_CHARACTER);
 	sendQuad(CharacterID);
-	if (executeQuery(30, true) != 0) {
+	if (executeQuery(30, true) != STATUS_OK) {
 		error("TQueryManagerConnection::deleteOldCharacter: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1219,9 +1230,9 @@ int TQueryManagerConnection::deleteOldCharacter(uint32_t CharacterID) {
 }
 
 int TQueryManagerConnection::getHiddenCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs) {
-	prepareQuery(203);
+	prepareQuery(QUERY_GET_HIDDEN_CHARACTERS);
 	sendQuad(MinimumCharacterID);
-	if (executeQuery(120, true) != 0) {
+	if (executeQuery(120, true) != STATUS_OK) {
 		error("TQueryManagerConnection::getHiddenCharacters: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1235,7 +1246,7 @@ int TQueryManagerConnection::getHiddenCharacters(uint32_t MinimumCharacterID, in
 }
 
 int TQueryManagerConnection::createHighscores(int NumberOfPlayers, uint32_t *CharacterIDs, int *ExpPoints, int *ExpLevel, int *Fist, int *Club, int *Axe, int *Sword, int *Distance, int *Shielding, int *Magic, int *Fishing) {
-	prepareQuery(204);
+	prepareQuery(QUERY_CREATE_HIGHSCORES);
 	sendQuad(NumberOfPlayers);
 	for (int i = 0; i < NumberOfPlayers; i++) {
 		sendQuad(CharacterIDs[i]);
@@ -1251,7 +1262,7 @@ int TQueryManagerConnection::createHighscores(int NumberOfPlayers, uint32_t *Cha
 		sendWord(static_cast<unsigned short>(Fishing[i]));
 	}
 
-	if (executeQuery(120, true) != 0) {
+	if (executeQuery(120, true) != STATUS_OK) {
 		error("TQueryManagerConnection::createHighscores: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1260,8 +1271,8 @@ int TQueryManagerConnection::createHighscores(int NumberOfPlayers, uint32_t *Cha
 }
 
 int TQueryManagerConnection::createCensus() {
-	prepareQuery(205);
-	if (executeQuery(600, true) != 0) {
+	prepareQuery(QUERY_CREATE_CENSUS);
+	if (executeQuery(600, true) != STATUS_OK) {
 		error("TQueryManagerConnection::createCensus: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1270,8 +1281,8 @@ int TQueryManagerConnection::createCensus() {
 }
 
 int TQueryManagerConnection::createKillStatistics() {
-	prepareQuery(206);
-	if (executeQuery(300, true) != 0) {
+	prepareQuery(QUERY_CREATE_KILL_STATISTICS);
+	if (executeQuery(300, true) != STATUS_OK) {
 		error("TQueryManagerConnection::createKillStatistics: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1280,8 +1291,8 @@ int TQueryManagerConnection::createKillStatistics() {
 }
 
 int TQueryManagerConnection::getPlayersOnline(int &NumberOfWorlds, char (*Names)[30], unsigned short *Players) {
-	prepareQuery(207);
-	if (executeQuery(120, true) != 0) {
+	prepareQuery(QUERY_GET_PLAYERS_ONLINE);
+	if (executeQuery(120, true) != STATUS_OK) {
 		error("TQueryManagerConnection::getPlayersOnline: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1296,8 +1307,8 @@ int TQueryManagerConnection::getPlayersOnline(int &NumberOfWorlds, char (*Names)
 }
 
 int TQueryManagerConnection::getWorlds(int &NumberOfWorlds, char (*Names)[30]) {
-	prepareQuery(208);
-	if (executeQuery(120, true) != 0) {
+	prepareQuery(QUERY_GET_WORLDS);
+	if (executeQuery(120, true) != STATUS_OK) {
 		error("TQueryManagerConnection::getWorlds: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1311,10 +1322,10 @@ int TQueryManagerConnection::getWorlds(int &NumberOfWorlds, char (*Names)[30]) {
 }
 
 int TQueryManagerConnection::getServerLoad(char *World, int Period, int *Data) {
-	prepareQuery(209);
+	prepareQuery(QUERY_GET_SERVER_LOAD);
 	sendString(World);
 	sendByte(static_cast<unsigned char>(Period));
-	if (executeQuery(360, true) != 0) {
+	if (executeQuery(360, true) != STATUS_OK) {
 		error("TQueryManagerConnection::getServerLoad: Anfrage fehlgeschlagen.\n");
 		return -1;
 	}
@@ -1328,7 +1339,7 @@ int TQueryManagerConnection::getServerLoad(char *World, int Period, int *Data) {
 }
 
 int TQueryManagerConnection::insertPaymentDataOld(uint32_t PurchaseNr, uint32_t ReferenceNr, char *FirstName, char *LastName, char *Company, char *Street, char *Zip, char *City, char *Country, char *State, char *Phone, char *Fax, char *EMail, char *PaymentMethod, uint32_t ProductID, char *Registrant, uint32_t AccountID, uint32_t &PaymentID) {
-	prepareQuery(210);
+	prepareQuery(QUERY_INSERT_PAYMENT_DATA_OLD);
 	sendQuad(PurchaseNr);
 	sendQuad(ReferenceNr);
 	sendString(FirstName);
@@ -1347,12 +1358,12 @@ int TQueryManagerConnection::insertPaymentDataOld(uint32_t PurchaseNr, uint32_t 
 	sendString(Registrant);
 	sendQuad(AccountID);
 	int Result = executeQuery(360, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		PaymentID = getQuad();
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (FailureCode == 1) {
 			return FailureCode;
@@ -1367,18 +1378,18 @@ int TQueryManagerConnection::insertPaymentDataOld(uint32_t PurchaseNr, uint32_t 
 }
 
 int TQueryManagerConnection::addPaymentOld(uint32_t AccountID, char *Description, uint32_t PaymentID, int Days, int &ActionTaken) {
-	prepareQuery(211);
+	prepareQuery(QUERY_ADD_PAYMENT_OLD);
 	sendQuad(AccountID);
 	sendString(Description);
 	sendQuad(PaymentID);
 	sendWord(static_cast<unsigned short>(Days));
 	int Result = executeQuery(360, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		ActionTaken = getByte();
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 2)) {
 			return FailureCode;
@@ -1393,18 +1404,18 @@ int TQueryManagerConnection::addPaymentOld(uint32_t AccountID, char *Description
 }
 
 int TQueryManagerConnection::cancelPaymentOld(uint32_t PurchaseNr, uint32_t ReferenceNr, uint32_t AccountID, bool &IllegalUse, char *EMailAddress) {
-	prepareQuery(212);
+	prepareQuery(QUERY_CANCEL_PAYMENT_OLD);
 	sendQuad(PurchaseNr);
 	sendQuad(ReferenceNr);
 	sendQuad(AccountID);
 	int Result = executeQuery(360, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		IllegalUse = getByte() != 0;
 		getString(EMailAddress, 50);
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 2)) {
 			return FailureCode;
@@ -1421,7 +1432,7 @@ int TQueryManagerConnection::cancelPaymentOld(uint32_t PurchaseNr, uint32_t Refe
 }
 
 int TQueryManagerConnection::insertPaymentDataNew(uint32_t PurchaseNr, uint32_t ReferenceNr, char *FirstName, char *LastName, char *Company, char *Street, char *Zip, char *City, char *Country, char *State, char *Phone, char *Fax, char *EMail, char *PaymentMethod, uint32_t ProductID, char *Registrant, char *PaymentKey, uint32_t &PaymentID) {
-	prepareQuery(213);
+	prepareQuery(QUERY_INSERT_PAYMENT_DATA_NEW);
 	sendQuad(PurchaseNr);
 	sendQuad(ReferenceNr);
 	sendString(FirstName);
@@ -1440,12 +1451,12 @@ int TQueryManagerConnection::insertPaymentDataNew(uint32_t PurchaseNr, uint32_t 
 	sendString(Registrant);
 	sendString(PaymentKey);
 	int Result = executeQuery(360, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		PaymentID = getQuad();
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (FailureCode == 1) {
 			return FailureCode;
@@ -1460,11 +1471,11 @@ int TQueryManagerConnection::insertPaymentDataNew(uint32_t PurchaseNr, uint32_t 
 }
 
 int TQueryManagerConnection::addPaymentNew(char *PaymentKey, uint32_t PaymentID, int &ActionTaken, char *EMailReceiver) {
-	prepareQuery(214);
+	prepareQuery(QUERY_ADD_PAYMENT_NEW);
 	sendString(PaymentKey);
 	sendQuad(PaymentID);
 	int Result = executeQuery(360, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		ActionTaken = getByte();
 		if (ActionTaken == 5) {
 			getString(EMailReceiver, 100);
@@ -1473,7 +1484,7 @@ int TQueryManagerConnection::addPaymentNew(char *PaymentKey, uint32_t PaymentID,
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (in(FailureCode, 1, 3)) {
 			return FailureCode;
@@ -1488,19 +1499,19 @@ int TQueryManagerConnection::addPaymentNew(char *PaymentKey, uint32_t PaymentID,
 }
 
 int TQueryManagerConnection::cancelPaymentNew(uint32_t PurchaseNr, uint32_t ReferenceNr, char *PaymentKey, bool &IllegalUse, bool &Present, char *EMailAddress) {
-	prepareQuery(215);
+	prepareQuery(QUERY_CANCEL_PAYMENT_NEW);
 	sendQuad(PurchaseNr);
 	sendQuad(ReferenceNr);
 	sendString(PaymentKey);
 	int Result = executeQuery(360, true);
-	if (Result == 0) {
+	if (Result == STATUS_OK) {
 		IllegalUse = getFlag();
 		Present = getFlag();
 		getString(EMailAddress, 50);
 		return 0;
 	}
 
-	if (Result == 1) {
+	if (Result == STATUS_ERROR) {
 		int FailureCode = getByte();
 		if (FailureCode == 1) {
 			return FailureCode;
