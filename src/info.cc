@@ -38,12 +38,12 @@ const char *GetName(Object Obj) {
 			strcpy(ObjectName, Help);
 		}
 
-		if (Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) != 0) {
+		if (Obj.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) != LIQUID_NONE) {
 			strcat(ObjectName, " of ");
 			strcat(ObjectName, GetLiquidName(Obj.getAttribute(CONTAINERLIQUIDTYPE)));
 		}
 
-		if (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) != 0) {
+		if (Obj.getFlag(LIQUIDPOOL) && Obj.getAttribute(POOLLIQUIDTYPE) != LIQUID_NONE) {
 			strcat(ObjectName, " of ");
 			strcat(ObjectName, GetLiquidName(Obj.getAttribute(POOLLIQUIDTYPE)));
 		}
@@ -238,19 +238,19 @@ bool ObjectAccessible(uint32_t CreatureID, Object Obj, int Range) {
 
 const char *GetLiquidName(uint32_t nr) {
 	switch (nr) {
-		case 0: return "nothing";
-		case 1: return "water";
-		case 2: return "wine";
-		case 3: return "beer";
-		case 4: return "mud";
-		case 5: return "blood";
-		case 6: return "slime";
-		case 7: return "oil";
-		case 8: return "urine";
-		case 9: return "milk";
-		case 10: return "manafluid";
-		case 11: return "lifefluid";
-		case 12: return "lemonade";
+		case LIQUID_NONE: return "nothing";
+		case LIQUID_WATER: return "water";
+		case LIQUID_WINE: return "wine";
+		case LIQUID_BEER: return "beer";
+		case LIQUID_MUD: return "mud";
+		case LIQUID_BLOOD: return "blood";
+		case LIQUID_SLIME: return "slime";
+		case LIQUID_OIL: return "oil";
+		case LIQUID_URINE: return "urine";
+		case LIQUID_MILK: return "milk";
+		case LIQUID_MANAFLUID: return "manafluid";
+		case LIQUID_LIFEFLUID: return "lifefluid";
+		case LIQUID_LEMONADE: return "lemonade";
 		default: {
 			error("GetLiquidName: Ung\xfcltiger Fl\xfcssigkeitstyp %d\n", nr);
 			return "unknown";
@@ -260,22 +260,22 @@ const char *GetLiquidName(uint32_t nr) {
 
 unsigned char GetLiquidColor(uint32_t nr) {
 	switch (nr) {
-		case 0: return 0;
-		case 1: return 1;
-		case 2: return 7;
-		case 3: return 3;
-		case 4: return 3;
-		case 5: return 2;
-		case 6: return 4;
-		case 7: return 3;
-		case 8: return 5;
-		case 9: return 6;
-		case 10: return 7;
-		case 11: return 2;
-		case 12: return 5;
+		case LIQUID_NONE: return LIQUID_COLOR_NONE;
+		case LIQUID_WATER: return LIQUID_COLOR_BLUE;
+		case LIQUID_WINE: return LIQUID_COLOR_PURPLE;
+		case LIQUID_BEER: return LIQUID_COLOR_BROWN;
+		case LIQUID_MUD: return LIQUID_COLOR_BROWN;
+		case LIQUID_BLOOD: return LIQUID_COLOR_RED;
+		case LIQUID_SLIME: return LIQUID_COLOR_GREEN;
+		case LIQUID_OIL: return LIQUID_COLOR_BROWN;
+		case LIQUID_URINE: return LIQUID_COLOR_YELLOW;
+		case LIQUID_MILK: return LIQUID_COLOR_WHITE;
+		case LIQUID_MANAFLUID: return LIQUID_COLOR_PURPLE;
+		case LIQUID_LIFEFLUID: return LIQUID_COLOR_RED;
+		case LIQUID_LEMONADE: return LIQUID_COLOR_YELLOW;
 		default: {
 			error("GetLiquidColor: Ung\xfcltiger Fl\xfcssigkeitstyp %d\n", nr);
-			return 0;
+			return LIQUID_COLOR_NONE;
 		}
 	}
 }
