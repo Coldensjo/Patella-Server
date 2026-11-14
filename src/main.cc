@@ -473,7 +473,7 @@ void LaunchGame() {
 	SigUsr1Counter = 0;
 	handler(SIGUSR1, HandlerSigUsr1);
 	StartGame();
-	print(1, "LaunchGame: Game-Server ist bereit (Pid=%d).\n", getpid());
+	print(1, "LaunchGame: Game server is ready (Pid=%d).\n", getpid());
 	SaveMapOn = true;
 	TimeReset();
 
