@@ -79,9 +79,13 @@ const int ATTACK_MODE_OFFENSIVE = 1;
 const int ATTACK_MODE_BALANCED = 2;
 const int ATTACK_MODE_DEFENSIVE = 3;
 
-// TCombat's chase mode: stand while fighting, or follow the target.
+// TCombat's chase mode: stand while fighting, or follow the target. The third,
+// keep a distance (step away from a target 3 fields away or closer, close in on
+// one farther than 4), is known to CheckTargetAndChase only: SetChaseMode and
+// CSetTactics accept the first two.
 const int CHASE_MODE_STAND = 0;
 const int CHASE_MODE_FOLLOW = 1;
+const int CHASE_MODE_KEEP_DISTANCE = 2;
 
 // TCombat's secure mode: on, a player does not attack unmarked players.
 const int SECURE_MODE_OFF = 0;

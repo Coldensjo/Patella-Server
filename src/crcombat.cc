@@ -117,7 +117,7 @@ void TCombat::CheckTargetAndChase() {
 			}
 			break;
 
-		case 2:
+		case CHASE_MODE_KEEP_DISTANCE:
 			if (Distance <= 3) {
 				int x, y, z;
 				if (SearchFlightField(Master->ID, AttackDest, x, y, z)) {
