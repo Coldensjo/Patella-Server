@@ -129,15 +129,41 @@ enum ParameterType {
 	PARAMETER_COMPARISON = 11,
 };
 
+// The number of event types, one rule database each (MoveUseDatabases).
+const int NUMBER_OF_EVENT_TYPES = 5;
+
+// The most parameters a condition or an action has.
+const int MAX_PARAMETERS = 5;
+
+// The objects a rule names (a PARAMETER_OBJECT, GetEventObject's Number):
+// "null", "obj1", "obj2", "user" and "temp".
+const int EVENTOBJECT_NULL = 0;
+const int EVENTOBJECT_OBJ1 = 1;
+const int EVENTOBJECT_OBJ2 = 2;
+const int EVENTOBJECT_USER = 3;
+const int EVENTOBJECT_TEMP = 4;
+
+// What an INFORMATION object tells (its INFORMATIONTYPE, UseAnnouncer): the
+// date and the time, the time, the blessings received, or its own text.
+const int INFORMATION_DATE = 1;
+const int INFORMATION_TIME = 2;
+const int INFORMATION_BLESSINGS = 3;
+const int INFORMATION_TEXT = 4;
+
+// The markers of an object stream (map.cc's SaveObjects and LoadObjects): the
+// byte after an object's attributes and the word after a container's objects.
+const int STREAM_END_OF_ATTRIBUTES = 0xFF;
+const int STREAM_END_OF_OBJECTS = 0xFFFF;
+
 struct TMoveUseCondition {
 	ModifierType Modifier;
 	ConditionType Condition;
-	int Parameters[5];
+	int Parameters[MAX_PARAMETERS];
 };
 
 struct TMoveUseAction {
 	ActionType Action;
-	int Parameters[5];
+	int Parameters[MAX_PARAMETERS];
 };
 
 struct TMoveUseRule {
@@ -169,7 +195,7 @@ vector<TMoveUseCondition> MoveUseConditions(1, 1000, 1000);
 int NumberOfMoveUseConditions;
 vector<TMoveUseAction> MoveUseActions(1, 1000, 1000);
 int NumberOfMoveUseActions;
-TMoveUseDatabase MoveUseDatabases[5];
+TMoveUseDatabase MoveUseDatabases[NUMBER_OF_EVENT_TYPES];
 vector<TDelayedMail> DelayedMail(0, 10, 10);
 int DelayedMails;
 
@@ -185,15 +211,15 @@ int DelayedMails;
 
 Object GetEventObject(int Number, Object User, Object Obj1, Object Obj2, Object Temp) {
 	switch (Number) {
-		case 0:
+		case EVENTOBJECT_NULL:
 			return NONE;
-		case 1:
+		case EVENTOBJECT_OBJ1:
 			return Obj1;
-		case 2:
+		case EVENTOBJECT_OBJ2:
 			return Obj2;
-		case 3:
+		case EVENTOBJECT_USER:
 			return User;
-		case 4:
+		case EVENTOBJECT_TEMP:
 			return Temp;
 		default:
 			error("GetEventObject: Unbekannte Nummer %d.\n", Number);
@@ -295,7 +321,7 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
 			if (Obj.isCreature()) {
 				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && Compare(cr->Skills[0]->Get(), Condition.Parameters[1], Condition.Parameters[2]);
+				fulfilled = cr != nullptr && Compare(cr->Skills[SKILL_LEVEL]->Get(), Condition.Parameters[1], Condition.Parameters[2]);
 			}
 			break;
 		case CONDITION_HASRIGHT:
@@ -317,7 +343,7 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
 			if (Obj.isCreature()) {
 				cr = GetCreature(Obj);
-				if (in(Condition.Parameters[1], 0, 24)) {
+				if (in(Condition.Parameters[1], 0, MAX_SKILLS - 1)) {
 					fulfilled = cr != nullptr && cr->Skills[Condition.Parameters[1]]->Probe(Condition.Parameters[2], Condition.Parameters[3], true);
 				} else {
 					error("CheckCondition (TestSkill): Ung\xfcltige Skillnummer %d.\n", Condition.Parameters[1]);
@@ -339,12 +365,12 @@ bool CheckCondition(EventType, TMoveUseCondition &Condition, Object User, Object
 			break;
 		case CONDITION_ISCREATURETHERE:
 			UnpackAbsoluteCoordinate(Condition.Parameters[0], x1, y1, z1);
-			Temp = GetFirstSpecObject(x1, y1, z1, ObjectType(99));
+			Temp = GetFirstSpecObject(x1, y1, z1, ObjectType(TYPEID_CREATURE));
 			fulfilled = Temp != NONE;
 			break;
 		case CONDITION_ISPLAYERTHERE:
 			UnpackAbsoluteCoordinate(Condition.Parameters[0], x1, y1, z1);
-			Temp = GetFirstSpecObject(x1, y1, z1, ObjectType(99));
+			Temp = GetFirstSpecObject(x1, y1, z1, ObjectType(TYPEID_CREATURE));
 			if (Temp != NONE) {
 				cr = GetCreature(Temp);
 				fulfilled = cr != nullptr && cr->Type == PLAYER;
@@ -803,7 +829,7 @@ void SendMails(TPlayerData *PlayerData) {
 			continue;
 		}
 
-		if (!in(D.DepotNumber, 0, 8)) {
+		if (!in(D.DepotNumber, 0, MAX_DEPOTS - 1)) {
 			error("SendMails: Ung\xfcltige Depotnummer %d.\n", D.DepotNumber);
 			D.DepotNumber = 0;
 		}
@@ -822,8 +848,8 @@ void SendMails(TPlayerData *PlayerData) {
 		if (DepotEmpty) {
 			TWriteBuffer Buffer(&NewDepot[D.PacketSize], 5);
 			Buffer.writeWord((unsigned short)GetSpecialObject(DEPOT_CHEST).getTypeID());
-			Buffer.writeByte(0xFF);
-			Buffer.writeWord(0xFFFF);
+			Buffer.writeByte(STREAM_END_OF_ATTRIBUTES);
+			Buffer.writeWord(STREAM_END_OF_OBJECTS);
 		} else {
 			memcpy(&NewDepot[D.PacketSize], PlayerData->Depot[D.DepotNumber], PlayerData->DepotSize[D.DepotNumber]);
 			delete[] PlayerData->Depot[D.DepotNumber];
@@ -849,7 +875,7 @@ void TextEffect(char *Text, int x, int y, int z, int Radius) {
 		return;
 	}
 
-	TFindCreatures Search(Radius, Radius, x, y, 1);
+	TFindCreatures Search(Radius, Radius, x, y, FIND_PLAYERS);
 	while (true) {
 		uint32_t ID = Search.getNext();
 		if (ID == 0) {
@@ -1265,7 +1291,7 @@ void UseContainer(uint32_t CreatureID, Object Con, unsigned char Window) {
 		throw ERROR;
 	}
 
-	if (Window >= 16) {
+	if (Window >= MAX_OPEN_CONTAINERS) {
 		error("UseContainer: Ung\xfcltige Fensternummer %d.\n", Window);
 		throw ERROR;
 	}
@@ -1280,7 +1306,7 @@ void UseContainer(uint32_t CreatureID, Object Con, unsigned char Window) {
 		throw ERROR;
 	}
 
-	for (int con = 0; con < 16; con++) {
+	for (int con = 0; con < MAX_OPEN_CONTAINERS; con++) {
 		if (pl->GetOpenContainer(con) == Con) {
 			pl->SetOpenContainer(con, NONE);
 			SendCloseContainer(pl->GetConnection(), con);
@@ -1306,7 +1332,7 @@ void UseChest(uint32_t CreatureID, Object Chest) {
 	int x, y, z;
 	GetObjectCoordinates(Chest, x, y, z);
 	int Number = Chest.getAttribute(CHESTQUESTNUMBER);
-	if (!in(Number, 1, 499)) {
+	if (!in(Number, 1, MAX_QUESTS - 1)) {
 		error("UseChest: Ung\xfcltige Nummer %d auf Schatztruhe an Position [%d,%d,%d].\n", Number, x, y, z);
 		throw ERROR;
 	}
@@ -1337,7 +1363,7 @@ void UseChest(uint32_t CreatureID, Object Chest) {
 
 	if (!CheckRight(CreatureID, UNLIMITED_CAPACITY)) {
 		int Weight = GetCompleteWeight(Treasure);
-		if (Weight + GetInventoryWeight(CreatureID) > pl->Skills[5]->Get() * 100 || CheckRight(CreatureID, ZERO_CAPACITY)) {
+		if (Weight + GetInventoryWeight(CreatureID) > pl->Skills[SKILL_CARRYSTRENGTH]->Get() * 100 || CheckRight(CreatureID, ZERO_CAPACITY)) {
 			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "You have found %s. Weighing %d.%02d oz %s too heavy.",
 					GetName(Treasure), Weight / 100, Weight % 100,
 					(Treasure.getFlag(CUMULATIVE) && Treasure.getAttribute(AMOUNT) > 1) ? "they are" : "it is");
@@ -1365,7 +1391,7 @@ again:
 			error("UseChest: Schatz auf Position [%d,%d,%d] ist doch zu schwer.\n", x, y, z);
 		}
 
-		if (pos < 10) {
+		if (pos < LAST_BODY_POSITION) {
 			goto again;
 		}
 
@@ -1401,14 +1427,14 @@ void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest) {
 		throw ERROR;
 	}
 
-	if (Dest.getFlag(LIQUIDSOURCE) && Obj.getAttribute(CONTAINERLIQUIDTYPE) == 0) {
+	if (Dest.getFlag(LIQUIDSOURCE) && Obj.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE) {
 		Change(Obj, CONTAINERLIQUIDTYPE, Dest.getAttribute(SOURCELIQUIDTYPE));
 		return;
 	}
 
-	if (Dest.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) != 0 && Dest.getAttribute(CONTAINERLIQUIDTYPE) == 0) {
+	if (Dest.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) != LIQUID_NONE && Dest.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE) {
 		Change(Dest, CONTAINERLIQUIDTYPE, Obj.getAttribute(CONTAINERLIQUIDTYPE));
-		Change(Obj, CONTAINERLIQUIDTYPE, 0);
+		Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 		return;
 	}
 
@@ -1432,36 +1458,36 @@ void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest) {
 
 		char *Sound;
 		switch (Obj.getAttribute(CONTAINERLIQUIDTYPE)) {
-			case 0:
+			case LIQUID_NONE:
 				return;
-			case 2:
-			case 3:
-				Change(Obj, CONTAINERLIQUIDTYPE, 0);
+			case LIQUID_WINE:
+			case LIQUID_BEER:
+				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 				Sound = "Aah...";
-				if (pl->Skills[20]->TimerValue() < 5) {
-					pl->SetTimer(20, pl->Skills[20]->TimerValue() + 1, 120, 120, -1);
+				if (pl->Skills[SKILL_DRUNKEN]->TimerValue() < 5) {
+					pl->SetTimer(SKILL_DRUNKEN, pl->Skills[SKILL_DRUNKEN]->TimerValue() + 1, 120, 120, -1);
 				}
 				break;
-			case 6:
-				Change(Obj, CONTAINERLIQUIDTYPE, 0);
+			case LIQUID_SLIME:
+				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 				Sound = "Urgh!";
-				pl->Damage(nullptr, 200, 32);
+				pl->Damage(nullptr, 200, DAMAGE_POISON_CONDITION);
 				break;
-			case 8:
-				Change(Obj, CONTAINERLIQUIDTYPE, 0);
+			case LIQUID_URINE:
+				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 				Sound = "Urgh!";
 				break;
-			case 10:
-			case 11:
+			case LIQUID_MANAFLUID:
+			case LIQUID_LIFEFLUID:
 				DrinkPotion(CreatureID, Obj);
 				Sound = "Aaaah...";
 				break;
-			case 12:
-				Change(Obj, CONTAINERLIQUIDTYPE, 0);
+			case LIQUID_LEMONADE:
+				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 				Sound = "Mmmh.";
 				break;
 			default:
-				Change(Obj, CONTAINERLIQUIDTYPE, 0);
+				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 				Sound = "Gulp.";
 				break;
 		}
@@ -1469,7 +1495,7 @@ void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest) {
 		return;
 	}
 
-	if (Obj.getAttribute(CONTAINERLIQUIDTYPE) == 0) {
+	if (Obj.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE) {
 		throw NOTUSABLE;
 	}
 
@@ -1480,7 +1506,7 @@ void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest) {
 	}
 
 	int LiquidType = Obj.getAttribute(CONTAINERLIQUIDTYPE);
-	Change(Obj, CONTAINERLIQUIDTYPE, 0);
+	Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 	CreatePool(GetMapContainer(Dest), GetSpecialObject(BLOOD_POOL), LiquidType);
 }
 
@@ -1501,12 +1527,12 @@ void UseFood(uint32_t CreatureID, Object Obj) {
 		throw ERROR;
 	}
 
-	TSkill *sk = pl->Skills[14];
+	TSkill *sk = pl->Skills[SKILL_EATING];
 	if (sk->TimerValue() > sk->GetMax() - (int)Obj.getAttribute(NUTRITION) * 12) {
 		throw FEDUP;
 	}
 
-	pl->SetTimer(14, sk->TimerValue() + Obj.getAttribute(NUTRITION) * 12, 0, 0, -1);
+	pl->SetTimer(SKILL_EATING, sk->TimerValue() + Obj.getAttribute(NUTRITION) * 12, 0, 0, -1);
 	Delete(Obj, 1);
 }
 
@@ -1551,35 +1577,35 @@ void UseAnnouncer(uint32_t CreatureID, Object Obj) {
 	char Help[200];
 	int Blessings = 0;
 	switch (Obj.getAttribute(INFORMATIONTYPE)) {
-		case 1:
+		case INFORMATION_DATE:
 			GetDate(Year, Cycle, Day);
 			GetTime(Hour, Minute);
 			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "It is the %dth day of the %dth cycle in the year %d. The time is %d:%.2d.",
 					Day, Cycle, Year, Hour, Minute);
 			break;
-		case 2:
+		case INFORMATION_TIME:
 			GetTime(Hour, Minute);
 			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "The time is %d:%.2d.", Hour, Minute);
 			break;
-		case 3:
+		case INFORMATION_BLESSINGS:
 			strcpy(Help, "Received blessings:");
-			if (pl->GetQuestValue(101) != 0) {
+			if (pl->GetQuestValue(FIRST_BLESSING_QUEST) != 0) {
 				strcat(Help, "\nWisdom of Solitude");
 				Blessings++;
 			}
-			if (pl->GetQuestValue(102) != 0) {
+			if (pl->GetQuestValue(FIRST_BLESSING_QUEST + 1) != 0) {
 				strcat(Help, "\nSpark of the Phoenix");
 				Blessings++;
 			}
-			if (pl->GetQuestValue(103) != 0) {
+			if (pl->GetQuestValue(FIRST_BLESSING_QUEST + 2) != 0) {
 				strcat(Help, "\nFire of the Suns");
 				Blessings++;
 			}
-			if (pl->GetQuestValue(104) != 0) {
+			if (pl->GetQuestValue(FIRST_BLESSING_QUEST + 3) != 0) {
 				strcat(Help, "\nSpiritual Shielding");
 				Blessings++;
 			}
-			if (pl->GetQuestValue(105) != 0) {
+			if (pl->GetQuestValue(LAST_BLESSING_QUEST) != 0) {
 				strcat(Help, "\nEmbrace of Tibia");
 				Blessings++;
 			}
@@ -1588,7 +1614,7 @@ void UseAnnouncer(uint32_t CreatureID, Object Obj) {
 			}
 			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s", Help);
 			break;
-		case 4:
+		case INFORMATION_TEXT:
 			SendEditText(pl->GetConnection(), Obj);
 			break;
 		default:
@@ -1698,7 +1724,7 @@ void UseLevelDoor(uint32_t CreatureID, Object Door) {
 		throw NOTUSABLE;
 	}
 
-	if (pl->Skills[0]->Get() < (int)Door.getAttribute(DOORLEVEL)) {
+	if (pl->Skills[SKILL_LEVEL]->Get() < (int)Door.getAttribute(DOORLEVEL)) {
 		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s.", GetInfo(Door));
 		return;
 	}
@@ -1745,7 +1771,7 @@ void UseQuestDoor(uint32_t CreatureID, Object Door) {
 }
 
 void UseWeapon(uint32_t CreatureID, Object Weapon, Object Target) {
-	if (!Weapon.exists() || !Weapon.getFlag(WEAPON) || !in(Weapon.getAttribute(WEAPONTYPE), 1, 3)) {
+	if (!Weapon.exists() || !Weapon.getFlag(WEAPON) || !in(Weapon.getAttribute(WEAPONTYPE), WEAPON_SWORD, WEAPON_AXE)) {
 		error("UseWeapon: \xdc" "bergebene Waffe existiert nicht oder ist keine Waffe.\n");
 		throw ERROR;
 	}
@@ -1765,7 +1791,7 @@ void UseWeapon(uint32_t CreatureID, Object Weapon, Object Target) {
 		throw NOTACCESSIBLE;
 	}
 
-	GraphicalEffect(Target, 3);
+	GraphicalEffect(Target, EFFECT_POFF);
 	if (random(1, 3) != 1) {
 		return;
 	}
@@ -2056,7 +2082,7 @@ void CollisionEvent(Object Obj, Object Dest) {
 }
 
 void LoadParameters(TReadScriptFile &Script, int *Parameters, int NumberOfParameters, ...) {
-	if (NumberOfParameters > 5) {
+	if (NumberOfParameters > MAX_PARAMETERS) {
 		error("LoadParameters: Zu viele Parameter (%d).\n", NumberOfParameters);
 		Script.error("too many parameters");
 	}
@@ -2082,15 +2108,15 @@ void LoadParameters(TReadScriptFile &Script, int *Parameters, int NumberOfParame
 			case PARAMETER_OBJECT:
 				Ident = Script.readIdentifier();
 				if (strcmp(Ident, "null") == 0) {
-					Parameters[i] = 0;
+					Parameters[i] = EVENTOBJECT_NULL;
 				} else if (strcmp(Ident, "obj1") == 0) {
-					Parameters[i] = 1;
+					Parameters[i] = EVENTOBJECT_OBJ1;
 				} else if (strcmp(Ident, "obj2") == 0) {
-					Parameters[i] = 2;
+					Parameters[i] = EVENTOBJECT_OBJ2;
 				} else if (strcmp(Ident, "user") == 0) {
-					Parameters[i] = 3;
+					Parameters[i] = EVENTOBJECT_USER;
 				} else if (strcmp(Ident, "temp") == 0) {
-					Parameters[i] = 4;
+					Parameters[i] = EVENTOBJECT_TEMP;
 				} else {
 					Script.error("Object expected");
 				}
@@ -2438,7 +2464,7 @@ void LoadDataBase() {
 
 	TReadScriptFile Script;
 	Script.open(FileName);
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < NUMBER_OF_EVENT_TYPES; i++) {
 		MoveUseDatabases[i].NumberOfRules = 0;
 	}
 
@@ -2525,8 +2551,9 @@ void LoadDataBase() {
 
 	Script.close();
 	print(1, "Move/Use-Datenbank mit %d/%d/%d/%d/%d Regeln gelesen.\n",
-			MoveUseDatabases[0].NumberOfRules, MoveUseDatabases[1].NumberOfRules, MoveUseDatabases[2].NumberOfRules,
-			MoveUseDatabases[3].NumberOfRules, MoveUseDatabases[4].NumberOfRules);
+			MoveUseDatabases[EVENT_USE].NumberOfRules, MoveUseDatabases[EVENT_MULTIUSE].NumberOfRules,
+			MoveUseDatabases[EVENT_MOVEMENT].NumberOfRules, MoveUseDatabases[EVENT_COLLISION].NumberOfRules,
+			MoveUseDatabases[EVENT_SEPARATION].NumberOfRules);
 }
 
 void InitMoveUse() {
