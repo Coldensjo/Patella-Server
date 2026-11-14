@@ -501,7 +501,7 @@ static void TestMalformed(const fs::path &Folder) {
 	std::string Empty = Load("");
 	CHECK(!IsError(Empty) && Empty.find("houses\t0\n") != std::string::npos);
 	std::string Logged = Load(Variant(14, "exit = [0, 100, 7]"));
-	CHECK(Logged.find("errors\tLoadHouses: Ausgang f\xfcr Haus 1 nicht gesetzt.\n") != std::string::npos);
+	CHECK(Logged.find("errors\tLoadHouses: Exit for house 1 not set.\n") != std::string::npos);
 }
 
 // The tables in use, loaded from the parsed File in this process: the dump

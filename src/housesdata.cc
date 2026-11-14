@@ -27,7 +27,7 @@ THouseArea *GetHouseArea(unsigned short ID) {
 		}
 	}
 
-	error("GetHouseArea: Gebiet mit ID %d nicht gefunden.\n", ID);
+	error("GetHouseArea: Area with ID %d not found.\n", ID);
 	return nullptr;
 }
 
@@ -149,13 +149,13 @@ static void ReadHouse(const toml::table &Table, THouseFieldFunction *SetField) {
 
 	ReadCoordinate(Required(Table, "exit", What.c_str()), "exit", Entry.ExitX, Entry.ExitY, Entry.ExitZ);
 	if (Entry.ExitX == 0) {
-		error("LoadHouses: Ausgang f\xfcr Haus %d nicht gesetzt.\n", Entry.ID);
+		error("LoadHouses: Exit for house %d not set.\n", Entry.ID);
 	}
 
 	ReadCoordinate(Required(Table, "center", What.c_str()), "center", Entry.CenterX, Entry.CenterY, Entry.CenterZ);
 	if (Entry.CenterX == 0) {
-		// Quirk: the text says exit (Ausgang) for the center too.
-		error("LoadHouses: Ausgang f\xfcr Haus %d nicht gesetzt.\n", Entry.ID);
+		// Quirk: the text says exit for the center too.
+		error("LoadHouses: Exit for house %d not set.\n", Entry.ID);
 	}
 
 	const toml::node &FieldsNode = Required(Table, "fields", What.c_str());

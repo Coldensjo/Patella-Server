@@ -138,14 +138,14 @@ void ReadHousesDat(const char *FileName, THousesDatExtras &Extras) {
 		Script.readSymbol('=');
 		Script.readCoordinate(House(Houses).ExitX, House(Houses).ExitY, House(Houses).ExitZ);
 		if (House(Houses).ExitX == 0) {
-			error("LoadHouses: Ausgang f\xfcr Haus %d nicht gesetzt.\n", House(Houses).ID);
+			error("LoadHouses: Exit for house %d not set.\n", House(Houses).ID);
 		}
 
 		Script.readIdentifier();
 		Script.readSymbol('=');
 		Script.readCoordinate(House(Houses).CenterX, House(Houses).CenterY, House(Houses).CenterZ);
 		if (House(Houses).CenterX == 0) {
-			error("LoadHouses: Ausgang f\xfcr Haus %d nicht gesetzt.\n", House(Houses).ID);
+			error("LoadHouses: Exit for house %d not set.\n", House(Houses).ID);
 		}
 
 		Script.readIdentifier();
