@@ -249,7 +249,5 @@ int GetInventoryWeight(uint32_t CreatureID);
 bool CheckRight(uint32_t CharacterID, RIGHT Right);
 bool CheckBanishmentRight(uint32_t CharacterID, int Reason, int Action);
 const char *GetBanishmentReason(int Reason);
-void InitInfo();
-void ExitInfo();
 
 #endif

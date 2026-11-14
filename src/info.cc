@@ -1321,9 +1321,3 @@ const char *GetBanishmentReason(int Reason) {
 		}
 	}
 }
-
-void InitInfo() {
-}
-
-void ExitInfo() {
-}

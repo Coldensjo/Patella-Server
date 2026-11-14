@@ -242,7 +242,6 @@ struct TNPC : public TNonplayer {
 	TNPC(char *FileName);
 	virtual ~TNPC();
 	virtual void TalkStimulus(uint32_t Speaker, char *Text);
-	virtual void DamageStimulus(uint32_t, int, int);
 	virtual void IdleStimulus();
 	virtual void CreatureMoveStimulus(uint32_t CreatureID, int Type);
 	virtual bool MovePossible(int x, int y, int z, bool, bool);
@@ -1838,9 +1837,6 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 		this->State = IDLE;
 		this->ToDoYield();
 	}
-}
-
-void TNPC::DamageStimulus(uint32_t, int, int) {
 }
 
 bool TNPC::MovePossible(int x, int y, int z, bool, bool) {

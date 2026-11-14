@@ -532,6 +532,3 @@ void InitConnections() {
 
 	FirstSendingConnection = nullptr;
 }
-
-void ExitConnections() {
-}

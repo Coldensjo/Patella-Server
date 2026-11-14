@@ -121,7 +121,6 @@ TConnection *GetFirstConnection();
 TConnection *GetNextConnection();
 void ProcessConnections();
 void InitConnections();
-void ExitConnections();
 
 extern TConnection Connections[MAX_CONNECTIONS];
 extern Semaphore ConnectionMutex;

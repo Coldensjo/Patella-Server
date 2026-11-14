@@ -21,8 +21,6 @@ bool MatchString(char *Pattern, char *String);
 void AddSlashes(char *Destination, const char *Source);
 void Trim(char *Text);
 char *Capitals(char *Text);
-void InitStrings();
-void ExitStrings();
 
 extern list<TStaticStringTableBlock> StaticStringTable;
 extern list<TDynamicStringTableBlock> DynamicStringTable;

@@ -285,7 +285,6 @@ bool ObjectTypeExists(int TypeID);
 ObjectType GetSpecialObject(SPECIALMEANING Meaning);
 ObjectType GetObjectTypeByName(char *SearchName, bool Movable);
 void InitObjects();
-void ExitObjects();
 
 extern char FlagNames[FLAGS][20];
 extern char TypeAttributeNames[TYPEATTRIBUTES][30];

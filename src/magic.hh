@@ -189,7 +189,6 @@ void InitCircles();
 TSpellList *CreateSpell(int SpellNr, ...);
 void InitSpells();
 void InitMagic();
-void ExitMagic();
 
 // The size of SpellSyllable: the syllables 1 to 50 (0 is the empty one).
 const int MAX_SYLLABLES = 51;

@@ -473,6 +473,3 @@ void InitObjects() {
 	LoadObjects();
 	LoadConversionList();
 }
-
-void ExitObjects() {
-}

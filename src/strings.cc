@@ -514,9 +514,3 @@ char *Capitals(char *Text) {
 
 	return Text;
 }
-
-void InitStrings() {
-}
-
-void ExitStrings() {
-}

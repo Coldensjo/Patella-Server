@@ -434,12 +434,10 @@ void InitAll() {
 		InitSignalHandler();
 		InitConnections();
 		InitCommunication();
-		InitStrings();
 		InitWriter();
 		InitReader();
 		InitObjects();
 		InitMap();
-		InitInfo();
 		InitMoveUse();
 		InitMagic();
 		InitCr();
@@ -456,17 +454,12 @@ void ExitAll() {
 	EndGame();
 	ExitTime();
 	ExitCr();
-	ExitMagic();
 	ExitMoveUse();
-	ExitInfo();
 	ExitHouses();
 	ExitMap(SaveMapOn);
-	ExitObjects();
 	ExitReader();
 	ExitWriter();
-	ExitStrings();
 	ExitCommunication();
-	ExitConnections();
 	ExitSHM();
 }
 

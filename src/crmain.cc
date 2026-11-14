@@ -1969,7 +1969,6 @@ void InitCr() {
 	LoadMonsterRaids();
 	FirstFreeCreature = 0;
 	InitPlayer();
-	InitCrskill();
 	InitNonplayer();
 	InitKillStatistics();
 }
@@ -1978,6 +1977,5 @@ void ExitCr() {
 	ExitKillStatistics();
 	ExitPlayer();
 	ExitNonplayer();
-	ExitCrskill();
 	delete FirstChainCreature;
 }

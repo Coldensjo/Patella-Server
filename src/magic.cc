@@ -4859,9 +4859,6 @@ void InitMagic() {
 	InitLog("banish");
 }
 
-void ExitMagic() {
-}
-
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful) {
 	ObjectType ObjectType;
 	switch (FieldType) {
