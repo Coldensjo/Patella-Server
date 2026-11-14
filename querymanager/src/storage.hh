@@ -44,7 +44,7 @@ struct WorldRecord {
 	uint32_t id = 0;
 	std::string name;
 	WorldConfig config;
-	bool privateWorld = false;       // "State = private" in .tibia
+	bool privateWorld = false;       // state = "private" in config.toml
 	bool online = false;             // false after a playerlist with count 0xFFFF
 	uint32_t onlineRecord = 0;       // highest player count reported so far
 	uint32_t onlineRecordTime = 0;

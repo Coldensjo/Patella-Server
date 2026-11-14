@@ -1,4 +1,5 @@
-# The game server, game, built from the units in this folder.
+# The game server, game, built from the units in this folder, and game_flags,
+# the compile options of its units (tools/convert compiles some of them too).
 
 find_package(Threads REQUIRED)
 
@@ -9,6 +10,7 @@ add_executable(game
 	script.cc
 	strings.cc
 	config.cc
+	tomlfile.cc
 	time.cc
 	objects.cc
 	shm.cc
@@ -48,8 +50,9 @@ target_include_directories(game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # -Wno-format-overflow, -Wno-format-truncation, -Wno-stringop-truncation,
 #   -Wno-stringop-overflow: the code formats and copies into fixed buffers
 #   without bounds; those calls are kept as they are.
-target_compile_options(game PRIVATE
+add_library(game_flags INTERFACE)
+target_compile_options(game_flags INTERFACE
 	-Wno-write-strings -fwrapv -fno-strict-aliasing -U_FORTIFY_SOURCE
 	-Wno-format-overflow -Wno-format-truncation -Wno-stringop-truncation -Wno-stringop-overflow
 )
-target_link_libraries(game PRIVATE Threads::Threads rsa_private_key)
+target_link_libraries(game PRIVATE game_flags Threads::Threads tomlplusplus rsa_private_key)

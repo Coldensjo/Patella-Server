@@ -1,0 +1,59 @@
+# config.toml: the settings of the game server, converted from the original
+# .tibia by patella-convert. The game reads the file given with --config FILE,
+# or else config.toml in its home folder ($HOME). A key left out keeps its
+# default; an unknown key or a value of the wrong type is an error.
+
+# How much the game prints to its console and log: messages of a level above
+# this are left out (default 1).
+debug_level = 2
+
+# The beat: how often the game is advanced, in milliseconds (default 200).
+beat = 50
+
+# Key of the shared memory segment through which the operator tools watch
+# the game (default 0).
+shm_key = 10011
+
+[world]
+# The world's name; the game logs in to the query manager with it (default
+# empty).
+name = "Zanera"
+# "public", or "private": the query manager then lets in only invited
+# accounts (default "public").
+state = "public"
+
+# Folders. A relative path is relative to the folder this file is in (default:
+# empty for each).
+[paths]
+bin = "bin"          # reboot-daily, run when the game ends for a reboot
+map = "map"          # the map sectors (*.sec) the game loads and saves
+origmap = "origmap"  # the original map sectors
+data = "dat"         # objects.srv, moveuse.dat, map.dat and the other data
+user = "usr"         # the player files (NN/<id>.usr)
+log = "log"          # the log files
+save = "save"        # game.pid, swapped-out sectors, patches
+monster = "mon"      # the monster races (*.mon) and raids (*.evt)
+npc = "npc"          # the NPCs (*.npc)
+
+# The query managers, tried in this order (at most 10). password: the game's
+# password at the query manager as the original .tibia writes it; the game
+# disguises it before sending it, so it can have at most 8 characters.
+[[query_manager]]
+host = "127.0.0.1"
+port = 7173
+password = "nXE?/>j`"
+
+[[query_manager]]
+host = "127.0.0.1"
+port = 7174
+password = "nXE?/>j`"
+
+[[query_manager]]
+host = "127.0.0.1"
+port = 7175
+password = "nXE?/>j`"
+
+[[query_manager]]
+host = "127.0.0.1"
+port = 7176
+password = "nXE?/>j`"

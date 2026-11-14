@@ -299,6 +299,71 @@ void testSeed(const fs::path &root) {
 	CHECK(untouched.countRows("worlds") == 0);
 }
 
+// An installation with config.toml (tools/convert's form of .tibia), whose
+// [paths] put the player files and data elsewhere. A .tibia next to it is not
+// read.
+void testConfigToml(const fs::path &root) {
+	fs::path game = root / "tomlgame";
+	writeFile(game / "config.toml",
+		"# made-up config.toml\n"
+		"beat = 50\n"
+		"[world]\n"
+		"name = \"T\\u00f6mlia\"\n"
+		"state = \"private\"\n"
+		"[paths]\n"
+		"user = \"players\"\n"
+		"data = \"" + (game / "data").string() + "\"\n"
+		"[[query_manager]]\n"
+		"host = \"127.0.0.1\"\n"
+		"port = 7173\n"
+		"password = \"abcx/\"\n"
+		"[[query_manager]]\n"
+		"host = \"127.0.0.1\"\n"
+		"port = 7174\n"
+		"password = \"abcx/\"\n");
+	writeFile(game / ".tibia", "World = \"Other\"\nQueryManager = {(\"127.0.0.1\",7173,\"zz\")}\n");
+	writeFile(game / "players/34/1234.usr", playerFile(1234, "Made Up Knight", 131, 1146000000));
+	writeFile(game / "data/owners.dat", OwnersFile);
+
+	TibiaConfig config = readConfigToml((game / "config.toml").string());
+	CHECK(config.world == "T\xF6mlia");
+	CHECK(config.privateWorld);
+	CHECK(config.queryManagers.size() == 2);
+	CHECK(config.queryManagers[1].port == 7174);
+	CHECK(config.queryManagers[1].password == "abcx/");
+	CHECK(config.userPath == (game / "players").string());
+	CHECK(config.dataPath == (game / "data").string());
+
+	SqliteStorage storage(":memory:");
+	SeedOptions options;
+	options.gameRoot = game.string();
+	options.world = defaultWorldConfig();
+	SeedReport report = seedFromInstallation(storage, options);
+	CHECK(report.worldName == "T\xF6mlia");
+	CHECK(report.privateWorld);
+	CHECK(report.queryManagerEntries == 2);
+	CHECK(report.playerFiles == 1 && report.playersImported == 1);
+	CHECK(report.houseOwners == 2);
+	CHECK(storage.checkApplicationPassword(APPLICATION_GAME, "n,I3a"));
+	CHECK(storage.findWorld("T\xF6mlia").has_value());
+	CHECK(!storage.findWorld("Other").has_value());
+
+	// Errors name the file and line.
+	writeFile(game / "config.toml", "[world]\nname = 5\n");
+	CHECK_THROWS(readConfigToml((game / "config.toml").string()), std::runtime_error);
+	try {
+		readConfigToml((game / "config.toml").string());
+	} catch (const std::runtime_error &e) {
+		CHECK(std::string(e.what()).find("config.toml:2:") != std::string::npos);
+	}
+	writeFile(game / "config.toml", "[world\n");
+	CHECK_THROWS(readConfigToml((game / "config.toml").string()), std::runtime_error);
+	writeFile(game / "config.toml", "[world]\nname = \"W\"\n");
+	SqliteStorage refused(":memory:");
+	CHECK_THROWS(seedFromInstallation(refused, options), std::runtime_error);   // no query manager
+	CHECK(refused.countRows("worlds") == 0);
+}
+
 void all() {
 	setLogFile("/dev/null");
 
@@ -327,6 +392,7 @@ void all() {
 		testScriptReader(root);
 		testParsers(root);
 		testSeed(root);
+		testConfigToml(root);
 	} catch (...) {
 		fs::remove_all(root);
 		throw;

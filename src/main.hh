@@ -18,7 +18,8 @@ void InitSignalHandler();
 void UnlockGame();
 void LockGame();
 void LoadWorldConfig();
-void InitAll();
+// ConfigFile: the file of --config, or nullptr for ReadConfig's default.
+void InitAll(const char *ConfigFile);
 void ExitAll();
 void LaunchGame();
 int DaemonInit(bool NoFork);

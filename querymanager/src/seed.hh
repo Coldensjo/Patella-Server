@@ -1,10 +1,14 @@
 // Seeding: fills a query manager database from a game server installation.
 //
 // What the installation provides:
-//   .tibia            world name ("World"), public/private ("State") and the
-//                     query manager password ("QueryManager" entries)
+//   config.toml       world name ([world] name), public/private ([world]
+//                     state), the query manager password ([[query_manager]]
+//                     entries) and the folders of the player files and data
+//                     ([paths] user and data); or, without config.toml, the
+//                     original .tibia ("World", "State", "QueryManager")
 //   usr/NN/<id>.usr   one file per character: id, name, outfit, last login
 //   dat/owners.dat    house owners and the time their rent is paid until
+// (usr and dat: the folders config.toml names, else those in the game root)
 // What it does not provide, and seeding therefore takes from options:
 //   the world configuration the game asks for with loadWorldConfig.
 // Accounts, passwords, premium time, guilds, rights and buddy lists are in
@@ -21,29 +25,41 @@
 
 namespace qm {
 
-// Key ReadConfig passes to DisguisePassword for the QueryManager entries;
-// the static PasswordKey of src/config.cc.
+// Key LoadConfig passes to DisguisePassword for the query manager entries;
+// the PasswordKey of src/config.cc.
 extern const char PasswordKey[];
 
 // DisguisePassword (src/config.cc). The game applies it to the password it read
-// from .tibia and sends the result in the login request. Throws
+// from its config and sends the result in the login request. Throws
 // std::runtime_error if the key is shorter than the password.
 std::string disguisePassword(const std::string &password, const std::string &key);
 
 struct QueryManagerEntry {
 	std::string host;
 	uint32_t port = 0;
-	std::string password;        // as written in .tibia
+	std::string password;        // as written in the config (Latin-1)
 };
 
+// The settings seeding needs from the game's config.
 struct TibiaConfig {
 	std::string world;
 	bool privateWorld = false;
 	std::vector<QueryManagerEntry> queryManagers;
+	// The folders of [paths] user and data in config.toml, a relative one
+	// joined to the config's folder; empty when not given (and for .tibia,
+	// whose paths name where the installation sat, not where it is).
+	std::string userPath;
+	std::string dataPath;
 };
 
-// Reads the settings seeding needs from a .tibia file.
+// Reads the settings seeding needs from an original .tibia file.
 TibiaConfig readTibiaConfig(const std::string &path);
+
+// Reads the settings seeding needs from a config.toml file (src/config.cc's
+// LoadConfig reads the same file). Strings are turned back into Latin-1.
+// Throws std::runtime_error, with file:line:column, for a syntax error, a
+// value of the wrong type or a character outside Latin-1.
+TibiaConfig readConfigToml(const std::string &path);
 
 // What a .usr file says about a character.
 struct PlayerFile {
@@ -75,7 +91,7 @@ struct OwnerEntry {
 std::vector<OwnerEntry> readOwners(const std::string &path);
 
 struct SeedOptions {
-	std::string gameRoot;                // directory with .tibia, usr/ and dat/
+	std::string gameRoot;                // directory with config.toml (or .tibia), usr/ and dat/
 	WorldConfig world;                   // values for loadWorldConfig
 	bool importPlayers = true;
 	bool importHouseOwners = true;

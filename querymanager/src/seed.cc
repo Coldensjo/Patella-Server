@@ -10,6 +10,8 @@
 #include <filesystem>
 #include <stdexcept>
 
+#include <toml++/toml.hpp>
+
 namespace qm {
 
 const char PasswordKey[] = "Pm-,o%yD";
@@ -50,7 +52,98 @@ std::string expectString(ScriptReader &script) {
 	return script.text();
 }
 
+std::string where(const toml::source_region &region) {
+	return (region.path ? *region.path : std::string("?")) + ":" + std::to_string(region.begin.line) + ":"
+		+ std::to_string(region.begin.column);
+}
+
+// The Latin-1 bytes of a TOML string (UTF-8).
+std::string latin1(const toml::node &node, const char *key) {
+	if (!node.is_string()) {
+		throw std::runtime_error(where(node.source()) + ": " + key + " must be a string");
+	}
+	const std::string &text = node.as_string()->get();
+	std::string out;
+	for (size_t i = 0; i < text.size(); i++) {
+		unsigned char c = static_cast<unsigned char>(text[i]);
+		if (c < 0x80) {
+			out += static_cast<char>(c);
+		} else if ((c == 0xC2 || c == 0xC3) && i + 1 < text.size()) {
+			out += static_cast<char>(((c & 0x1F) << 6) | (text[i + 1] & 0x3F));
+			i++;
+		} else {
+			throw std::runtime_error(where(node.source()) + ": " + key + " has a character outside Latin-1");
+		}
+	}
+	return out;
+}
+
+// A folder of [paths]: a relative one joined to the config's folder.
+std::string configPath(const toml::table &paths, const char *key, const std::filesystem::path &folder) {
+	const toml::node *node = paths.get(key);
+	if (node == nullptr) {
+		return "";
+	}
+	std::string value = latin1(*node, key);
+	if (value.empty() || value[0] == '/') {
+		return value;
+	}
+	return (folder / value).string();
+}
+
 } // namespace
+
+TibiaConfig readConfigToml(const std::string &path) {
+	toml::table file;
+	try {
+		file = toml::parse_file(path);
+	} catch (const toml::parse_error &e) {
+		throw std::runtime_error(where(e.source()) + ": " + std::string(e.description()));
+	}
+	TibiaConfig config;
+	if (const toml::node *world = file.get("world")) {
+		if (!world->is_table()) {
+			throw std::runtime_error(where(world->source()) + ": world must be a table");
+		}
+		if (const toml::node *name = world->as_table()->get("name")) {
+			config.world = latin1(*name, "name");
+		}
+		if (const toml::node *state = world->as_table()->get("state")) {
+			config.privateWorld = latin1(*state, "state") == "private";
+		}
+	}
+	if (const toml::node *paths = file.get("paths")) {
+		if (!paths->is_table()) {
+			throw std::runtime_error(where(paths->source()) + ": paths must be a table");
+		}
+		std::filesystem::path folder = std::filesystem::absolute(path).parent_path();
+		config.userPath = configPath(*paths->as_table(), "user", folder);
+		config.dataPath = configPath(*paths->as_table(), "data", folder);
+	}
+	if (const toml::node *entries = file.get("query_manager")) {
+		if (!entries->is_array_of_tables()) {
+			throw std::runtime_error(where(entries->source()) + ": query_manager must be an array of tables");
+		}
+		for (const toml::node &node : *entries->as_array()) {
+			const toml::table &table = *node.as_table();
+			QueryManagerEntry entry;
+			for (const char *key : {"host", "port", "password"}) {
+				if (!table.contains(key)) {
+					throw std::runtime_error(where(node.source()) + ": an entry of query_manager needs " + key);
+				}
+			}
+			entry.host = latin1(*table.get("host"), "host");
+			const toml::node *port = table.get("port");
+			if (!port->is_integer() || port->as_integer()->get() < 0 || port->as_integer()->get() > 65535) {
+				throw std::runtime_error(where(port->source()) + ": port must be an integer from 0 to 65535");
+			}
+			entry.port = static_cast<uint32_t>(port->as_integer()->get());
+			entry.password = latin1(*table.get("password"), "password");
+			config.queryManagers.push_back(entry);
+		}
+	}
+	return config;
+}
 
 TibiaConfig readTibiaConfig(const std::string &path) {
 	TibiaConfig config;
@@ -180,12 +273,12 @@ std::vector<OwnerEntry> readOwners(const std::string &path) {
 }
 
 // World configuration that is in no file of the installation.
-//   type 0 (NORMAL)       ReadConfig presets WorldType = NORMAL
-//   reboot hour 9         ReadConfig presets RebootTime = 540 minutes
+//   type 0 (NORMAL)       SetConfigDefaults presets WorldType = NORMAL
+//   reboot hour 9         SetConfigDefaults presets RebootTime = 540 minutes
 //   address 127.0.0.1     the game binds its listen socket to this address;
 //                         loopback keeps a test server private
-//   port 7171             Tibia's customary game port; the QueryManager
-//                         entries in .tibia use 7173..7176 next to it
+//   port 7171             Tibia's customary game port; the query manager
+//                         entries of the config use 7173..7176 next to it
 //   1000 players, 100 of them reserved for premium accounts
 //                         below the 1100 connection thread stacks the game
 //                         allocates (InitCommunication)
@@ -312,13 +405,24 @@ void importHouseOwners(Storage &storage, const std::string &path, uint32_t world
 
 SeedReport seedFromInstallation(Storage &storage, const SeedOptions &options) {
 	SeedReport report;
-	TibiaConfig config = readTibiaConfig(options.gameRoot + "/.tibia");
+	// config.toml, or the original .tibia of an installation not yet
+	// converted (tools/convert).
+	std::string configFile = options.gameRoot + "/config.toml";
+	TibiaConfig config;
+	if (std::filesystem::is_regular_file(configFile)) {
+		config = readConfigToml(configFile);
+	} else {
+		configFile = options.gameRoot + "/.tibia";
+		config = readTibiaConfig(configFile);
+	}
 	if (config.world.empty()) {
-		throw std::runtime_error(".tibia has no World entry");
+		throw std::runtime_error(configFile + " names no world");
 	}
 	if (config.queryManagers.empty()) {
-		throw std::runtime_error(".tibia has no QueryManager entry");
+		throw std::runtime_error(configFile + " names no query manager");
 	}
+	std::string userPath = config.userPath.empty() ? options.gameRoot + "/usr" : config.userPath;
+	std::string dataPath = config.dataPath.empty() ? options.gameRoot + "/dat" : config.dataPath;
 	report.worldName = config.world;
 	report.privateWorld = config.privateWorld;
 	report.queryManagerEntries = config.queryManagers.size();
@@ -338,10 +442,10 @@ SeedReport seedFromInstallation(Storage &storage, const SeedOptions &options) {
 		storage.setApplicationPassword(APPLICATION_GAME, password);
 		report.worldId = storage.putWorld(config.world, options.world, config.privateWorld);
 		if (options.importPlayers) {
-			importPlayers(storage, options.gameRoot + "/usr", report.worldId, report);
+			importPlayers(storage, userPath, report.worldId, report);
 		}
 		if (options.importHouseOwners) {
-			importHouseOwners(storage, options.gameRoot + "/dat/owners.dat", report.worldId, report);
+			importHouseOwners(storage, dataPath + "/owners.dat", report.worldId, report);
 		}
 		storage.commit();
 	} catch (...) {
