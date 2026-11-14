@@ -94,7 +94,7 @@ int Direction(int dx, int dy) {
 
 void CheckSpellbook(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
-		error("CheckSpellbook: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("CheckSpellbook: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -108,12 +108,12 @@ void CheckSpellbook(TCreature *cr, int SpellNr) {
 
 void CheckAccount(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
-		error("CheckAccount: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("CheckAccount: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
 	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
-		error("CheckAccount: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
+		error("CheckAccount: Invalid spell number %d.\n", SpellNr);
 		throw ERROR;
 	}
 
@@ -125,7 +125,7 @@ void CheckAccount(TCreature *cr, int SpellNr) {
 
 void CheckLevel(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
-		error("CheckLevel: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("CheckLevel: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -140,7 +140,7 @@ void CheckLevel(TCreature *cr, int SpellNr) {
 	int Level = SpellList[SpellNr].Level;
 	TSkill *sk = cr->Skills[SKILL_LEVEL];
 	if (sk == nullptr) {
-		error("CheckLevel: Kein Skill LEVEL.\n");
+		error("CheckLevel: No skill LEVEL.\n");
 		throw ERROR;
 	}
 
@@ -151,7 +151,7 @@ void CheckLevel(TCreature *cr, int SpellNr) {
 
 void CheckRuneLevel(TCreature *cr, int SpellNr) {
 	if (cr == nullptr) {
-		error("CheckRuneLevel: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("CheckRuneLevel: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -166,7 +166,7 @@ void CheckRuneLevel(TCreature *cr, int SpellNr) {
 	int Level = SpellList[SpellNr].RuneLevel;
 	TSkill *sk = cr->Skills[SKILL_MAGICLEVEL];
 	if (sk == nullptr) {
-		error("CheckLevel: Kein Skill MAGLEVEL.\n");
+		error("CheckLevel: No skill MAGLEVEL.\n");
 		throw ERROR;
 	}
 
@@ -177,7 +177,7 @@ void CheckRuneLevel(TCreature *cr, int SpellNr) {
 
 void CheckRing(TCreature *cr, int) {
 	if (cr == nullptr) {
-		error("CheckRing: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("CheckRing: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -192,7 +192,7 @@ void CheckRing(TCreature *cr, int) {
 
 void CheckAffectedPlayers(TCreature *cr, int x, int y, int z) {
 	if (cr == nullptr) {
-		error("CheckAffectedPlayers: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("CheckAffectedPlayers: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -214,7 +214,7 @@ void CheckAffectedPlayers(TCreature *cr, int x, int y, int z) {
 
 void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	if (cr == nullptr) {
-		error("CheckMana: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("CheckMana: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -225,12 +225,12 @@ void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	TSkill *mana = cr->Skills[SKILL_MANA];
 	TSkill *soulpoints = cr->Skills[SKILL_SOULPOINTS];
 	if (mana == nullptr) {
-		error("CheckMana: Kein Skill MANA!\n");
+		error("CheckMana: No skill MANA!\n");
 		throw ERROR;
 	}
 
 	if (soulpoints == nullptr) {
-		error("CheckMana: Kein Skill SOULPOINTS!\n");
+		error("CheckMana: No skill SOULPOINTS!\n");
 		throw ERROR;
 	}
 
@@ -280,7 +280,7 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 
 bool IsAggressiveSpell(int SpellNr) {
 	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
-		error("IsAggressiveSpell: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
+		error("IsAggressiveSpell: Invalid spell number %d.\n", SpellNr);
 		return false;
 	}
 
@@ -289,7 +289,7 @@ bool IsAggressiveSpell(int SpellNr) {
 
 TDamageImpact::TDamageImpact(TCreature *_Actor, int _DamageType, int _Power, bool _AllowDefense) {
 	if (_Actor == nullptr) {
-		error("TDamageImpact::TDamageImpact: Actor ist NULL.\n");
+		error("TDamageImpact::TDamageImpact: Actor is NULL.\n");
 	}
 
 	Actor = _Actor;
@@ -300,7 +300,7 @@ TDamageImpact::TDamageImpact(TCreature *_Actor, int _DamageType, int _Power, boo
 
 void TDamageImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
-		error("TDamageImpact::handleCreature: Opfer existiert nicht.\n");
+		error("TDamageImpact::handleCreature: Victim does not exist.\n");
 		return;
 	}
 
@@ -322,7 +322,7 @@ void TDamageImpact::handleCreature(TCreature *Victim) {
 
 TFieldImpact::TFieldImpact(TCreature *_Actor, int _FieldType) {
 	if (_Actor == nullptr) {
-		error("TFieldImpact::TFieldImpact: Actor ist NULL.\n");
+		error("TFieldImpact::TFieldImpact: Actor is NULL.\n");
 	}
 
 	Actor = _Actor;
@@ -342,11 +342,11 @@ void TFieldImpact::handleField(int x, int y, int z) {
 
 THealingImpact::THealingImpact(TCreature *_Actor, int _Power) {
 	if (_Actor == nullptr) {
-		error("THealingImpact::THealingImpact: Actor ist NULL.\n");
+		error("THealingImpact::THealingImpact: Actor is NULL.\n");
 	}
 
 	if (_Power < 0) {
-		error("THealingImpact::THealingImpact: Power ist negativ (Actor: %s).\n",
+		error("THealingImpact::THealingImpact: Power is negative (Actor: %s).\n",
 				(_Actor != nullptr ? _Actor->Name : "(unknown)"));
 	}
 
@@ -356,7 +356,7 @@ THealingImpact::THealingImpact(TCreature *_Actor, int _Power) {
 
 void THealingImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
-		error("THealingImpact::handleCreature: Opfer existiert nicht.\n");
+		error("THealingImpact::handleCreature: Victim does not exist.\n");
 		return;
 	}
 
@@ -374,7 +374,7 @@ void THealingImpact::handleCreature(TCreature *Victim) {
 
 TSpeedImpact::TSpeedImpact(TCreature *_Actor, int _Percent, int _Duration) {
 	if (_Actor == nullptr) {
-		error("TSpeedImpact::TSpeedImpact: Actor ist NULL.\n");
+		error("TSpeedImpact::TSpeedImpact: Actor is NULL.\n");
 	}
 
 	Actor = _Actor;
@@ -384,7 +384,7 @@ TSpeedImpact::TSpeedImpact(TCreature *_Actor, int _Percent, int _Duration) {
 
 void TSpeedImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
-		error("TSpeedImpact::handleCreature: Opfer existiert nicht.\n");
+		error("TSpeedImpact::handleCreature: Victim does not exist.\n");
 		return;
 	}
 
@@ -421,11 +421,11 @@ void TSpeedImpact::handleCreature(TCreature *Victim) {
 
 TDrunkenImpact::TDrunkenImpact(TCreature *_Actor, int _Power, int _Duration) {
 	if (_Actor == nullptr) {
-		error("TDrunkenImpact::TDrunkenImpact: Actor ist NULL.\n");
+		error("TDrunkenImpact::TDrunkenImpact: Actor is NULL.\n");
 	}
 
 	if (_Power > 6) {
-		error("TDrunkenImpact::TDrunkenImpact: Power ist zu gro\xdf (%d).\n", _Power);
+		error("TDrunkenImpact::TDrunkenImpact: Power is too large (%d).\n", _Power);
 		_Power = 6;
 	}
 
@@ -436,7 +436,7 @@ TDrunkenImpact::TDrunkenImpact(TCreature *_Actor, int _Power, int _Duration) {
 
 void TDrunkenImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
-		error("TDrunkenImpact::handleCreature: Opfer existiert nicht.\n");
+		error("TDrunkenImpact::handleCreature: Victim does not exist.\n");
 		return;
 	}
 
@@ -463,7 +463,7 @@ void TDrunkenImpact::handleCreature(TCreature *Victim) {
 
 TStrengthImpact::TStrengthImpact(TCreature *_Actor, int _Skills, int _Percent, int _Duration) {
 	if (_Actor == nullptr) {
-		error("TStrengthImpact::TStrengthImpact: Actor ist NULL.\n");
+		error("TStrengthImpact::TStrengthImpact: Actor is NULL.\n");
 	}
 
 	Actor = _Actor;
@@ -474,7 +474,7 @@ TStrengthImpact::TStrengthImpact(TCreature *_Actor, int _Skills, int _Percent, i
 
 void TStrengthImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
-		error("TStrengthImpact::handleCreature: Opfer existiert nicht.\n");
+		error("TStrengthImpact::handleCreature: Victim does not exist.\n");
 		return;
 	}
 
@@ -523,7 +523,7 @@ void TStrengthImpact::handleCreature(TCreature *Victim) {
 
 TOutfitImpact::TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration) {
 	if (_Actor == nullptr) {
-		error("TOutfitImpact::TOutfitImpact: Actor ist NULL.\n");
+		error("TOutfitImpact::TOutfitImpact: Actor is NULL.\n");
 	}
 
 	Outfit = _Outfit;
@@ -532,7 +532,7 @@ TOutfitImpact::TOutfitImpact(TCreature *_Actor, TOutfit _Outfit, int _Duration) 
 
 void TOutfitImpact::handleCreature(TCreature *Victim) {
 	if (Victim == nullptr) {
-		error("TOutfitImpact::handleCreature: Opfer existiert nicht.\n");
+		error("TOutfitImpact::handleCreature: Victim does not exist.\n");
 		return;
 	}
 
@@ -542,11 +542,11 @@ void TOutfitImpact::handleCreature(TCreature *Victim) {
 
 TSummonImpact::TSummonImpact(TCreature *_Actor, int _Race, int _Maximum) {
 	if (_Actor == nullptr) {
-		error("TSummonImpact::TSummonImpact: Actor ist NULL.\n");
+		error("TSummonImpact::TSummonImpact: Actor is NULL.\n");
 	}
 
 	if (!in(_Race, 1, MAX_RACES - 1)) {
-		error("TSummonImpact::TSummonImpact: Ung\xfcltige Rassennummer %d.\n", _Race);
+		error("TSummonImpact::TSummonImpact: Invalid race number %d.\n", _Race);
 	}
 
 	Actor = _Actor;
@@ -567,7 +567,7 @@ void TSummonImpact::handleField(int x, int y, int z) {
 
 void ActorShapeSpell(TCreature *Actor, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
-		error("ActorShapeSpell: Sprecher existiert nicht.\n");
+		error("ActorShapeSpell: Caster does not exist.\n");
 		return;
 	}
 
@@ -583,7 +583,7 @@ void ActorShapeSpell(TCreature *Actor, TImpact *Impact, int Effect) {
 
 void VictimShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int Animation, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
-		error("VictimShapeSpell: Sprecher existiert nicht.\n");
+		error("VictimShapeSpell: Caster does not exist.\n");
 		return;
 	}
 
@@ -615,7 +615,7 @@ void VictimShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int Animat
 
 void OriginShapeSpell(TCreature *Actor, int Radius, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
-		error("OriginShapeSpell: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("OriginShapeSpell: Given creature does not exist.\n");
 		return;
 	}
 
@@ -654,7 +654,7 @@ void OriginShapeSpell(TCreature *Actor, int Radius, TImpact *Impact, int Effect)
 
 void DestinationShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int Animation, int Radius, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
-		error("DestinationShapeSpell: Sprecher existiert nicht.\n");
+		error("DestinationShapeSpell: Caster does not exist.\n");
 		return;
 	}
 
@@ -667,7 +667,7 @@ void DestinationShapeSpell(TCreature *Actor, TCreature *Victim, int Range, int A
 
 void CircleShapeSpell(TCreature *Actor, int DestX, int DestY, int DestZ, int Range, int Animation, int Radius, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
-		error("CircleShapeSpell: Sprecher existiert nicht.\n");
+		error("CircleShapeSpell: Caster does not exist.\n");
 		return;
 	}
 
@@ -722,7 +722,7 @@ void CircleShapeSpell(TCreature *Actor, int DestX, int DestY, int DestZ, int Ran
 
 void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, int Effect) {
 	if (Actor == nullptr) {
-		error("AngleShapeSpell: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("AngleShapeSpell: Given creature does not exist.\n");
 		return;
 	}
 
@@ -757,7 +757,7 @@ void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, in
 				}
 
 				default: {
-					error("AngleShapeSpell: Ung\xfcltige Blickrichtung %d.\n", Actor->Direction);
+					error("AngleShapeSpell: Invalid facing direction %d.\n", Actor->Direction);
 					return;
 				}
 			}
@@ -792,12 +792,12 @@ void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, in
 
 void MassCombat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, int EffectNr, int Radius, unsigned short DmgType, int Animation) {
 	if (!Target.exists()) {
-		error("MassCombat: \xdc" "bergebenes Ziel existiert nicht.\n");
+		error("MassCombat: Given target does not exist.\n");
 		throw ERROR;
 	}
 
 	if (cr == nullptr) {
-		error("MassCombat: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("MassCombat: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -815,7 +815,7 @@ void MassCombat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Dama
 
 void AngleCombat(TCreature *cr, int Mana, int SoulPoints, int Damage, int EffectNr, int Radius, int Angle, unsigned short DmgType) {
 	if (cr == nullptr) {
-		error("AngleCombat: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("AngleCombat: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -826,12 +826,12 @@ void AngleCombat(TCreature *cr, int Mana, int SoulPoints, int Damage, int Effect
 
 void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, int EffectNr, int AnimationNr, unsigned short DmgType) {
 	if (!Target.exists()) {
-		error("Combat: \xdc" "bergebenes Ziel existiert nicht.\n");
+		error("Combat: Given target does not exist.\n");
 		throw ERROR;
 	}
 
 	if (cr == nullptr) {
-		error("Combat: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("Combat: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -857,7 +857,7 @@ void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, 
 
 void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 	if (cr == nullptr) {
-		error("KillAllMonsters: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("KillAllMonsters: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -881,9 +881,9 @@ void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 				if (Help.isCreature()) {
 					TCreature *dest = GetCreature(Help);
 					if (dest == nullptr) {
-						error("KillAllMonsters: Ung\xfcltige Kreatur.\n");
+						error("KillAllMonsters: Invalid creature.\n");
 					} else if (dest != cr && dest->Type == MONSTER) {
-						print(3, "T\xf6te %s...\n", dest->Name);
+						print(3, "Killing %s...\n", dest->Name);
 						dest->Skills[SKILL_HITPOINTS]->Set(0);
 						dest->Death();
 					}
@@ -897,12 +897,12 @@ void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 
 void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) {
 	if (cr == nullptr) {
-		error("CreateField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateField: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("CreateField: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CreateField: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -927,7 +927,7 @@ void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) 
 
 void CreateField(TCreature *cr, int Mana, int SoulPoints, int Type) {
 	if (cr == nullptr) {
-		error("CreateField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateField: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -950,12 +950,12 @@ void CreateField(TCreature *cr, int Mana, int SoulPoints, int Type) {
 
 void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type, int Radius) {
 	if (cr == nullptr) {
-		error("MassCreateField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("MassCreateField: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("MassCreateField: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("MassCreateField: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -989,12 +989,12 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type, int Extension) {
 	if (cr == nullptr) {
-		error("CreateFieldWall: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateFieldWall: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("CreateFieldWall: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CreateFieldWall: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1046,7 +1046,7 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 		}
 
 		default: {
-			error("CreateFieldWall: Ung\xfcltige Richtung %d.\n", Dir);
+			error("CreateFieldWall: Invalid direction %d.\n", Dir);
 			throw ERROR;
 		}
 	}
@@ -1092,12 +1092,12 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 
 void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
-		error("DeleteField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("DeleteField: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("DeleteField: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("DeleteField: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1122,12 +1122,12 @@ void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 
 void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
-		error("CleanupField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CleanupField: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("CleanupField: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("CleanupField: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1155,12 +1155,12 @@ void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 
 void CleanupField(TCreature *cr) {
 	if (cr == nullptr) {
-		error("CleanupField: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CleanupField: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("CleanupField: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("CleanupField: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -1193,17 +1193,17 @@ void CleanupField(TCreature *cr) {
 
 void Teleport(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
-		error("Teleport: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("Teleport: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param == nullptr) {
-		error("Teleport: Param ist NULL.\n");
+		error("Teleport: Param is NULL.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("Teleport: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("Teleport: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -1304,12 +1304,12 @@ void Teleport(TCreature *cr, char *Param) {
 
 void TeleportToCreature(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
-		error("TeleportToCreature: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("TeleportToCreature: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("TeleportToCreature: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("TeleportToCreature: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -1341,7 +1341,7 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 		}
 
 		default: {
-			error("TeleportToCreature: Ung\xfcltiger R\xfc" "ckgabewert von IdentifyPlayer.\n");
+			error("TeleportToCreature: Invalid return value from IdentifyPlayer.\n");
 			throw ERROR;
 		}
 	}
@@ -1362,17 +1362,17 @@ void TeleportToCreature(TCreature *cr, char *Name) {
 
 	Move(0, Obj, GetMapContainer(x, y, z), -1, false, NONE);
 	GraphicalEffect(x, y, z, EFFECT_TELEPORT);
-	Log("banish", "%s teleportiert sich zu %s.\n", cr->Name, dest->Name);
+	Log("banish", "%s teleports to %s.\n", cr->Name, dest->Name);
 }
 
 void TeleportPlayerToMe(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
-		error("TeleportPlayerToMe: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("TeleportPlayerToMe: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("TeleportPlayerToMe: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("TeleportPlayerToMe: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -1404,7 +1404,7 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 		}
 
 		default: {
-			error("TeleportPlayerToMe: Ung\xfcltiger R\xfc" "ckgabewert von IdentifyPlayer.\n");
+			error("TeleportPlayerToMe: Invalid return value from IdentifyPlayer.\n");
 			throw ERROR;
 		}
 	}
@@ -1424,7 +1424,7 @@ void TeleportPlayerToMe(TCreature *cr, char *Name) {
 
 void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
-		error("MagicRope: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("MagicRope: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -1442,12 +1442,12 @@ void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
 
 void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 	if (cr == nullptr) {
-		error("MagicClimbing: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("MagicClimbing: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Direction == nullptr) {
-		error("MagicClimbing: Ung\xfcltige Richtung \xfc" "bergeben.\n");
+		error("MagicClimbing: Invalid direction given.\n");
 		throw ERROR;
 	}
 
@@ -1494,17 +1494,17 @@ void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction) {
 
 void MagicClimbing(TCreature *cr, char *Direction) {
 	if (cr == nullptr) {
-		error("MagicClimbing: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("MagicClimbing: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Direction == nullptr) {
-		error("MagicClimbing: Ung\xfcltige Richtung \xfc" "bergeben.\n");
+		error("MagicClimbing: Invalid direction given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("MagicClimbing: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("MagicClimbing: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -1515,17 +1515,17 @@ void MagicClimbing(TCreature *cr, char *Direction) {
 
 void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 	if (cr == nullptr) {
-		error("CreateThing: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateThing: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param1 == nullptr) {
-		error("CreateThing: Ung\xfcltiger Parameter \"Param1\".\n");
+		error("CreateThing: Invalid parameter \"Param1\".\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("CreateThing: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("CreateThing: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -1582,17 +1582,17 @@ void CreateThing(TCreature *cr, char *Param1, char *Param2) {
 
 void CreateMoney(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
-		error("CreateMoney: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateMoney: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param == nullptr) {
-		error("CreateMoney: Ung\xfcltiger Parameter \"Param1\".\n");
+		error("CreateMoney: Invalid parameter \"Param1\".\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("CreateMoney: Zauberspruch kann nur von Spieler angewendet werden.\n");
+		error("CreateMoney: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -1625,7 +1625,7 @@ void CreateMoney(TCreature *cr, char *Param) {
 
 void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
-		error("CreateFood: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateFood: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -1651,7 +1651,7 @@ void CreateFood(TCreature *cr, int Mana, int SoulPoints) {
 
 void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount) {
 	if (cr == nullptr) {
-		error("CreateArrows: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateArrows: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -1664,7 +1664,7 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 		case CONJURE_BOLT: Type = GetNewObjectType(94, 0); break;
 		case CONJURE_POWER_BOLT: Type = GetNewObjectType(94, 4); break;
 		default: {
-			error("CreateArrows: Ung\xfcltiger Pfeiltyp %d.\n", Ammo);
+			error("CreateArrows: Invalid arrow type %d.\n", Ammo);
 			throw ERROR;
 		}
 	}
@@ -1675,12 +1675,12 @@ void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount)
 
 void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 	if (cr == nullptr) {
-		error("SummonCreature: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("SummonCreature: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Race < 1 || Race > MAX_RACES - 1) {
-		error("SummonCreature: Ung\xfcltige Rassennummer %d \xfc" "bergeben.\n", Race);
+		error("SummonCreature: Invalid race number %d given.\n", Race);
 		throw ERROR;
 	}
 
@@ -1715,12 +1715,12 @@ void SummonCreature(TCreature *cr, int Mana, int Race, bool God) {
 
 void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
 	if (cr == nullptr) {
-		error("SummonCreature: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("SummonCreature: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (RaceName == nullptr) {
-		error("SummonCreature: Ung\xfcltiger Rassenname \xfc" "bergeben.\n");
+		error("SummonCreature: Invalid race name given.\n");
 		throw ERROR;
 	}
 
@@ -1741,12 +1741,12 @@ void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God) {
 
 void StartMonsterraid(TCreature *cr, char *RaidName) {
 	if (cr == nullptr) {
-		error("StartMonsterraid: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("StartMonsterraid: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (RaidName == nullptr) {
-		error("StartMonsterraid: Ung\xfcltiger Raidname \xfc" "bergeben.\n");
+		error("StartMonsterraid: Invalid raid name given.\n");
 		throw ERROR;
 	}
 
@@ -1772,12 +1772,12 @@ void StartMonsterraid(TCreature *cr, char *RaidName) {
 
 void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	if (cr == nullptr) {
-		error("RaiseDead: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("RaiseDead: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("RaiseDead: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("RaiseDead: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1810,12 +1810,12 @@ void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 
 void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
 	if (cr == nullptr) {
-		error("MassRaiseDead: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("MassRaiseDead: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Target.exists()) {
-		error("MassRaiseDead: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("MassRaiseDead: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1859,7 +1859,7 @@ void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int R
 
 void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 	if (cr == nullptr) {
-		error("Heal: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("Heal: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -1870,7 +1870,7 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	TSkill *sk = cr->Skills[SKILL_HITPOINTS];
 	if (sk == nullptr) {
-		error("Heal: Skill HITPOINTS existiert nicht.\n");
+		error("Heal: Skill HITPOINTS does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1885,12 +1885,12 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 
 void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healing, int Radius) {
 	if (cr == nullptr) {
-		error("MassHeal: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("MassHeal: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Target.exists()) {
-		error("MassHeal: \xdc" "bergebenes Ziel existiert nicht.\n");
+		error("MassHeal: Given target does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1924,7 +1924,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 
 				TCreature *dest = GetCreature(Help);
 				if (dest == nullptr) {
-					error("MassHeal: Ung\xfcltige Kreatur.\n");
+					error("MassHeal: Invalid creature.\n");
 					continue;
 				}
 
@@ -1934,7 +1934,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 
 				TSkill *sk = dest->Skills[SKILL_HITPOINTS];
 				if (sk == nullptr) {
-					error("MassHeal: Skill HITPOINTS existiert nicht.\n");
+					error("MassHeal: Skill HITPOINTS does not exist.\n");
 					throw ERROR;
 				}
 
@@ -1951,12 +1951,12 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 
 void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing) {
 	if (cr == nullptr) {
-		error("HealFriend: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("HealFriend: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("HealFriend: Ung\xfcltigen Namen \xfc" "bergeben.\n");
+		error("HealFriend: Invalid name given.\n");
 		throw ERROR;
 	}
 
@@ -1976,7 +1976,7 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 
 	TSkill *sk = pl->Skills[SKILL_HITPOINTS];
 	if (sk == nullptr) {
-		error("HealFriend: Skill HITPOINTS existiert nicht.\n");
+		error("HealFriend: Skill HITPOINTS does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1996,14 +1996,14 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 
 void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 	if (cr == nullptr) {
-		error("RefreshMana: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("RefreshMana: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	TSkill *sk = cr->Skills[SKILL_MANA];
 	if (sk == nullptr) {
-		error("RefreshMana: Skill MANA existiert nicht.\n");
+		error("RefreshMana: Skill MANA does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2013,12 +2013,12 @@ void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 
 void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, int percent, int duration) {
 	if (dest == nullptr) {
-		error("MagicGoStrength: \xdc" "bergebene Ziel Kreatur existiert nicht.\n");
+		error("MagicGoStrength: Given target creature does not exist.\n");
 		throw ERROR;
 	}
 
 	if (cr == nullptr) {
-		error("MagicGoStrength: \xdc" "bergebene Kreatur existiert nicht.\n");
+		error("MagicGoStrength: Given creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2052,7 +2052,7 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 
 void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	if (cr == nullptr) {
-		error("Shielding: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("Shielding: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -2063,12 +2063,12 @@ void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 
 void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 	if (cr == nullptr) {
-		error("NegatePoison: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("NegatePoison: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (dest == nullptr) {
-		error("NegatePoison: Zielkreatur existiert nicht.\n");
+		error("NegatePoison: Target creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2079,7 +2079,7 @@ void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 
 void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) {
 	if (cr == nullptr) {
-		error("Enlight: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("Enlight: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -2093,7 +2093,7 @@ void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) 
 
 void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	if (cr == nullptr) {
-		error("Invisibility: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("Invisibility: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -2106,12 +2106,12 @@ void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 
 void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius) {
 	if (cr == nullptr) {
-		error("CancelInvisibility: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CancelInvisibility: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Target.exists()) {
-		error("CancelInvisibility: \xdc" "bergebenes Ziel existiert nicht.\n");
+		error("CancelInvisibility: Given target does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2146,7 +2146,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 
 				TCreature *dest = GetCreature(Help);
 				if (dest == nullptr) {
-					error("CancelInvisibility: Ung\xfcltige Kreatur.\n");
+					error("CancelInvisibility: Invalid creature.\n");
 					continue;
 				}
 
@@ -2192,12 +2192,12 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 
 void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, int Duration) {
 	if (cr == nullptr) {
-		error("CreatureIllusion: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreatureIllusion: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (RaceName == nullptr) {
-		error("CreatureIllusion: Ung\xfcltiger Rassenname \xfc" "bergeben.\n");
+		error("CreatureIllusion: Invalid race name given.\n");
 		throw ERROR;
 	}
 
@@ -2228,12 +2228,12 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 
 void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Duration) {
 	if (cr == nullptr) {
-		error("ObjectIllusion: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("ObjectIllusion: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("ObjectIllusion: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("ObjectIllusion: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2257,17 +2257,17 @@ void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Dur
 
 void ChangeData(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
-		error("ChangeData: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("ChangeData: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param == nullptr) {
-		error("ChangeData: Ung\xfcltiger Parameter \xfc" "bergeben.\n");
+		error("ChangeData: Invalid parameter given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("ChangeData: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("ChangeData: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2324,7 +2324,7 @@ void ChangeData(TCreature *cr, char *Param) {
 
 void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, ObjectType Target) {
 	if (cr == nullptr) {
-		error("EnchantObject: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("EnchantObject: Invalid creature given.\n");
 		throw ERROR;
 	}
 
@@ -2380,7 +2380,7 @@ void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
 			if (Obj != NONE) {
 				TCreature *dest = GetCreature(Obj);
 				if (dest == nullptr) {
-					error("Challenge: Ung\xfcltige Kreatur.\n");
+					error("Challenge: Invalid creature.\n");
 				} else if (dest->Type == MONSTER) {
 					ChallengeMonster(cr, dest);
 				}
@@ -2391,17 +2391,17 @@ void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius) {
 
 void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 	if (cr == nullptr) {
-		error("FindPerson: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("FindPerson: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("FindPerson: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("FindPerson: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("FindPerson: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("FindPerson: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2416,7 +2416,7 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 	}
 
 	if (Opp == nullptr) {
-		error("FindPerson: Opp ist NULL.\n");
+		error("FindPerson: Opp is NULL.\n");
 		throw ERROR;
 	}
 
@@ -2458,7 +2458,7 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 				Dir = "south-east";
 				break;
 			default:
-				error("FindPerson: Richtung ist Null.\n");
+				error("FindPerson: Direction is Null.\n");
 				throw ERROR;
 		}
 
@@ -2480,12 +2480,12 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name) {
 
 void GetPosition(TCreature *cr) {
 	if (cr == nullptr) {
-		error("GetPosition: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("GetPosition: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("GetPosition: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("GetPosition: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2497,17 +2497,17 @@ void GetPosition(TCreature *cr) {
 
 void GetQuestValue(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
-		error("GetQuestValue: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("GetQuestValue: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param == nullptr) {
-		error("GetQuestValue: Param ist NULL.\n");
+		error("GetQuestValue: Param is NULL.\n");
 		return;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("GetQuestValue: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("GetQuestValue: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2528,22 +2528,22 @@ void GetQuestValue(TCreature *cr, char *Param) {
 
 void SetQuestValue(TCreature *cr, char *Param1, char *Param2) {
 	if (cr == nullptr) {
-		error("SetQuestValue: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("SetQuestValue: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param1 == nullptr) {
-		error("SetQuestValue: Param1 ist NULL.\n");
+		error("SetQuestValue: Param1 is NULL.\n");
 		return;
 	}
 
 	if (Param2 == nullptr) {
-		error("SetQuestValue: Param2 ist NULL.\n");
+		error("SetQuestValue: Param2 is NULL.\n");
 		return;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("SetQuestValue: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("SetQuestValue: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2565,12 +2565,12 @@ void SetQuestValue(TCreature *cr, char *Param1, char *Param2) {
 
 void ClearQuestValues(TCreature *cr) {
 	if (cr == nullptr) {
-		error("ClearQuestValues: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("ClearQuestValues: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("ClearQuestValues: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("ClearQuestValues: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2588,17 +2588,17 @@ void ClearQuestValues(TCreature *cr) {
 
 void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 	if (cr == nullptr) {
-		error("CreateKnowledge: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("CreateKnowledge: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param1 == nullptr) {
-		error("CreateKnowledge: Ung\xfcltiger Parameter 1 \xfc" "bergeben.\n");
+		error("CreateKnowledge: Invalid parameter 1 given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("CreateKnowledge: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("CreateKnowledge: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2628,17 +2628,17 @@ void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 
 void ChangeProfession(TCreature *cr, char *Param) {
 	if (cr == nullptr) {
-		error("ChangeProfession: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("ChangeProfession: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Param == nullptr) {
-		error("ChangeProfession: Ung\xfcltigen Parameter \xfc" "bergeben.\n");
+		error("ChangeProfession: Invalid parameter given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("ChangeProfession: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("ChangeProfession: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2680,12 +2680,12 @@ void ChangeProfession(TCreature *cr, char *Param) {
 
 void EditGuests(TCreature *cr) {
 	if (cr == nullptr) {
-		error("EditGuests: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("EditGuests: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("EditGuests: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("EditGuests: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2702,12 +2702,12 @@ void EditGuests(TCreature *cr) {
 
 void EditSubowners(TCreature *cr) {
 	if (cr == nullptr) {
-		error("EditSubowners: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("EditSubowners: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("EditSubowners: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("EditSubowners: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2724,17 +2724,17 @@ void EditSubowners(TCreature *cr) {
 
 void KickGuest(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
-		error("KickGuest(magic): Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("KickGuest(magic): Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("KickGuest(magic): Ung\xfcltigen Gast \xfc" "bergeben.\n");
+		error("KickGuest(magic): Invalid guest given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("KickGuest(magic): Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("KickGuest(magic): Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2759,12 +2759,12 @@ void KickGuest(TCreature *cr, char *Name) {
 
 void EditNameDoor(TCreature *cr) {
 	if (cr == nullptr) {
-		error("EditNameDoor: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("EditNameDoor: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("EditNameDoor: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("EditNameDoor: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2806,7 +2806,7 @@ void EditNameDoor(TCreature *cr) {
 	}
 
 	if (Door == NONE) {
-		print(3, "Keine NameDoor gefunden.\n");
+		print(3, "No NameDoor found.\n");
 		throw NOTACCESSIBLE;
 	}
 
@@ -2817,22 +2817,22 @@ void EditNameDoor(TCreature *cr) {
 
 void Notation(TCreature *cr, char *Name, char *Comment) {
 	if (cr == nullptr) {
-		error("Notation: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("Notation: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("Notation: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("Notation: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (Comment == nullptr) {
-		error("Notation: Ung\xfcltige Bemerkung \xfc" "bergeben.\n");
+		error("Notation: Invalid remark given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("Notation: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("Notation: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2842,17 +2842,17 @@ void Notation(TCreature *cr, char *Name, char *Comment) {
 
 void NameLock(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
-		error("NameLock: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("NameLock: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("NameLock: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("NameLock: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("NameLock: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("NameLock: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2862,22 +2862,22 @@ void NameLock(TCreature *cr, char *Name) {
 
 void BanishAccount(TCreature *cr, char *Name, int, char *Reason) {
 	if (cr == nullptr) {
-		error("BanishAccount: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("BanishAccount: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("BanishAccount: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("BanishAccount: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (Reason == nullptr) {
-		error("BanishAccount: Ung\xfcltiger Grund \xfc" "bergeben.\n");
+		error("BanishAccount: Invalid reason given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("BanishAccount: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("BanishAccount: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2887,22 +2887,22 @@ void BanishAccount(TCreature *cr, char *Name, int, char *Reason) {
 
 void DeleteAccount(TCreature *cr, char *Name, char *Reason) {
 	if (cr == nullptr) {
-		error("DeleteAccount: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("DeleteAccount: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("DeleteAccount: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("DeleteAccount: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (Reason == nullptr) {
-		error("DeleteAccount: Ung\xfcltiger Grund \xfc" "bergeben.\n");
+		error("DeleteAccount: Invalid reason given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("DeleteAccount: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("DeleteAccount: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2912,22 +2912,22 @@ void DeleteAccount(TCreature *cr, char *Name, char *Reason) {
 
 void BanishCharacter(TCreature *cr, char *Name, int, char *Reason) {
 	if (cr == nullptr) {
-		error("BanishCharacter: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("BanishCharacter: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("BanishCharacter: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("BanishCharacter: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (Reason == nullptr) {
-		error("BanishCharacter: Ung\xfcltiger Grund \xfc" "bergeben.\n");
+		error("BanishCharacter: Invalid reason given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("BanishCharacter: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("BanishCharacter: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2937,22 +2937,22 @@ void BanishCharacter(TCreature *cr, char *Name, int, char *Reason) {
 
 void DeleteCharacter(TCreature *cr, char *Name, char *Reason) {
 	if (cr == nullptr) {
-		error("DeleteCharacter: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("DeleteCharacter: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("DeleteCharacter: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("DeleteCharacter: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (Reason == nullptr) {
-		error("DeleteCharacter: Ung\xfcltiger Grund \xfc" "bergeben.\n");
+		error("DeleteCharacter: Invalid reason given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("DeleteCharacter: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("DeleteCharacter: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2962,22 +2962,22 @@ void DeleteCharacter(TCreature *cr, char *Name, char *Reason) {
 
 void IPBanishment(TCreature *cr, char *Name, char *Reason) {
 	if (cr == nullptr) {
-		error("IPBanishment: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("IPBanishment: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("IPBanishment: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("IPBanishment: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (Reason == nullptr) {
-		error("IPBanishment: Ung\xfcltiger Grund \xfc" "bergeben.\n");
+		error("IPBanishment: Invalid reason given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("IPBanishment: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("IPBanishment: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -2987,17 +2987,17 @@ void IPBanishment(TCreature *cr, char *Name, char *Reason) {
 
 void SetNameRule(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
-		error("SetNameRule: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("SetNameRule: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("SetNameRule: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("SetNameRule: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("SetNameRule: Zauberspruch kann nur von Spieler angewendet werden.\n");
+		error("SetNameRule: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -3007,17 +3007,17 @@ void SetNameRule(TCreature *cr, char *Name) {
 
 void KickPlayer(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
-		error("KickPlayer: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("KickPlayer: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr) {
-		error("KickPlayer: Ung\xfcltiger Name \xfc" "bergeben.\n");
+		error("KickPlayer: Invalid name given.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("KickPlayer: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("KickPlayer: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -3039,22 +3039,22 @@ void KickPlayer(TCreature *cr, char *Name) {
 	GraphicalEffect(Opp->GetCreatureObject(), EFFECT_MAGIC_GREEN);
 	Opp->StartLogout(true, true);
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Player %s kicked out of the game.", Opp->Name);
-	Log("banish", "%s kickt %s.\n", pl->Name, Opp->Name);
+	Log("banish", "%s kicks %s.\n", pl->Name, Opp->Name);
 }
 
 void HomeTeleport(TCreature *cr, char *Name) {
 	if (cr == nullptr) {
-		error("HomeTeleport: Ung\xfcltige Kreatur \xfc" "bergeben.\n");
+		error("HomeTeleport: Invalid creature given.\n");
 		throw ERROR;
 	}
 
 	if (Name == nullptr || Name[0] == 0) {
-		error("HomeTeleport: Name existiert nicht.\n");
+		error("HomeTeleport: Name does not exist.\n");
 		throw ERROR;
 	}
 
 	if (cr->Type != PLAYER) {
-		error("HomeTeleport: Zauberspruch kann nur von Spielern angewendet werden.\n");
+		error("HomeTeleport: Spell can only be cast by players.\n");
 		throw ERROR;
 	}
 
@@ -3078,13 +3078,13 @@ void HomeTeleport(TCreature *cr, char *Name) {
 	Move(0, Obj, GetMapContainer(Opp->startx, Opp->starty, Opp->startz), -1, false, NONE);
 	GraphicalEffect(Obj, EFFECT_MAGIC_BLUE);
 	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "Player %s has been moved to the temple.", Opp->Name);
-	Log("banish", "%s teleportiert %s zum Tempel.\n", pl->Name, Opp->Name);
+	Log("banish", "%s teleports %s to the temple.\n", pl->Name, Opp->Name);
 }
 
 void SpellFailed(uint32_t CreatureID) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("SpellFailed: Kreatur existiert nicht.\n");
+		error("SpellFailed: Creature does not exist.\n");
 		return;
 	}
 
@@ -3094,7 +3094,7 @@ void SpellFailed(uint32_t CreatureID) {
 void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("CharacterRightSpell: Kreatur existiert nicht.\n");
+		error("CharacterRightSpell: Creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -3178,7 +3178,7 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("AccountRightSpell: Kreatur existiert nicht.\n");
+		error("AccountRightSpell: Creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -3223,7 +3223,7 @@ void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) 
 void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("CastSpell: Kreatur existiert nicht.\n", CreatureID);
+		error("CastSpell: Creature does not exist.\n", CreatureID);
 		throw ERROR;
 	}
 
@@ -3383,12 +3383,12 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 void RuneSpell(uint32_t CreatureID, int SpellNr) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("RuneSpell: Kreatur existiert nicht.\n");
+		error("RuneSpell: Creature does not exist.\n");
 		throw ERROR;
 	}
 
 	if (SpellList[SpellNr].RuneGr == 0) {
-		error("RuneSpell: Spell %d ist Runenspruch, hat aber keine Rune.\n", SpellNr);
+		error("RuneSpell: Spell %d is a rune spell but has no rune.\n", SpellNr);
 		throw ERROR;
 	}
 
@@ -3473,12 +3473,12 @@ int FindSpell(unsigned char *Syllable) {
 
 int FindSpell(Object Obj) {
 	if (!Obj.exists()) {
-		error("FindSpell: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("FindSpell: Given object does not exist.\n");
 		return 0;
 	}
 
 	if (!Obj.getFlag(RUNE)) {
-		error("FindSpell: \xdc" "bergebenes Objekt ist nicht magisch.\n");
+		error("FindSpell: Given object is not magic.\n");
 		return 0;
 	}
 
@@ -3494,7 +3494,7 @@ int FindSpell(Object Obj) {
 void GetSpellString(int SpellNr, char *Text) {
 	Text[0] = 0;
 	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
-		error("GetSpellString: Ung\xfcltige Zauberspruchnummer %d.\n", SpellNr);
+		error("GetSpellString: Invalid spell number %d.\n", SpellNr);
 		return;
 	}
 
@@ -3518,18 +3518,18 @@ void GetMagicItemDescription(Object Obj, char *SpellString, int &MagicLevel) {
 	MagicLevel = 0;
 	SpellString[0] = 0;
 	if (!Obj.exists()) {
-		error("GetMagicItemDescription: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("GetMagicItemDescription: Given object does not exist.\n");
 		return;
 	}
 
 	if (!Obj.getFlag(RUNE)) {
-		error("GetMagicItemDescription: \xdc" "bergebenes Objekt ist nicht magisch.\n");
+		error("GetMagicItemDescription: Given object is not magic.\n");
 		return;
 	}
 
 	int SpellNr = FindSpell(Obj);
 	if (SpellNr == 0) {
-		error("GetMagicItemDescription: Objekt %d hat keinen Zauberspruch.\n", Obj.getObjectType().getTypeID());
+		error("GetMagicItemDescription: Object %d has no spell.\n", Obj.getObjectType().getTypeID());
 		return;
 	}
 
@@ -3540,12 +3540,12 @@ void GetMagicItemDescription(Object Obj, char *SpellString, int &MagicLevel) {
 void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("GetSpellbook: Spieler existiert nicht.\n");
+		error("GetSpellbook: Player does not exist.\n");
 		return;
 	}
 
 	if (Buffer == nullptr) {
-		error("GetSpellbook: \xdc" "bergebener Puffer existiert nicht.\n");
+		error("GetSpellbook: Given buffer does not exist.\n");
 		return;
 	}
 
@@ -3566,7 +3566,7 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 
 			GetSpellString(i, Help);
 			if (strlen(Help) < 2) {
-				error("GetSpellbook: Zauberspruch %d hat keine Zauberformel.\n", i);
+				error("GetSpellbook: Spell %d has no spell words.\n", i);
 				continue;
 			}
 
@@ -3595,7 +3595,7 @@ void GetSpellbook(uint32_t CharacterID, char *Buffer) {
 
 int GetSpellLevel(int SpellNr) {
 	if (SpellNr < 1 || SpellNr > MAX_SPELLS - 1) {
-		error("GetSpellLevel: Ung\xfcltige Spruchnummer %d.\n", SpellNr);
+		error("GetSpellLevel: Invalid spell number %d.\n", SpellNr);
 		return 1;
 	}
 
@@ -3677,7 +3677,7 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 				AccountRightSpell(CreatureID, SpellNr, SpellStr);
 				break;
 			default:
-				error("CheckForSpell: Spruchklasse %d existiert nicht.\n", SpellType);
+				error("CheckForSpell: Spell class %d does not exist.\n", SpellType);
 				break;
 		}
 	} catch (RESULT r) {
@@ -3698,7 +3698,7 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 
 void DeleteRune(Object Obj) {
 	if (!Obj.exists()) {
-		error("DeleteRune: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("DeleteRune: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -3712,17 +3712,17 @@ void DeleteRune(Object Obj) {
 void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 	TPlayer *pl = GetPlayer(CreatureID);
 	if (pl == nullptr) {
-		error("UseMagicItem: Kreatur existiert nicht.\n");
+		error("UseMagicItem: Creature does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("UseMagicItem: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("UseMagicItem: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Dest.exists()) {
-		error("UseMagicItem: \xdc" "bergebenes Ziel existiert nicht (Objekt %d).\n", Obj.getObjectType().getTypeID());
+		error("UseMagicItem: Given target does not exist (object %d).\n", Obj.getObjectType().getTypeID());
 		throw ERROR;
 	}
 
@@ -3732,7 +3732,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 
 	int SpellNr = FindSpell(Obj);
 	if (SpellNr == 0) {
-		error("UseMagicItem: F\xfcr Objekt %d existiert kein Spruch.\n", Obj.getObjectType().getTypeID());
+		error("UseMagicItem: No spell exists for object %d.\n", Obj.getObjectType().getTypeID());
 		throw ERROR;
 	}
 
@@ -3889,7 +3889,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 				MassCreateField(pl, Dest, 0, 0, FIELD_POISON, 3);
 				break;
 			default:
-				error("UseMagicItem: Spell %d noch nicht implementiert.\n", SpellNr);
+				error("UseMagicItem: Spell %d not implemented yet.\n", SpellNr);
 				throw ERROR;
 		}
 
@@ -3912,17 +3912,17 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 void DrinkPotion(uint32_t CreatureID, Object Obj) {
 	TPlayer *pl = GetPlayer(CreatureID);
 	if (pl == nullptr) {
-		error("DrinkPotion: Kreatur existiert nicht.\n");
+		error("DrinkPotion: Creature does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("DrinkPotion: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("DrinkPotion: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.getFlag(LIQUIDCONTAINER)) {
-		error("DrinkPotion: \xdc" "bergebenes Objekt ist kein Fl\xfcssigkeitscontainer.\n");
+		error("DrinkPotion: Given object is not a liquid container.\n");
 		throw ERROR;
 	}
 
@@ -3937,7 +3937,7 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 			Heal(pl, 0, 0, Refresh);
 			break;
 		default:
-			error("DrinkPotion: Objekt enth\xe4lt keinen Zaubertrank.\n");
+			error("DrinkPotion: Object contains no potion.\n");
 			throw ERROR;
 	}
 
@@ -3969,7 +3969,7 @@ static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool
 			ObjectType = GetSpecialObject(MAGICFIELD_RUSHWOOD);
 			break;
 		default:
-			error("CreateField: Ung\xfcltiger Feldtyp %d.\n", FieldType);
+			error("CreateField: Invalid field type %d.\n", FieldType);
 			throw ERROR;
 	}
 
