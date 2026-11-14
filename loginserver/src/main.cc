@@ -46,8 +46,9 @@ void usage(const char *program) {
 		"  --max-per-address N    open client connections from one address (default: 4)\n"
 		"  --log FILE             append the log to FILE instead of writing to stderr\n"
 		"  --log-level LEVEL      error, warning, info (default) or debug\n"
-		"The RSA key is the game server's (src/RSA_PrivateKey.hh). Stop the server\n"
-		"with SIGINT or SIGTERM.\n",
+		"The RSA key is the game server's (src/RSA_PrivateKey.hh, or the key the\n"
+		"build generated in generated/RSA_PrivateKey.hh). Stop the server with\n"
+		"SIGINT or SIGTERM.\n",
 		program);
 }
 

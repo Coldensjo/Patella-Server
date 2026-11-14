@@ -50,4 +50,4 @@ target_compile_options(game PRIVATE
 	-Wno-write-strings -fwrapv -fno-strict-aliasing -U_FORTIFY_SOURCE
 	-Wno-format-overflow -Wno-format-truncation -Wno-stringop-truncation -Wno-stringop-overflow
 )
-target_link_libraries(game PRIVATE Threads::Threads)
+target_link_libraries(game PRIVATE Threads::Threads rsa_private_key)

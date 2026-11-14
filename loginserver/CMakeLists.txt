@@ -22,7 +22,7 @@ add_library(ls_login STATIC
 	${PROJECT_SOURCE_DIR}/querymanager/src/log.cc
 )
 target_include_directories(ls_login PUBLIC src)
-target_link_libraries(ls_login PUBLIC ls_crypto qm_protocol Threads::Threads)
+target_link_libraries(ls_login PUBLIC ls_crypto rsa_private_key qm_protocol Threads::Threads)
 
 add_executable(loginserver src/main.cc)
 target_link_libraries(loginserver PRIVATE ls_login)
