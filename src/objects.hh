@@ -148,7 +148,7 @@ enum TYPEATTRIBUTE {
 
 const int TYPEATTRIBUTES = 62;
 
-// What an INFORMATION object tells, its INFORMATIONTYPE (moveuse.cc's
+// What an INFORMATION object tells, its INFORMATIONTYPE (triggers.cc's
 // UseAnnouncer): the date and the time, the time, the blessings received, or
 // the player's spells (the spellbook; sending.cc's SendEditText shows them).
 const int INFORMATION_DATE = 1;
@@ -317,7 +317,7 @@ extern const char *const TypeAttributeKeys[TYPEATTRIBUTES];
 
 // The skill names GetSkillByName knows in snake_case, by skill number (only 0
 // to 22 exist, MAX_SKILLS is the size of the skill tables): the values of
-// SKILLNUMBER in items.toml and the skills of moveuse.toml.
+// SKILLNUMBER in items.toml and the skills of triggers.toml.
 extern const char *const SkillKeys[];
 extern const int NUMBER_OF_SKILL_KEYS;
 

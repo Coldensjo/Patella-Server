@@ -1,7 +1,7 @@
-// moveusedata.cc: the move and use rules (moveusedata.hh): the tables the game
-// keeps them in and their loader, which reads moveuse.toml (data/moveuse.toml
-// in the repository, converted from the original moveuse.dat by
-// tools/convert).
+// triggersdata.cc: the trigger rules (triggersdata.hh): the tables the game
+// keeps them in and their loader, which reads triggers.toml
+// (data/triggers.toml in the repository, converted from the original
+// moveuse.dat by tools/convert).
 
 #include "tomlfile.hh"
 
@@ -18,15 +18,15 @@
 #include "crskill.hh"
 #include "strings.hh"
 #include "utils.hh"
-#include "moveusedata.hh"
+#include "triggersdata.hh"
 
-vector<TMoveUseCondition> MoveUseConditions(1, 1000, 1000);
-int NumberOfMoveUseConditions;
-vector<TMoveUseAction> MoveUseActions(1, 1000, 1000);
-int NumberOfMoveUseActions;
-TMoveUseDatabase MoveUseDatabases[NUMBER_OF_EVENT_TYPES];
+vector<TTriggerCondition> TriggerConditions(1, 1000, 1000);
+int NumberOfTriggerConditions;
+vector<TTriggerAction> TriggerActions(1, 1000, 1000);
+int NumberOfTriggerActions;
+TTriggerDatabase TriggerDatabases[NUMBER_OF_EVENT_TYPES];
 
-const TMoveUseSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES] = {
+const TTriggerSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES] = {
 	{"is_position", 2, {PARAMETER_OBJECT, PARAMETER_COORDINATE}},
 	{"is_type", 2, {PARAMETER_OBJECT, PARAMETER_TYPE}},
 	{"is_creature", 1, {PARAMETER_OBJECT}},
@@ -56,7 +56,7 @@ const TMoveUseSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES] = {
 	{"random", 1, {PARAMETER_NUMBER}},
 };
 
-const TMoveUseSignature ActionSignatures[NUMBER_OF_ACTION_TYPES] = {
+const TTriggerSignature ActionSignatures[NUMBER_OF_ACTION_TYPES] = {
 	{"create_on_map", 3, {PARAMETER_COORDINATE, PARAMETER_TYPE, PARAMETER_NUMBER}},
 	{"create", 3, {PARAMETER_OBJECT, PARAMETER_TYPE, PARAMETER_NUMBER}},
 	{"monster_on_map", 2, {PARAMETER_COORDINATE, PARAMETER_NUMBER}},
@@ -136,12 +136,12 @@ const char *const InstanceAttributeKeys[INSTANCEATTRIBUTES] = {
 	"remaining_uses",
 };
 
-const TMoveUseKey RightKeys[2] = {
+const TTriggerKey RightKeys[2] = {
 	{"premium_account", PREMIUM_ACCOUNT},
 	{"special_moveuse", SPECIAL_MOVEUSE},
 };
 
-const TMoveUseKey ComparisonKeys[6] = {
+const TTriggerKey ComparisonKeys[6] = {
 	{"<", '<'},
 	{"<=", 'L'},
 	{"=", '='},
@@ -152,7 +152,7 @@ const TMoveUseKey ComparisonKeys[6] = {
 
 // The longest text a rule may give: the longest string the script reader of
 // moveuse.dat took.
-const int MAX_MOVEUSE_TEXT_LENGTH = TReadScriptFile::MAXIMUMSTRINGLENGTH - 2;
+const int MAX_TRIGGER_TEXT_LENGTH = TReadScriptFile::MAXIMUMSTRINGLENGTH - 2;
 
 // The coordinates PackAbsoluteCoordinate and PackRelativeCoordinate hold
 // without loss: x and y in 14 bits each, z in 4.
@@ -198,8 +198,8 @@ static int ReadKey(const toml::node &Node, const char *What, const char *const *
 	return Index;
 }
 
-// A string that is one of the keys of Count TMoveUseKeys; returns its value.
-static int ReadKeyValue(const toml::node &Node, const char *What, const TMoveUseKey *Keys, int Count) {
+// A string that is one of the keys of Count TTriggerKeys; returns its value.
+static int ReadKeyValue(const toml::node &Node, const char *What, const TTriggerKey *Keys, int Count) {
 	if (!Node.is_string()) {
 		TomlError(Node.source(), "%s must be a string", What);
 	}
@@ -276,8 +276,8 @@ static void ReadParameter(const toml::node &Node, ParameterType Type, const char
 			if (Text.find('\0') != std::string::npos) {
 				TomlError(Node.source(), "%s has a zero character", What);
 			}
-			if (static_cast<int>(Text.size()) > MAX_MOVEUSE_TEXT_LENGTH) {
-				TomlError(Node.source(), "%s is longer than %d characters", What, MAX_MOVEUSE_TEXT_LENGTH);
+			if (static_cast<int>(Text.size()) > MAX_TRIGGER_TEXT_LENGTH) {
+				TomlError(Node.source(), "%s is longer than %d characters", What, MAX_TRIGGER_TEXT_LENGTH);
 			}
 			Parameter = static_cast<int>(AddDynamicString(Text.data()));
 			break;
@@ -292,7 +292,7 @@ static void ReadParameter(const toml::node &Node, ParameterType Type, const char
 // its types): checks its keys against Keys, finds its type by name among
 // Count signatures and reads its args into Parameters. Returns the type.
 static int ReadEntry(const toml::node &Node, const char *List, const char *Kind,
-		std::initializer_list<const char *> Keys, const TMoveUseSignature *Signatures, int Count, int *Parameters) {
+		std::initializer_list<const char *> Keys, const TTriggerSignature *Signatures, int Count, int *Parameters) {
 	const toml::table *Entry = Node.as_table();
 	if (Entry == nullptr) {
 		TomlError(Node.source(), "an entry of %s must be a table", List);
@@ -316,7 +316,7 @@ static int ReadEntry(const toml::node &Node, const char *List, const char *Kind,
 		TomlError(Name->source(), "unknown %s \"%s\"", Kind, Name->as_string()->get().c_str());
 	}
 
-	const TMoveUseSignature &Signature = Signatures[Type];
+	const TTriggerSignature &Signature = Signatures[Type];
 	const toml::array *Args = TomlGetArray(*Entry, "args");
 	size_t Given = Args != nullptr ? Args->size() : 0;
 	if (Given != static_cast<size_t>(Signature.NumberOfParameters)) {
@@ -354,7 +354,7 @@ static const toml::array &ReadList(const toml::table &Rule, const char *Key) {
 	return *List;
 }
 
-// One [[rule]] of moveuse.toml.
+// One [[rule]] of triggers.toml.
 static void ReadRule(const toml::node &Node) {
 	const toml::table *Rule = Node.as_table();
 	if (Rule == nullptr) {
@@ -386,13 +386,13 @@ static void ReadRule(const toml::node &Node) {
 	const toml::array &Conditions = ReadList(*Rule, "conditions");
 	const toml::array &Actions = ReadList(*Rule, "actions");
 
-	TMoveUseDatabase &Database = MoveUseDatabases[EventType];
+	TTriggerDatabase &Database = TriggerDatabases[EventType];
 	Database.NumberOfRules++;
-	TMoveUseRule &Entry = Database.Rules(Database.NumberOfRules);
-	Entry.FirstCondition = NumberOfMoveUseConditions + 1;
+	TTriggerRule &Entry = Database.Rules(Database.NumberOfRules);
+	Entry.FirstCondition = NumberOfTriggerConditions + 1;
 	for (const toml::node &ConditionNode : Conditions) {
-		NumberOfMoveUseConditions++;
-		TMoveUseCondition &Condition = MoveUseConditions(NumberOfMoveUseConditions);
+		NumberOfTriggerConditions++;
+		TTriggerCondition &Condition = TriggerConditions(NumberOfTriggerConditions);
 		int Type = ReadEntry(ConditionNode, "conditions", "condition", {"name", "args", "negate", "ignore_result"},
 				ConditionSignatures, NUMBER_OF_CONDITION_TYPES, Condition.Parameters);
 		Condition.Condition = static_cast<ConditionType>(Type);
@@ -404,22 +404,22 @@ static void ReadRule(const toml::node &Node) {
 		}
 		Condition.Modifier = Negate ? MODIFIER_INVERT : IgnoreResult ? MODIFIER_TRUE : MODIFIER_NORMAL;
 	}
-	Entry.LastCondition = NumberOfMoveUseConditions;
+	Entry.LastCondition = NumberOfTriggerConditions;
 
-	Entry.FirstAction = NumberOfMoveUseActions + 1;
+	Entry.FirstAction = NumberOfTriggerActions + 1;
 	for (const toml::node &ActionNode : Actions) {
-		NumberOfMoveUseActions++;
-		TMoveUseAction &Action = MoveUseActions(NumberOfMoveUseActions);
+		NumberOfTriggerActions++;
+		TTriggerAction &Action = TriggerActions(NumberOfTriggerActions);
 		int Type = ReadEntry(ActionNode, "actions", "action", {"name", "args"}, ActionSignatures,
 				NUMBER_OF_ACTION_TYPES, Action.Parameters);
 		Action.Action = static_cast<ActionType>(Type);
 	}
-	Entry.LastAction = NumberOfMoveUseActions;
+	Entry.LastAction = NumberOfTriggerActions;
 }
 
-void ReadMoveUseRules(const toml::table &File) {
+void ReadTriggerRules(const toml::table &File) {
 	for (int i = 0; i < NUMBER_OF_EVENT_TYPES; i++) {
-		MoveUseDatabases[i].NumberOfRules = 0;
+		TriggerDatabases[i].NumberOfRules = 0;
 	}
 
 	TomlCheckKeys(File, "the top level", {"rule"});
@@ -430,18 +430,18 @@ void ReadMoveUseRules(const toml::table &File) {
 	}
 }
 
-void LoadMoveUseRules(const char *FileName) {
+void LoadTriggerRules(const char *FileName) {
 	toml::table File = TomlParseFile(FileName);
-	ReadMoveUseRules(File);
+	ReadTriggerRules(File);
 }
 
-void LoadDataBase() {
+void LoadTriggers() {
 	char FileName[4096];
-	print(1, "Loading move/use database ...\n");
-	sprintf(FileName, "%s/moveuse.toml", DATAPATH);
-	LoadMoveUseRules(FileName);
-	print(1, "Move/use database read with %d/%d/%d/%d/%d rules.\n",
-			MoveUseDatabases[EVENT_USE].NumberOfRules, MoveUseDatabases[EVENT_MULTIUSE].NumberOfRules,
-			MoveUseDatabases[EVENT_MOVEMENT].NumberOfRules, MoveUseDatabases[EVENT_COLLISION].NumberOfRules,
-			MoveUseDatabases[EVENT_SEPARATION].NumberOfRules);
+	print(1, "Loading trigger rules ...\n");
+	sprintf(FileName, "%s/triggers.toml", DATAPATH);
+	LoadTriggerRules(FileName);
+	print(1, "Trigger rules read with %d/%d/%d/%d/%d rules.\n",
+			TriggerDatabases[EVENT_USE].NumberOfRules, TriggerDatabases[EVENT_MULTIUSE].NumberOfRules,
+			TriggerDatabases[EVENT_MOVEMENT].NumberOfRules, TriggerDatabases[EVENT_COLLISION].NumberOfRules,
+			TriggerDatabases[EVENT_SEPARATION].NumberOfRules);
 }

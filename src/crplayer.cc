@@ -33,7 +33,7 @@
 #include "sending.hh"
 #include "writer.hh"
 #include "houses.hh"
-#include "moveuse.hh"
+#include "triggers.hh"
 #include "shm.hh"
 #include "strings.hh"
 #include "mudinc.hh"

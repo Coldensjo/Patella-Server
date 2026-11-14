@@ -1,6 +1,6 @@
 // moveuse_dat.cc: the reader of the original moveuse.dat (moveuse_dat.hh).
 // This is the game's LoadDataBase, with its LoadParameters, LoadCondition and
-// LoadAction, as it was before moveuse.toml, moved here unchanged but for
+// LoadAction, as it was before triggers.toml, moved here unchanged but for
 // these things: the file name is given instead of made from DATAPATH; the
 // condition and action counts are set to 0 first, as InitMoveUse did; the two
 // log lines are left out (the TOML may go to standard output); the sections,
@@ -28,7 +28,7 @@
 #include "mudinc.hh"
 #include "strings.hh"
 #include "utils.hh"
-#include "moveusedata.hh"
+#include "triggersdata.hh"
 
 #include "moveuse_dat.hh"
 
@@ -217,7 +217,7 @@ static void LoadParameters(TReadScriptFile &Script, int *Parameters, int NumberO
 	Script.nextToken();
 }
 
-static void LoadCondition(TReadScriptFile &Script, TMoveUseCondition &Condition) {
+static void LoadCondition(TReadScriptFile &Script, TTriggerCondition &Condition) {
 	char Ident[30];
 	strcpy(Ident, Script.getIdentifier());
 	Script.nextToken();
@@ -327,7 +327,7 @@ static void LoadCondition(TReadScriptFile &Script, TMoveUseCondition &Condition)
 	}
 }
 
-static void LoadAction(TReadScriptFile &Script, TMoveUseAction &Action) {
+static void LoadAction(TReadScriptFile &Script, TTriggerAction &Action) {
 	char Ident[30];
 	strcpy(Ident, Script.getIdentifier());
 	Script.nextToken();
@@ -486,13 +486,13 @@ static void LoadAction(TReadScriptFile &Script, TMoveUseAction &Action) {
 }
 
 void ReadMoveUseDat(const char *FileName, TMoveUseDatExtras &Extras) {
-	NumberOfMoveUseConditions = 0;
-	NumberOfMoveUseActions = 0;
+	NumberOfTriggerConditions = 0;
+	NumberOfTriggerActions = 0;
 
 	TReadScriptFile Script;
 	Script.open(const_cast<char *>(FileName));
 	for (int i = 0; i < NUMBER_OF_EVENT_TYPES; i++) {
-		MoveUseDatabases[i].NumberOfRules = 0;
+		TriggerDatabases[i].NumberOfRules = 0;
 	}
 
 	Script.nextToken();
@@ -536,14 +536,14 @@ void ReadMoveUseDat(const char *FileName, TMoveUseDatExtras &Extras) {
 			Script.error("Unknown event type");
 		}
 
-		MoveUseDatabases[EventType].NumberOfRules++;
-		TMoveUseRule &Rule = MoveUseDatabases[EventType].Rules(MoveUseDatabases[EventType].NumberOfRules);
-		Rule.FirstCondition = NumberOfMoveUseConditions + 1;
+		TriggerDatabases[EventType].NumberOfRules++;
+		TTriggerRule &Rule = TriggerDatabases[EventType].Rules(TriggerDatabases[EventType].NumberOfRules);
+		Rule.FirstCondition = NumberOfTriggerConditions + 1;
 		Script.readSymbol(',');
 		while (true) {
 			Script.nextToken();
-			NumberOfMoveUseConditions++;
-			TMoveUseCondition &Condition = MoveUseConditions(NumberOfMoveUseConditions);
+			NumberOfTriggerConditions++;
+			TTriggerCondition &Condition = TriggerConditions(NumberOfTriggerConditions);
 			Condition.Modifier = MODIFIER_NORMAL;
 			if (Script.Token == SPECIAL && Script.getSpecial() == '!') {
 				Condition.Modifier = MODIFIER_INVERT;
@@ -564,12 +564,12 @@ void ReadMoveUseDat(const char *FileName, TMoveUseDatExtras &Extras) {
 			Script.error("'->' expected");
 		}
 
-		Rule.LastCondition = NumberOfMoveUseConditions;
+		Rule.LastCondition = NumberOfTriggerConditions;
 		Script.nextToken();
-		Rule.FirstAction = NumberOfMoveUseActions + 1;
+		Rule.FirstAction = NumberOfTriggerActions + 1;
 		while (true) {
-			NumberOfMoveUseActions++;
-			TMoveUseAction &Action = MoveUseActions(NumberOfMoveUseActions);
+			NumberOfTriggerActions++;
+			TTriggerAction &Action = TriggerActions(NumberOfTriggerActions);
 			Action.Action = UNKNOWN_ACTION;
 			LoadAction(Script, Action);
 			if (Script.Token != SPECIAL || Script.getSpecial() != ',') {
@@ -581,14 +581,14 @@ void ReadMoveUseDat(const char *FileName, TMoveUseDatExtras &Extras) {
 		TMoveUseDatEntry Entry;
 		Entry.Kind = TMoveUseDatEntry::RULE;
 		Entry.Event = EventType;
-		Entry.Rule = MoveUseDatabases[EventType].NumberOfRules;
+		Entry.Rule = TriggerDatabases[EventType].NumberOfRules;
 		if (Script.Token == STRING) {
 			Entry.HasNote = true;
 			Entry.Note = Script.getString();
 			Script.nextToken();
 		}
 		Extras.Entries.push_back(Entry);
-		Rule.LastAction = NumberOfMoveUseActions;
+		Rule.LastAction = NumberOfTriggerActions;
 	}
 
 	Script.close();

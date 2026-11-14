@@ -1,14 +1,14 @@
-// moveuse_writer.cc: writes the game's move and use rules as moveuse.toml
-// (moveuse_writer.hh).
+// triggers_writer.cc: writes the game's trigger rules as triggers.toml
+// (triggers_writer.hh).
 
-#include "moveuse_writer.hh"
+#include "triggers_writer.hh"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
 #include "crskill.hh"
-#include "moveusedata.hh"
+#include "triggersdata.hh"
 #include "objects.hh"
 #include "strings.hh"
 #include "tomlfile.hh"
@@ -59,7 +59,7 @@ static std::string CommentList(const std::vector<std::string> &Words, const std:
 }
 
 // The signatures as "name(type, type)" words.
-static std::vector<std::string> Signatures(const TMoveUseSignature *List, int Count) {
+static std::vector<std::string> Signatures(const TTriggerSignature *List, int Count) {
 	std::vector<std::string> Words;
 	for (int i = 0; i < Count; i++) {
 		std::string Word = std::string(List[i].Key) + "(";
@@ -73,8 +73,8 @@ static std::vector<std::string> Signatures(const TMoveUseSignature *List, int Co
 
 static std::string Header() {
 	std::string Text;
-	Text += "# moveuse.toml: the move and use rules of the game server, converted from the\n";
-	Text += "# original moveuse.dat by patella-convert. The game reads moveuse.toml in its\n";
+	Text += "# triggers.toml: the trigger rules of the game server, converted from the\n";
+	Text += "# original moveuse.dat by patella-convert. The game reads triggers.toml in its\n";
 	Text += "# data folder ([paths] data of config.toml). An unknown key or name, a value\n";
 	Text += "# of the wrong type or out of range, or an object type that does not exist,\n";
 	Text += "# is an error.\n";
@@ -181,8 +181,8 @@ static std::string Triple(int x, int y, int z) {
 	return "[" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + "]";
 }
 
-// A TMoveUseKey's key for Value, or nullptr.
-static const char *KeyOf(const TMoveUseKey *Keys, int Count, int Value) {
+// A TTriggerKey's key for Value, or nullptr.
+static const char *KeyOf(const TTriggerKey *Keys, int Count, int Value) {
 	for (int i = 0; i < Count; i++) {
 		if (Keys[i].Value == Value) {
 			return Keys[i].Key;
@@ -201,7 +201,7 @@ static std::string Key(const char *const *Keys, int Count, int Value, const char
 
 // The args of a condition or action of Signature, and the type comments in
 // Comments.
-static std::string Arguments(const TMoveUseSignature &Signature, const int *Parameters,
+static std::string Arguments(const TTriggerSignature &Signature, const int *Parameters,
 		const std::vector<bool> &Defined, std::vector<std::string> &Comments) {
 	std::string Text;
 	for (int i = 0; i < Signature.NumberOfParameters; i++) {
@@ -256,7 +256,7 @@ static std::string Arguments(const TMoveUseSignature &Signature, const int *Para
 			case PARAMETER_COMPARISON:
 				Name = KeyOf(ComparisonKeys, 6, Value);
 				if (Name == nullptr) {
-					throw "a comparison other than <, <=, =, >=, > and <>, which moveuse.toml cannot hold";
+					throw "a comparison other than <, <=, =, >=, > and <>, which triggers.toml cannot hold";
 				}
 				Argument = std::string("\"") + Name + "\"";
 				break;
@@ -282,7 +282,7 @@ static std::string EntryLine(const std::string &Name, const std::string &Modifie
 
 static std::string RuleText(const TMoveUseDatEntry &Entry, const std::vector<std::string> &Section,
 		const std::vector<bool> &Defined) {
-	const TMoveUseRule &Rule = MoveUseDatabases[Entry.Event].Rules(Entry.Rule);
+	const TTriggerRule &Rule = TriggerDatabases[Entry.Event].Rules(Entry.Rule);
 	std::string Text = "\n[[rule]]\n";
 	if (!Section.empty()) {
 		Text += "section = [";
@@ -298,7 +298,7 @@ static std::string RuleText(const TMoveUseDatEntry &Entry, const std::vector<std
 
 	Text += "conditions = [\n";
 	for (int i = Rule.FirstCondition; i <= Rule.LastCondition; i++) {
-		const TMoveUseCondition &Condition = MoveUseConditions(i);
+		const TTriggerCondition &Condition = TriggerConditions(i);
 		if (Condition.Condition < 0 || Condition.Condition >= NUMBER_OF_CONDITION_TYPES) {
 			throw "a condition the game does not know (an unknown name in moveuse.dat)";
 		}
@@ -310,7 +310,7 @@ static std::string RuleText(const TMoveUseDatEntry &Entry, const std::vector<std
 		} else if (Condition.Modifier != MODIFIER_NORMAL) {
 			throw "a condition modifier the game does not know";
 		}
-		const TMoveUseSignature &Signature = ConditionSignatures[Condition.Condition];
+		const TTriggerSignature &Signature = ConditionSignatures[Condition.Condition];
 		std::vector<std::string> Comments;
 		std::string Args = Arguments(Signature, Condition.Parameters, Defined, Comments);
 		Text += EntryLine(Signature.Key, Modifier, Args, Comments);
@@ -319,11 +319,11 @@ static std::string RuleText(const TMoveUseDatEntry &Entry, const std::vector<std
 
 	Text += "actions = [\n";
 	for (int i = Rule.FirstAction; i <= Rule.LastAction; i++) {
-		const TMoveUseAction &Action = MoveUseActions(i);
+		const TTriggerAction &Action = TriggerActions(i);
 		if (Action.Action < 0 || Action.Action >= NUMBER_OF_ACTION_TYPES) {
 			throw "an action the game does not know (an unknown name in moveuse.dat)";
 		}
-		const TMoveUseSignature &Signature = ActionSignatures[Action.Action];
+		const TTriggerSignature &Signature = ActionSignatures[Action.Action];
 		std::vector<std::string> Comments;
 		std::string Args = Arguments(Signature, Action.Parameters, Defined, Comments);
 		Text += EntryLine(Signature.Key, "", Args, Comments);
@@ -332,7 +332,7 @@ static std::string RuleText(const TMoveUseDatEntry &Entry, const std::vector<std
 	return Text;
 }
 
-std::string MoveUseToToml(const TMoveUseDatExtras &Extras, const std::vector<bool> &Defined) {
+std::string TriggersToToml(const TMoveUseDatExtras &Extras, const std::vector<bool> &Defined) {
 	std::string Text = Header();
 
 	// The sections come back from the rules' section lists: between two
@@ -348,7 +348,7 @@ std::string MoveUseToToml(const TMoveUseDatExtras &Extras, const std::vector<boo
 			Common++;
 		}
 		if (static_cast<size_t>(Changes) != (Last.size() - Common) + (Next.size() - Common)) {
-			throw "a section without rules, or two neighbouring sections of the same name, which moveuse.toml cannot "
+			throw "a section without rules, or two neighbouring sections of the same name, which triggers.toml cannot "
 					"tell apart";
 		}
 		Changes = 0;
@@ -360,7 +360,7 @@ std::string MoveUseToToml(const TMoveUseDatExtras &Extras, const std::vector<boo
 			Changes++;
 		} else if (Entry.Kind == TMoveUseDatEntry::END) {
 			if (Stack.empty()) {
-				throw "an END without its BEGIN, which moveuse.toml cannot hold";
+				throw "an END without its BEGIN, which triggers.toml cannot hold";
 			}
 			Stack.pop_back();
 			Changes++;
@@ -370,7 +370,7 @@ std::string MoveUseToToml(const TMoveUseDatExtras &Extras, const std::vector<boo
 		}
 	}
 	if (!Stack.empty()) {
-		throw "a BEGIN without its END, which moveuse.toml cannot hold";
+		throw "a BEGIN without its END, which triggers.toml cannot hold";
 	}
 	Check(Stack);
 	return Text;

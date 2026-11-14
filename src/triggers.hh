@@ -1,10 +1,10 @@
-// moveuse.hh: the functions and data of moveuse.cc: the events that run the
-// move and use rules (moveusedata.hh), the object functions their actions use,
+// triggers.hh: the functions and data of triggers.cc: the events that run the
+// trigger rules (triggersdata.hh), the object functions their actions use,
 // depot boxes, mail, and the built-in uses of objects (containers, chests,
 // liquids, food, texts, doors, weapons).
 
-#ifndef PATELLA_MOVEUSE_HH
-#define PATELLA_MOVEUSE_HH
+#ifndef PATELLA_TRIGGERS_HH
+#define PATELLA_TRIGGERS_HH
 
 #include <cstdint>
 
@@ -45,8 +45,8 @@ void UseObjects(uint32_t CreatureID, Object Obj1, Object Obj2);
 void MovementEvent(Object Obj, Object Start, Object Dest);
 void SeparationEvent(Object Obj, Object Start);
 void CollisionEvent(Object Obj, Object Dest);
-void InitMoveUse();
-void ExitMoveUse();
+void InitTriggers();
+void ExitTriggers();
 
 extern vector<TDelayedMail> DelayedMail;
 extern int DelayedMails;

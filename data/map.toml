@@ -33,8 +33,8 @@
 #
 # Each [[depot]] is a town's depot:
 #   id    Its number, 0 to 8 (a player has one depot of each number), each
-#         at most once. The move and use rules (load_depot, save_depot)
-#         and the areas of houses.toml name it.
+#         at most once. The trigger rules (load_depot, save_depot) and the
+#         areas of houses.toml name it.
 #   town  The town's name, at most 19 characters: letters and parcels sent
 #         to the town go into this depot, and the query manager lists the
 #         town's houses under it.

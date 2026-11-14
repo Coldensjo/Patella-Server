@@ -1,5 +1,5 @@
-# moveuse.toml: the move and use rules of the game server, converted from the
-# original moveuse.dat by patella-convert. The game reads moveuse.toml in its
+# triggers.toml: the trigger rules of the game server, converted from the
+# original moveuse.dat by patella-convert. The game reads triggers.toml in its
 # data folder ([paths] data of config.toml). An unknown key or name, a value
 # of the wrong type or out of range, or an object type that does not exist,
 # is an error.

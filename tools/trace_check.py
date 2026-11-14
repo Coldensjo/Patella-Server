@@ -16,24 +16,24 @@ What it does, in WSL Ubuntu-24.04:
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
      relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/commands.toml,
-     data/moveuse.toml, data/houses.toml, data/map.toml and data/conversion.toml go into the copy's data folder
-     ([paths] data), and the files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat,
-     houses.dat, map.dat with the mem.dat it includes, and conversion.lst, are removed (spells.toml and commands.toml
-     replace the spell table and the commands' rights in the code). A tree without them (faithful) gets the copy's
-     .tibia with its paths pointed at the copy, and keeps those files. The scenario's clients read the object types
-     from the file the copy has. Either config gets a scratch SHM key (--shm, default 17011) and scratch query manager
-     ports (--qm-port, default 17173, and the three after it for the other entries). Then it seeds a scratch database
-     with the build's querymanager-seed (game port --port, default 17171), adds the test accounts with a new character
-     each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; and the gamemasters 900003 to 900007, 'Testc
-     Gamma' to 'Testg Eta', male, each with some of the rights the commands check, GM_RIGHTS; none may have a player
-     file or player data) and starts the build's query manager. A build whose
-     query manager keeps the player data (its database has the table player_data) gets them from the player files
-     with the seed, which imports them; the copy's usr/ is then removed, so the run also shows that its game no longer
-     reads or writes player files. The game runs with HOME set to the copy, so it reads the copy's config.toml (or
-     .tibia). The copy gets the check's RSA key (repro_check's key header) as a key file in PKCS#1 PEM, mode 0600, at
-     the path the copy's config.toml names with rsa_key (key.pem in the copy without one, and for a .tibia): a tree
-     that reads its key at run time uses it, one that builds the key in has the same key built in. The scenario's
-     clients encrypt their logins with that file's modulus.
+     data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml and data/conversion.toml
+     go into the copy's data folder ([paths] data), and the files they were converted from, objects.srv, circles.dat,
+     moveuse.dat, houseareas.dat, houses.dat, map.dat with the mem.dat it includes, and conversion.lst, are removed
+     (spells.toml and commands.toml replace the spell table and the commands' rights in the code). A tree without them
+     (faithful) gets the copy's .tibia with its paths pointed at the copy, and keeps those files. The scenario's clients
+     read the object types from the file the copy has. Either config gets a scratch SHM key (--shm, default 17011) and
+     scratch query manager ports (--qm-port, default 17173, and the three after it for the other entries). Then it seeds
+     a scratch database with the build's querymanager-seed (game port --port, default 17171), adds the test accounts
+     with a new character each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; and the gamemasters 900003
+     to 900007, 'Testc Gamma' to 'Testg Eta', male, each with some of the rights the commands check, GM_RIGHTS; none may
+     have a player file or player data) and starts the build's query manager. A build whose query manager keeps the
+     player data (its database has the table player_data) gets them from the player files with the seed, which imports
+     them; the copy's usr/ is then removed, so the run also shows that its game no longer reads or writes player files.
+     The game runs with HOME set to the copy, so it reads the copy's config.toml (or .tibia). The copy gets the check's
+     RSA key (repro_check's key header) as a key file in PKCS#1 PEM, mode 0600, at the path the copy's config.toml names
+     with rsa_key (key.pem in the copy without one, and for a .tibia): a tree that reads its key at run time uses it,
+     one that builds the key in has the same key built in. The scenario's clients encrypt their logins with that file's
+     modulus.
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
@@ -316,6 +316,7 @@ DATA_FILES = [
 	("spells.toml", ()),
 	("commands.toml", ()),
 	("moveuse.toml", ("moveuse.dat",)),
+	("triggers.toml", ("moveuse.dat",)),
 	("houses.toml", ("houseareas.dat", "houses.dat")),
 	("map.toml", ("map.dat", "mem.dat")),
 	("conversion.toml", ("conversion.lst",)),
