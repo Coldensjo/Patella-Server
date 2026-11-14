@@ -1,3 +1,12 @@
+// receiving.cc: the handlers of the client's packets. ReceiveData reads the
+// command byte of a connection's packet. A connection that is still logging in
+// may send only CL_JOIN_GAME, which joins the game; any other command that
+// CommandAllowed lets through goes to its handler (C*). The handlers check the
+// player and the packet's values and act through the creature's to-do list or
+// the game's functions. ReceiveData() handles the packet of each connection
+// that waits for the game thread, then wakes the connection's communication
+// thread.
+
 #include <csignal>
 #include <cstdint>
 #include <cstdio>

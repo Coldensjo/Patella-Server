@@ -1,3 +1,6 @@
+// receiving.hh: the first byte of each packet the client sends (CL_*), and
+// the handlers of those packets (C*) with the checks they share.
+
 #ifndef PATELLA_RECEIVING_HH
 #define PATELLA_RECEIVING_HH
 

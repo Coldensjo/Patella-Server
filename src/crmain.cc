@@ -1,3 +1,11 @@
+// crmain.cc: the creatures as a whole. The hash list by ID, the creature list
+// each round goes through (ProcessSkills, ProcessCreatures), the to-do queue
+// (MoveCreatures) and the chains of creatures per map block, which
+// TFindCreatures searches; TCreature's construction and destruction, ID,
+// logout, damage and death; the kill statistics; the races (.mon files) and
+// the monster raids (.evt files) of MONSTERPATH. InitCr sets it all up, ExitCr
+// takes it down.
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>

@@ -1,3 +1,10 @@
+// sending.cc: the game server's packets. They are built in each connection's
+// ring buffer (OutData): BeginSendData starts a packet, the Send* functions
+// write it, FinishSendData commits it, and SendAll wakes the communication
+// thread of each connection with committed data, which sends it.
+// BroadcastMessage sends a message to every connection online,
+// DeleteGamemasterRequest to each one that has the request queue open.
+
 #include <algorithm>
 #include <csignal>
 #include <cstdarg>

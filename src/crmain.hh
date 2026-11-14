@@ -1,3 +1,8 @@
+// crmain.hh: the functions and globals of crmain.cc: the creatures by ID
+// (HashList) and in a list each round goes through (CreatureList), the chains
+// of creatures per map block, the kill statistics, the races' values, the
+// loading of races and monster raids, and InitCr and ExitCr.
+
 #ifndef PATELLA_CRMAIN_HH
 #define PATELLA_CRMAIN_HH
 

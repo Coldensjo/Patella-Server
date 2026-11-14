@@ -1,3 +1,6 @@
+// sending.hh: the first byte of each packet the game server sends (SV_*), and
+// the functions that build those packets.
+
 #ifndef PATELLA_SENDING_HH
 #define PATELLA_SENDING_HH
 
