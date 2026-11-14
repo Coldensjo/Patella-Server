@@ -56,10 +56,11 @@ static std::string Header() {
 	Text += "#                none.\n";
 	Text += "#   attributes   The type's values by the names below, each a 32-bit number\n";
 	Text += "#                (written signed). The game reads an attribute only while the\n";
-	Text += "#                type has the flag it belongs to. One left out is 0. meaning\n";
-	Text += "#                makes the type the special object of that number (1 to 48,\n";
-	Text += "#                each for at most one type), which the game asks for by it\n";
-	Text += "#                (money, depot chests, blood, magic fields, ...).\n";
+	Text += "#                type has the flag it belongs to. One left out is 0. Those\n";
+	Text += "#                listed at the end are given by name instead. meaning makes\n";
+	Text += "#                the type the special object of that name (each for at most\n";
+	Text += "#                one type), which the game asks for by it (money, depot\n";
+	Text += "#                chests, blood, magic fields, ...).\n";
 	Text += "#\n";
 	Text += "# The flags:\n";
 	std::vector<std::string> Words;
@@ -74,7 +75,67 @@ static std::string Header() {
 		Words.push_back(std::string(TypeAttributeKeys[i]) + " (" + FlagKeys[TypeAttributeFlags[i]] + ")");
 	}
 	Text += CommentList(Words, "#   ", ", ");
+	Text += "#\n";
+	Text += "# The attributes given by name, each with its names. One whose names are\n";
+	Text += "# in [] is an array of them, each a bit of the value ([] for none).\n";
+	for (int Attribute = 0; Attribute < TYPEATTRIBUTES; Attribute++) {
+		const TNamedAttribute *Named = GetNamedAttribute(Attribute);
+		if (Named == nullptr) {
+			continue;
+		}
+		Words.clear();
+		for (int i = 0; i < Named->Count; i++) {
+			if (Named->Keys[i] != nullptr) {
+				Words.push_back(Named->Keys[i]);
+			}
+		}
+		bool Bits = Named->Form == NAMED_BITS;
+		Words.front() = std::string(TypeAttributeKeys[Attribute]) + (Bits ? ": [" : ": ") + Words.front();
+		if (Bits) {
+			Words.back() += "]";
+		}
+		// The names of one attribute, its further lines indented.
+		Text += "#   " + CommentList(Words, "#     ", ", ").substr(6);
+	}
 	return Text;
+}
+
+// The name of a named attribute's value in items.toml: a string, or an array
+// of them. Throws for a value or bit without a name.
+static std::string NamedValue(const TNamedAttribute &Named, uint32_t Value) {
+	static std::string Refusal;
+	Refusal = std::string("a value of ") + TypeAttributeKeys[Named.Attribute]
+			+ " without a name, which items.toml cannot hold";
+	if (Named.Form == NAMED_VALUE) {
+		const char *Key = GetValueKey(Named.Keys, Named.Count, static_cast<int32_t>(Value));
+		if (Key == nullptr) {
+			throw Refusal.c_str();
+		}
+		return TomlQuote(Key);
+	}
+
+	std::vector<std::string> Names;
+	for (int Bit = 0; Bit < 32; Bit++) {
+		if ((Value & (UINT32_C(1) << Bit)) == 0) {
+			continue;
+		}
+		const char *Key = GetValueKey(Named.Keys, Named.Count, Bit);
+		if (Key == nullptr) {
+			throw Refusal.c_str();
+		}
+		Names.push_back(TomlQuote(Key));
+	}
+	if (Named.Form == NAMED_BIT) {
+		if (Names.size() != 1) {
+			throw Refusal.c_str();
+		}
+		return Names.front();
+	}
+	std::string Text;
+	for (const std::string &Name : Names) {
+		Text += (Text.empty() ? "" : ", ") + Name;
+	}
+	return "[" + Text + "]";
 }
 
 std::string ItemsToToml(const TObjectsSrvExtras &Extras) {
@@ -130,8 +191,9 @@ std::string ItemsToToml(const TObjectsSrvExtras &Extras) {
 			if (Attribute == MEANING && Value == SPECIALMEANINGS) {
 				throw "a meaning of 49, which items.toml refuses (it lies past SpecialObjects)";
 			}
+			const TNamedAttribute *Named = GetNamedAttribute(Attribute);
 			Attributes += std::string(Attributes.empty() ? "" : ", ") + TypeAttributeKeys[Attribute] + " = "
-					+ std::to_string(Value);
+					+ (Named != nullptr ? NamedValue(*Named, Type.Attributes[Attribute]) : std::to_string(Value));
 		}
 		if (!Attributes.empty()) {
 			Text += "attributes = { " + Attributes + " }\n";
