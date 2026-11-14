@@ -99,7 +99,7 @@ vector<TParty> Party(0, 100, 50);
 void AnnounceMovingCreature(uint32_t CreatureID, Object Con) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("AnnounceMovingCreature: Kreatur %d existiert nicht.\n", CreatureID);
+		error("AnnounceMovingCreature: Creature %d does not exist.\n", CreatureID);
 		return;
 	}
 
@@ -122,7 +122,7 @@ void AnnounceMovingCreature(uint32_t CreatureID, Object Con) {
 void AnnounceChangedCreature(uint32_t CreatureID, int Type) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("AnnounceChangedCreature: Kreatur %d existiert nicht (Type=%d).\n", CreatureID, Type);
+		error("AnnounceChangedCreature: Creature %d does not exist (Type=%d).\n", CreatureID, Type);
 		return;
 	}
 
@@ -161,7 +161,7 @@ void AnnounceChangedCreature(uint32_t CreatureID, int Type) {
 
 void AnnounceChangedField(Object Obj, int Type) {
 	if (!Obj.exists()) {
-		error("AnnounceChangedField: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("AnnounceChangedField: Given object does not exist.\n");
 		return;
 	}
 
@@ -194,7 +194,7 @@ void AnnounceChangedField(Object Obj, int Type) {
 				SendChangeField(pl->GetConnection(), x, y, z, Obj);
 				break;
 			default:
-				error("AnnounceChangedField: Ung\xfcltiger Typ %d.\n", Type);
+				error("AnnounceChangedField: Invalid type %d.\n", Type);
 				return;
 		}
 	}
@@ -202,7 +202,7 @@ void AnnounceChangedField(Object Obj, int Type) {
 
 void AnnounceChangedContainer(Object Obj, int Type) {
 	if (!Obj.exists()) {
-		error("AnnounceChangedContainer: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("AnnounceChangedContainer: Given object does not exist.\n");
 		return;
 	}
 
@@ -234,7 +234,7 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 					SendChangeInContainer(pl->GetConnection(), con, Obj);
 					break;
 				default:
-					error("AnnounceChangedContainer: Ung\xfcltiger Typ %d.\n", Type);
+					error("AnnounceChangedContainer: Invalid type %d.\n", Type);
 					return;
 			}
 		}
@@ -243,13 +243,13 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 
 void AnnounceChangedInventory(Object Obj, int Type) {
 	if (!Obj.exists()) {
-		error("AnnounceChangedInventory: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("AnnounceChangedInventory: Given object does not exist.\n");
 		return;
 	}
 
 	TCreature *cr = GetCreature(GetObjectCreatureID(Obj));
 	if (cr == nullptr) {
-		error("AnnounceChangedInventory: Objekt liegt in keinem Inventory.\n");
+		error("AnnounceChangedInventory: Object is not in any inventory.\n");
 		return;
 	}
 
@@ -266,14 +266,14 @@ void AnnounceChangedInventory(Object Obj, int Type) {
 			SendSetInventory(cr->GetConnection(), GetObjectBodyPosition(Obj), Obj);
 			break;
 		default:
-			error("AnnounceChangedInventory: Ung\xfcltiger Typ %d.\n", Type);
+			error("AnnounceChangedInventory: Invalid type %d.\n", Type);
 			break;
 	}
 }
 
 void AnnounceChangedObject(Object Obj, int Type) {
 	if (!Obj.exists()) {
-		error("AnnounceChangedObject: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("AnnounceChangedObject: Given object does not exist.\n");
 		return;
 	}
 
@@ -349,7 +349,7 @@ void AnnounceMissile(int sx, int sy, int sz, int zx, int zy, int zz, int Type) {
 
 void CheckTopMoveObject(uint32_t CreatureID, Object Obj, Object Ignore) {
 	if (!Obj.exists()) {
-		error("CheckTopMoveObject: Objekt existiert nicht.\n");
+		error("CheckTopMoveObject: Object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -388,7 +388,7 @@ void CheckTopMoveObject(uint32_t CreatureID, Object Obj, Object Ignore) {
 
 void CheckTopUseObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
-		error("CheckTopUseObject: Objekt existiert nicht.\n");
+		error("CheckTopUseObject: Object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -423,7 +423,7 @@ void CheckTopUseObject(uint32_t CreatureID, Object Obj) {
 
 void CheckTopMultiuseObject(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
-		error("CheckTopMultiuseObject: Objekt existiert nicht.\n");
+		error("CheckTopMultiuseObject: Object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -472,7 +472,7 @@ void CheckMoveObject(uint32_t CreatureID, Object Obj, bool Take) {
 	if (Obj.isCreature() && Obj.getCreatureID() != CreatureID) {
 		TCreature *cr = GetCreature(Obj);
 		if (cr == nullptr) {
-			error("CheckMoveObject: Kreatur existiert nicht.\n");
+			error("CheckMoveObject: Creature does not exist.\n");
 			throw ERROR;
 		}
 
@@ -553,7 +553,7 @@ fieldOk:
 	if (Obj.getFlag(HANG) && CoordinateHookable(x, y, z)) {
 		TCreature *cr = GetCreature(CreatureID);
 		if (cr == nullptr) {
-			error("CheckMapDestination: Ausf\xfchrende Kreatur existiert nicht.\n");
+			error("CheckMapDestination: Executing creature does not exist.\n");
 			throw ERROR;
 		}
 
@@ -656,12 +656,12 @@ void CheckDepotSpace(uint32_t CreatureID, Object Source, Object Destination, int
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("CheckDepotSpace: Kreatur %lu existiert nicht.\n", (unsigned long)CreatureID);
+		error("CheckDepotSpace: Creature %lu does not exist.\n", (unsigned long)CreatureID);
 		throw ERROR;
 	}
 
 	if (Destination == NONE) {
-		error("CheckDepotSpace: Ziel existiert nicht.\n");
+		error("CheckDepotSpace: Target does not exist.\n");
 		throw ERROR;
 	}
 
@@ -802,7 +802,7 @@ void CheckWeight(uint32_t CreatureID, Object Obj, int Count) {
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("CheckWeight: Kreatur %d existiert nicht.\n", CreatureID);
+		error("CheckWeight: Creature %d does not exist.\n", CreatureID);
 		throw ERROR;
 	}
 
@@ -820,7 +820,7 @@ void CheckWeight(uint32_t CreatureID, Object Obj, int Count) {
 
 	TSkill *sk = cr->Skills[SKILL_CARRYSTRENGTH];
 	if (sk == nullptr) {
-		error("CheckWeight: Skill CARRYSTRENGTH existiert nicht.\n");
+		error("CheckWeight: Skill CARRYSTRENGTH does not exist.\n");
 		throw ERROR;
 	}
 
@@ -839,7 +839,7 @@ void CheckWeight(uint32_t CreatureID, Object Obj, int Count) {
 void CheckWeight(uint32_t CreatureID, ObjectType Type, uint32_t Data, int oldWeight) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("CheckWeight: Kreatur %d existiert nicht.\n", CreatureID);
+		error("CheckWeight: Creature %d does not exist.\n", CreatureID);
 		throw ERROR;
 	}
 
@@ -857,7 +857,7 @@ void CheckWeight(uint32_t CreatureID, ObjectType Type, uint32_t Data, int oldWei
 
 	TSkill *sk = cr->Skills[SKILL_CARRYSTRENGTH];
 	if (sk == nullptr) {
-		error("CheckWeight: Skill CARRYSTRENGTH existiert nicht.\n");
+		error("CheckWeight: Skill CARRYSTRENGTH does not exist.\n");
 		throw ERROR;
 	}
 
@@ -886,7 +886,7 @@ void NotifyCreature(uint32_t CreatureID, Object Obj, bool Inventory) {
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("NotifyCreature: Kreatur existiert nicht.\n");
+		error("NotifyCreature: Creature does not exist.\n");
 		return;
 	}
 
@@ -904,7 +904,7 @@ void NotifyCreature(uint32_t CreatureID, ObjectType Type, bool Inventory) {
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("NotifyCreature: Kreatur existiert nicht.\n");
+		error("NotifyCreature: Creature does not exist.\n");
 		return;
 	}
 
@@ -917,7 +917,7 @@ void NotifyCreature(uint32_t CreatureID, ObjectType Type, bool Inventory) {
 
 void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 	if (!Obj.exists()) {
-		error("NotifyAllCreatures: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("NotifyAllCreatures: Given object does not exist.\n");
 		return;
 	}
 
@@ -927,7 +927,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 
 	if (Type == OBJECT_MOVED) {
 		if (!OldCon.exists()) {
-			error("NotifyAllCreatures: \xdc" "bergebener alter Container existiert nicht.\n");
+			error("NotifyAllCreatures: Given old container does not exist.\n");
 			return;
 		}
 
@@ -976,7 +976,7 @@ void NotifyAllCreatures(Object Obj, int Type, Object OldCon) {
 
 void NotifyTrades(Object Obj) {
 	if (!Obj.exists()) {
-		error("NotifyTrades: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("NotifyTrades: Given object does not exist.\n");
 		return;
 	}
 
@@ -993,7 +993,7 @@ void NotifyTrades(Object Obj) {
 
 		TPlayer *pl = GetPlayer(ID);
 		if (pl == nullptr) {
-			error("NotifyTrade: Spieler existiert nicht.\n");
+			error("NotifyTrade: Player does not exist.\n");
 			continue;
 		}
 
@@ -1038,12 +1038,12 @@ void NotifyDepot(uint32_t CreatureID, Object Obj, int Count) {
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("NotifyDepot: Kreatur %lu existiert nicht.\n", (unsigned long)CreatureID);
+		error("NotifyDepot: Creature %lu does not exist.\n", (unsigned long)CreatureID);
 		return;
 	}
 
 	if (!Obj.exists()) {
-		error("NotifyDepot: Objekt existiert nicht.\n");
+		error("NotifyDepot: Object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1059,7 +1059,7 @@ void NotifyDepot(uint32_t CreatureID, Object Obj, int Count) {
 	while (!Obj.isMapContainer()) {
 		if (Obj == pl->Depot) {
 			pl->DepotSpace += Count;
-			print(3, "Neuer Depot-Freiraum f\xfcr %s: %d\n", pl->Name, pl->DepotSpace);
+			print(3, "New depot free space for %s: %d\n", pl->Name, pl->DepotSpace);
 			return;
 		}
 		Obj = Obj.getContainer();
@@ -1068,7 +1068,7 @@ void NotifyDepot(uint32_t CreatureID, Object Obj, int Count) {
 
 void CloseContainer(Object Con, bool Force) {
 	if (!Con.exists()) {
-		error("CloseContainer: \xdc" "bergebener Container existiert nicht.\n");
+		error("CloseContainer: Given container does not exist.\n");
 		return;
 	}
 
@@ -1085,7 +1085,7 @@ void CloseContainer(Object Con, bool Force) {
 
 		TPlayer *pl = GetPlayer(ID);
 		if (pl == nullptr) {
-			error("CloseContainer: Spieler existiert nicht.\n");
+			error("CloseContainer: Player does not exist.\n");
 			continue;
 		}
 
@@ -1113,17 +1113,17 @@ void CloseContainer(Object Con, bool Force) {
 
 Object Create(Object Con, ObjectType Type, uint32_t Value) {
 	if (!Con.exists()) {
-		error("Create: Zielobjekt existiert nicht.\n");
+		error("Create: Target object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Con.getFlag(CONTAINER) && !Con.getFlag(CHEST)) {
-		error("Create: Zielobjekt ist kein Container.\n");
+		error("Create: Target object is not a container.\n");
 		throw ERROR;
 	}
 
 	if (Type == ObjectType(0)) {
-		error("Create: Objekttyp existiert nicht.\n");
+		error("Create: Object type does not exist.\n");
 		throw ERROR;
 	}
 
@@ -1184,7 +1184,7 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 	if (Type.isCreature()) {
 		TCreature *cr = GetCreature(Value);
 		if (cr == nullptr) {
-			error("Create: Ung\xfcltige Kreatur-ID %d\n", Value);
+			error("Create: Invalid creature ID %d\n", Value);
 			Delete(Obj, -1);
 			throw ERROR;
 		}
@@ -1208,22 +1208,22 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 
 Object Copy(Object Con, Object Source) {
 	if (!Con.exists()) {
-		error("Copy: Ziel existiert nicht.\n");
+		error("Copy: Target does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Con.getFlag(CONTAINER) && !Con.getFlag(CHEST)) {
-		error("Copy: Ziel ist kein Container.\n");
+		error("Copy: Target is not a container.\n");
 		throw ERROR;
 	}
 
 	if (!Source.exists()) {
-		error("Copy: Quelle existiert nicht.\n");
+		error("Copy: Source does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Source.isCreature()) {
-		error("Copy: Quelle ist eine Kreatur.\n");
+		error("Copy: Source is a creature.\n");
 		throw ERROR;
 	}
 
@@ -1260,25 +1260,25 @@ Object Copy(Object Con, Object Source) {
 
 void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, Object Ignore) {
 	if (!Obj.exists()) {
-		error("Move: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("Move: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Con.exists()) {
-		error("Move: Zielobjekt existiert nicht.\n");
+		error("Move: Target object does not exist.\n");
 		int x, y, z;
 		GetObjectCoordinates(Obj, x, y, z);
-		error("# Objekt %d an [%d,%d,%d]\n", Obj.getObjectType().getTypeID(), x, y, z);
+		error("# Object %d at [%d,%d,%d]\n", Obj.getObjectType().getTypeID(), x, y, z);
 		throw ERROR;
 	}
 
 	if (!Con.getFlag(CONTAINER)) {
-		error("Move: Zielobjekt ist kein Container.\n");
+		error("Move: Target object is not a container.\n");
 		throw ERROR;
 	}
 
 	if (Obj.getFlag(CUMULATIVE) && (Count == 0 || Count > (int)Obj.getAttribute(AMOUNT))) {
-		error("Move: Ung\xfcltige Anzahl %d von %d an Teilen bei kumulierbarem Objekt.\n", Count, Obj.getAttribute(AMOUNT));
+		error("Move: Invalid count %d of %d pieces for cumulative object.\n", Count, Obj.getAttribute(AMOUNT));
 		throw ERROR;
 	}
 
@@ -1300,7 +1300,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 
 	// An object that no longer exists is only logged; Move carries on.
 	if (!Obj.exists()) {
-		error("Move: \xdc" "bergebenes Objekt existiert nicht mehr.\n");
+		error("Move: Given object no longer exists.\n");
 	}
 
 	if (Obj.getFlag(CUMULATIVE) && Count == -1) {
@@ -1356,7 +1356,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 	if (Obj.isCreature()) {
 		TCreature *cr = GetCreature(Obj);
 		if (cr == nullptr) {
-			error("Move: Kreatur mit ung\xfcltiger ID %d.\n", Obj.getCreatureID());
+			error("Move: Creature with invalid ID %d.\n", Obj.getCreatureID());
 		} else {
 			cr->NotifyTurn(Con);
 		}
@@ -1378,7 +1378,7 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 	if (Obj.isCreature()) {
 		TCreature *cr = GetCreature(Obj);
 		if (cr == nullptr) {
-			error("Move: Kreatur mit ung\xfcltiger ID %d.\n", Obj.getCreatureID());
+			error("Move: Creature with invalid ID %d.\n", Obj.getCreatureID());
 		} else {
 			cr->NotifyGo();
 		}
@@ -1397,17 +1397,17 @@ void Move(uint32_t CreatureID, Object Obj, Object Con, int Count, bool NoMerge, 
 
 void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignore) {
 	if (!Obj.exists()) {
-		error("Merge: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("Merge: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Dest.exists()) {
-		error("Merge: Zielobjekt existiert nicht.\n");
+		error("Merge: Target object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Obj.getFlag(CUMULATIVE) && (Count == 0 || Count > (int)Obj.getAttribute(AMOUNT))) {
-		error("Merge: Ung\xfcltige Anzahl %d an Teilen bei kumulierbarem Objekt.\n", Count);
+		error("Merge: Invalid count of %d pieces for cumulative object.\n", Count);
 		throw ERROR;
 	}
 
@@ -1447,7 +1447,7 @@ void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignor
 	Object oldCon = Obj.getContainer();
 	uint32_t oldCreature = GetObjectCreatureID(Obj);
 	if (Obj.getFlag(MOVEMENTEVENT)) {
-		error("Merge: Movement-Event f\xfcr kumulierbares Objekt %d wird nicht ausgel\xf6st.\n", Obj.getObjectType().getTypeID());
+		error("Merge: Movement event for cumulative object %d is not triggered.\n", Obj.getObjectType().getTypeID());
 	}
 
 	if (Dest.getContainer() != oldCon) {
@@ -1476,12 +1476,12 @@ void Merge(uint32_t CreatureID, Object Obj, Object Dest, int Count, Object Ignor
 
 void Change(Object Obj, ObjectType NewType, uint32_t Value) {
 	if (!Obj.exists()) {
-		error("Change: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("Change: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Obj.isCreature() || NewType.isCreature()) {
-		error("Change: Kann keine Kreaturen ver\xe4ndern.\n");
+		error("Change: Cannot change creatures.\n");
 		throw ERROR;
 	}
 
@@ -1492,18 +1492,18 @@ void Change(Object Obj, ObjectType NewType, uint32_t Value) {
 
 	if (Obj.getFlag(CONTAINER)) {
 		if (!NewType.getFlag(CONTAINER) && GetFirstContainerObject(Obj) != NONE) {
-			error("Change: Zielobjekt %d f\xfcr %d ist kein Container mehr.\n", NewType.getTypeID(), Obj.getObjectType().getTypeID());
+			error("Change: Target object %d for %d is no longer a container.\n", NewType.getTypeID(), Obj.getObjectType().getTypeID());
 			throw EMPTYCONTAINER;
 		}
 
 		if (NewType.getFlag(CONTAINER) && (int)NewType.getAttribute(CAPACITY) < CountObjectsInContainer(Obj)) {
-			error("Change: Zielobjekt %d f\xfcr %d ist kleinerer Container.\n", NewType.getTypeID(), Obj.getObjectType().getTypeID());
+			error("Change: Target object %d for %d is a smaller container.\n", NewType.getTypeID(), Obj.getObjectType().getTypeID());
 			throw EMPTYCONTAINER;
 		}
 	}
 
 	if (Obj.getFlag(CHEST) && !NewType.getFlag(CHEST)) {
-		error("Change: Schatztruhe mu\xdf Schatztruhe bleiben.\n");
+		error("Change: Treasure chest must stay a treasure chest.\n");
 		throw ERROR;
 	}
 
@@ -1560,13 +1560,13 @@ void Change(Object Obj, ObjectType NewType, uint32_t Value) {
 
 void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 	if (!Obj.exists()) {
-		error("Change: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("Change: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Attribute == CONTENT || Attribute == CHESTQUESTNUMBER || Attribute == DOORLEVEL || Attribute == DOORQUESTNUMBER
 			|| Attribute == DOORQUESTVALUE || Attribute == ABSTELEPORTDESTINATION || Attribute == REMAININGEXPIRETIME) {
-		error("Change: Kann Attribut %d nicht \xe4ndern.\n", Attribute);
+		error("Change: Cannot change attribute %d.\n", Attribute);
 		throw ERROR;
 	}
 
@@ -1586,12 +1586,12 @@ void Change(Object Obj, INSTANCEATTRIBUTE Attribute, uint32_t Value) {
 
 void Delete(Object Obj, int Count) {
 	if (!Obj.exists()) {
-		error("Delete: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("Delete: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Obj.getFlag(CUMULATIVE) && (Count == 0 || Count > (int)Obj.getAttribute(AMOUNT))) {
-		error("Delete: Ung\xfcltige Anzahl %d an Teilen bei kumulierbarem Objekt.\n", Count);
+		error("Delete: Invalid count of %d pieces for cumulative object.\n", Count);
 		throw ERROR;
 	}
 
@@ -1633,7 +1633,7 @@ void Delete(Object Obj, int Count) {
 	if (oldType.isCreature()) {
 		TCreature *cr = GetCreature(oldCreature);
 		if (cr == nullptr) {
-			error("Delete: Kreatur mit ung\xfcltiger ID %d.\n", oldCreature);
+			error("Delete: Creature with invalid ID %d.\n", oldCreature);
 		} else {
 			cr->NotifyDelete();
 		}
@@ -1650,17 +1650,17 @@ void Delete(Object Obj, int Count) {
 
 void Empty(Object Con, int Rest) {
 	if (!Con.exists()) {
-		error("Empty: \xdc" "bergebener Container existiert nicht.\n");
+		error("Empty: Given container does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Rest < 0) {
-		error("Empty: Ung\xfcltiger Rest %d.\n", Rest);
+		error("Empty: Invalid remainder %d.\n", Rest);
 		throw ERROR;
 	}
 
 	if (!Con.getFlag(CONTAINER)) {
-		error("Empty: \xdc" "bergebenes Objekt ist kein Container.\n");
+		error("Empty: Given object is not a container.\n");
 		throw ERROR;
 	}
 
@@ -1694,7 +1694,7 @@ void GraphicalEffect(Object Obj, int Type) {
 
 void TextualEffect(Object Obj, int Color, char *Text, ...) {
 	if (!Obj.exists()) {
-		error("TextualEffect: \xdc" "bergebener Mapcontainer existiert nicht.\n");
+		error("TextualEffect: Given Mapcontainer does not exist.\n");
 		return;
 	}
 
@@ -1714,12 +1714,12 @@ void TextualEffect(Object Obj, int Color, char *Text, ...) {
 
 void Missile(Object Start, Object Dest, int Type) {
 	if (!Start.exists()) {
-		error("Missile: \xdc" "bergebener Startpunkt existiert nicht.\n");
+		error("Missile: Given start point does not exist.\n");
 		return;
 	}
 
 	if (!Dest.exists()) {
-		error("Missile: \xdc" "bergebener Zielpunkt existiert nicht.\n");
+		error("Missile: Given target point does not exist.\n");
 		return;
 	}
 
@@ -1732,19 +1732,19 @@ void Missile(Object Start, Object Dest, int Type) {
 void Look(uint32_t CreatureID, Object Obj) {
 	TPlayer *pl = GetPlayer(CreatureID);
 	if (pl == nullptr) {
-		error("Look: Kreatur existiert nicht.\n");
+		error("Look: Creature does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.exists()) {
-		error("Look: Objekt existiert nicht.\n");
+		error("Look: Object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Obj.isCreature()) {
 		TCreature *cr = GetCreature(Obj);
 		if (cr == nullptr) {
-			error("Look: Object %d hat keine Kreatur!\n", Obj.getObjectType().getTypeID());
+			error("Look: Object %d has no creature!\n", Obj.getObjectType().getTypeID());
 			return;
 		}
 
@@ -1876,7 +1876,7 @@ void Look(uint32_t CreatureID, Object Obj) {
 				strcat(s, " that is brand-new");
 			}
 		} else {
-			error("Look: Objekt %d hat Flag SHOWDETAIL, aber weder WEAROUT noch EXPIRE.\n", Obj.getObjectType().getTypeID());
+			error("Look: Object %d has flag SHOWDETAIL, but neither WEAROUT nor EXPIRE.\n", Obj.getObjectType().getTypeID());
 		}
 	}
 
@@ -1972,7 +1972,7 @@ void Look(uint32_t CreatureID, Object Obj) {
 			}
 			strcat(s, s2);
 		} else {
-			error("Look: NameDoor auf [%d,%d,%d] geh\xf6rt zu keinem Haus.\n", x, y, z);
+			error("Look: NameDoor at [%d,%d,%d] belongs to no house.\n", x, y, z);
 		}
 	}
 
@@ -2041,19 +2041,19 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("Talk: \xdc" "bergebene Kreatur %d existiert nicht.\n", CreatureID);
+		error("Talk: Given creature %d does not exist.\n", CreatureID);
 		throw ERROR;
 	}
 
 	GetObjectCoordinates(cr->GetCreatureObject(), x, y, z);
 	Name = cr->Name;
 	if (Text == nullptr) {
-		error("Talk: Text ist NULL (Sprecher: %s, Modus: %d).\n", Name, Mode);
+		error("Talk: Text is NULL (speaker: %s, mode: %d).\n", Name, Mode);
 		throw ERROR;
 	}
 
 	if (strlen(Text) > 255) {
-		error("Talk: Text ist zu lang (Sprecher: %s, L\xe4nge: %d).\n", Name, (int)strlen(Text));
+		error("Talk: Text is too long (speaker: %s, length: %d).\n", Name, (int)strlen(Text));
 		throw ERROR;
 	}
 
@@ -2062,7 +2062,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 		// does where long has 32 bits.
 		Channel = (int)std::clamp<long>(strtol(Addressee, nullptr, 10), INT32_MIN, INT32_MAX);
 		if (Channel < 0 || Channel >= Channels) {
-			error("Talk: Ung\xfcltiger Kanal %d.\n", Channel);
+			error("Talk: Invalid channel %d.\n", Channel);
 			return;
 		}
 	}
@@ -2119,7 +2119,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 
 	if (Mode == TALK_PRIVATE_MESSAGE || Mode == TALK_GAMEMASTER_ANSWER || Mode == TALK_PLAYER_ANSWER || Mode == TALK_GAMEMASTER_MESSAGE || Mode == TALK_ANONYMOUS_MESSAGE) {
 		if (Addressee == nullptr) {
-			error("Talk: Adressat f\xfcr Botschaft nicht angegeben.\n");
+			error("Talk: Addressee for message not given.\n");
 			throw ERROR;
 		}
 
@@ -2133,7 +2133,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 			case -2:
 				throw NAMEAMBIGUOUS;
 			default:
-				error("Talk: Ung\xfcltiger R\xfc" "ckgabewert von IdentifyPlayer.\n");
+				error("Talk: Invalid return value of IdentifyPlayer.\n");
 				throw ERROR;
 		}
 
@@ -2265,7 +2265,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 			SendTalk(recv->GetConnection(), HelpStatementID, Name, Mode, Channel, Text);
 		}
 	} else {
-		error("Talk: Ung\xfcltiger Sprechmodus %c.\n", Mode);
+		error("Talk: Invalid talk mode %c.\n", Mode);
 	}
 
 	if (Mode == TALK_SAY && cr->Type == PLAYER) {
@@ -2278,7 +2278,7 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 
 			TCreature *cr = GetCreature(ID);
 			if (cr == nullptr) {
-				error("Talk: Kreatur existiert nicht.\n");
+				error("Talk: Creature does not exist.\n");
 				continue;
 			}
 
@@ -2291,12 +2291,12 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 
 void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 	if (!Obj1.exists()) {
-		error("Use: \xdc" "bergebenes Objekt Obj 1 existiert nicht.\n");
+		error("Use: Given object Obj 1 does not exist.\n");
 		throw ERROR;
 	}
 
 	if (Obj2 != NONE && !Obj2.exists()) {
-		error("Use: \xdc" "bergebenes Objekt Obj 2 existiert nicht.\n");
+		error("Use: Given object Obj 2 does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2316,7 +2316,7 @@ void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 
 		TCreature *cr = GetCreature(CreatureID);
 		if (cr == nullptr) {
-			error("Use: Verursachende Kreatur existiert nicht.\n");
+			error("Use: Causing creature does not exist.\n");
 			throw ERROR;
 		}
 
@@ -2372,7 +2372,7 @@ void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 
 void Turn(uint32_t CreatureID, Object Obj) {
 	if (!Obj.exists()) {
-		error("Turn: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("Turn: Given object does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2386,7 +2386,7 @@ void Turn(uint32_t CreatureID, Object Obj) {
 
 	ObjectType NewType = (int)Obj.getAttribute(ROTATETARGET);
 	if (NewType == 0) {
-		error("Turn: Objekt %d wird durch Drehen zerst\xf6rt.\n", Obj.getObjectType().getTypeID());
+		error("Turn: Object %d is destroyed by turning.\n", Obj.getObjectType().getTypeID());
 	}
 
 	Change(Obj, NewType, 0);
@@ -2394,12 +2394,12 @@ void Turn(uint32_t CreatureID, Object Obj) {
 
 void CreatePool(Object MapCon, ObjectType Type, uint32_t LiquidType) {
 	if (!MapCon.exists()) {
-		error("CreatePool: \xdc" "bergebener MapContainer existiert nicht.\n");
+		error("CreatePool: Given MapContainer does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!MapCon.isMapContainer()) {
-		error("CreatePool: \xdc" "bergebenes Objekt ist kein MapContainer.\n");
+		error("CreatePool: Given object is not a MapContainer.\n");
 		throw ERROR;
 	}
 
@@ -2415,7 +2415,7 @@ void CreatePool(Object MapCon, ObjectType Type, uint32_t LiquidType) {
 			try {
 				Delete(Help, -1);
 			} catch (RESULT r) {
-				error("CreatePool: Exception %d beim L\xf6schen des alten Pools.\n", r);
+				error("CreatePool: Exception %d while deleting the old pool.\n", r);
 			}
 		}
 	}
@@ -2425,18 +2425,18 @@ void CreatePool(Object MapCon, ObjectType Type, uint32_t LiquidType) {
 
 void EditText(uint32_t CreatureID, Object Obj, char *Text) {
 	if (!Obj.exists()) {
-		error("EditText: \xdc" "bergebenes Objekt existiert nicht.\n");
+		error("EditText: Given object does not exist.\n");
 		throw ERROR;
 	}
 
 	if (!Obj.getFlag(WRITE) && (!Obj.getFlag(WRITEONCE) || Obj.getAttribute(TEXTSTRING) != 0)) {
-		error("EditText: Objekt ist nicht beschreibbar.\n");
+		error("EditText: Object is not writable.\n");
 		throw ERROR;
 	}
 
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("EditText: Kreatur existiert nicht.\n");
+		error("EditText: Creature does not exist.\n");
 		throw ERROR;
 	}
 
@@ -2455,14 +2455,14 @@ void EditText(uint32_t CreatureID, Object Obj, char *Text) {
 		DeleteDynamicString(Obj.getAttribute(EDITOR));
 		Change(Obj, EDITOR, AddDynamicString(cr->Name));
 	} else {
-		print(3, "Text hat sich nicht ge\xe4ndert.\n");
+		print(3, "Text has not changed.\n");
 	}
 }
 
 Object CreateAtCreature(uint32_t CreatureID, ObjectType Type, uint32_t Value) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
-		error("GiveObjectToCreature: Kann Kreatur nicht finden.\n");
+		error("GiveObjectToCreature: Cannot find creature.\n");
 		throw ERROR;
 	}
 
@@ -2509,7 +2509,7 @@ void DeleteAtCreature(uint32_t CreatureID, ObjectType Type, int Amount, uint32_t
 	while (Amount > 0) {
 		Object Obj = GetInventoryObject(CreatureID, Type, Data);
 		if (Obj == NONE) {
-			error("DeleteAtCreature: Kein Objekt gefunden.\n");
+			error("DeleteAtCreature: No object found.\n");
 			throw ERROR;
 		}
 
@@ -2540,11 +2540,11 @@ void ProcessCronSystem() {
 			}
 			Change(Obj, Dest, 0);
 		} catch (RESULT r) {
-			error("ProcessCronSystem: Exception %d beim Verwesen von %d.\n", r, Obj.getObjectType().getTypeID());
+			error("ProcessCronSystem: Exception %d while decaying %d.\n", r, Obj.getObjectType().getTypeID());
 			try {
 				Delete(Obj, -1);
 			} catch (RESULT r) {
-				error("ProcessCronSystem: Kann Objekt nicht l\xf6schen - Exception %d.\n", r);
+				error("ProcessCronSystem: Cannot delete object - exception %d.\n", r);
 			}
 		}
 	}
@@ -2560,7 +2560,7 @@ bool SectorRefreshable(int SectorX, int SectorY, int SectorZ) {
 
 		TCreature *cr = GetCreature(ID);
 		if (cr == nullptr) {
-			error("SectorRefreshable: Kreatur existiert nicht.\n");
+			error("SectorRefreshable: Creature does not exist.\n");
 			continue;
 		}
 
@@ -2593,7 +2593,7 @@ void RefreshSector(int SectorX, int SectorY, int SectorZ, unsigned char *Data, i
 
 		TCreature *cr = GetCreature(CreatureID);
 		if (cr == nullptr) {
-			error("RefreshSector: Kreatur existiert nicht.\n");
+			error("RefreshSector: Creature does not exist.\n");
 			continue;
 		}
 
@@ -2618,16 +2618,16 @@ void RefreshSector(int SectorX, int SectorY, int SectorZ, unsigned char *Data, i
 				if (SearchFreeField(x, y, z, 1, 0, false)) {
 					Move(0, cr->GetCreatureObject(), GetMapContainer(x, y, z), -1, false, NONE);
 				} else if (cr->Type == NPC) {
-					print(2, "NPC auf [%d,%d,%d] mu\xdf auf seinen Start zur\xfc" "ckgesetzt werden.\n", x, y, z);
+					print(2, "NPC at [%d,%d,%d] must be reset to its start.\n", x, y, z);
 					Move(0, cr->GetCreatureObject(), GetMapContainer(cr->startx, cr->starty, cr->startz), -1, false, NONE);
 				} else if (cr->Type == MONSTER) {
-					print(2, "Monster auf [%d,%d,%d] mu\xdf gel\xf6scht werden.\n", x, y, z);
+					print(2, "Monster at [%d,%d,%d] must be deleted.\n", x, y, z);
 					delete cr;
 				} else {
-					error("Spieler auf [%d,%d,%d] ist von Refresh betroffen.\n", x, y, z);
+					error("Player at [%d,%d,%d] is affected by refresh.\n", x, y, z);
 				}
 			} catch (RESULT r) {
-				error("RefreshSector: Exception %d beim Neusetzen des Monsters.\n", r);
+				error("RefreshSector: Exception %d while relocating the monster.\n", r);
 			}
 		}
 	}
@@ -2696,7 +2696,7 @@ void RefreshMap() {
 						RefreshSector(x, y, z, ReadBuffer);
 					}
 				} catch (const char *s) {
-					error("RefreshMap: Fehler beim Bearbeiten der Datei (%s).\n", s);
+					error("RefreshMap: Error while processing the file (%s).\n", s);
 				}
 			}
 		}
@@ -2744,7 +2744,7 @@ void ApplyPatch(int SectorX, int SectorY, int SectorZ, bool FullSector, TReadScr
 
 		TCreature *cr = GetCreature(CreatureID);
 		if (cr == nullptr) {
-			error("ApplyPatch: Kreatur existiert nicht.\n");
+			error("ApplyPatch: Creature does not exist.\n");
 			continue;
 		}
 
@@ -2771,17 +2771,17 @@ void ApplyPatch(int SectorX, int SectorY, int SectorZ, bool FullSector, TReadScr
 				if (SearchFreeField(x, y, z, 1, 0, false)) {
 					Move(0, cr->GetCreatureObject(), GetMapContainer(x, y, z), -1, false, NONE);
 				} else if (cr->Type == NPC) {
-					print(2, "NPC auf [%d,%d,%d] mu\xdf auf seinen Start zur\xfc" "ckgesetzt werden.\n", x, y, z);
+					print(2, "NPC at [%d,%d,%d] must be reset to its start.\n", x, y, z);
 					Move(0, cr->GetCreatureObject(), GetMapContainer(cr->startx, cr->starty, cr->startz), -1, false, NONE);
 				} else if (cr->Type == MONSTER) {
-					print(2, "Monster auf [%d,%d,%d] mu\xdf gel\xf6scht werden.\n", x, y, z);
+					print(2, "Monster at [%d,%d,%d] must be deleted.\n", x, y, z);
 					Delete(cr->GetCreatureObject(), -1);
 					cr->StartLogout(false, false);
 				} else {
-					error("Spieler auf [%d,%d,%d] ist von Patch betroffen.\n", x, y, z);
+					error("Player at [%d,%d,%d] is affected by patch.\n", x, y, z);
 				}
 			} catch (RESULT r) {
-				error("ApplyPatch: Exception %d beim Neusetzen des Monsters.\n", r);
+				error("ApplyPatch: Exception %d while relocating the monster.\n", r);
 			}
 		}
 	}
@@ -2792,13 +2792,13 @@ void ApplyPatches() {
 	sprintf(FileName, "%s/save-houses", SAVEPATH);
 	bool SaveHouses = FileExists(FileName);
 	if (SaveHouses) {
-		print(2, "H\xe4user werden nicht gepatcht.\n");
+		print(2, "Houses are not patched.\n");
 		unlink(FileName);
 	}
 
 	DIR *WorkDir = opendir(SAVEPATH);
 	if (WorkDir == nullptr) {
-		error("ApplyPatches: Unterverzeichnis %s nicht gefunden.\n", SAVEPATH);
+		error("ApplyPatches: Subdirectory %s not found.\n", SAVEPATH);
 		return;
 	}
 
@@ -2821,7 +2821,7 @@ void ApplyPatches() {
 			}
 		} else if (strcmp(DirEntry->d_name + strlen(DirEntry->d_name) - 4, ".sec") == 0
 				&& sscanf(DirEntry->d_name, "%d-%d-%d.sec", &x, &y, &z) == 3) {
-			print(2, "Patche kompletten Sektor %d/%d/%d ...\n", x, y, z);
+			print(2, "Patching complete sector %d/%d/%d ...\n", x, y, z);
 			sprintf(FileName, "%s/%s", SAVEPATH, DirEntry->d_name);
 			TReadScriptFile Script;
 			Script.open(FileName);
@@ -2848,7 +2848,7 @@ void ApplyPatches() {
 		y = Script.readNumber();
 		Script.readSymbol(',');
 		z = Script.readNumber();
-		print(2, "Patche Teile von Sektor %d/%d/%d (Patch %d) ...\n", x, y, z, nr);
+		print(2, "Patching parts of sector %d/%d/%d (patch %d) ...\n", x, y, z, nr);
 		ApplyPatch(x, y, z, false, Script, false);
 		Script.close();
 		unlink(FileName);
@@ -2861,7 +2861,7 @@ int GetNumberOfChannels() {
 
 bool ChannelActive(int ChannelID) {
 	if (ChannelID < 0 || ChannelID >= Channels) {
-		error("ChannelActive: Ung\xfcltige Kanalnummer %d.\n", ChannelID);
+		error("ChannelActive: Invalid channel number %d.\n", ChannelID);
 		return false;
 	}
 
@@ -2875,7 +2875,7 @@ bool ChannelAvailable(int ChannelID, uint32_t CharacterID) {
 
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("ChannelAvailable: Spieler existiert nicht.\n");
+		error("ChannelAvailable: Player does not exist.\n");
 		return false;
 	}
 
@@ -2922,7 +2922,7 @@ char *GetChannelName(int ChannelID, uint32_t CharacterID) {
 
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("GetChannelName: Spieler existiert nicht.\n");
+		error("GetChannelName: Player does not exist.\n");
 		return "Unknown";
 	}
 
@@ -2952,7 +2952,7 @@ char *GetChannelName(int ChannelID, uint32_t CharacterID) {
 		return ChannelName;
 	}
 
-	error("GetChannelName: Unbenutzter Kanal %d.\n", ChannelID);
+	error("GetChannelName: Unused channel %d.\n", ChannelID);
 	return "Unknown";
 }
 
@@ -3015,12 +3015,12 @@ bool MayOpenChannel(uint32_t CharacterID) {
 void OpenChannel(uint32_t CharacterID) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("OpenChannel: Kreatur %lu existiert nicht.\n", (unsigned long)CharacterID);
+		error("OpenChannel: Creature %lu does not exist.\n", (unsigned long)CharacterID);
 		throw ERROR;
 	}
 
 	if (Channels >= 65535) {
-		error("OpenChannel: Zu viele Kan\xe4le.\n");
+		error("OpenChannel: Too many channels.\n");
 		throw ERROR;
 	}
 
@@ -3057,13 +3057,13 @@ void OpenChannel(uint32_t CharacterID) {
 
 void CloseChannel(int ChannelID) {
 	if (ChannelID < PUBLIC_CHANNELS || ChannelID >= Channels) {
-		error("CloseChannel: Ung\xfcltige ChannelID %d.\n", ChannelID);
+		error("CloseChannel: Invalid ChannelID %d.\n", ChannelID);
 		return;
 	}
 
 	TChannel &C = Channel(ChannelID);
 	if (C.Moderator == 0) {
-		error("CloseChannel: Kanal ist schon geschlossen.\n");
+		error("CloseChannel: Channel is already closed.\n");
 		return;
 	}
 
@@ -3073,7 +3073,7 @@ void CloseChannel(int ChannelID) {
 void InviteToChannel(uint32_t CharacterID, char *Name) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("InviteToChannel: Kreatur %lu existiert nicht.\n", (unsigned long)CharacterID);
+		error("InviteToChannel: Creature %lu does not exist.\n", (unsigned long)CharacterID);
 		return;
 	}
 
@@ -3111,7 +3111,7 @@ void InviteToChannel(uint32_t CharacterID, char *Name) {
 			break;
 	}
 
-	print(3, "Lade Spieler %s (%lu) in Private Channel ein.\n", Name, (unsigned long)OppID);
+	print(3, "Inviting player %s (%lu) to private channel.\n", Name, (unsigned long)OppID);
 	TChannel &C = Channel(channel);
 	if (CharacterID == OppID) {
 		return;
@@ -3135,7 +3135,7 @@ void InviteToChannel(uint32_t CharacterID, char *Name) {
 void ExcludeFromChannel(uint32_t CharacterID, char *Name) {
 	TPlayer *pl = GetPlayer(CharacterID);
 	if (pl == nullptr) {
-		error("ExcludeFromChannel: Kreatur %lu existiert nicht.\n", (unsigned long)CharacterID);
+		error("ExcludeFromChannel: Creature %lu does not exist.\n", (unsigned long)CharacterID);
 		return;
 	}
 
@@ -3171,7 +3171,7 @@ void ExcludeFromChannel(uint32_t CharacterID, char *Name) {
 			break;
 	}
 
-	print(3, "Schlie\xdf" "e Spieler %s (%lu) aus Private Channel aus.\n", Name, (unsigned long)OppID);
+	print(3, "Excluding player %s (%lu) from private channel.\n", Name, (unsigned long)OppID);
 	TChannel &C = Channel(channel);
 	if (CharacterID == OppID) {
 		return;
@@ -3257,12 +3257,12 @@ void LeaveAllChannels(uint32_t CharacterID) {
 
 uint32_t LogCommunication(uint32_t CharacterID, int Mode, int Channel, char *Text) {
 	if (Text == nullptr) {
-		error("LogCommunication: Text ist NULL.\n");
+		error("LogCommunication: Text is NULL.\n");
 		return 0;
 	}
 
 	if (CharacterID == 0) {
-		error("LogCommunication: CharacterID ist Null.\n");
+		error("LogCommunication: CharacterID is Null.\n");
 		return 0;
 	}
 
@@ -3328,7 +3328,7 @@ int GetCommunicationContext(uint32_t CharacterID, uint32_t StatementID, int &Num
 	if (CharacterID == 0) {
 		if ((Statement->Mode != TALK_CHANNEL_CALL && Statement->Mode != TALK_GAMEMASTER_CHANNELCALL && Statement->Mode != TALK_HIGHLIGHT_CHANNELCALL)
 				|| (!in(Statement->Channel, GAME_CHANNEL, HELP_CHANNEL) && Statement->Channel != TUTOR_CHANNEL)) {
-			error("GetCommunicationContext: \xc4u\xdf" "erung d\xfcrfte nicht gemeldet werden.\n");
+			error("GetCommunicationContext: Statement may not be reported.\n");
 			return 1;
 		}
 	}
@@ -3348,7 +3348,7 @@ int GetCommunicationContext(uint32_t CharacterID, uint32_t StatementID, int &Num
 		}
 
 		if (FreeSpace <= 0 && iter()->TimeStamp > Statement->TimeStamp) {
-			error("GetCommunicationContext: Kontext wird zu gro\xdf. Schneide Ende ab.\n");
+			error("GetCommunicationContext: Context becomes too large. Cutting off end.\n");
 			break;
 		}
 
@@ -3389,7 +3389,7 @@ int GetCommunicationContext(uint32_t CharacterID, uint32_t StatementID, int &Num
 	}
 
 	if (FreeSpace < 0) {
-		error("GetCommunicationContext: Kontext wird um %d Bytes zu gro\xdf. L\xf6sche Anfang.\n", -FreeSpace);
+		error("GetCommunicationContext: Context becomes %d bytes too large. Deleting start.\n", -FreeSpace);
 		for (int i = 0; i < NumberOfStatements && FreeSpace < 0; i++) {
 			if ((*ReportedStatements)(i).StatementID != StatementID) {
 				(*ReportedStatements)(i).StatementID = 0;
@@ -3397,12 +3397,12 @@ int GetCommunicationContext(uint32_t CharacterID, uint32_t StatementID, int &Num
 			}
 		}
 		if (FreeSpace < 0) {
-			error("GetCommunicationContext: FreeSpace ist immer noch negativ (%d).\n", FreeSpace);
+			error("GetCommunicationContext: FreeSpace is still negative (%d).\n", FreeSpace);
 		}
 	}
 
 	if (!StatementContained) {
-		error("GetCommunicationContext: Statement ist nicht im Kontext enthalten.\n");
+		error("GetCommunicationContext: Statement is not contained in context.\n");
 		delete ReportedStatements;
 		return 1;
 	}
@@ -3438,7 +3438,7 @@ void DisbandParty(uint32_t Leader) {
 	TPlayer *leader = GetPlayer(Leader);
 	TParty *P = GetParty(Leader);
 	if (P == nullptr) {
-		error("DisbandParty: Party von Anf\xfchrer %lu nicht gefunden.\n", (unsigned long)Leader);
+		error("DisbandParty: Party of leader %lu not found.\n", (unsigned long)Leader);
 		return;
 	}
 
@@ -3480,7 +3480,7 @@ void InviteToParty(uint32_t Host, uint32_t Guest) {
 
 	TPlayer *host = GetPlayer(Host);
 	if (host == nullptr) {
-		error("InviteToParty: Einladender Spieler %lu existiert nicht.\n", (unsigned long)Host);
+		error("InviteToParty: Inviting player %lu does not exist.\n", (unsigned long)Host);
 		return;
 	}
 
@@ -3522,7 +3522,7 @@ void InviteToParty(uint32_t Host, uint32_t Guest) {
 
 		TParty *P = GetParty(Host);
 		if (P == nullptr) {
-			error("InviteToParty: Party von Anf\xfchrer %lu nicht gefunden.\n", (unsigned long)Host);
+			error("InviteToParty: Party of leader %lu not found.\n", (unsigned long)Host);
 			return;
 		}
 
@@ -3551,7 +3551,7 @@ void RevokeInvitation(uint32_t Host, uint32_t Guest) {
 
 	TPlayer *host = GetPlayer(Host);
 	if (host == nullptr) {
-		error("RevokeInvitation: Einladender Spieler %lu existiert nicht.\n", (unsigned long)Host);
+		error("RevokeInvitation: Inviting player %lu does not exist.\n", (unsigned long)Host);
 		return;
 	}
 
@@ -3563,7 +3563,7 @@ void RevokeInvitation(uint32_t Host, uint32_t Guest) {
 
 	TParty *P = GetParty(Host);
 	if (P == nullptr) {
-		error("RevokeInvitation: Party von Anf\xfchrer %lu nicht gefunden.\n", (unsigned long)Host);
+		error("RevokeInvitation: Party of leader %lu not found.\n", (unsigned long)Host);
 		return;
 	}
 
@@ -3609,7 +3609,7 @@ void JoinParty(uint32_t Guest, uint32_t Host) {
 
 	TPlayer *guest = GetPlayer(Guest);
 	if (guest == nullptr) {
-		error("JoinParty: Eingeladener Spieler %lu existiert nicht.\n", (unsigned long)Guest);
+		error("JoinParty: Invited player %lu does not exist.\n", (unsigned long)Guest);
 		return;
 	}
 
@@ -3668,7 +3668,7 @@ void PassLeadership(uint32_t OldLeader, uint32_t NewLeader) {
 
 	TPlayer *oldLeader = GetPlayer(OldLeader);
 	if (oldLeader == nullptr) {
-		error("PassLeadership: Alter Anf\xfchrer %lu existiert nicht.\n", (unsigned long)OldLeader);
+		error("PassLeadership: Old leader %lu does not exist.\n", (unsigned long)OldLeader);
 		return;
 	}
 
@@ -3690,7 +3690,7 @@ void PassLeadership(uint32_t OldLeader, uint32_t NewLeader) {
 
 	TParty *P = GetParty(OldLeader);
 	if (P == nullptr) {
-		error("PassLeadership: Party von Anf\xfchrer %lu nicht gefunden.\n", (unsigned long)OldLeader);
+		error("PassLeadership: Party of leader %lu not found.\n", (unsigned long)OldLeader);
 		return;
 	}
 
@@ -3729,12 +3729,12 @@ void PassLeadership(uint32_t OldLeader, uint32_t NewLeader) {
 void LeaveParty(uint32_t Member, bool Forced) {
 	TPlayer *member = GetPlayer(Member);
 	if (member == nullptr) {
-		error("LeaveParty: Mitglied existiert nicht.\n");
+		error("LeaveParty: Member does not exist.\n");
 		return;
 	}
 
 	if (member->GetPartyLeader(false) == 0) {
-		error("LeaveParty: Spieler ist kein Mitglied einer Jagdgruppe.\n");
+		error("LeaveParty: Player is not a member of a hunting party.\n");
 		return;
 	}
 
@@ -3745,7 +3745,7 @@ void LeaveParty(uint32_t Member, bool Forced) {
 
 	TParty *P = GetParty(member->GetPartyLeader(false));
 	if (P == nullptr) {
-		error("LeaveParty: Party von Anf\xfchrer %lu nicht gefunden.\n", (unsigned long)member->GetPartyLeader(false));
+		error("LeaveParty: Party of leader %lu not found.\n", (unsigned long)member->GetPartyLeader(false));
 		return;
 	}
 
@@ -3770,7 +3770,7 @@ void LeaveParty(uint32_t Member, bool Forced) {
 	}
 
 	if (Position == -1) {
-		error("LeaveParty: Mitglied nicht gefunden.\n");
+		error("LeaveParty: Member not found.\n");
 		return;
 	}
 
