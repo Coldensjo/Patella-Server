@@ -624,4 +624,3 @@ void ReadMoveUseDat(const char *FileName, TMoveUseDatExtras &Extras) {
 
 	Script.close();
 }
-
