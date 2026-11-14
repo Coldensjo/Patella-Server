@@ -194,7 +194,7 @@ void CheckLevel(TCreature *cr, int SpellNr) {
 	}
 
 	int Level = SpellList[SpellNr].Level;
-	TSkill *sk = cr->Skills[0];
+	TSkill *sk = cr->Skills[SKILL_LEVEL];
 	if (sk == nullptr) {
 		error("CheckLevel: Kein Skill LEVEL.\n");
 		throw ERROR;
@@ -220,7 +220,7 @@ void CheckRuneLevel(TCreature *cr, int SpellNr) {
 	}
 
 	int Level = SpellList[SpellNr].RuneLevel;
-	TSkill *sk = cr->Skills[1];
+	TSkill *sk = cr->Skills[SKILL_MAGICLEVEL];
 	if (sk == nullptr) {
 		error("CheckLevel: Kein Skill MAGLEVEL.\n");
 		throw ERROR;
@@ -290,8 +290,8 @@ void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 		return;
 	}
 
-	TSkill *mana = cr->Skills[3];
-	TSkill *soulpoints = cr->Skills[22];
+	TSkill *mana = cr->Skills[SKILL_MANA];
+	TSkill *soulpoints = cr->Skills[SKILL_SOULPOINTS];
 	if (mana == nullptr) {
 		error("CheckMana: Kein Skill MANA!\n");
 		throw ERROR;
@@ -316,7 +316,7 @@ void CheckMana(TCreature *cr, int Mana, int SoulPoints, int Delay) {
 	}
 
 	if (Mana > 0) {
-		cr->Skills[1]->Increase(Mana);
+		cr->Skills[SKILL_MAGICLEVEL]->Increase(Mana);
 	}
 
 	cr->EarliestSpellTime = std::max<uint32_t>(cr->EarliestSpellTime, ServerMilliseconds + Delay);
@@ -331,8 +331,8 @@ int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation) {
 		return Damage;
 	}
 
-	int proz = cr->Skills[0]->Get() * 2;
-	proz += cr->Skills[1]->Get() * 3;
+	int proz = cr->Skills[SKILL_LEVEL]->Get() * 2;
+	proz += cr->Skills[SKILL_MAGICLEVEL]->Get() * 3;
 	if (SpellNr != 0) {
 		if ((SpellList[SpellNr].Flags & 4) != 0 && proz > 100) {
 			proz = 100;
@@ -432,10 +432,10 @@ void THealingImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	if (Victim->Skills[2]->Get() > 0) {
-		Victim->Skills[2]->Change(Power);
-		if (Victim->Skills[4]->GetMDAct() < 0) {
-			Victim->SetTimer(4, 0, 0, 0, -1);
+	if (Victim->Skills[SKILL_HITPOINTS]->Get() > 0) {
+		Victim->Skills[SKILL_HITPOINTS]->Change(Power);
+		if (Victim->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+			Victim->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 		}
 	}
 }
@@ -476,7 +476,7 @@ void TSpeedImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	TSkill *sk = Victim->Skills[4];
+	TSkill *sk = Victim->Skills[SKILL_GOSTRENGTH];
 	int Modification;
 	if (Percent < -100) {
 		Modification = -20 - sk->GetAct();
@@ -484,7 +484,7 @@ void TSpeedImpact::handleCreature(TCreature *Victim) {
 		Modification = Percent * sk->GetAct() / 100;
 	}
 	sk->SetMDAct(Modification);
-	Victim->SetTimer(4, Duration, 1, 1, -1);
+	Victim->SetTimer(SKILL_GOSTRENGTH, Duration, 1, 1, -1);
 }
 
 TDrunkenImpact::TDrunkenImpact(TCreature *_Actor, int _Power, int _Duration) {
@@ -524,8 +524,8 @@ void TDrunkenImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	if (Victim->Skills[20]->TimerValue() <= Power) {
-		Victim->SetTimer(20, Power, Duration, Duration, -1);
+	if (Victim->Skills[SKILL_DRUNKEN]->TimerValue() <= Power) {
+		Victim->SetTimer(SKILL_DRUNKEN, Power, Duration, Duration, -1);
 	}
 }
 
@@ -566,14 +566,14 @@ void TStrengthImpact::handleCreature(TCreature *Victim) {
 		return;
 	}
 
-	for (int Skill = 6; Skill <= 11; Skill++) {
-		if ((Skills & 1) == 0 && in(Skill, 8, 11)) {
+	for (int Skill = SKILL_SHIELDING; Skill <= SKILL_FISTFIGHTING; Skill++) {
+		if ((Skills & 1) == 0 && in(Skill, SKILL_SWORDFIGHTING, SKILL_FISTFIGHTING)) {
 			continue;
 		}
-		if ((Skills & 2) == 0 && Skill == 7) {
+		if ((Skills & 2) == 0 && Skill == SKILL_DISTANCEFIGHTING) {
 			continue;
 		}
-		if ((Skills & 4) == 0 && Skill == 6) {
+		if ((Skills & 4) == 0 && Skill == SKILL_SHIELDING) {
 			continue;
 		}
 
@@ -606,7 +606,7 @@ void TOutfitImpact::handleCreature(TCreature *Victim) {
 	}
 
 	Victim->Outfit = Outfit;
-	Victim->SetTimer(16, 1, Duration, Duration, -1);
+	Victim->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 }
 
 TSummonImpact::TSummonImpact(TCreature *_Actor, int _Race, int _Maximum) {
@@ -953,7 +953,7 @@ void KillAllMonsters(TCreature *cr, int EffectNr, int Radius) {
 						error("KillAllMonsters: Ung\xfcltige Kreatur.\n");
 					} else if (dest != cr && dest->Type == MONSTER) {
 						print(3, "T\xf6te %s...\n", dest->Name);
-						dest->Skills[2]->Set(0);
+						dest->Skills[SKILL_HITPOINTS]->Set(0);
 						dest->Death();
 					}
 				}
@@ -1309,7 +1309,7 @@ void Teleport(TCreature *cr, char *Param) {
 			return;
 		}
 
-		cr->Skills[4]->SetMDAct(100);
+		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(100);
 		AnnounceChangedCreature(cr->ID, 4);
 		GraphicalEffect(Obj, 13);
 	} else if (stricmp(Param, "fastest", -1) == 0) {
@@ -1317,7 +1317,7 @@ void Teleport(TCreature *cr, char *Param) {
 			return;
 		}
 
-		cr->Skills[4]->SetMDAct(200);
+		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(200);
 		AnnounceChangedCreature(cr->ID, 4);
 		GraphicalEffect(Obj, 13);
 	} else if (stricmp(Param, "slow", -1) == 0 || stricmp(Param, "normal", -1) == 0) {
@@ -1325,7 +1325,7 @@ void Teleport(TCreature *cr, char *Param) {
 			return;
 		}
 
-		cr->Skills[4]->SetMDAct(0);
+		cr->Skills[SKILL_GOSTRENGTH]->SetMDAct(0);
 		AnnounceChangedCreature(cr->ID, 4);
 		GraphicalEffect(Obj, 13);
 	} else {
@@ -1937,7 +1937,7 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	TSkill *sk = cr->Skills[2];
+	TSkill *sk = cr->Skills[SKILL_HITPOINTS];
 	if (sk == nullptr) {
 		error("Heal: Skill HITPOINTS existiert nicht.\n");
 		throw ERROR;
@@ -1945,8 +1945,8 @@ void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing) {
 
 	if (sk->Get() > 0) {
 		sk->Change(Healing);
-		if (cr->Skills[4]->GetMDAct() < 0) {
-			cr->SetTimer(4, 0, 0, 0, -1);
+		if (cr->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+			cr->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 		}
 		GraphicalEffect(cr->GetCreatureObject(), 13);
 	}
@@ -2001,7 +2001,7 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 					continue;
 				}
 
-				TSkill *sk = dest->Skills[2];
+				TSkill *sk = dest->Skills[SKILL_HITPOINTS];
 				if (sk == nullptr) {
 					error("MassHeal: Skill HITPOINTS existiert nicht.\n");
 					throw ERROR;
@@ -2009,8 +2009,8 @@ void MassHeal(TCreature *cr, Object Target, int Mana, int SoulPoints, int Healin
 
 				if (sk->Get() > 0) {
 					sk->Change(Healing);
-					if (dest->Skills[4]->GetMDAct() < 0) {
-						dest->SetTimer(4, 0, 0, 0, -1);
+					if (dest->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+						dest->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 					}
 				}
 			}
@@ -2043,7 +2043,7 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 		throw OUTOFRANGE;
 	}
 
-	TSkill *sk = pl->Skills[2];
+	TSkill *sk = pl->Skills[SKILL_HITPOINTS];
 	if (sk == nullptr) {
 		error("HealFriend: Skill HITPOINTS existiert nicht.\n");
 		throw ERROR;
@@ -2055,8 +2055,8 @@ void HealFriend(TCreature *cr, char *Name, int Mana, int SoulPoints, int Healing
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	sk->Change(Healing);
-	if (pl->Skills[4]->GetMDAct() < 0) {
-		pl->SetTimer(4, 0, 0, 0, -1);
+	if (pl->Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
+		pl->SetTimer(SKILL_GOSTRENGTH, 0, 0, 0, -1);
 	}
 
 	GraphicalEffect(cr->GetCreatureObject(), 13);
@@ -2070,7 +2070,7 @@ void RefreshMana(TCreature *cr, int Mana, int SoulPoints, int AddMana) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	TSkill *sk = cr->Skills[3];
+	TSkill *sk = cr->Skills[SKILL_MANA];
 	if (sk == nullptr) {
 		error("RefreshMana: Skill MANA existiert nicht.\n");
 		throw ERROR;
@@ -2102,7 +2102,7 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	TSkill *sk = dest->Skills[4];
+	TSkill *sk = dest->Skills[SKILL_GOSTRENGTH];
 	int mdact;
 	if (percent < -100) {
 		mdact = -20 - sk->GetAct();
@@ -2110,7 +2110,7 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 		mdact = sk->GetAct() * percent / 100;
 	}
 	sk->SetMDAct(mdact);
-	dest->SetTimer(4, duration, 10, 10, -1);
+	dest->SetTimer(SKILL_GOSTRENGTH, duration, 10, 10, -1);
 	if (percent < 0) {
 		cr->BlockLogout(60, dest->Type == PLAYER);
 	}
@@ -2126,7 +2126,7 @@ void Shielding(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	cr->SetTimer(21, 1, Duration, Duration, -1);
+	cr->SetTimer(SKILL_MANASHIELD, 1, Duration, Duration, -1);
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
@@ -2142,7 +2142,7 @@ void NegatePoison(TCreature *cr, int Mana, int SoulPoints, TCreature *dest) {
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	dest->SetTimer(17, 0, 0, 0, -1);
+	dest->SetTimer(SKILL_POISON, 0, 0, 0, -1);
 	GraphicalEffect(dest->GetCreatureObject(), 13);
 }
 
@@ -2153,8 +2153,8 @@ void Enlight(TCreature *cr, int Mana, int SoulPoints, int Radius, int Duration) 
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	if (cr->Skills[15]->TimerValue() <= Radius) {
-		cr->SetTimer(15, Radius, Duration / Radius, Duration / Radius, -1);
+	if (cr->Skills[SKILL_SHINING]->TimerValue() <= Radius) {
+		cr->SetTimer(SKILL_SHINING, Radius, Duration / Radius, Duration / Radius, -1);
 	}
 
 	GraphicalEffect(cr->GetCreatureObject(), 13);
@@ -2169,7 +2169,7 @@ void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration) {
 	CheckMana(cr, Mana, SoulPoints, 1000);
 	cr->Outfit.OutfitID = 0;
 	cr->Outfit.ObjectType = 0;
-	cr->SetTimer(16, 1, Duration, Duration, -1);
+	cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 	GraphicalEffect(cr->GetCreatureObject(), 13);
 }
 
@@ -2227,8 +2227,8 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 					continue;
 				}
 
-				dest->SetTimer(16, 0, 0, 0, -1);
-				if (dest->Skills[16]->Get() == 0) {
+				dest->SetTimer(SKILL_ILLUSION, 0, 0, 0, -1);
+				if (dest->Skills[SKILL_ILLUSION]->Get() == 0) {
 					dest->Outfit = dest->OrgOutfit;
 					AnnounceChangedCreature(dest->ID, 3);
 					NotifyAllCreatures(dest->GetCreatureObject(), 2, NONE);
@@ -2241,7 +2241,7 @@ void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, 
 							if (Item != NONE
 									&& Item.getFlag(SKILLBOOST)
 									&& (int)Item.getAttribute(BODYPOSITION) == b
-									&& Item.getAttribute(SKILLNUMBER) == 16) {
+									&& Item.getAttribute(SKILLNUMBER) == SKILL_ILLUSION) {
 								if (random(1, 5) == 1) {
 									Delete(Item, -1);
 								}
@@ -2287,9 +2287,9 @@ void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, i
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	if (cr->Skills[16]->Get() == 0) {
+	if (cr->Skills[SKILL_ILLUSION]->Get() == 0) {
 		cr->Outfit = GetRaceOutfit(Race);
-		cr->SetTimer(16, 1, Duration, Duration, -1);
+		cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 	}
 
 	GraphicalEffect(cr->GetCreatureObject(), 13);
@@ -2311,14 +2311,14 @@ void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Dur
 	}
 
 	CheckMana(cr, Mana, SoulPoints, 1000);
-	if (cr->Skills[16]->Get() == 0) {
+	if (cr->Skills[SKILL_ILLUSION]->Get() == 0) {
 		cr->Outfit.OutfitID = 0;
 		if (Obj.getFlag(DISGUISE)) {
 			cr->Outfit.ObjectType = (unsigned short)Obj.getAttribute(DISGUISETARGET);
 		} else {
 			cr->Outfit.ObjectType = (unsigned short)Obj.getObjectType().getTypeID();
 		}
-		cr->SetTimer(16, 1, Duration, Duration, -1);
+		cr->SetTimer(SKILL_ILLUSION, 1, Duration, Duration, -1);
 	}
 
 	GraphicalEffect(cr->GetCreatureObject(), 13);
@@ -2678,9 +2678,9 @@ void CreateKnowledge(TCreature *cr, char *Param1, char *Param2) {
 	int32_t i = (int)std::clamp(strtol(Param1, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX);
 	int32_t k = (Param2 != nullptr) ? (int)std::clamp(strtol(Param2, nullptr, 10), (long)INT32_MIN, (long)INT32_MAX) : 0;
 	if (i > 0 && Param2 == nullptr) {
-		pl->Skills[0]->Increase(i);
+		pl->Skills[SKILL_LEVEL]->Increase(i);
 	} else {
-		if (i < 0 || i > 24) {
+		if (i < 0 || i > MAX_SKILLS - 1) {
 			return;
 		}
 
@@ -3398,8 +3398,8 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 			break;
 		case 80:
 			Damage = ComputeDamage(cr, SpellNr, 80, 20);
-			Damage = cr->Skills[0]->Get() * Damage / 25;
-			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[0]->Get() * 4, 0, Damage, 10, 2, 1, 0);
+			Damage = cr->Skills[SKILL_LEVEL]->Get() * Damage / 25;
+			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[SKILL_LEVEL]->Get() * 4, 0, Damage, 10, 2, 1, 0);
 			break;
 		case 81:
 			MagicClimbing(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[3]);
