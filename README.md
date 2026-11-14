@@ -186,11 +186,15 @@ character never starts as new because its data could not be read.
 the game (port 7172) for a 7.72 client; Ctrl-C stops them, the game first.
 On first use it makes a play copy of your original installation
 (`PLAY_INSTALL`, a tar or a folder) laid out with this repository's `data/`,
-and a database with the installation's characters and player data.
+and a database with the installation's characters and player data. The copy
+gets the key file `key.pem`, which the game and the login server read:
+`PLAY_KEY` (an existing key file) when it is set, else a new key from the
+build's `rsakeygen`.
 `tools/play.sh seed --add-account N --password P --new-character NAME --world
-Zanera` adds an account, `tools/play.sh modulus` prints the `RsaModulus=` the
-client needs, and `tools/play.sh reset` deletes the copy and the database. The
-comments at the top of the script list its settings.
+Zanera` adds an account, `tools/play.sh modulus` prints the `RsaModulus=` of
+the copy's key, which the client needs, and `tools/play.sh reset` deletes the
+copy, its key and the database. The comments at the top of the script list its
+settings.
 
 ## License
 

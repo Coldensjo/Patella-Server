@@ -9,7 +9,7 @@
 #   tools/play.sh seed ARGS...  run querymanager-seed on the play database, e.g.
 #                                 tools/play.sh seed --add-account 1234567 --password secret \
 #                                   --new-character "Name" --world Zanera --sex 1
-#   tools/play.sh modulus       print the RsaModulus= line clients need for this build
+#   tools/play.sh modulus       print the RsaModulus= line clients need: the play copy's key
 #   tools/play.sh reset         delete the play copy and its database
 #
 # The play copy is a runtime copy of the original installation (PLAY_INSTALL, a tar
@@ -17,7 +17,10 @@
 # config.toml (with QM_PORT and SHM_KEY set), the other data/*.toml files go into
 # its data folder ([paths] data), and data/origmap.zip fills its origmap folder
 # when the installation has none (map/ then starts as a copy of it). The rest
-# (monsters, NPCs, owners.dat, monster.db) comes from the installation. Its
+# (monsters, NPCs, owners.dat, monster.db) comes from the installation. The RSA
+# key is the copy's key.pem (the file rsa_key in its config.toml names, key.pem
+# by default), which the game and the login server (--key) both read; a copy
+# without one gets PLAY_KEY, or else a new key from the build's rsakeygen. Its
 # player files are imported into the database (PLAY_RUN/querymanager.sqlite) by
 # querymanager-seed when the database is made; the game itself never reads them.
 # Copy and database are made on first use and kept, so characters keep their
@@ -34,10 +37,11 @@
 #   GAME_PORT       the game's port, stored when the database is made [7172]
 #   QM_PORT, SHM_KEY  the query manager's port and the game's SHM key, written into the copy's
 #                   config.toml when the copy is made [7173, 10011]; later runs read them from it
+#   PLAY_KEY        an existing key file (PEM) copied into the play copy when it has no key yet
+#                   [none: rsakeygen makes a new one]
 #
-# The client needs the build's RSA modulus (tools/play.sh modulus) as
-# RsaModulus= in its config; a build with -DPATELLA_RSA_KEY_HEADER=FILE uses the
-# key in FILE, otherwise the build made a key of its own.
+# The client needs the modulus of the copy's key (tools/play.sh modulus) as
+# RsaModulus= in its config. Keep key.pem private; reset deletes it with the copy.
 set -u
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 BUILD=${PLAY_BUILD:-$HOME/build/patella-server}
@@ -48,6 +52,7 @@ QM=$BUILD/querymanager/querymanager
 SEED=$BUILD/querymanager/querymanager-seed
 LS=$BUILD/loginserver/loginserver
 GAME=$BUILD/src/game
+KEYGEN=$BUILD/keygen/rsakeygen
 DB=$RUN/querymanager.sqlite
 LOGIN_PASSWORD=${LOGIN_PASSWORD:-patella-login}
 MOTD=${MOTD:-}
@@ -112,34 +117,47 @@ with open(target, "w", encoding="utf-8", newline="\n") as f:
 EOF
 }
 
-# Prints the RsaModulus= line for the key the build uses: P * Q of its
-# RSA_PrivateKey.hh (the primes themselves are never printed).
+# The copy's key file: rsa_key of its config.toml, relative to the copy, or
+# key.pem in the copy.
+key_file() {
+	local name
+	name=$(config_value rsa_key 2> /dev/null) || name=key.pem
+	case $name in
+	/*) echo "$name" ;;
+	*) echo "$ROOT/$name" ;;
+	esac
+}
+
+# Prints the RsaModulus= line of the copy's key (rsakeygen --modulus; the
+# primes are never printed).
 modulus() {
-	local header source
-	for header in "$BUILD/rsa-key/RSA_PrivateKey.hh" "$BUILD/generated/RSA_PrivateKey.hh"; do
-		[ -f "$header" ] && break
-	done
-	if [ ! -f "$header" ]; then
-		source=$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$BUILD/CMakeCache.txt" 2> /dev/null)
-		header="$source/src/RSA_PrivateKey.hh"
+	local key
+	[ -x "$KEYGEN" ] || die "$KEYGEN is missing; build with: cmake --build $BUILD -j8"
+	[ -f "$ROOT/config.toml" ] || die "no play copy in $ROOT yet; start tools/play.sh once to make it"
+	key=$(key_file)
+	[ -f "$key" ] || die "the play copy has no key file $key yet; start tools/play.sh once to make it"
+	"$KEYGEN" --modulus "$key" || die "$key is not a usable key file"
+}
+
+# Gives the copy its key file when it has none: PLAY_KEY, or a new key.
+make_key() {
+	local key
+	key=$(key_file)
+	[ -f "$key" ] && return 0
+	if [ -n "${PLAY_KEY:-}" ]; then
+		"$KEYGEN" --modulus "$PLAY_KEY" > /dev/null || die "PLAY_KEY=$PLAY_KEY is not a usable key file"
+		echo "copying the key file $PLAY_KEY to $key"
+		mkdir -p "$(dirname "$key")" && (umask 077 && cp "$PLAY_KEY" "$key") && chmod 600 "$key" \
+			|| die "cannot copy $PLAY_KEY to $key"
+	else
+		echo "making a new RSA key in $key"
+		mkdir -p "$(dirname "$key")" && "$KEYGEN" "$key" > /dev/null || die "cannot make the key file $key"
 	fi
-	[ -f "$header" ] || die "no RSA_PrivateKey.hh for the build in $BUILD; build it first"
-	python3 -I - "$header" <<'EOF'
-import re, sys
-with open(sys.argv[1], encoding="latin-1") as f:
-	text = f.read()
-def prime(name):
-	m = re.search(r"\b%s\s*\[[^\]]*\]\s*=\s*((?:\"[^\"]*\"\s*)+);" % name, text)
-	if not m:
-		sys.exit("%s: no %s" % (sys.argv[1], name))
-	return int("".join(re.findall(r"\"([^\"]*)\"", m.group(1))))
-print("RsaModulus=%d" % (prime("RSA_PRIME_P") * prime("RSA_PRIME_Q")))
-EOF
 }
 
 setup() {
 	local program data origmap map scratch name
-	for program in "$QM" "$SEED" "$LS" "$GAME"; do
+	for program in "$QM" "$SEED" "$LS" "$GAME" "$KEYGEN"; do
 		[ -x "$program" ] || die "$program is missing; build with: cmake --build $BUILD -j8"
 	done
 	if [ ! -f "$ROOT/config.toml" ]; then
@@ -175,6 +193,7 @@ setup() {
 		# The installation's .tibia stays for its operator tools, pointed at the copy.
 		[ -f "$ROOT/.tibia" ] && sed -i "s#\"/game/#\"$ROOT/#" "$ROOT/.tibia"
 	fi
+	make_key
 	if [ ! -f "$DB" ]; then
 		echo "seeding $DB (game on 127.0.0.1:$GAME_PORT)"
 		mkdir -p "$RUN" || exit 1
@@ -222,7 +241,7 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 QMLOG=$RUN/qm-$STAMP.log
 LSLOG=$RUN/login-$STAMP.log
 CONSOLE=$RUN/game-$STAMP.console
-LSARGS=(--port "$LOGIN_PORT" --qm-port "$QM_PORT" --qm-password "$LOGIN_PASSWORD" --log "$LSLOG")
+LSARGS=(--port "$LOGIN_PORT" --qm-port "$QM_PORT" --qm-password "$LOGIN_PASSWORD" --key "$(key_file)" --log "$LSLOG")
 [ -n "$MOTD" ] && LSARGS+=(--motd "$MOTD")
 
 # Each in a session of its own: the terminal's Ctrl-C reaches only this
