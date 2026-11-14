@@ -8,9 +8,9 @@ Usage, from any folder (the checkout is the one this file is in), on Windows or 
 tools/repro_check.py: the files `git add -A` would commit).
 
 What it does, in WSL Ubuntu-24.04:
-  1. Builds both trees the way tools/repro_check.py does (one fixed source folder, one RSA key, a cache per tree), but
-     with the normal flags, debug information included, since gdb needs the type of RoundNr; in
-     ~/.cache/patella-check/build-trace.
+  1. Builds both trees the way tools/repro_check.py does (one fixed source folder, one RSA key for the trees that
+     build it in, a cache per tree), but with the normal flags, debug information included, since gdb needs the type
+     of RoundNr; in ~/.cache/patella-check/build-trace.
   2. For each build, one after the other and at the same paths: makes a runtime copy of the original installation
      (--install, a tar or a folder; default /home/chris/patella-cmp/pristine.tar) in ~/.cache/patella-check/trace/game
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
@@ -28,7 +28,10 @@ What it does, in WSL Ubuntu-24.04:
      query manager keeps the player data (its database has the table player_data) gets them from the player files
      with the seed, which imports them; the copy's usr/ is then removed, so the run also shows that its game no longer
      reads or writes player files. The game runs with HOME set to the copy, so it reads the copy's config.toml (or
-     .tibia).
+     .tibia). The copy gets the check's RSA key (repro_check's key header) as a key file in PKCS#1 PEM, mode 0600, at
+     the path the copy's config.toml names with rsa_key (key.pem in the copy without one, and for a .tibia): a tree
+     that reads its key at run time uses it, one that builds the key in has the same key built in. The scenario's
+     clients encrypt their logins with that file's modulus.
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
@@ -56,6 +59,7 @@ run or a build failed. 2: wrong usage.
 """
 
 import argparse
+import base64
 import io
 import os
 import re
@@ -71,6 +75,8 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import repro_check  # noqa: E402
 from repro_check import CheckError, log  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "trace"))
+import tclient  # noqa: E402
 
 TRACE_TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trace")
 DEFAULT_INSTALL = "/home/chris/patella-cmp/pristine.tar"
@@ -444,6 +450,50 @@ def game_exit(console):
 	return found[-1] if found else "unknown (no exit in the console)"
 
 
+def der_length(length):
+	if length < 0x80:
+		return bytes([length])
+	data = length.to_bytes((length.bit_length() + 7) // 8, "big")
+	return bytes([0x80 | len(data)]) + data
+
+
+def der_integer(value):
+	data = value.to_bytes(value.bit_length() // 8 + 1, "big")
+	return b"\x02" + der_length(len(data)) + data
+
+
+def write_key_file(header, path):
+	"""Writes the key of an RSA_PrivateKey.hh as a key file: PKCS#1 PEM (n, e, d, p, q, d mod p-1, d mod q-1, q^-1 mod
+	p), mode 0600. Returns the path."""
+	p, q = tclient.rsa_primes(header)
+	e = tclient.RSA_E
+	d = pow(e, -1, (p - 1) * (q - 1))
+	content = b"".join(der_integer(v) for v in (0, p * q, e, d, p, q, d % (p - 1), d % (q - 1), pow(q, -1, p)))
+	text = base64.b64encode(b"\x30" + der_length(len(content)) + content).decode("ascii")
+	lines = ["-----BEGIN RSA PRIVATE KEY-----"] + [text[i:i + 64] for i in range(0, len(text), 64)] + [
+		"-----END RSA PRIVATE KEY-----"]
+	os.makedirs(os.path.dirname(path), exist_ok=True)
+	if os.path.lexists(path):
+		os.remove(path)
+	descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+	with os.fdopen(descriptor, "w", encoding="ascii", newline="\n") as f:
+		f.write("\n".join(lines) + "\n")
+	return path
+
+
+def key_file_path(game):
+	"""Where the copy's game looks for its key file: rsa_key of its config.toml, relative to the copy, or key.pem."""
+	config = os.path.join(game, "config.toml")
+	name = "key.pem"
+	if os.path.isfile(config):
+		import tomllib
+		with open(config, "rb") as f:
+			name = tomllib.load(f).get("rsa_key", name)
+		if not isinstance(name, str) or not name or os.path.isabs(name):
+			raise CheckError("data/config.toml: rsa_key = %r is not a relative path; the runtime copy needs one" % name)
+	return os.path.normpath(os.path.join(game, name))
+
+
 def run(side, build, data, options, key, root):
 	"""One run of a build, with data the tree's data/ folder (None: none). Returns its result: {"ok", "boot",
 	"scenario", "exit"}."""
@@ -468,7 +518,8 @@ def run(side, build, data, options, key, root):
 			if subprocess.run(["tar", "-x", "-C", game, "-f", options["install"]], check=False).returncode != 0:
 				raise CheckError("cannot unpack %s" % options["install"])
 		world, layout, objects = lay_out(game, data, options)
-		log("  %s: runtime copy with %s" % (side, layout))
+		key_file = write_key_file(key, key_file_path(game))
+		log("  %s: runtime copy with %s; the check's RSA key in %s" % (side, layout, os.path.relpath(key_file, game)))
 		characters = seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world,
 			options["port"], os.path.join(out, "seed.log"))
 		if has_player_data(db):
@@ -515,7 +566,7 @@ def run(side, build, data, options, key, root):
 		with open(os.path.join(out, "client.log"), "w") as f:
 			client = subprocess.Popen([sys.executable, "-u", os.path.join(TRACE_TOOLS, "run_scenario.py"), "--scenario",
 				options["scenario"], "--out", os.path.join(out, "client"), "--objects", objects, "--console", console,
-				"--port", str(options["port"]), "--rsa-key", key],
+				"--port", str(options["port"]), "--rsa-key", key_file],
 				stdin=subprocess.DEVNULL, stdout=f, stderr=subprocess.STDOUT, start_new_session=True)
 		status = client.wait()
 		with open(os.path.join(out, "client.log"), encoding="utf-8", errors="replace") as f:

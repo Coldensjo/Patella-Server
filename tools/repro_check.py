@@ -4,7 +4,7 @@ Usage, from any folder (the checkout is the one this file is in), on Windows or 
   python -I tools/repro_check.py [<old> [<new>]]
 
 <old> is a commit, HEAD when left out. <new> is a commit too; left out, it is the working tree: the files `git add -A`
-would commit, untracked ones included and ignored ones not (so never src/RSA_PrivateKey.hh).
+would commit, untracked ones included and ignored ones not (so never src/RSA_PrivateKey.hh or a key.pem).
 
 The proof for a change that must not change the programs: comments, names, named constants. A moved line still
 changes the test programs (their CHECK macros store __LINE__), and a renamed class with virtual functions changes the
@@ -19,10 +19,14 @@ What it does:
      without debug information (-g0) and without a build ID (-Wl,--build-id=none: the ID is a hash of the linked
      file, symbol table included, so a renamed function would change it); SQLite comes from
      CMAKE_PREFIX_PATH=/home/chris/patella-deps/usr.
-  3. The RSA key: a build without src/RSA_PrivateKey.hh makes a random key, and every build would differ. So all
-     builds use one key, ~/.cache/patella-check/key/RSA_PrivateKey.hh, made once by this script in rsakeygen's
-     format, given as PATELLA_RSA_KEY_HEADER (keygen/CMakeLists.txt). A tree from before that variable gets the key
-     as src/RSA_PrivateKey.hh instead.
+  3. The RSA key: a tree that reads its key from a key file at run time (it has src/rsakeyfile.cc, and its
+     keygen/CMakeLists.txt no longer knows PATELLA_RSA_KEY_HEADER) needs none to build; its binaries hold no key, so
+     they are the same whatever key is used. Older trees compiled the key in, and their builds made a random one
+     without src/RSA_PrivateKey.hh, so every build would differ. Those builds all use one key,
+     ~/.cache/patella-check/key/RSA_PrivateKey.hh, made once by this script in the old rsakeygen's header format:
+     given as PATELLA_RSA_KEY_HEADER to a tree whose keygen/CMakeLists.txt knows that variable, and copied to
+     src/RSA_PrivateKey.hh in a tree from before it. tools/trace_check.py gives the runs of a key-file tree the same
+     key as a key.pem.
   4. Keeps every executable of the build (game, querymanager, querymanager-seed, loginserver, rsakeygen and the test
      programs), as linked and stripped (strip --strip-all), in ~/.cache/patella-check/builds/repro/<tree>/. A tree
      that was built before, with the same configure command and the same compiler and cmake, is not built again: the
@@ -295,6 +299,20 @@ def key_header(cache):
 	return path
 
 
+def key_source(data):
+	"""How the tree in data (a tar) gets its RSA key: "variable" (PATELLA_RSA_KEY_HEADER in keygen/CMakeLists.txt),
+	"file" (no key at build time: src/rsakeyfile.cc reads key.pem at run time) or "header" (src/RSA_PrivateKey.hh,
+	the trees before both)."""
+	with tarfile.open(fileobj=io.BytesIO(data)) as archive:
+		names = set(archive.getnames())
+		keygen = ""
+		if "keygen/CMakeLists.txt" in names:
+			keygen = archive.extractfile("keygen/CMakeLists.txt").read().decode("utf-8", "replace")
+	if "PATELLA_RSA_KEY_HEADER" in keygen:
+		return "variable"
+	return "file" if "src/rsakeyfile.cc" in names else "header"
+
+
 def same_content(a, b):
 	if os.path.islink(b) or not os.path.isfile(b) or os.path.getsize(a) != os.path.getsize(b):
 		return False
@@ -374,11 +392,14 @@ def build(arguments, data):
 	cache = cache_dir()
 	with lock(cache, "build"):
 		key = key_header(cache)
+		key_kind = key_source(data)
 		out = os.path.join(cache, "builds", mode, tree)
 		source = os.path.join(cache, "src")
 		folder = os.path.join(cache, "build-" + mode)
 		configure = ["cmake", "-S", source, "-B", folder, "-G", "Unix Makefiles", "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
-			"-DCMAKE_PREFIX_PATH=" + arguments["prefix"], "-DPATELLA_RSA_KEY_HEADER=" + key]
+			"-DCMAKE_PREFIX_PATH=" + arguments["prefix"]]
+		if key_kind == "variable":
+			configure.append("-DPATELLA_RSA_KEY_HEADER=" + key)
 		configure += REPRO_FLAGS if mode == "repro" else []
 		# A cached build counts only if it was made the same way: the same configure command and the same compiler.
 		settings = "\n".join(configure + [tool_version(["c++", "--version"]), tool_version(["cmake", "--version"])]) + "\n"
@@ -393,14 +414,14 @@ def build(arguments, data):
 		os.makedirs(stage)
 		with tarfile.open(fileobj=io.BytesIO(data)) as archive:
 			archive.extractall(stage, filter="tar")
-		keygen = os.path.join(stage, "keygen", "CMakeLists.txt")
-		knows_key_variable = os.path.isfile(keygen) and "PATELLA_RSA_KEY_HEADER" in open(keygen, encoding="utf-8").read()
-		if not knows_key_variable:
+		if key_kind == "header":
 			shutil.copyfile(key, os.path.join(stage, "src", "RSA_PrivateKey.hh"))
 		written, removed = sync(stage, source)
 		shutil.rmtree(stage)
-		log("  sources in %s: %d files written, %d removed%s" % (source, written, removed,
-			"" if knows_key_variable else "; the tree predates PATELLA_RSA_KEY_HEADER, the key is src/RSA_PrivateKey.hh"))
+		log("  sources in %s: %d files written, %d removed; %s" % (source, written, removed, {
+			"variable": "the key is built in, given as PATELLA_RSA_KEY_HEADER",
+			"file": "the programs read their key from a key file, none is built in",
+			"header": "the tree predates PATELLA_RSA_KEY_HEADER, the key is src/RSA_PrivateKey.hh"}[key_kind]))
 		os.makedirs(folder, exist_ok=True)
 		# Linked again every time, so that no executable of another tree is left over.
 		for path in executables(folder):

@@ -2,11 +2,12 @@
 """Runs a scripted scenario with the test clients against a running game
 server and writes one trace per client (JSON lines) to --out.
 
-usage: run_scenario.py --scenario NAME --out DIR --rsa-key HEADER
+usage: run_scenario.py --scenario NAME --out DIR --rsa-key FILE
                        [--objects items.toml] [--console FILE]
                        [--host H] [--port P] [--list]
 
---rsa-key: the server's RSA_PrivateKey.hh (the clients need its modulus).
+--rsa-key: the server's key file (key.pem) or RSA_PrivateKey.hh (the clients
+need its modulus).
 --objects: the object types, the game's items.toml (default dat/items.toml),
 or an original objects.srv.
 --console: the server's console file with @@ROUND n@@ lines (trace_check.py

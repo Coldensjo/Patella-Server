@@ -10,6 +10,7 @@ Protocol source: the server side, src/communication.cc (login, framing),
 src/sending.cc (every server message), src/receiving.cc (every command the
 server accepts). tools/trace_check.py runs it through run_scenario.py.
 """
+import base64
 import json
 import os
 import re
@@ -19,7 +20,8 @@ import threading
 import time
 
 # The login block is raw RSA (no padding) with the server's key: the modulus
-# P*Q of its RSA_PrivateKey.hh, which rsa_modulus reads; exponent 65537.
+# of its key file (key.pem) or P*Q of an RSA_PrivateKey.hh, which rsa_modulus
+# reads; exponent 65537.
 RSA_E = 65537
 MASK = 0xFFFFFFFF
 DELTA = 0x9E3779B9
@@ -63,9 +65,9 @@ def xtea_decrypt(data, key):
 	return bytes(out)
 
 
-def rsa_modulus(header):
-	"""The modulus P*Q of an RSA_PrivateKey.hh (RSA_PRIME_P and RSA_PRIME_Q
-	as decimal strings, the format of the original and of rsakeygen)."""
+def rsa_primes(header):
+	"""The primes (P, Q) of an RSA_PrivateKey.hh (RSA_PRIME_P and RSA_PRIME_Q
+	as decimal strings, the format of the original and of the old rsakeygen)."""
 	with open(header, encoding="latin-1") as f:
 		text = f.read()
 	primes = []
@@ -74,7 +76,53 @@ def rsa_modulus(header):
 		if m is None:
 			raise ValueError("%s: no %s" % (header, name))
 		primes.append(int(m.group(1)))
-	return primes[0] * primes[1]
+	return primes[0], primes[1]
+
+
+def der_element(data, pos, tag):
+	"""(content start, content end) of the DER element with the tag at pos."""
+	if pos + 2 > len(data) or data[pos] != tag:
+		raise ValueError("not the DER element 0x%02x" % tag)
+	length = data[pos + 1]
+	pos += 2
+	if length & 0x80:
+		count = length & 0x7F
+		length = int.from_bytes(data[pos:pos + count], "big")
+		pos += count
+	if pos + length > len(data):
+		raise ValueError("DER element runs past the end")
+	return pos, pos + length
+
+
+def pem_modulus(path):
+	"""The modulus of an RSA private key file in PEM, PKCS#1 ("RSA PRIVATE
+	KEY") or PKCS#8 ("PRIVATE KEY")."""
+	with open(path, encoding="ascii") as f:
+		lines = [line.strip() for line in f if line.strip()]
+	label = lines[0][len("-----BEGIN "):-len("-----")]
+	if label not in ("RSA PRIVATE KEY", "PRIVATE KEY") or lines[-1] != "-----END %s-----" % label:
+		raise ValueError("%s: not an RSA private key in PEM" % path)
+	data = base64.b64decode("".join(lines[1:-1]), validate=True)
+	start, end = der_element(data, 0, 0x30)
+	if label == "PRIVATE KEY":
+		_, pos = der_element(data, start, 0x02)        # version
+		_, pos = der_element(data, pos, 0x30)          # algorithm
+		start, end = der_element(data, pos, 0x04)      # the PKCS#1 key
+		start, end = der_element(data, start, 0x30)
+	_, pos = der_element(data, start, 0x02)            # version
+	start, end = der_element(data, pos, 0x02)
+	return int.from_bytes(data[start:end], "big")
+
+
+def rsa_modulus(path):
+	"""The modulus of the server's key: a key file (PEM) or an
+	RSA_PrivateKey.hh."""
+	with open(path, "rb") as f:
+		pem = f.read(64).lstrip().startswith(b"-----BEGIN ")
+	if pem:
+		return pem_modulus(path)
+	p, q = rsa_primes(path)
+	return p * q
 
 
 def tstr(s):
