@@ -694,6 +694,13 @@ bool JumpPossible(int x, int y, int z, bool AvoidPlayers) {
 	return BankThere;
 }
 
+// The field types of magic.cc's CreateField that create MAGICFIELD_MAGICWALL
+// and MAGICFIELD_RUSHWOOD. FieldPossible tests them against every unpassable
+// object, creatures included; the other fields only against objects that are
+// no creatures.
+const int FIELD_MAGICWALL = 4;
+const int FIELD_RUSHWOOD = 5;
+
 bool FieldPossible(int x, int y, int z, int Type) {
 	Object Obj = GetFirstObject(x, y, z);
 	if (Obj == NONE || !Obj.getFlag(BANK)) {
@@ -709,7 +716,7 @@ bool FieldPossible(int x, int y, int z, int Type) {
 			return false;
 		}
 
-		if ((Type == 4 || Type == 5) && Obj.getFlag(UNPASS)) {
+		if ((Type == FIELD_MAGICWALL || Type == FIELD_RUSHWOOD) && Obj.getFlag(UNPASS)) {
 			return false;
 		}
 
@@ -1167,9 +1174,8 @@ void GetCreatureLight(uint32_t CreatureID, int &Brightness, int &Color) {
 	}
 
 	Brightness = 0;
-	// Skill 15 is the light skill.
-	if (cr->Skills[15] != nullptr) {
-		Brightness = cr->Skills[15]->TimerValue();
+	if (cr->Skills[SKILL_SHINING] != nullptr) {
+		Brightness = cr->Skills[SKILL_SHINING]->TimerValue();
 	}
 
 	if (cr->Type == PLAYER && CheckRight(CreatureID, ILLUMINATE)) {
