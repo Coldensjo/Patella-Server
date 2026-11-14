@@ -46,10 +46,8 @@ struct vlong {
 	vlong &operator-=(const vlong &x);
 	operator unsigned int();
 	static vlong modexp(const vlong &x, const vlong &e, const vlong &m);
-	static vlong gcd(const vlong &X, const vlong &Y);
 	static vlong modinv(const vlong &a, const vlong &m);
 	static void convert(const char *pDecimal, vlong &Number);
-	static void convert(vlong Number, char *pDecimal, unsigned short DecimalLength);
 	static void convert(const unsigned char *pData, unsigned short DataLength, vlong &Number);
 	static void convert(vlong Number, unsigned char *pData, unsigned short DataLength);
 private:

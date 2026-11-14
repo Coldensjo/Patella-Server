@@ -10,7 +10,6 @@ struct TXTEASymmetricKey {
 	TXTEASymmetricKey();
 	virtual ~TXTEASymmetricKey();
 	void init(const unsigned char *SymmetricKey);
-	bool isInitialized() const;
 	void encrypt(unsigned char *Data) const;
 	void decrypt(unsigned char *Data) const;
 private:

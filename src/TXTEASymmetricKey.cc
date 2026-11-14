@@ -16,16 +16,6 @@ void TXTEASymmetricKey::init(const unsigned char *SymmetricKey) {
 	}
 }
 
-bool TXTEASymmetricKey::isInitialized() const {
-	for (int i = 0; i < XTEA_KEY_LENGTH; i++) {
-		if (m_SymmetricKey[i] != 0) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void TXTEASymmetricKey::encrypt(unsigned char *Data) const {
 	if (Data != nullptr) {
 		encrypt((uint32_t *)Data, (uint32_t *)m_SymmetricKey);
