@@ -15,16 +15,18 @@ What it does, in WSL Ubuntu-24.04:
      (--install, a tar or a folder; default /home/chris/patella-cmp/pristine.tar) in ~/.cache/patella-check/trace/game
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
-     relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/moveuse.toml,
-     data/houses.toml, data/map.toml and data/conversion.toml go into the copy's data folder ([paths] data), and the
-     files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat, houses.dat, map.dat with
-     the mem.dat it includes, and conversion.lst, are removed (spells.toml replaces the spell table in the code). A
-     tree without them (faithful) gets the copy's .tibia with its paths pointed at the copy, and keeps those files. The
-     scenario's clients read the object types from the file the copy has. Either config gets a scratch SHM key (--shm,
-     default 17011) and scratch query manager ports (--qm-port, default 17173, and the three after it for the other
-     entries). Then it seeds a scratch database with the build's querymanager-seed (game port --port, default 17171),
-     adds the two test accounts with a new character each (900001 'Testa Alpha', male, and 900002 'Testb Beta',
-     female; neither may have a player file or player data) and starts the build's query manager. A build whose
+     relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/commands.toml,
+     data/moveuse.toml, data/houses.toml, data/map.toml and data/conversion.toml go into the copy's data folder
+     ([paths] data), and the files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat,
+     houses.dat, map.dat with the mem.dat it includes, and conversion.lst, are removed (spells.toml and commands.toml
+     replace the spell table and the commands' rights in the code). A tree without them (faithful) gets the copy's
+     .tibia with its paths pointed at the copy, and keeps those files. The scenario's clients read the object types
+     from the file the copy has. Either config gets a scratch SHM key (--shm, default 17011) and scratch query manager
+     ports (--qm-port, default 17173, and the three after it for the other entries). Then it seeds a scratch database
+     with the build's querymanager-seed (game port --port, default 17171), adds the test accounts with a new character
+     each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; and the gamemasters 900003 to 900007, 'Testc
+     Gamma' to 'Testg Eta', male, each with some of the rights the commands check, GM_RIGHTS; none may have a player
+     file or player data) and starts the build's query manager. A build whose
      query manager keeps the player data (its database has the table player_data) gets them from the player files
      with the seed, which imports them; the copy's usr/ is then removed, so the run also shows that its game no longer
      reads or writes player files. The game runs with HOME set to the copy, so it reads the copy's config.toml (or
@@ -42,10 +44,10 @@ What it does, in WSL Ubuntu-24.04:
      differ and is reported apart: the world light (message 0x82), the "New record: N players are logged in."
      broadcast (it follows the player list, made when the real minute is a multiple of 5) and dates in texts. The
      query manager requests of both runs are compared too, for information (the player list shows up there too).
-  5. Compares what each game saved of the two test characters when it shut down: the player files a build with
+  5. Compares what each game saved of the test characters when it shut down: the player files a build with
      player files wrote, and the player data a build with a player database saved, written as player files with that
      build's patella-convert usr-export (the game's old writer). LastLogin and LastLogout follow the wall clock and
-     are left out. They must be the same.
+     are left out. They must be the same, and at least one character must have been saved.
 
 Only the builds run, never the original bin/game. The ports 7171-7176, the SHM key 10011 and /game are refused, so a
 server the owner plays on is never touched. Nothing of usr/ is printed: the seed's output and the game's console stay
@@ -82,9 +84,27 @@ TRACE_TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trace")
 DEFAULT_INSTALL = "/home/chris/patella-cmp/pristine.tar"
 LIVE_PORTS = range(7171, 7177)
 LIVE_SHM = 10011
+# The rights the commands check (commands.toml), each with a number 1 to 16 whose bits say which of the five
+# gamemasters 'Testc Gamma' (bit 0) to 'Testg Eta' (bit 4) has it. Every right is held by one of them at least and no
+# two by the same ones, so a command that checks another right than before answers another one of them.
+GM_RIGHTS = ["CREATE_OBJECTS", "TELEPORT_VERTICAL", "MODIFY_GOSTRENGTH", "TELEPORT_TO_COORDINATE", "TELEPORT_TO_MARK",
+	"CHANGE_SKILLS", "TELEPORT_TO_CHARACTER", "RETRIEVE", "CREATE_MONSTERS", "SHOW_COORDINATE", "HOME_TELEPORT",
+	"CREATE_MONEY", "CHANGE_PROFESSION", "KICK", "CLEANUP_FIELDS", "LEVITATE"]
+
+
+def gm_rights(bit):
+	return [right for number, right in enumerate(GM_RIGHTS, 1) if number & (1 << bit)]
+
+
+# Account, password, sex, character name and rights.
 TEST_ACCOUNTS = [
-	(900001, "testa", 1, "Testa Alpha"),
-	(900002, "testb", 2, "Testb Beta"),
+	(900001, "testa", 1, "Testa Alpha", []),
+	(900002, "testb", 2, "Testb Beta", []),
+	(900003, "testc", 1, "Testc Gamma", gm_rights(0)),
+	(900004, "testd", 1, "Testd Delta", gm_rights(1)),
+	(900005, "teste", 1, "Teste Epsilon", gm_rights(2)),
+	(900006, "testf", 1, "Testf Zeta", gm_rights(3)),
+	(900007, "testg", 1, "Testg Eta", gm_rights(4)),
 ]
 BOOT_SECONDS = 300
 STOP_SECONDS = 600
@@ -294,6 +314,7 @@ DATA_FILES = [
 	("items.toml", ("objects.srv",)),
 	("circles.toml", ("circles.dat",)),
 	("spells.toml", ()),
+	("commands.toml", ()),
 	("moveuse.toml", ("moveuse.dat",)),
 	("houses.toml", ("houseareas.dat", "houses.dat")),
 	("map.toml", ("map.dat", "mem.dat")),
@@ -369,10 +390,10 @@ def seed(binary, db, game, world, port, log_file):
 			if SEED_COUNTS.match(line):
 				log("    seed: " + line.rstrip("\n"))
 	characters = []
-	for account, password, sex, name in TEST_ACCOUNTS:
+	for account, password, sex, name, rights in TEST_ACCOUNTS:
 		result = subprocess.run([binary, "--db", db, "--add-account", str(account), "--password", password, "--world",
-			world, "--sex", str(sex), "--new-character", name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-			check=False)
+			world, "--sex", str(sex), "--new-character", name] + [a for right in rights for a in ("--right", right)],
+			stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
 		output = result.stdout.decode("utf-8", "replace")
 		with open(log_file, "a") as f:
 			f.write(output)
@@ -706,7 +727,7 @@ def trace(arguments, data):
 		else:
 			old_saved = [saved[0].get(c) for c in sorted(saved[0])]
 			new_saved = [saved[1].get(c) for c in sorted(saved[1])]
-			if len(saved[0]) != 2 or sorted(saved[0]) != sorted(saved[1]) or old_saved != new_saved:
+			if not saved[0] or sorted(saved[0]) != sorted(saved[1]) or old_saved != new_saved:
 				code = 1
 				log("trace_check: saved test characters differ (old saved %d, new %d):" % (len(saved[0]),
 					len(saved[1])))
