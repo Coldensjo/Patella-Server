@@ -40,6 +40,50 @@ const int PLAYERKILLINGMARK_DELAY = 5;
 const int TALKBUFFER_LINES = 4;
 const int TALKBUFFER_MILLISECONDS_PER_LINE = 2500;
 
+// The children of an internal node of the player index: one per letter of
+// the name at the node's depth, and child 0 for any other character or the
+// end of the name (GetPlayerIndexEntryNumber).
+const int PLAYERINDEX_CHILDREN = 27;
+
+// The most names loadPlayers returns at once; InitPlayerIndex asks again
+// while it gets this many (the query manager's protocol.hh has the same name).
+const int MAX_PLAYERS_PER_LOAD = 10000;
+
+// Ends the inventory that SaveInventory writes and LoadInventory reads: each
+// occupied body position as a byte, followed by its objects as SaveObjects
+// writes them.
+const int END_OF_INVENTORY = 0xFF;
+
+// TCreature::LoseInventory, what a dying player loses (TCreature's destructor
+// in crmain.cc): nothing, the containers and each other object at a chance of
+// one in ten, or everything.
+const int LOSE_INVENTORY_NONE = 0;
+const int LOSE_INVENTORY_SOME = 1;
+const int LOSE_INVENTORY_ALL = 2;
+
+// The bits of the state that CheckState sends (SendPlayerState), each set
+// while the named skill's condition lasts; PLAYERSTATE_SLOWED and
+// PLAYERSTATE_HASTE are a lower or higher SKILL_GOSTRENGTH, and
+// PLAYERSTATE_LOGOUT_BLOCKED is set before EarliestLogoutRound.
+const int PLAYERSTATE_POISON = 0x01;
+const int PLAYERSTATE_BURNING = 0x02;
+const int PLAYERSTATE_ENERGY = 0x04;
+const int PLAYERSTATE_DRUNKEN = 0x08;
+const int PLAYERSTATE_MANASHIELD = 0x10;
+const int PLAYERSTATE_SLOWED = 0x20;
+const int PLAYERSTATE_HASTE = 0x40;
+const int PLAYERSTATE_LOGOUT_BLOCKED = 0x80;
+
+// CheckPlayerkilling's results: within the limit of unjustified kills, over
+// it (the player becomes a playerkiller), or over it by 100% (a banishment
+// besides).
+const int PLAYERKILLING_NONE = 0;
+const int PLAYERKILLING_LIMIT_EXCEEDED = 1;
+const int PLAYERKILLING_LIMIT_DOUBLED = 2;
+
+// The most buddies of an account without premium (MAX_BUDDIES with it).
+const int MAX_BUDDIES_WITHOUT_PREMIUM = 20;
+
 struct TPlayerIndexEntry {
 	char Name[30];
 	uint32_t CharacterID;
@@ -50,7 +94,7 @@ struct TPlayerIndexNode {
 };
 
 struct TPlayerIndexInternalNode : public TPlayerIndexNode {
-	TPlayerIndexNode *Child[27];
+	TPlayerIndexNode *Child[PLAYERINDEX_CHILDREN];
 };
 
 struct TPlayerIndexLeafNode : public TPlayerIndexNode {
@@ -799,7 +843,7 @@ void InsertPlayerIndex(TPlayerIndexInternalNode *Node, int Position, char *Name,
 
 	TPlayerIndexInternalNode *InternalNode = PlayerIndexInternalNodes.getFreeItem();
 	InternalNode->InternalNode = true;
-	for (int i = 0; i < 27; i++) {
+	for (int i = 0; i < PLAYERINDEX_CHILDREN; i++) {
 		InternalNode->Child[i] = nullptr;
 	}
 	Node->Child[Number] = InternalNode;
@@ -840,7 +884,7 @@ TPlayerIndexEntry *SearchPlayerIndex(char *Name) {
 
 void InitPlayerIndex() {
 	PlayerIndexHead.InternalNode = true;
-	for (int i = 0; i < 27; i++) {
+	for (int i = 0; i < PLAYERINDEX_CHILDREN; i++) {
 		PlayerIndexHead.Child[i] = nullptr;
 	}
 
@@ -853,8 +897,8 @@ void InitPlayerIndex() {
 
 	uint32_t MinimumCharacterID = 0;
 	int NumberOfPlayers;
-	char Names[10000][30];
-	uint32_t CharacterIDs[10000];
+	char Names[MAX_PLAYERS_PER_LOAD][30];
+	uint32_t CharacterIDs[MAX_PLAYERS_PER_LOAD];
 	while (true) {
 		if (Connection->loadPlayers(MinimumCharacterID, NumberOfPlayers, Names, CharacterIDs) != 0) {
 			error("InitPlayerIndex: Kann Spielerdaten nicht ermitteln.\n");
@@ -866,11 +910,11 @@ void InitPlayerIndex() {
 		}
 
 		print(2, "%d Spielernamen geladen.\n", NumberOfPlayers);
-		if (NumberOfPlayers < 10000) {
+		if (NumberOfPlayers < MAX_PLAYERS_PER_LOAD) {
 			break;
 		}
 
-		MinimumCharacterID = CharacterIDs[9999] + 1;
+		MinimumCharacterID = CharacterIDs[MAX_PLAYERS_PER_LOAD - 1] + 1;
 	}
 
 	delete Connection;
@@ -929,7 +973,7 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 	RequestTimestamp = 0;
 	RequestProcessingGamemaster = 0;
 	TutorActivities = 0;
-	LoseInventory = 1;
+	LoseInventory = LOSE_INVENTORY_SOME;
 	NumberOfAttackedPlayers = 0;
 	NumberOfFormerAttackedPlayers = 0;
 	NumberOfMutings = 0;
@@ -1120,15 +1164,15 @@ TPlayer::~TPlayer() {
 					PlayerData->Minimum[i] = INT32_MIN;
 				}
 			}
-			LoseInventory = 2;
+			LoseInventory = LOSE_INVENTORY_ALL;
 		}
 
 		if (PlayerData->PlayerkillerEnd != 0) {
-			LoseInventory = 2;
+			LoseInventory = LOSE_INVENTORY_ALL;
 		}
 
 		if (CheckRight(ID, KEEP_INVENTORY)) {
-			LoseInventory = 0;
+			LoseInventory = LOSE_INVENTORY_NONE;
 		}
 	}
 
@@ -1322,7 +1366,7 @@ void TPlayer::LoadInventory(bool SetStandardInventory) {
 			TReadBuffer Buffer(PlayerData->Inventory, PlayerData->InventorySize);
 			while (true) {
 				int Position = Buffer.readByte();
-				if (Position == 0xFF) {
+				if (Position == END_OF_INVENTORY) {
 					break;
 				}
 
@@ -1366,7 +1410,7 @@ void TPlayer::SaveInventory() {
 		}
 
 		if (HelpBuffer.getDataSize() != 0) {
-			HelpBuffer.writeByte(0xFF);
+			HelpBuffer.writeByte(END_OF_INVENTORY);
 			PlayerData->InventorySize = HelpBuffer.getDataSize();
 			PlayerData->Inventory = new unsigned char[PlayerData->InventorySize];
 			memcpy(PlayerData->Inventory, HelpBuffer.getData(), PlayerData->InventorySize);
@@ -1962,35 +2006,35 @@ void TPlayer::CheckState() {
 
 	int NewState = 0;
 	if (Skills[SKILL_POISON]->TimerValue() > 0) {
-		NewState |= 1;
+		NewState |= PLAYERSTATE_POISON;
 	}
 
 	if (Skills[SKILL_BURNING]->TimerValue() > 0) {
-		NewState |= 2;
+		NewState |= PLAYERSTATE_BURNING;
 	}
 
 	if (Skills[SKILL_ENERGY]->TimerValue() > 0) {
-		NewState |= 4;
+		NewState |= PLAYERSTATE_ENERGY;
 	}
 
 	if (Skills[SKILL_DRUNKEN]->TimerValue() > 0 && Skills[SKILL_DRUNKEN]->Get() == 0) {
-		NewState |= 8;
+		NewState |= PLAYERSTATE_DRUNKEN;
 	}
 
 	if (Skills[SKILL_MANASHIELD]->TimerValue() > 0 || Skills[SKILL_MANASHIELD]->Get() > 0) {
-		NewState |= 16;
+		NewState |= PLAYERSTATE_MANASHIELD;
 	}
 
 	if (Skills[SKILL_GOSTRENGTH]->GetMDAct() < 0) {
-		NewState |= 32;
+		NewState |= PLAYERSTATE_SLOWED;
 	}
 
 	if (Skills[SKILL_GOSTRENGTH]->GetMDAct() > 0) {
-		NewState |= 64;
+		NewState |= PLAYERSTATE_HASTE;
 	}
 
 	if (RoundNr < EarliestLogoutRound) {
-		NewState |= 128;
+		NewState |= PLAYERSTATE_LOGOUT_BLOCKED;
 	}
 
 	if (NewState != OldState) {
@@ -2043,7 +2087,7 @@ void TPlayer::AddBuddy(char *Name) {
 
 	if (PlayerData->Buddies >= MAX_BUDDIES
 			|| (!CheckRight(ID, READ_GAMEMASTER_CHANNEL) && PlayerData->Buddies >= MAX_BUDDIES)
-			|| (!CheckRight(ID, PREMIUM_ACCOUNT) && PlayerData->Buddies >= 20)) {
+			|| (!CheckRight(ID, PREMIUM_ACCOUNT) && PlayerData->Buddies >= MAX_BUDDIES_WITHOUT_PREMIUM)) {
 		SendMessage(GetConnection(), TALK_FAILURE_MESSAGE, "You cannot add more buddies.");
 		return;
 	}
@@ -2289,7 +2333,7 @@ void TPlayer::RecordMurder(uint32_t Victim) {
 	SendMessage(GetConnection(), TALK_ADMIN_MESSAGE, "Warning! The murder of %s was not justified.", pl->Name);
 
 	int Playerkilling = CheckPlayerkilling();
-	if (Playerkilling != 0) {
+	if (Playerkilling != PLAYERKILLING_NONE) {
 		bool Announce = !IsPlayerkiller();
 		PlayerData->PlayerkillerEnd = static_cast<int32_t>(time(nullptr)) + 2592000;
 		if (Announce) {
@@ -2297,7 +2341,7 @@ void TPlayer::RecordMurder(uint32_t Victim) {
 			AnnounceChangedCreature(ID, CREATURE_SKULL);
 		}
 
-		if (Playerkilling == 2) {
+		if (Playerkilling == PLAYERKILLING_LIMIT_DOUBLED) {
 			PunishmentOrder(nullptr, Name, IPAddress, 28, 2,
 					"Exceeding the limit of unjustified kills by 100%.", 0, nullptr, 0, false);
 		}
@@ -2328,14 +2372,14 @@ int TPlayer::CheckPlayerkilling() {
 	}
 
 	if (LastDay >= 6 || LastWeek >= 10 || LastMonth >= 20) {
-		return 2;
+		return PLAYERKILLING_LIMIT_DOUBLED;
 	}
 
 	if (LastDay >= 3 || LastWeek >= 5 || LastMonth >= 10) {
-		return 1;
+		return PLAYERKILLING_LIMIT_EXCEEDED;
 	}
 
-	return 0;
+	return PLAYERKILLING_NONE;
 }
 
 void TPlayer::ClearAttacker(uint32_t Victim) {
