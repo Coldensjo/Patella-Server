@@ -128,9 +128,16 @@ with the characters by `querymanager-seed --game-root`, which reads them with
 the game's old reader of them; it needs the object types (`items.toml`, or the
 original `objects.srv`) in the installation's data folder. `--no-player-data`
 leaves the player data out, and data the database has already is kept.
-`patella-convert usr-export CONFIG_TOML FOLDER` writes the database's player
-data as player files again. `patella-convert usr-check` proves that every
-player file comes back the same from the database, field by field;
+An existing database (schema version 1) that a game with player files used
+gets the new tables when the query manager opens it, but no player data: run
+`querymanager-seed --game-root` on that installation once more before the
+new game starts. Otherwise every character starts as a new one, and the
+game's save of that new character is the data a later import keeps.
+`patella-convert usr-export CONFIG_TOML FOLDER [ID...]` writes the database's
+player data as player files again. `patella-convert usr-check CONFIG_TOML`
+proves that every player file comes back the same from the database, field
+by field; it saves each file's data into the database (unless
+`--read-only`), so run it on a scratch database only.
 `tools/playerdata_check.py` runs it on a copy of an installation. The game
 itself no longer reads or writes player files; `[paths] user` in `config.toml`
 is read only by `querymanager-seed`, to find the files to import.
