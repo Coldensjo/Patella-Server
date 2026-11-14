@@ -32,7 +32,7 @@ struct TObjectBlock {
 };
 
 struct TSector {
-	Object MapCon[32][32];
+	Object MapCon[SECTOR_SIZE][SECTOR_SIZE];
 	uint32_t TimeStamp;
 	unsigned char Status;
 	unsigned char MapFlags;
@@ -546,7 +546,7 @@ newObject:
 
 	if (Obj.getFlag(LIQUIDPOOL)) {
 		if (Obj.getAttribute(POOLLIQUIDTYPE) == 0) {
-			Obj.setAttribute(POOLLIQUIDTYPE, 1);
+			Obj.setAttribute(POOLLIQUIDTYPE, LIQUID_WATER);
 		}
 	}
 
@@ -898,8 +898,8 @@ void DeleteObject(Object Obj) {
 }
 
 Object GetMapContainer(int x, int y, int z) {
-	int sx = x / 32;
-	int sy = y / 32;
+	int sx = x / SECTOR_SIZE;
+	int sy = y / SECTOR_SIZE;
 	if (!IsOnMap(x, y, z)) {
 		return NONE;
 	}
@@ -909,7 +909,7 @@ Object GetMapContainer(int x, int y, int z) {
 	}
 
 	(*Sector)(sx, sy, z)->TimeStamp = RoundNr;
-	return (*Sector)(sx, sy, z)->MapCon[x % 32][y % 32];
+	return (*Sector)(sx, sy, z)->MapCon[x % SECTOR_SIZE][y % SECTOR_SIZE];
 }
 
 Object GetMapContainer(Object Obj) {
@@ -983,8 +983,8 @@ Object GetContainerObject(Object Con, int nr) {
 }
 
 bool IsOnMap(int x, int y, int z) {
-	int sx = x / 32;
-	int sy = y / 32;
+	int sx = x / SECTOR_SIZE;
+	int sy = y / SECTOR_SIZE;
 	return in(sx, SectorXMin, SectorXMax)
 			&& in(sy, SectorYMin, SectorYMax)
 			&& in(z, SectorZMin, SectorZMax);
@@ -1001,27 +1001,27 @@ bool CoordinateFlag(int x, int y, int z, FLAG Flag) {
 }
 
 bool IsPremiumArea(int x, int y, int) {
-	if (x / 32 >= 1036) {
+	if (x / SECTOR_SIZE >= 1036) {
 		return true;
 	}
 
-	if (x / 32 >= 1032 && y / 32 <= 998) {
+	if (x / SECTOR_SIZE >= 1032 && y / SECTOR_SIZE <= 998) {
 		return true;
 	}
 
-	if (x / 32 >= 1030 && y / 32 >= 1008) {
+	if (x / SECTOR_SIZE >= 1030 && y / SECTOR_SIZE >= 1008) {
 		return true;
 	}
 
-	if (x / 32 >= 1029 && y / 32 >= 1009) {
+	if (x / SECTOR_SIZE >= 1029 && y / SECTOR_SIZE >= 1009) {
 		return true;
 	}
 
-	if (x / 32 >= 1022 && y / 32 >= 1014) {
+	if (x / SECTOR_SIZE >= 1022 && y / SECTOR_SIZE >= 1014) {
 		return true;
 	}
 
-	return y / 32 >= 1016;
+	return y / SECTOR_SIZE >= 1016;
 }
 
 bool IsProtectionZone(int x, int y, int z) {
@@ -1030,7 +1030,7 @@ bool IsProtectionZone(int x, int y, int z) {
 		return false;
 	}
 
-	return (GetMapContainerFlags(Con) & 4) != 0;
+	return (GetMapContainerFlags(Con) & MAPFLAG_PROTECTIONZONE) != 0;
 }
 
 bool IsNoLogoutField(int x, int y, int z) {
@@ -1039,7 +1039,7 @@ bool IsNoLogoutField(int x, int y, int z) {
 		return false;
 	}
 
-	return (GetMapContainerFlags(Con) & 2) != 0;
+	return (GetMapContainerFlags(Con) & MAPFLAG_NOLOGOUT) != 0;
 }
 
 bool IsHouse(int x, int y, int z) {
@@ -1171,11 +1171,11 @@ void InitSector(int x, int y, int z) {
 	memset((void *)Sec, 0, sizeof(TSector));
 	Sec->Status = 0;
 	Sec->TimeStamp = RoundNr;
-	for (int xx = 0; xx < 32; xx++) {
-		for (int yy = 0; yy < 32; yy++) {
+	for (int xx = 0; xx < SECTOR_SIZE; xx++) {
+		for (int yy = 0; yy < SECTOR_SIZE; yy++) {
 			Object Obj = CreateObject();
-			AccessObject(Obj).Attributes[1] = x * 32 + xx;
-			AccessObject(Obj).Attributes[2] = y * 32 + yy;
+			AccessObject(Obj).Attributes[1] = x * SECTOR_SIZE + xx;
+			AccessObject(Obj).Attributes[2] = y * SECTOR_SIZE + yy;
 			AccessObject(Obj).Attributes[3] = z;
 			Sec->MapCon[xx][yy] = Obj;
 		}
@@ -1255,8 +1255,8 @@ again:
 		File.writeQuad(SecX);
 		File.writeQuad(SecY);
 		File.writeQuad(SecZ);
-		for (int xx = 0; xx < 32; xx++) {
-			for (int yy = 0; yy < 32; yy++) {
+		for (int xx = 0; xx < SECTOR_SIZE; xx++) {
+			for (int yy = 0; yy < SECTOR_SIZE; yy++) {
 				SwapObject(File, Sec->MapCon[xx][yy], FileNumber);
 			}
 		}
@@ -1441,7 +1441,8 @@ void LoadObjects(TReadStream &Stream, Object Con) {
 				ObjectCounter++;
 				ObjectType Type(TypeID);
 				if (Type.isBodyContainer()) {
-					Obj = GetContainerObject(Con, TypeID - 1);
+					// A body container's type number is its body position.
+					Obj = GetContainerObject(Con, TypeID - FIRST_BODY_POSITION);
 				} else {
 					Obj = AppendObject(Con, Type);
 				}
@@ -1514,20 +1515,20 @@ void LoadSector(char *FileName, int x, int y, int z) {
 			}
 
 			if (strcmp(Script.getIdentifier(), "refresh") == 0) {
-				Sec->MapFlags |= 1;
-				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= 0x100;
+				Sec->MapFlags |= MAPFLAG_REFRESH;
+				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= MAPFLAG_REFRESH << 8;
 			} else if (strcmp(Script.getIdentifier(), "nologout") == 0) {
-				Sec->MapFlags |= 2;
-				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= 0x200;
+				Sec->MapFlags |= MAPFLAG_NOLOGOUT;
+				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= MAPFLAG_NOLOGOUT << 8;
 			} else if (strcmp(Script.getIdentifier(), "protectionzone") == 0) {
-				Sec->MapFlags |= 4;
-				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= 0x400;
+				Sec->MapFlags |= MAPFLAG_PROTECTIONZONE;
+				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= MAPFLAG_PROTECTIONZONE << 8;
 			} else if (strcmp(Script.getIdentifier(), "content") == 0) {
 				Script.readSymbol('=');
 				HelpBuffer.rewind();
 				LoadObjects(Script, HelpBuffer, false);
 				TReadBuffer ReadBuffer(HelpBuffer.getData(), HelpBuffer.getDataSize());
-				LoadObjects(ReadBuffer, GetMapContainer(x * 32 + xx, y * 32 + yy, z));
+				LoadObjects(ReadBuffer, GetMapContainer(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z));
 			} else {
 				Script.error("unknown map flag");
 			}
@@ -1736,9 +1737,9 @@ void SaveSector(char *FileName, int x, int y, int z) {
 		Script.writeLn();
 
 		bool Empty = true;
-		for (int xx = 0; xx < 32; xx++) {
-			for (int yy = 0; yy < 32; yy++) {
-				Object Obj = GetFirstObject(x * 32 + xx, y * 32 + yy, z);
+		for (int xx = 0; xx < SECTOR_SIZE; xx++) {
+			for (int yy = 0; yy < SECTOR_SIZE; yy++) {
+				Object Obj = GetFirstObject(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z);
 				int Flags = GetMapContainerFlags(Sec->MapCon[xx][yy]);
 				if (Obj == NONE && Flags == 0) {
 					continue;
@@ -1748,15 +1749,15 @@ void SaveSector(char *FileName, int x, int y, int z) {
 				Script.writeText("-");
 				Script.writeNumber(yy);
 				Script.writeText(": ");
-				if (Flags & 1) {
+				if (Flags & MAPFLAG_REFRESH) {
 					Script.writeText("Refresh, ");
 				}
 
-				if (Flags & 2) {
+				if (Flags & MAPFLAG_NOLOGOUT) {
 					Script.writeText("NoLogout, ");
 				}
 
-				if (Flags & 4) {
+				if (Flags & MAPFLAG_PROTECTIONZONE) {
 					Script.writeText("ProtectionZone, ");
 				}
 
@@ -1811,7 +1812,7 @@ void SaveMap() {
 
 void RefreshSector(int x, int y, int z, TReadStream &Stream) {
 	TSector *Sec = (*Sector)(x, y, z);
-	if (Sec == nullptr || (Sec->MapFlags & 1) == 0) {
+	if (Sec == nullptr || (Sec->MapFlags & MAPFLAG_REFRESH) == 0) {
 		return;
 	}
 
@@ -1821,7 +1822,7 @@ void RefreshSector(int x, int y, int z, TReadStream &Stream) {
 			int xx = Stream.readByte();
 			int yy = Stream.readByte();
 			while (true) {
-				Object Obj = GetFirstObject(x * 32 + xx, y * 32 + yy, z);
+				Object Obj = GetFirstObject(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z);
 				while (Obj != NONE && Obj.isCreature()) {
 					Obj++;
 				}
@@ -1833,7 +1834,7 @@ void RefreshSector(int x, int y, int z, TReadStream &Stream) {
 				DeleteObject(Obj);
 			}
 
-			LoadObjects(Stream, GetMapContainer(x * 32 + xx, y * 32 + yy, z));
+			LoadObjects(Stream, GetMapContainer(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z));
 		}
 	} catch (const char *s) {
 		error("RefreshSector: Fehler beim Auslesen der Daten (%s).\n", s);
@@ -1848,11 +1849,11 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 	}
 
 	TSector *Sec = (*Sector)(x, y, z);
-	bool FieldPatched[32][32], FieldTreated[32][32];
+	bool FieldPatched[SECTOR_SIZE][SECTOR_SIZE], FieldTreated[SECTOR_SIZE][SECTOR_SIZE];
 	int xx = -1, yy = -1;
 	bool House = false;
-	for (int hx = 0; hx < 32; hx++) {
-		for (int hy = 0; hy < 32; hy++) {
+	for (int hx = 0; hx < SECTOR_SIZE; hx++) {
+		for (int hy = 0; hy < SECTOR_SIZE; hy++) {
 			FieldPatched[hx][hy] = false;
 			FieldTreated[hx][hy] = false;
 		}
@@ -1874,25 +1875,25 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 			yy = Help[1];
 			FieldTreated[xx][yy] = true;
 			Script.readSymbol(':');
-			House = IsHouse(x * 32 + xx, y * 32 + yy, z)
-					|| (CoordinateFlag(x * 32 + xx, y * 32 + yy, z, HOOKSOUTH)
-						&& (IsHouse(x * 32 + xx - 1, y * 32 + yy + 1, z)
-							|| IsHouse(x * 32 + xx, y * 32 + yy + 1, z)
-							|| IsHouse(x * 32 + xx + 1, y * 32 + yy + 1, z)))
-					|| (CoordinateFlag(x * 32 + xx, y * 32 + yy, z, HOOKEAST)
-						&& (IsHouse(x * 32 + xx + 1, y * 32 + yy - 1, z)
-							|| IsHouse(x * 32 + xx + 1, y * 32 + yy, z)
-							|| IsHouse(x * 32 + xx + 1, y * 32 + yy + 1, z)));
+			House = IsHouse(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z)
+					|| (CoordinateFlag(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z, HOOKSOUTH)
+						&& (IsHouse(x * SECTOR_SIZE + xx - 1, y * SECTOR_SIZE + yy + 1, z)
+							|| IsHouse(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy + 1, z)
+							|| IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy + 1, z)))
+					|| (CoordinateFlag(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z, HOOKEAST)
+						&& (IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy - 1, z)
+							|| IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy, z)
+							|| IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy + 1, z)));
 			if (House) {
 				if (SaveHouses) {
 					continue;
 				}
 
-				CleanHouseField(x * 32 + xx, y * 32 + yy, z);
+				CleanHouseField(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z);
 			}
 
 			while (true) {
-				Object Obj = GetFirstObject(x * 32 + xx, y * 32 + yy, z);
+				Object Obj = GetFirstObject(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z);
 				while (Obj != NONE && Obj.isCreature()) {
 					Obj++;
 				}
@@ -1918,19 +1919,19 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 		}
 
 		if (strcmp(Script.getIdentifier(), "refresh") == 0) {
-			Sec->MapFlags |= 1;
+			Sec->MapFlags |= MAPFLAG_REFRESH;
 			if (!House || !SaveHouses) {
-				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= 0x100;
+				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= MAPFLAG_REFRESH << 8;
 			}
 		} else if (strcmp(Script.getIdentifier(), "nologout") == 0) {
-			Sec->MapFlags |= 2;
+			Sec->MapFlags |= MAPFLAG_NOLOGOUT;
 			if (!House || !SaveHouses) {
-				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= 0x200;
+				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= MAPFLAG_NOLOGOUT << 8;
 			}
 		} else if (strcmp(Script.getIdentifier(), "protectionzone") == 0) {
-			Sec->MapFlags |= 4;
+			Sec->MapFlags |= MAPFLAG_PROTECTIONZONE;
 			if (!House || !SaveHouses) {
-				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= 0x400;
+				AccessObject(Sec->MapCon[xx][yy]).Attributes[3] |= MAPFLAG_PROTECTIONZONE << 8;
 			}
 		} else if (strcmp(Script.getIdentifier(), "content") == 0) {
 			Script.readSymbol('=');
@@ -1940,7 +1941,7 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 			} else {
 				LoadObjects(Script, HelpBuffer, false);
 				TReadBuffer ReadBuffer(HelpBuffer.getData(), HelpBuffer.getDataSize());
-				LoadObjects(ReadBuffer, GetMapContainer(x * 32 + xx, y * 32 + yy, z));
+				LoadObjects(ReadBuffer, GetMapContainer(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z));
 			}
 		} else {
 			Script.error("unknown map flag");
@@ -1948,31 +1949,31 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 	}
 
 	if (FullSector) {
-		for (int xx = 0; xx < 32; xx++) {
-			for (int yy = 0; yy < 32; yy++) {
+		for (int xx = 0; xx < SECTOR_SIZE; xx++) {
+			for (int yy = 0; yy < SECTOR_SIZE; yy++) {
 				if (FieldTreated[xx][yy]) {
 					continue;
 				}
 
-				House = IsHouse(x * 32 + xx, y * 32 + yy, z)
-						|| (CoordinateFlag(x * 32 + xx, y * 32 + yy, z, HOOKSOUTH)
-							&& (IsHouse(x * 32 + xx - 1, y * 32 + yy + 1, z)
-								|| IsHouse(x * 32 + xx, y * 32 + yy + 1, z)
-								|| IsHouse(x * 32 + xx + 1, y * 32 + yy + 1, z)))
-						|| (CoordinateFlag(x * 32 + xx, y * 32 + yy, z, HOOKEAST)
-							&& (IsHouse(x * 32 + xx + 1, y * 32 + yy - 1, z)
-								|| IsHouse(x * 32 + xx + 1, y * 32 + yy, z)
-								|| IsHouse(x * 32 + xx + 1, y * 32 + yy + 1, z)));
+				House = IsHouse(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z)
+						|| (CoordinateFlag(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z, HOOKSOUTH)
+							&& (IsHouse(x * SECTOR_SIZE + xx - 1, y * SECTOR_SIZE + yy + 1, z)
+								|| IsHouse(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy + 1, z)
+								|| IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy + 1, z)))
+						|| (CoordinateFlag(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z, HOOKEAST)
+							&& (IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy - 1, z)
+								|| IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy, z)
+								|| IsHouse(x * SECTOR_SIZE + xx + 1, y * SECTOR_SIZE + yy + 1, z)));
 				if (House) {
 					if (SaveHouses) {
 						continue;
 					}
 
-					CleanHouseField(x * 32 + xx, y * 32 + yy, z);
+					CleanHouseField(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z);
 				}
 
 				while (true) {
-					Object Obj = GetFirstObject(x * 32 + xx, y * 32 + yy, z);
+					Object Obj = GetFirstObject(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z);
 					while (Obj != NONE && Obj.isCreature()) {
 						Obj++;
 					}
@@ -2076,13 +2077,13 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 		}
 	}
 
-	for (int xx = 0; xx < 32; xx++) {
-		for (int yy = 0; yy < 32; yy++) {
+	for (int xx = 0; xx < SECTOR_SIZE; xx++) {
+		for (int yy = 0; yy < SECTOR_SIZE; yy++) {
 			if (!FieldPatched[xx][yy]) {
 				continue;
 			}
 
-			Object Obj = GetFirstObject(x * 32 + xx, y * 32 + yy, z);
+			Object Obj = GetFirstObject(x * SECTOR_SIZE + xx, y * SECTOR_SIZE + yy, z);
 			int Flags = GetMapContainerFlags(Sec->MapCon[xx][yy]);
 			if (Obj == NONE && Flags == 0) {
 				continue;
@@ -2092,15 +2093,15 @@ void PatchSector(int x, int y, int z, bool FullSector, TReadScriptFile &Script, 
 			OUT.writeText("-");
 			OUT.writeNumber(yy);
 			OUT.writeText(": ");
-			if (Flags & 1) {
+			if (Flags & MAPFLAG_REFRESH) {
 				OUT.writeText("Refresh, ");
 			}
 
-			if (Flags & 2) {
+			if (Flags & MAPFLAG_NOLOGOUT) {
 				OUT.writeText("NoLogout, ");
 			}
 
-			if (Flags & 4) {
+			if (Flags & MAPFLAG_PROTECTIONZONE) {
 				OUT.writeText("ProtectionZone, ");
 			}
 
