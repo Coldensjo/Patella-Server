@@ -34,6 +34,10 @@ What it does:
      text, for a string literal). Code that moved without changing (a jump table, say) can still be listed, so the
      list is where to look, not a proof.
 
+Checks run one at a time: the source, build and cache folders are shared by every checkout (git worktrees too), so
+a run holds ~/.cache/patella-check/run.lock from the first export to the end of the comparison, and a second run, a
+trace_check too, waits for it ("waiting for another check").
+
 Exit code 0: the binaries are equal in every byte. 1: they differ, or a build or command failed. 2: wrong usage.
 """
 
@@ -167,6 +171,40 @@ def worker_main(functions, argv):
 	return 0
 
 
+@contextlib.contextmanager
+def run_lock():
+	"""Holds ~/.cache/patella-check/run.lock for a whole check, so that checks from several checkouts run one after the
+	other. In WSL with lock(); on Windows through a WSL process (--hold-lock) that holds it until its input closes,
+	which also happens when this process dies."""
+	if os.name != "nt":
+		with lock(cache_dir(), "run"):
+			yield
+		return
+	process = subprocess.Popen(["wsl.exe", "-d", DISTRO, "--exec", "python3", "-u", linux_path(__file__),
+		"--hold-lock"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+	try:
+		for raw in process.stdout:
+			line = raw.decode("utf-8", "replace").rstrip("\r\n")
+			if line.startswith(RESULT):
+				break
+			log(line)
+		else:
+			raise CheckError("could not take ~/.cache/patella-check/run.lock (exit %s)" % process.wait())
+		yield
+	finally:
+		with contextlib.suppress(OSError):
+			process.stdin.close()
+		process.wait()
+
+
+def hold_lock():
+	"""--hold-lock, in WSL: takes run.lock, says so, and keeps it until the standard input closes."""
+	with lock(cache_dir(), "run"):
+		print(RESULT + "{}", flush=True)
+		sys.stdin.buffer.read()
+	return 0
+
+
 def build_tree(tree, label, mode, who):
 	"""Builds a tree in WSL (mode "repro" or "trace"), or finds it in the cache; returns the folder with its
 	executables."""
@@ -184,7 +222,8 @@ def cache_dir():
 
 @contextlib.contextmanager
 def lock(cache, name):
-	"""Holds ~/.cache/patella-check/<name>.lock, so that two checks never share the source and build folders."""
+	"""Holds ~/.cache/patella-check/<name>.lock: run.lock for a whole check (run_lock), build.lock and trace.lock for
+	one step, so that two checks never share the source and build folders."""
 	import fcntl
 	os.makedirs(cache, exist_ok=True)
 	with open(os.path.join(cache, name + ".lock"), "w") as f:
@@ -569,6 +608,8 @@ WORKERS = {"build": build, "compare": compare}
 def main(argv):
 	if argv and argv[0] == "--worker":
 		return worker_main(WORKERS, argv[1:])
+	if argv == ["--hold-lock"]:
+		return hold_lock()
 	if argv and argv[0] in ("-h", "--help"):
 		print(__doc__)
 		return 0
@@ -578,10 +619,11 @@ def main(argv):
 	who = "repro_check"
 	old_tree, old_label = resolve(argv[0] if argv else "HEAD")
 	new_tree, new_label = resolve(argv[1] if len(argv) > 1 else None)
-	old_dir = build_tree(old_tree, old_label, "repro", who)
-	new_dir = build_tree(new_tree, new_label, "repro", who)
-	log("%s: %s against %s%s" % (who, new_label, old_label, " (the same tree)" if old_tree == new_tree else ""))
-	return call_worker(__file__, WORKERS, "compare", {"old": old_dir, "new": new_dir})["code"]
+	with run_lock():
+		old_dir = build_tree(old_tree, old_label, "repro", who)
+		new_dir = build_tree(new_tree, new_label, "repro", who)
+		log("%s: %s against %s%s" % (who, new_label, old_label, " (the same tree)" if old_tree == new_tree else ""))
+		return call_worker(__file__, WORKERS, "compare", {"old": old_dir, "new": new_dir})["code"]
 
 
 if __name__ == "__main__":

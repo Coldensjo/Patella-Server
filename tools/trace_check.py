@@ -33,7 +33,8 @@ Only the builds run, never the original bin/game. The ports 7171-7176, the SHM k
 server the owner plays on is never touched. Nothing of usr/ is printed: the seed's output and the game's console stay
 in files. Every exit path stops the processes of the run and removes its SHM segment, database and runtime copy. A run
 takes about five minutes per build. What the runs leave (consoles, query manager logs, traces, the comparison) is in
-~/.cache/patella-check/trace/.
+~/.cache/patella-check/trace/. Checks run one at a time: from the first build to the comparison a run holds
+repro_check's ~/.cache/patella-check/run.lock, and a repro_check or trace_check from any checkout waits for it.
 
 Exit code 0: the traces match apart from the allowed differences, and both runs went through. 1: they differ, or a
 run or a build failed. 2: wrong usage.
@@ -496,13 +497,15 @@ def main(argv):
 	who = "trace_check"
 	old_tree, old_label = repro_check.resolve(args.commits[0] if args.commits else "faithful")
 	new_tree, new_label = repro_check.resolve(args.commits[1] if len(args.commits) > 1 else None)
-	old_dir = repro_check.build_tree(old_tree, old_label, "trace", who)
-	new_dir = repro_check.build_tree(new_tree, new_label, "trace", who)
-	if old_tree == new_tree:
-		log("%s: %s and %s are the same tree: both runs use the same build, so this proves only that the runs repeat"
-			% (who, old_label, new_label))
-	return repro_check.call_worker(__file__, WORKERS, "trace", {"options": options,
-		"old": {"dir": old_dir, "label": old_label}, "new": {"dir": new_dir, "label": new_label}})["code"]
+	# The run lock of repro_check: the builds and the runs use the shared cache, so concurrent checks wait.
+	with repro_check.run_lock():
+		old_dir = repro_check.build_tree(old_tree, old_label, "trace", who)
+		new_dir = repro_check.build_tree(new_tree, new_label, "trace", who)
+		if old_tree == new_tree:
+			log("%s: %s and %s are the same tree: both runs use the same build, so this proves only that the runs "
+				"repeat" % (who, old_label, new_label))
+		return repro_check.call_worker(__file__, WORKERS, "trace", {"options": options,
+			"old": {"dir": old_dir, "label": old_label}, "new": {"dir": new_dir, "label": new_label}})["code"]
 
 
 if __name__ == "__main__":
