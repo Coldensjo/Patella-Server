@@ -31,7 +31,7 @@ static TSpellList *CreateSpell(int SpellNr, ...) {
 				SpellList[SpellNr].Syllable[syl] = (unsigned char)i;
 				syl++;
 				if (syl > MAX_SPELL_SYLLABLES) {
-					error("CreateSpell: Silbenzahl \xfc" "berschritten bei Spell %d.\n", SpellNr);
+					error("CreateSpell: Syllable count exceeded at spell %d.\n", SpellNr);
 					throw "Spell has too many syllables";
 				}
 				break;

@@ -34,7 +34,7 @@ void ReadConversionLst(const char *FileName) {
 
 	IN.open(FileName, std::ios::in);
 	if (IN.fail()) {
-		error("LoadConversionList: Kann Datei %s nicht \xf6" "ffnen.\n", FileName);
+		error("LoadConversionList: Cannot open file %s.\n", FileName);
 		throw "Cannot open conversion.lst";
 	}
 
@@ -49,7 +49,7 @@ void ReadConversionLst(const char *FileName) {
 		}
 
 		if (Type < 1 || Type > CONVERSION_TYPES - 1) {
-			error("LoadConversionList: Ung\xfcltiger Typ %d.\n", Type);
+			error("LoadConversionList: Invalid type %d.\n", Type);
 			throw "Error while loading conversion.lst";
 		}
 

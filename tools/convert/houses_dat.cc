@@ -84,13 +84,13 @@ void ReadHousesDat(const char *FileName, THousesDatExtras &Extras) {
 		Script.readSymbol('=');
 		House(Houses).ID = Script.readNumber();
 		if (House(Houses).ID == 0) {
-			error("LoadHouses: Ung\xfcltige ID %d.\n", House(Houses).ID);
+			error("LoadHouses: Invalid ID %d.\n", House(Houses).ID);
 			Script.close();
 			throw "Cannot load houses";
 		}
 
 		if (Houses > 0 && House(Houses).ID <= House(Houses - 1).ID) {
-			error("LoadHouses: IDs nicht aufsteigend sortiert (ID=%d).\n", House(Houses).ID);
+			error("LoadHouses: IDs not sorted in ascending order (ID=%d).\n", House(Houses).ID);
 			Script.close();
 			throw "Cannot load houses";
 		}
@@ -121,7 +121,7 @@ void ReadHousesDat(const char *FileName, THousesDatExtras &Extras) {
 		Script.readSymbol('=');
 		THouseArea *Area = GetHouseArea(Script.readNumber());
 		if (Area == nullptr) {
-			error("LoadHouses: Gebiet f\xfcr Haus %d existiert nicht.\n", House(Houses).ID);
+			error("LoadHouses: Area for house %d does not exist.\n", House(Houses).ID);
 			Script.close();
 			throw "Cannot load houses";
 		}
