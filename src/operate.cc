@@ -214,7 +214,7 @@ void AnnounceChangedContainer(Object Obj, int Type) {
 			continue;
 		}
 
-		for (int con = 0; con < 16; con++) {
+		for (int con = 0; con < MAX_OPEN_CONTAINERS; con++) {
 			if (pl->GetOpenContainer(con) != Obj.getContainer()) {
 				continue;
 			}
@@ -687,13 +687,13 @@ void CheckDepotSpace(uint32_t CreatureID, Object Source, Object Destination, int
 
 void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 	int Position = GetObjectBodyPosition(Con);
-	if (Position != 5 && Position != 6 && Position != 10) {
+	if (Position != BODY_RIGHTHAND && Position != BODY_LEFTHAND && Position != BODY_AMMO) {
 		if (!Obj.getFlag(CLOTHES)) {
 			throw WRONGPOSITION;
 		}
 
 		int ClothesType = Obj.getAttribute(BODYPOSITION);
-		if (ClothesType == 0) {
+		if (ClothesType == BODY_BOTHHANDS) {
 			throw WRONGPOSITION2;
 		}
 
@@ -703,13 +703,13 @@ void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 	}
 
 	uint32_t CreatureID = GetObjectCreatureID(Con);
-	if (Obj.getFlag(CLOTHES) && Obj.getAttribute(BODYPOSITION) == 0 && (Position == 5 || Position == 6)) {
-		Object Help = GetBodyObject(CreatureID, 5);
+	if (Obj.getFlag(CLOTHES) && Obj.getAttribute(BODYPOSITION) == BODY_BOTHHANDS && (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND)) {
+		Object Help = GetBodyObject(CreatureID, BODY_RIGHTHAND);
 		if (Help != NONE && Help != Obj) {
 			throw HANDSNOTFREE;
 		}
 
-		Help = GetBodyObject(CreatureID, 6);
+		Help = GetBodyObject(CreatureID, BODY_LEFTHAND);
 		if (Help != NONE && Help != Obj) {
 			throw HANDSNOTFREE;
 		}
@@ -721,14 +721,14 @@ void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 		throw NOROOM;
 	}
 
-	if (Position == 5 || Position == 6) {
-		for (int Hand = 5; Hand <= 6; Hand++) {
+	if (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND) {
+		for (int Hand = BODY_RIGHTHAND; Hand <= BODY_LEFTHAND; Hand++) {
 			Object Help = GetBodyObject(CreatureID, Hand);
 			if (Help == NONE) {
 				continue;
 			}
 
-			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == 0) {
+			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == BODY_BOTHHANDS) {
 				throw HANDBLOCKED;
 			}
 
@@ -744,13 +744,13 @@ void CheckInventoryDestination(Object Obj, Object Con, bool Split) {
 
 void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 	int Position = GetObjectBodyPosition(Con);
-	if (Position != 5 && Position != 6 && Position != 10) {
+	if (Position != BODY_RIGHTHAND && Position != BODY_LEFTHAND && Position != BODY_AMMO) {
 		if (!Type.getFlag(CLOTHES)) {
 			throw WRONGPOSITION;
 		}
 
 		int ClothesType = Type.getAttribute(BODYPOSITION);
-		if (ClothesType == 0) {
+		if (ClothesType == BODY_BOTHHANDS) {
 			throw WRONGPOSITION2;
 		}
 
@@ -760,9 +760,9 @@ void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 	}
 
 	uint32_t CreatureID = GetObjectCreatureID(Con);
-	if (Type.getFlag(CLOTHES) && Type.getAttribute(BODYPOSITION) == 0 && (Position == 5 || Position == 6)) {
-		if ((GetBodyObject(CreatureID, 5) != NONE && GetBodyObject(CreatureID, 5) != OldObj)
-				|| (GetBodyObject(CreatureID, 6) != NONE && GetBodyObject(CreatureID, 6) != OldObj)) {
+	if (Type.getFlag(CLOTHES) && Type.getAttribute(BODYPOSITION) == BODY_BOTHHANDS && (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND)) {
+		if ((GetBodyObject(CreatureID, BODY_RIGHTHAND) != NONE && GetBodyObject(CreatureID, BODY_RIGHTHAND) != OldObj)
+				|| (GetBodyObject(CreatureID, BODY_LEFTHAND) != NONE && GetBodyObject(CreatureID, BODY_LEFTHAND) != OldObj)) {
 			throw HANDSNOTFREE;
 		}
 		return;
@@ -772,14 +772,14 @@ void CheckInventoryPlace(ObjectType Type, Object Con, Object OldObj) {
 		throw NOROOM;
 	}
 
-	if (Position == 5 || Position == 6) {
-		for (int Hand = 5; Hand <= 6; Hand++) {
+	if (Position == BODY_RIGHTHAND || Position == BODY_LEFTHAND) {
+		for (int Hand = BODY_RIGHTHAND; Hand <= BODY_LEFTHAND; Hand++) {
 			Object Help = GetBodyObject(CreatureID, Hand);
 			if (Help == NONE || Help == OldObj) {
 				continue;
 			}
 
-			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == 0) {
+			if (Help.getFlag(CLOTHES) && Help.getAttribute(BODYPOSITION) == BODY_BOTHHANDS) {
 				throw HANDBLOCKED;
 			}
 
@@ -1085,7 +1085,7 @@ void CloseContainer(Object Con, bool Force) {
 			continue;
 		}
 
-		for (int con = 0; con < 16; con++) {
+		for (int con = 0; con < MAX_OPEN_CONTAINERS; con++) {
 			bool Affected = false;
 			Object Obj = pl->GetOpenContainer(con);
 			while (Obj != NONE && !Obj.isMapContainer()) {
@@ -1185,7 +1185,7 @@ Object Create(Object Con, ObjectType Type, uint32_t Value) {
 			throw ERROR;
 		}
 
-		for (int i = 10; i > 0; i--) {
+		for (int i = LAST_BODY_POSITION; i > 0; i--) {
 			SetObject(Obj, ObjectType(i), 0);
 		}
 
@@ -2485,11 +2485,11 @@ again:
 	} catch (RESULT r) {
 		if (r == TOOHEAVY) {
 			first = false;
-			pos = 10;
+			pos = LAST_BODY_POSITION;
 		}
 	}
 
-	if (pos <= 9) {
+	if (pos <= LAST_BODY_POSITION - 1) {
 		goto again;
 	}
 
