@@ -22,4 +22,5 @@ The first build makes a new RSA key and prints the modulus clients need
 ## License
 
 MIT, see [LICENSE](LICENSE). Tibia and its files belong to CipSoft GmbH and are
-not covered by it.
+not covered by it. `extern/tomlplusplus` is toml++ by Mark Gillard, under its own
+MIT licence (`extern/tomlplusplus/LICENSE`).
