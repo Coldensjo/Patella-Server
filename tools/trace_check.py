@@ -491,7 +491,13 @@ def key_file_path(game):
 			name = tomllib.load(f).get("rsa_key", name)
 		if not isinstance(name, str) or not name or os.path.isabs(name):
 			raise CheckError("data/config.toml: rsa_key = %r is not a relative path; the runtime copy needs one" % name)
-	return os.path.normpath(os.path.join(game, name))
+	# The key file is written there (an existing file removed first), so it must lie in the copy, also through
+	# ".." and symbolic links of the installation.
+	root = os.path.realpath(game)
+	path = os.path.realpath(os.path.join(game, name))
+	if path == root or os.path.commonpath([root, path]) != root:
+		raise CheckError("data/config.toml: rsa_key = %r points out of the runtime copy" % name)
+	return path
 
 
 def run(side, build, data, options, key, root):
@@ -519,7 +525,8 @@ def run(side, build, data, options, key, root):
 				raise CheckError("cannot unpack %s" % options["install"])
 		world, layout, objects = lay_out(game, data, options)
 		key_file = write_key_file(key, key_file_path(game))
-		log("  %s: runtime copy with %s; the check's RSA key in %s" % (side, layout, os.path.relpath(key_file, game)))
+		log("  %s: runtime copy with %s; the check's RSA key in %s" % (side, layout,
+			os.path.relpath(key_file, os.path.realpath(game))))
 		characters = seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world,
 			options["port"], os.path.join(out, "seed.log"))
 		if has_player_data(db):
