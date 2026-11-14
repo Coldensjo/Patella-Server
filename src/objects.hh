@@ -314,6 +314,38 @@ extern char FlagNames[FLAGS][20];
 extern char TypeAttributeNames[TYPEATTRIBUTES][30];
 extern const char *const FlagKeys[FLAGS];
 extern const char *const TypeAttributeKeys[TYPEATTRIBUTES];
+
+// The skill names GetSkillByName knows in snake_case, by skill number (only 0
+// to 22 exist, MAX_SKILLS is the size of the skill tables): the values of
+// SKILLNUMBER in items.toml and the skills of moveuse.toml.
+extern const char *const SkillKeys[];
+extern const int NUMBER_OF_SKILL_KEYS;
+
+// How items.toml names the values of a named attribute: by the value itself
+// (NAMED_VALUE); by the one bit the value is (NAMED_BIT); or as an array of the
+// bits whose sum the value is (NAMED_BITS).
+enum NAMEDFORM {
+	NAMED_VALUE,
+	NAMED_BIT,
+	NAMED_BITS,
+};
+
+// A type attribute whose values items.toml gives by name. Keys holds the name
+// of each value, or of each bit (Count of them, nullptr where one has none).
+struct TNamedAttribute {
+	TYPEATTRIBUTE Attribute;
+	NAMEDFORM Form;
+	const char *const *Keys;
+	int Count;
+};
+
+// The attribute's entry of the named attributes, or nullptr when items.toml
+// gives its values as numbers (light_color, a colour of the client's palette,
+// and the counts, amounts and type numbers).
+const TNamedAttribute *GetNamedAttribute(int Attribute);
+// The name of Value in Keys (Count of them), or nullptr when it has none.
+const char *GetValueKey(const char *const *Keys, int Count, int64_t Value);
+
 extern FLAG TypeAttributeFlags[TYPEATTRIBUTES];
 extern FLAG InstanceAttributeFlags[INSTANCEATTRIBUTES];
 extern vector<TObjectType> ObjectTypes;

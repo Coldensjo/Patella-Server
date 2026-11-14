@@ -372,14 +372,19 @@ static void TestRoundTrips(const fs::path &Folder) {
 		"Attributes = {}\n";
 
 	// A type with every flag and every attribute, in reverse order, with
-	// values of their own (the meaning the highest there is).
+	// values of their own: for an attribute given by name its last name (the
+	// meaning the highest there is), all of its bits for an array.
 	Text += "\nTypeID = 4000\nName = \"everything\"\nFlags = {";
 	for (int Flag = FLAGS - 1; Flag >= 0; Flag--) {
 		Text += std::string(FlagNames[Flag]) + (Flag > 0 ? "," : "}\n");
 	}
 	Text += "Attributes = {";
 	for (int Attribute = TYPEATTRIBUTES - 1; Attribute >= 0; Attribute--) {
-		int Value = Attribute == MEANING ? SPECIALMEANINGS - 1 : (Attribute % 2 == 0 ? 1 : -1) * (Attribute * 1000 + 7);
+		int64_t Value = (Attribute % 2 == 0 ? 1 : -1) * (Attribute * 1000 + 7);
+		if (const TNamedAttribute *Named = GetNamedAttribute(Attribute)) {
+			Value = Named->Form == NAMED_VALUE ? Named->Count - 1
+					: Named->Form == NAMED_BIT ? INT64_C(1) << (Named->Count - 1) : (INT64_C(1) << Named->Count) - 1;
+		}
 		Text += std::string(TypeAttributeNames[Attribute]) + "=" + std::to_string(Value) + (Attribute > 0 ? "," : "}\n");
 	}
 
@@ -391,7 +396,16 @@ static void TestRoundTrips(const fs::path &Folder) {
 	CHECK(Toml.find("attributes = { capacity = -1, weight = -1 }\n") != std::string::npos);
 	CHECK(Toml.find("id = 70\nname = \"defined again\"\nflags = [\"food\"]\nattributes = { nutrition = 7 }\n")
 			!= std::string::npos);
-	CHECK(Toml.find("attributes = { weight = 2, meaning = 1 }\n") != std::string::npos);
+	CHECK(Toml.find("attributes = { weight = 2, meaning = \"money_one\" }\n") != std::string::npos);
+	CHECK(Toml.find("rel_teleport_effect = \"none\"") != std::string::npos);
+	CHECK(Toml.find("avoid_damage_types = [], brightness = 2, light_color = 29") != std::string::npos);
+	CHECK(Toml.find("meaning = \"rushwood\"") != std::string::npos);
+	CHECK(Toml.find("wand_damage_type = \"mana_drain\"") != std::string::npos);
+	CHECK(Toml.find("protection_damage_types = [\"physical\", \"poison\", \"fire\", \"energy\", \"unused\", "
+			"\"poison_condition\", \"fire_condition\", \"energy_condition\", \"life_drain\", \"mana_drain\"]")
+			!= std::string::npos);
+	CHECK(Toml.find("professions = [\"none\", \"knight\", \"paladin\", \"sorcerer\", \"druid\"]") != std::string::npos);
+	CHECK(Toml.find("body_position = \"ammo\"") != std::string::npos);
 	CHECK(Toml.find("rel_teleport_displacement = -2145189880") != std::string::npos);
 	CHECK(Toml.find("id = 120\nname = \"nothing else\"\n\n") != std::string::npos);
 	CHECK(Toml.find("id = 121\nflags = [\"bank\"]\n") != std::string::npos);
@@ -416,6 +430,19 @@ static void TestRefusals(const fs::path &Folder) {
 	WriteFile(Folder / "lost-meaning.srv",
 			"TypeID = 100\nAttributes = {Meaning=3}\nTypeID = 100\nAttributes = {Weight=3}\n");
 	CHECK(Convert(Folder / "lost-meaning.srv").find("error: a special object whose type was defined again") == 0);
+	// Values and bits without a name.
+	const char *const Unnamed[] = {
+		"BodyPosition=11", "BodyPosition=-1", "WeaponType=0", "AbsTeleportEffect=8", "Professions=32",
+		"ProtectionDamageTypes=1024", "WandDamageType=0", "WandDamageType=3", "Meaning=4",
+	};
+	for (const char *Attribute : Unnamed) {
+		WriteFile(Folder / "unnamed.srv", std::string("TypeID = 100\nAttributes = {") + Attribute + "}\n");
+		std::string Error = Convert(Folder / "unnamed.srv");
+		if (Error.find("error: a value of ") != 0 || Error.find(" without a name") == std::string::npos) {
+			fprintf(stderr, "%s: %s\n", Attribute, Error.c_str());
+			Failures++;
+		}
+	}
 	WriteFile(Folder / "unknown-flag.srv", "TypeID = 100\nFlags = {Bnak}\n");
 	CHECK(Convert(Folder / "unknown-flag.srv").find("error: ") == 0);
 }
@@ -463,10 +490,18 @@ static void TestErrors(const fs::path &Folder) {
 	Expect(Item + "attributes = { weight = \"1\" }\n", 3, "weight must be an integer");
 	Expect(Item + "attributes = { weight = 4294967296 }\n", 3, "weight must lie between -2147483648 and 4294967295");
 	Expect(Item + "attributes = { weight = -2147483649 }\n", 3, "weight must lie between");
-	Expect(Item + "attributes = { meaning = 0 }\n", 3, "meaning must lie between 1 and 48");
-	Expect(Item + "attributes = { meaning = 49 }\n", 3, "meaning must lie between 1 and 48");
-	Expect(Item + "attributes = { meaning = 3 }\n[[item]]\nid = 101\nattributes = { meaning = 3 }\n", 6,
-			"meaning 3 is already the one of type 100");
+	Expect(Item + "attributes = { meaning = 1 }\n", 3, "meaning must be a string");
+	Expect(Item + "attributes = { meaning = \"money\" }\n", 3, "meaning: \"money\" is unknown");
+	Expect(Item + "attributes = { meaning = \"money_ten_thousand\" }\n[[item]]\nid = 101\n"
+			"attributes = { meaning = \"money_ten_thousand\" }\n", 6, "meaning 3 is already the one of type 100");
+	Expect(Item + "attributes = { body_position = \"Head\" }\n", 3, "body_position: \"Head\" is unknown");
+	Expect(Item + "attributes = { weapon_type = \"sword\", body_position = [\"head\"] }\n", 3,
+			"body_position must be a string");
+	Expect(Item + "attributes = { wand_damage_type = 4 }\n", 3, "wand_damage_type must be a string");
+	Expect(Item + "attributes = { professions = \"druid\" }\n", 3, "professions must be an array of strings");
+	Expect(Item + "attributes = { professions = [\"druid\", 16] }\n", 3, "professions must be an array of strings");
+	Expect(Item + "attributes = { professions = [\"elder_druid\"] }\n", 3,
+			"professions: \"elder_druid\" is unknown");
 	Expect(Item + "name =\n", 3, "");
 
 	// What loads: no file content, the longest name, both ways of writing a
@@ -478,6 +513,19 @@ static void TestErrors(const fs::path &Folder) {
 	WriteFile(Folder / "signed.toml", Item + "attributes = { weight = -1 }\n");
 	WriteFile(Folder / "unsigned.toml", Item + "attributes = { weight = 4294967295 }\n");
 	Same(Snapshot(NewLoader(Folder / "signed.toml")), Snapshot(NewLoader(Folder / "unsigned.toml")), "signed");
+
+	// The values of names: a bit given twice counts once; an empty array is 0.
+	WriteFile(Folder / "named.toml", Item + "flags = [\"restrict_profession\", \"protection\", \"wand\"]\n"
+			"attributes = { professions = [\"druid\", \"none\", \"druid\"], protection_damage_types = [], "
+			"wand_damage_type = \"life_drain\", wand_missile = \"poison\" }\n");
+	std::string Values = InChild([&]() {
+		LoadItems((Folder / "named.toml").c_str());
+		ObjectType Type(100);
+		return std::to_string(Type.getAttribute(PROFESSIONS)) + " "
+				+ std::to_string(Type.getAttribute(PROTECTIONDAMAGETYPES)) + " "
+				+ std::to_string(Type.getAttribute(WANDDAMAGETYPE)) + " " + std::to_string(Type.getAttribute(WANDMISSILE));
+	});
+	CHECK(Values == "17 0 256 15");
 
 	std::string Missing = InChild([&]() {
 		LoadItems((Folder / "missing.toml").c_str());

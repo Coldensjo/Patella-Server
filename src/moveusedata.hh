@@ -171,16 +171,14 @@ struct TMoveUseSignature {
 
 // The names moveuse.toml gives: the condition and action types, by their
 // number; the event types; the event objects (EVENTOBJECT_); the instance
-// attributes (INSTANCEATTRIBUTE); the skills by skill number (only 0 to 22
-// exist, MAX_SKILLS is the size of the skill tables); the rights a rule can
-// ask for; the comparisons, with the character the tables hold.
+// attributes (INSTANCEATTRIBUTE); the rights a rule can ask for; the
+// comparisons, with the character the tables hold. The skills are objects.hh's
+// SkillKeys.
 extern const TMoveUseSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES];
 extern const TMoveUseSignature ActionSignatures[NUMBER_OF_ACTION_TYPES];
 extern const char *const EventKeys[NUMBER_OF_EVENT_TYPES];
 extern const char *const EventObjectKeys[NUMBER_OF_EVENTOBJECTS];
 extern const char *const InstanceAttributeKeys[];
-extern const char *const SkillKeys[];
-extern const int NUMBER_OF_SKILL_KEYS;
 struct TMoveUseKey {
 	const char *Key;
 	int Value;

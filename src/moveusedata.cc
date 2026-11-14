@@ -136,34 +136,6 @@ const char *const InstanceAttributeKeys[INSTANCEATTRIBUTES] = {
 	"remaining_uses",
 };
 
-// The skill names GetSkillByName knows in snake_case, by skill number.
-const char *const SkillKeys[] = {
-	"level",
-	"magic_level",
-	"hit_points",
-	"mana",
-	"go_strength",
-	"carry_strength",
-	"shielding",
-	"distance_fighting",
-	"sword_fighting",
-	"club_fighting",
-	"axe_fighting",
-	"fist_fighting",
-	"magic_defense",
-	"fishing",
-	"eating",
-	"shining",
-	"illusion",
-	"poison",
-	"burning",
-	"energy",
-	"drunken",
-	"mana_shield",
-	"soul_points",
-};
-const int NUMBER_OF_SKILL_KEYS = sizeof(SkillKeys) / sizeof(SkillKeys[0]);
-
 const TMoveUseKey RightKeys[2] = {
 	{"premium_account", PREMIUM_ACCOUNT},
 	{"special_moveuse", SPECIAL_MOVEUSE},

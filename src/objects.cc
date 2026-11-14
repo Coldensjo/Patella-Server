@@ -290,6 +290,171 @@ const char *const TypeAttributeKeys[TYPEATTRIBUTES] = {
 	"disguise_target",
 	"meaning",
 };
+const char *const SkillKeys[] = {
+	"level",
+	"magic_level",
+	"hit_points",
+	"mana",
+	"go_strength",
+	"carry_strength",
+	"shielding",
+	"distance_fighting",
+	"sword_fighting",
+	"club_fighting",
+	"axe_fighting",
+	"fist_fighting",
+	"magic_defense",
+	"fishing",
+	"eating",
+	"shining",
+	"illusion",
+	"poison",
+	"burning",
+	"energy",
+	"drunken",
+	"mana_shield",
+	"soul_points",
+};
+const int NUMBER_OF_SKILL_KEYS = sizeof(SkillKeys) / sizeof(SkillKeys[0]);
+
+// The values of the named attributes, by value or by bit, as the constants of
+// the code name them.
+
+// BODYPOSITION: objects.hh's BODY_ (both_hands takes both hands and is no
+// slot).
+static const char *const BodyPositionKeys[] = {
+	"both_hands", "head", "neck", "container", "torso", "right_hand",
+	"left_hand", "legs", "feet", "finger", "ammo",
+};
+
+// WEAPONTYPE: cr.hh's WEAPON_SWORD to WEAPON_AXE.
+static const char *const WeaponTypeKeys[] = {
+	nullptr, "sword", "club", "axe",
+};
+
+// BOWAMMOTYPE and AMMOTYPE: a bow shoots the ammunition of its own ammunition
+// type (crcombat.cc). The crossbow and the bolts are 1, the bow and the
+// arrows 2.
+static const char *const AmmoTypeKeys[] = {
+	nullptr, "bolt", "arrow",
+};
+
+// INFORMATIONTYPE: objects.hh's INFORMATION_.
+static const char *const InformationTypeKeys[] = {
+	nullptr, "date", "time", "blessings", "spellbook",
+};
+
+// The bits of the damage types (WANDDAMAGETYPE, AVOIDDAMAGETYPES,
+// PROTECTIONDAMAGETYPES): cr.hh's DAMAGE_. Bit 4 (16) is no damage type of
+// the game (neither the code nor a monster does such damage); the original
+// data sets it among the protections.
+static const char *const DamageTypeKeys[] = {
+	"physical", "poison", "fire", "energy", "unused", "poison_condition",
+	"fire_condition", "energy_condition", "life_drain", "mana_drain",
+};
+
+// The bits of PROFESSIONS, one for each profession (cr.hh's PROFESSION_NONE
+// to PROFESSION_DRUID).
+static const char *const ProfessionKeys[] = {
+	"none", "knight", "paladin", "sorcerer", "druid",
+};
+
+// SOURCELIQUIDTYPE: objects.hh's LIQUID_.
+static const char *const LiquidKeys[] = {
+	"none", "water", "wine", "beer", "mud", "blood", "slime", "oil", "urine",
+	"milk", "mana_fluid", "life_fluid", "lemonade",
+};
+
+// ABSTELEPORTEFFECT and RELTELEPORTEFFECT: the client's magic effects,
+// operate.hh's EFFECT_ (0 shows none).
+static const char *const EffectKeys[] = {
+	"none", "blood_hit", "mana_hit", "poff", "block_hit", "explosion_area",
+	"explosion", "fire_area", nullptr, "poison", "hit_area", "teleport",
+	"energy_hit", "magic_blue", "magic_red", "magic_green", "fire_hit",
+	"poison_hit", "death",
+};
+
+// THROWMISSILE, AMMOMISSILE and WANDMISSILE: the client's missiles
+// (operate.hh's ANIMATION_ are four of them), named by what flies.
+static const char *const MissileKeys[] = {
+	"none", "spear", "bolt", "arrow", "fire", "energy", "poison_arrow",
+	"burst_arrow", "throwing_star", "throwing_knife", "small_stone", "death",
+	"large_rock", "snowball", "power_bolt", "poison",
+};
+
+// THROWSPECIALEFFECT and AMMOSPECIALEFFECT: crcombat.cc's SPECIALEFFECT_.
+static const char *const SpecialEffectKeys[] = {
+	"none", "poison", "burst",
+};
+
+// CORPSETYPE: the corpses players leave (0), which CleanupField leaves alone,
+// and those of monsters (1), the only ones RaiseDead raises.
+static const char *const CorpseTypeKeys[] = {
+	"player", "monster",
+};
+
+// MEANING: objects.hh's SPECIALMEANING.
+static const char *const MeaningKeys[SPECIALMEANINGS] = {
+	nullptr,
+	"money_one", "money_hundred", "money_ten_thousand",
+	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+	"inventory_right_hand", "inventory_left_hand", "inventory_body_male",
+	"inventory_body_female", "inventory_container", "inventory_food",
+	nullptr, nullptr, nullptr, nullptr,
+	"depot_locker", "depot_chest", "parcel_new", "parcel_stamped",
+	"parcel_label", "letter_new", "letter_stamped",
+	nullptr, nullptr, nullptr,
+	"blood_splash", "blood_pool",
+	nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+	"rune_blank", "magic_field_fire_dangerous", "magic_field_fire_harmless",
+	"magic_field_poison_dangerous", "magic_field_poison_harmless",
+	"magic_field_energy_dangerous", "magic_field_energy_harmless",
+	"magic_wall", "rushwood",
+};
+
+#define KEYS(Keys) Keys, static_cast<int>(sizeof(Keys) / sizeof(Keys[0]))
+
+static const TNamedAttribute NamedAttributes[] = {
+	{INFORMATIONTYPE, NAMED_VALUE, KEYS(InformationTypeKeys)},
+	{SOURCELIQUIDTYPE, NAMED_VALUE, KEYS(LiquidKeys)},
+	{ABSTELEPORTEFFECT, NAMED_VALUE, KEYS(EffectKeys)},
+	{RELTELEPORTEFFECT, NAMED_VALUE, KEYS(EffectKeys)},
+	{AVOIDDAMAGETYPES, NAMED_BITS, KEYS(DamageTypeKeys)},
+	{PROFESSIONS, NAMED_BITS, KEYS(ProfessionKeys)},
+	{BODYPOSITION, NAMED_VALUE, KEYS(BodyPositionKeys)},
+	{SKILLNUMBER, NAMED_VALUE, SkillKeys, NUMBER_OF_SKILL_KEYS},
+	{PROTECTIONDAMAGETYPES, NAMED_BITS, KEYS(DamageTypeKeys)},
+	{CORPSETYPE, NAMED_VALUE, KEYS(CorpseTypeKeys)},
+	{WEAPONTYPE, NAMED_VALUE, KEYS(WeaponTypeKeys)},
+	{BOWAMMOTYPE, NAMED_VALUE, KEYS(AmmoTypeKeys)},
+	{THROWMISSILE, NAMED_VALUE, KEYS(MissileKeys)},
+	{THROWSPECIALEFFECT, NAMED_VALUE, KEYS(SpecialEffectKeys)},
+	{WANDDAMAGETYPE, NAMED_BIT, KEYS(DamageTypeKeys)},
+	{WANDMISSILE, NAMED_VALUE, KEYS(MissileKeys)},
+	{AMMOTYPE, NAMED_VALUE, KEYS(AmmoTypeKeys)},
+	{AMMOMISSILE, NAMED_VALUE, KEYS(MissileKeys)},
+	{AMMOSPECIALEFFECT, NAMED_VALUE, KEYS(SpecialEffectKeys)},
+	{MEANING, NAMED_VALUE, KEYS(MeaningKeys)},
+};
+
+#undef KEYS
+
+const TNamedAttribute *GetNamedAttribute(int Attribute) {
+	for (const TNamedAttribute &Named : NamedAttributes) {
+		if (Named.Attribute == Attribute) {
+			return &Named;
+		}
+	}
+	return nullptr;
+}
+
+const char *GetValueKey(const char *const *Keys, int Count, int64_t Value) {
+	if (Value < 0 || Value >= Count) {
+		return nullptr;
+	}
+	return Keys[Value];
+}
+
 FLAG TypeAttributeFlags[TYPEATTRIBUTES] = {
 	BANK, CONTAINER, CHANGEUSE, KEYDOOR,
 	NAMEDOOR, LEVELDOOR, QUESTDOOR, FOOD,
@@ -374,6 +539,41 @@ static const char *ReadObjectText(const toml::table &Entry, const char *Key) {
 	return AddStaticString(Text);
 }
 
+// The index of the name Node gives in the keys of Named. Key is the
+// attribute's name.
+static int ReadValueName(const TNamedAttribute &Named, const std::string &Key, const toml::node &Node) {
+	if (!Node.is_string()) {
+		TomlError(Node.source(), Named.Form == NAMED_BITS ? "%s must be an array of strings" : "%s must be a string",
+				Key.c_str());
+	}
+	const std::string &Name = Node.as_string()->get();
+	for (int i = 0; i < Named.Count; i++) {
+		if (Named.Keys[i] != nullptr && Name == Named.Keys[i]) {
+			return i;
+		}
+	}
+	TomlError(Node.source(), "%s: \"%s\" is unknown", Key.c_str(), Name.c_str());
+}
+
+// The value of a named attribute: its name, the name of its bit, or the
+// array of the names of its bits (each may be given more than once).
+static uint32_t ReadNamedValue(const TNamedAttribute &Named, const std::string &Key, const toml::node &Node) {
+	if (Named.Form != NAMED_BITS) {
+		int Index = ReadValueName(Named, Key, Node);
+		return Named.Form == NAMED_BIT ? UINT32_C(1) << Index : static_cast<uint32_t>(Index);
+	}
+
+	const toml::array *Names = Node.as_array();
+	if (Names == nullptr) {
+		TomlError(Node.source(), "%s must be an array of strings", Key.c_str());
+	}
+	uint32_t Value = 0;
+	for (const toml::node &Name : *Names) {
+		Value |= UINT32_C(1) << ReadValueName(Named, Key, Name);
+	}
+	return Value;
+}
+
 // One [[item]] of items.toml. The type's entry in ObjectTypes is filled anew
 // from its name, description, flags and attributes, as a TypeID of objects.srv
 // did. Defined notes the types filled so far.
@@ -440,21 +640,24 @@ static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
 			if (Attribute == -1) {
 				TomlError(Pair.first.source(), "unknown attribute \"%s\"", Key.c_str());
 			}
-			// A 32-bit number, written signed or unsigned.
-			if (!Pair.second.is_integer()) {
-				TomlError(Pair.second.source(), "%s must be an integer", Key.c_str());
+			if (const TNamedAttribute *Named = GetNamedAttribute(Attribute)) {
+				Type.Attributes[Attribute] = ReadNamedValue(*Named, Key, Pair.second);
+			} else {
+				// A 32-bit number, written signed or unsigned.
+				if (!Pair.second.is_integer()) {
+					TomlError(Pair.second.source(), "%s must be an integer", Key.c_str());
+				}
+				int64_t Value = Pair.second.as_integer()->get();
+				if (Value < INT32_MIN || Value > static_cast<int64_t>(UINT32_MAX)) {
+					TomlError(Pair.second.source(), "%s must lie between %d and %u", Key.c_str(), INT32_MIN,
+							UINT32_MAX);
+				}
+				Type.Attributes[Attribute] = static_cast<uint32_t>(Value);
 			}
-			int64_t Value = Pair.second.as_integer()->get();
-			if (Value < INT32_MIN || Value > static_cast<int64_t>(UINT32_MAX)) {
-				TomlError(Pair.second.source(), "%s must lie between %d and %u", Key.c_str(), INT32_MIN, UINT32_MAX);
-			}
-			Type.Attributes[Attribute] = static_cast<uint32_t>(Value);
 
+			// The names of meaning are those of 1 to SPECIALMEANINGS - 1.
 			if (Attribute == MEANING) {
 				int Meaning = static_cast<int>(Type.Attributes[MEANING]);
-				if (!in(Meaning, 1, SPECIALMEANINGS - 1)) {
-					TomlError(Pair.second.source(), "meaning must lie between 1 and %d", SPECIALMEANINGS - 1);
-				}
 				if (SpecialObjects[Meaning] != ObjectType(0)) {
 					TomlError(Pair.second.source(), "meaning %d is already the one of type %d", Meaning,
 							SpecialObjects[Meaning].getTypeID());
