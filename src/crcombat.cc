@@ -25,6 +25,18 @@
 // specifications, so an exception of another type now propagates instead of
 // ending in std::unexpected().
 
+// The size of TCombat::CombatList: the attackers whose damage a creature
+// remembers for the experience they get.
+const int MAX_COMBAT_ENTRIES = 20;
+
+// A target farther away than this is lost: the attack or following stops.
+const int TARGET_LOST_DISTANCE = 8;
+
+// The values of the AMMOSPECIALEFFECT and THROWSPECIALEFFECT attributes that
+// RangeAttack knows (objects.srv: the poison arrow and the burst arrow).
+const int SPECIALEFFECT_POISON = 1;
+const int SPECIALEFFECT_BURST = 2;
+
 // Following is not initialized, as in the original.
 TCombat::TCombat() {
 	Master = nullptr;
@@ -33,7 +45,7 @@ TCombat::TCombat() {
 	EarliestDefendTime = 0;
 	LastDefendTime = 0;
 	LatestAttackTime = 0;
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < MAX_COMBAT_ENTRIES; i++) {
 		CombatList[i].ID = 0;
 		CombatList[i].Damage = 0;
 		CombatList[i].TimeStamp = 0;
@@ -48,9 +60,9 @@ TCombat::TCombat() {
 	Throw = NONE;
 	Ammo = NONE;
 	Fist = false;
-	AttackMode = 2;
-	ChaseMode = 0;
-	SecureMode = 1;
+	AttackMode = ATTACK_MODE_BALANCED;
+	ChaseMode = CHASE_MODE_STAND;
+	SecureMode = SECURE_MODE_ON;
 }
 
 void TCombat::CanToDoAttack() {
@@ -75,7 +87,7 @@ void TCombat::CanToDoAttack() {
 	}
 
 	if (!Following && Master->Type == PLAYER && dfd->Type == PLAYER
-			&& SecureMode == 1 && WorldType == NORMAL
+			&& SecureMode == SECURE_MODE_ON && WorldType == NORMAL
 			&& !((TPlayer *)Master)->IsAttackJustified(dfd->ID)) {
 		StopAttack(0);
 		throw SECUREMODE;
@@ -89,14 +101,14 @@ void TCombat::CanToDoAttack() {
 	}
 
 	int Distance = ObjectDistance(Master->GetCreatureObject(), dfd->GetCreatureObject());
-	if (Distance > 8) {
+	if (Distance > TARGET_LOST_DISTANCE) {
 		StopAttack(0);
 		throw TARGETLOST;
 	}
 
-	int Mode = Following ? 1 : ChaseMode;
+	int Mode = Following ? CHASE_MODE_FOLLOW : ChaseMode;
 	switch (Mode) {
-		case 1:
+		case CHASE_MODE_FOLLOW:
 			if (Distance > 1) {
 				Master->ToDoGo(dfd->posx, dfd->posy, dfd->posz, false, 3);
 			}
@@ -154,7 +166,7 @@ void TCombat::Attack() {
 	}
 
 	if (Master->Type == PLAYER && dfd->Type == PLAYER
-			&& SecureMode == 1 && WorldType == NORMAL
+			&& SecureMode == SECURE_MODE_ON && WorldType == NORMAL
 			&& !((TPlayer *)Master)->IsAttackJustified(dfd->ID)) {
 		StopAttack(0);
 		throw SECUREMODE;
@@ -162,13 +174,13 @@ void TCombat::Attack() {
 
 	int distance = ObjectDistance(Master->GetCreatureObject(), dfd->GetCreatureObject());
 	int range = GetDistance();
-	if (distance > 8) {
+	if (distance > TARGET_LOST_DISTANCE) {
 		StopAttack(0);
 		throw TARGETLOST;
 	}
 
 	if (Master->Type == PLAYER && dfd->Type == PLAYER
-			&& ((TPlayer *)Master)->GetRealProfession() == 0
+			&& ((TPlayer *)Master)->GetRealProfession() == PROFESSION_NONE
 			&& !CheckRight(Master->ID, ATTACK_EVERYWHERE)) {
 		StopAttack(0);
 		throw ATTACKNOTALLOWED;
@@ -241,7 +253,7 @@ void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 
 	if (!Follow) {
 		if (Master->Type == PLAYER && cr->Type == PLAYER
-				&& SecureMode == 1 && WorldType == NORMAL
+				&& SecureMode == SECURE_MODE_ON && WorldType == NORMAL
 				&& !((TPlayer *)Master)->IsAttackJustified(cr->ID)) {
 			StopAttack(0);
 			throw SECUREMODE;
@@ -261,7 +273,7 @@ void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 		}
 
 		if (Master->Type == PLAYER && cr->Type == PLAYER
-				&& ((TPlayer *)Master)->GetRealProfession() == 0
+				&& ((TPlayer *)Master)->GetRealProfession() == PROFESSION_NONE
 				&& !CheckRight(Master->ID, ATTACK_EVERYWHERE)) {
 			StopAttack(0);
 			throw ATTACKNOTALLOWED;
@@ -285,7 +297,7 @@ void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 		throw TARGETLOST;
 	}
 
-	if (ObjectDistance(Master->GetCreatureObject(), cr->GetCreatureObject()) > 8) {
+	if (ObjectDistance(Master->GetCreatureObject(), cr->GetCreatureObject()) > TARGET_LOST_DISTANCE) {
 		StopAttack(0);
 		throw TARGETLOST;
 	}
@@ -303,7 +315,7 @@ void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 }
 
 void TCombat::SetAttackMode(unsigned char b) {
-	if (b < 1 || b > 3) {
+	if (b < ATTACK_MODE_OFFENSIVE || b > ATTACK_MODE_DEFENSIVE) {
 		error("TCombat::SetAttackMode: Ung\xfcltiger Angriffsmodus %d.\n", b);
 		return;
 	}
@@ -315,7 +327,7 @@ void TCombat::SetAttackMode(unsigned char b) {
 }
 
 void TCombat::SetChaseMode(unsigned char b) {
-	if (b > 1) {
+	if (b > CHASE_MODE_FOLLOW) {
 		error("TCombat::SetChaseMode: Ung\xfcltiger Verfolgungsmodus %d.\n", b);
 		return;
 	}
@@ -324,7 +336,7 @@ void TCombat::SetChaseMode(unsigned char b) {
 }
 
 void TCombat::SetSecureMode(unsigned char b) {
-	if (b > 1) {
+	if (b > SECURE_MODE_ON) {
 		error("TCombat::SetSecureMode: Ung\xfcltiger Sicherheitsmodus %d.\n", b);
 		return;
 	}
@@ -368,7 +380,7 @@ void TCombat::CheckCombatValues() {
 
 unsigned short TCombat::GetArmorStrength() {
 	unsigned short Value = 0;
-	for (int i = 1; i <= 10; i++) {
+	for (int i = FIRST_BODY_POSITION; i <= LAST_BODY_POSITION; i++) {
 		Object Obj = GetBodyObject(Master->ID, i);
 		if (Obj.exists() && Obj.getFlag(CLOTHES)
 				&& (int)Obj.getAttribute(BODYPOSITION) == i
@@ -386,7 +398,7 @@ unsigned short TCombat::GetArmorStrength() {
 
 void TCombat::AddDamageToCombatList(uint32_t atk, unsigned short Damage) {
 	CombatDamage += Damage;
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < MAX_COMBAT_ENTRIES; i++) {
 		if (CombatList[i].ID == atk) {
 			CombatList[i].Damage += Damage;
 			CombatList[i].TimeStamp = RoundNr;
@@ -398,7 +410,7 @@ void TCombat::AddDamageToCombatList(uint32_t atk, unsigned short Damage) {
 	CombatList[ActCombatEntry].Damage = Damage;
 	CombatList[ActCombatEntry].TimeStamp = RoundNr;
 	ActCombatEntry++;
-	if (ActCombatEntry == 20) {
+	if (ActCombatEntry == MAX_COMBAT_ENTRIES) {
 		ActCombatEntry = 0;
 	}
 }
@@ -409,7 +421,7 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 		return;
 	}
 
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < MAX_COMBAT_ENTRIES; i++) {
 		TCreature *cr = GetCreature(CombatList[i].ID);
 		if (cr == nullptr || cr->IsDead) {
 			continue;
@@ -422,8 +434,8 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 				continue;
 			}
 
-			int LevelVictim = Master->Skills[0]->Get();
-			int LevelMurderer = cr->Skills[0]->Get();
+			int LevelVictim = Master->Skills[SKILL_LEVEL]->Get();
+			int LevelMurderer = cr->Skills[SKILL_LEVEL]->Get();
 			if (LevelMurderer >= LevelVictim * 11 / 10) {
 				continue;
 			}
@@ -433,24 +445,24 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 		}
 
 		if (Amount != 0) {
-			if (cr->Type == PLAYER && Amount >= cr->Skills[0]->Get()) {
+			if (cr->Type == PLAYER && Amount >= cr->Skills[SKILL_LEVEL]->Get()) {
 				int Interval = ((TPlayer *)cr)->GetActivePromotion() ? 15 : 120;
 				int Cycles = 240 / Interval;
-				int Rest = cr->Skills[22]->TimerValue() % Interval;
+				int Rest = cr->Skills[SKILL_SOULPOINTS]->TimerValue() % Interval;
 				if (Rest == 0) {
 					Rest = Interval;
 				}
-				cr->SetTimer(22, Cycles, Rest, Interval, -1);
+				cr->SetTimer(SKILL_SOULPOINTS, Cycles, Rest, Interval, -1);
 			}
 
-			cr->Skills[0]->Increase(Amount);
-			TextualEffect(cr->GetCreatureObject(), 215, "%d", Amount);
+			cr->Skills[SKILL_LEVEL]->Increase(Amount);
+			TextualEffect(cr->GetCreatureObject(), COLOR_WHITE, "%d", Amount);
 		}
 	}
 }
 
 uint32_t TCombat::GetDamageByCreature(uint32_t CreatureID) {
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < MAX_COMBAT_ENTRIES; i++) {
 		if (CombatList[i].ID == CreatureID) {
 			return CombatList[i].Damage;
 		}
@@ -462,7 +474,7 @@ uint32_t TCombat::GetMostDangerousAttacker() {
 	uint32_t Attacker = 0;
 	uint32_t MaximumDamage = 0;
 	int Limitation = RoundNr - 60;
-	for (int i = 0; i < 20; i++) {
+	for (int i = 0; i < MAX_COMBAT_ENTRIES; i++) {
 		if (CombatList[i].TimeStamp > Limitation && CombatList[i].Damage > MaximumDamage) {
 			Attacker = CombatList[i].ID;
 			MaximumDamage = CombatList[i].Damage;
@@ -473,14 +485,14 @@ uint32_t TCombat::GetMostDangerousAttacker() {
 
 int TCombat::TypeToSkill(int type) {
 	switch (type) {
-		case 0: return 11;
-		case 1: return 8;
-		case 2: return 9;
-		case 3: return 10;
-		case 4: return 6;
-		case 5: return 7;
-		case 6: return 7;
-		default: return 11;
+		case WEAPON_NONE: return SKILL_FISTFIGHTING;
+		case WEAPON_SWORD: return SKILL_SWORDFIGHTING;
+		case WEAPON_CLUB: return SKILL_CLUBFIGHTING;
+		case WEAPON_AXE: return SKILL_AXEFIGHTING;
+		case WEAPON_SHIELD: return SKILL_SHIELDING;
+		case WEAPON_BOW: return SKILL_DISTANCEFIGHTING;
+		case WEAPON_THROW: return SKILL_DISTANCEFIGHTING;
+		default: return SKILL_FISTFIGHTING;
 	}
 }
 
@@ -498,14 +510,14 @@ void TCombat::GetWeapon() {
 		return;
 	}
 
-	for (int Hand = 5; Hand <= 6; Hand++) {
+	for (int Hand = BODY_RIGHTHAND; Hand <= BODY_LEFTHAND; Hand++) {
 		Object Obj = GetBodyObject(Master->ID, Hand);
 		if (Obj == NONE) {
 			continue;
 		}
 
 		if (Obj.getFlag(RESTRICTLEVEL)
-				&& Master->Skills[0]->Get() < (int)Obj.getAttribute(MINIMUMLEVEL)) {
+				&& Master->Skills[SKILL_LEVEL]->Get() < (int)Obj.getAttribute(MINIMUMLEVEL)) {
 			continue;
 		}
 
@@ -542,7 +554,7 @@ void TCombat::GetWeapon() {
 
 void TCombat::GetAmmo() {
 	if (Missile != NONE) {
-		Ammo = GetBodyObject(Master->ID, 10);
+		Ammo = GetBodyObject(Master->ID, BODY_AMMO);
 		if (Ammo != NONE && (!Ammo.getFlag(AMMO)
 				|| Ammo.getAttribute(AMMOTYPE) != Missile.getAttribute(BOWAMMOTYPE))) {
 			Ammo = NONE;
@@ -562,7 +574,7 @@ void TCombat::CloseAttack(TCreature *dfd) {
 		Damage = 0;
 	}
 
-	Damage = dfd->Damage(Master, Damage, 1);
+	Damage = dfd->Damage(Master, Damage, DAMAGE_PHYSICAL);
 	if (Damage > 0) {
 		ActivateLearning();
 	}
@@ -571,7 +583,7 @@ void TCombat::CloseAttack(TCreature *dfd) {
 			&& (Damage > 0 || (Attack > Defend && rand() % 5 == 0))) {
 		int Poison = random(GetRacePoison(Master->Race) / 2, GetRacePoison(Master->Race));
 		if (Poison > 0) {
-			dfd->Damage(Master, Poison, 32);
+			dfd->Damage(Master, Poison, DAMAGE_POISON_CONDITION);
 			if (dfd->Type == PLAYER) {
 				SendMessage(dfd->GetConnection(), TALK_STATUS_MESSAGE, "You are poisoned.");
 			}
@@ -609,7 +621,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 		EffectStrength = 0;
 	} else if (Missile != NONE) {
 		DiffLvl = 90;
-		Ammo = GetBodyObject(Master->ID, 10);
+		Ammo = GetBodyObject(Master->ID, BODY_AMMO);
 		if (Ammo != NONE && (!Ammo.getFlag(AMMO)
 				|| Ammo.getAttribute(AMMOTYPE) != Missile.getAttribute(BOWAMMOTYPE))) {
 			Ammo = NONE;
@@ -623,7 +635,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 			throw TARGETOUTOFRANGE;
 		}
 
-		DamageType = 1;
+		DamageType = DAMAGE_PHYSICAL;
 		AnimType = Ammo.getAttribute(AMMOMISSILE);
 		Fragility = 100;
 		SpecialEffect = Ammo.getAttribute(AMMOSPECIALEFFECT);
@@ -635,7 +647,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 			throw TARGETOUTOFRANGE;
 		}
 
-		DamageType = 1;
+		DamageType = DAMAGE_PHYSICAL;
 		AnimType = Ammo.getAttribute(THROWMISSILE);
 		Fragility = Throw.getAttribute(THROWFRAGILITY);
 		SpecialEffect = Throw.getAttribute(THROWSPECIALEFFECT);
@@ -665,7 +677,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 			Diff = 5;
 		}
 
-		Hit = Master->Skills[7]->Probe(Diff * 15, DiffLvl, LearningPoints > 0);
+		Hit = Master->Skills[SKILL_DISTANCEFIGHTING]->Probe(Diff * 15, DiffLvl, LearningPoints > 0);
 		if (LearningPoints > 0) {
 			LearningPoints--;
 		}
@@ -712,14 +724,14 @@ void TCombat::RangeAttack(TCreature *dfd) {
 
 	::Missile(Master->GetCreatureObject(), Drop, AnimType);
 
-	if (SpecialEffect == 1) {
+	if (SpecialEffect == SPECIALEFFECT_POISON) {
 		if (Hit) {
-			dfd->Damage(Master, EffectStrength, 32);
+			dfd->Damage(Master, EffectStrength, DAMAGE_POISON_CONDITION);
 		}
-	} else if (SpecialEffect == 2) {
-		TDamageImpact Impact(Master, 1, ComputeDamage(Master, 0, EffectStrength, EffectStrength), false);
+	} else if (SpecialEffect == SPECIALEFFECT_BURST) {
+		TDamageImpact Impact(Master, DAMAGE_PHYSICAL, ComputeDamage(Master, 0, EffectStrength, EffectStrength), false);
 		GetObjectCoordinates(Drop, x, y, z);
-		CircleShapeSpell(Master, x, y, z, 0x7fffffff, 0, 2, &Impact, 7);
+		CircleShapeSpell(Master, x, y, z, 0x7fffffff, ANIMATION_NONE, 2, &Impact, EFFECT_FIRE_AREA);
 	}
 
 	if (Wand == NONE) {
@@ -736,7 +748,7 @@ void TCombat::RangeAttack(TCreature *dfd) {
 		}
 
 		if (!Hit) {
-			GraphicalEffect(x, y, z, 3);
+			GraphicalEffect(x, y, z, EFFECT_POFF);
 		}
 	}
 }
@@ -748,16 +760,16 @@ void TCombat::GetAttackValue(short &Value, unsigned short &Skill) {
 		Type = Close.getAttribute(WEAPONTYPE);
 		Value = Close.getAttribute(WEAPONATTACKVALUE);
 	} else if (Throw != NONE) {
-		Type = 6;
+		Type = WEAPON_THROW;
 		Value = Throw.getAttribute(THROWATTACKVALUE);
 	} else if (Wand != NONE) {
-		Type = 0;
+		Type = WEAPON_NONE;
 		Value = 0;
 	} else if (Missile != NONE) {
-		Type = 5;
+		Type = WEAPON_BOW;
 		Value = Ammo.getAttribute(AMMOATTACKVALUE);
 	} else {
-		Type = 0;
+		Type = WEAPON_NONE;
 		Value = RaceData[Master->Race].Attack;
 	}
 
@@ -768,19 +780,19 @@ void TCombat::GetDefendValue(short &Value, unsigned short &Skill) {
 	unsigned short Type;
 	Value = 0;
 	if (Shield != NONE) {
-		Type = 4;
+		Type = WEAPON_SHIELD;
 		Value = Shield.getAttribute(SHIELDDEFENDVALUE);
 	} else if (Close != NONE) {
 		Type = Close.getAttribute(WEAPONTYPE);
 		Value = Close.getAttribute(WEAPONDEFENDVALUE);
 	} else if (Throw != NONE) {
-		Type = 6;
+		Type = WEAPON_THROW;
 		Value = Throw.getAttribute(THROWDEFENDVALUE);
 	} else if (Missile != NONE) {
-		Type = 5;
+		Type = WEAPON_BOW;
 		Value = 0;
 	} else {
-		Type = 0;
+		Type = WEAPON_NONE;
 		Value = RaceData[Master->Race].Defend;
 	}
 
@@ -794,9 +806,9 @@ short TCombat::GetAttackDamage() {
 
 	GetAttackValue(Value, Type);
 	sk = Master->Skills[Type];
-	if (AttackMode == 1) {
+	if (AttackMode == ATTACK_MODE_OFFENSIVE) {
 		Value += Value * 2 / 10;
-	} else if (AttackMode == 3) {
+	} else if (AttackMode == ATTACK_MODE_DEFENSIVE) {
 		Value -= Value * 4 / 10;
 	}
 
@@ -825,12 +837,13 @@ short TCombat::GetDefendDamage() {
 
 	Tac = AttackMode;
 	if ((Following || AttackDest == 0) && EarliestAttackTime <= ServerMilliseconds) {
-		Tac = 3;
+		Tac = ATTACK_MODE_DEFENSIVE;
 	}
 
-	if (Tac == 1) {
+	if (Tac == ATTACK_MODE_OFFENSIVE) {
 		Value -= Value * 4 / 10;
-	} else if (Tac == 3) {
+	} else if (Tac == ATTACK_MODE_DEFENSIVE) {
+
 		Value += Value * 8 / 10;
 	}
 
