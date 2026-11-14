@@ -13,7 +13,6 @@ struct TThreadStarter {
 	bool Detach;
 };
 
-// 0x08068540  threads.c:31
 void *ThreadStarter(void *Pointer) {
 	TThreadStarter *Starter = static_cast<TThreadStarter *>(Pointer);
 	ThreadFunction *Function = Starter->Function;
@@ -31,7 +30,6 @@ void *ThreadStarter(void *Pointer) {
 	pthread_exit(nullptr);
 }
 
-// 0x080685a0  threads.c:57
 Thread StartThread(ThreadFunction *Function, void *Argument, bool Detach) {
 	TThreadStarter *Starter = new TThreadStarter;
 	Starter->Function = Function;
@@ -52,7 +50,6 @@ Thread StartThread(ThreadFunction *Function, void *Argument, bool Detach) {
 	return thread;
 }
 
-// 0x08068630  threads.c:80
 Thread StartThread(ThreadFunction *Function, void *Argument, size_t StackSize, bool Detach) {
 	TThreadStarter *Starter = new TThreadStarter;
 	Starter->Function = Function;
@@ -78,7 +75,6 @@ Thread StartThread(ThreadFunction *Function, void *Argument, size_t StackSize, b
 	return thread;
 }
 
-// 0x080686e0  threads.c:109
 Thread StartThread(ThreadFunction *Function, void *Argument, void *Stack, size_t StackSize, bool Detach) {
 	TThreadStarter *Starter = new TThreadStarter;
 	Starter->Function = Function;
@@ -104,7 +100,6 @@ Thread StartThread(ThreadFunction *Function, void *Argument, void *Stack, size_t
 	return thread;
 }
 
-// 0x08068790  threads.c:136
 void DelayThread(int Seconds, int MicroSeconds) {
 	if (Seconds == 0 && MicroSeconds == 0) {
 		sched_yield();
@@ -115,7 +110,6 @@ void DelayThread(int Seconds, int MicroSeconds) {
 	}
 }
 
-// 0x080687d0  threads.c:153
 int JoinThread(Thread OtherThread) {
 	int *result = nullptr;
 	pthread_join(OtherThread, reinterpret_cast<void **>(&result));
@@ -128,7 +122,6 @@ int JoinThread(Thread OtherThread) {
 	return value;
 }
 
-// 0x08068870  threads.c:172
 Semaphore::Semaphore(int initValue) {
 	this->value = initValue;
 	if (pthread_mutex_init(&this->mutex, nullptr) == -1) {
@@ -141,7 +134,6 @@ Semaphore::Semaphore(int initValue) {
 	}
 }
 
-// 0x08068920  threads.c:188
 Semaphore::~Semaphore() {
 	if (pthread_mutex_destroy(&this->mutex) == -1) {
 		error("Semaphore::~Semaphore: Kann Mutex nicht freigeben.\n");
@@ -153,7 +145,6 @@ Semaphore::~Semaphore() {
 	}
 }
 
-// 0x08068970  threads.c:203
 void Semaphore::down() {
 	pthread_mutex_lock(&this->mutex);
 	while (this->value <= 0) {
@@ -163,7 +154,6 @@ void Semaphore::down() {
 	pthread_mutex_unlock(&this->mutex);
 }
 
-// 0x080689e0  threads.c:214
 void Semaphore::up() {
 	pthread_mutex_lock(&this->mutex);
 	this->value++;

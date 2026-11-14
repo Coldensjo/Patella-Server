@@ -67,7 +67,6 @@ private:
 	int MinWaypoints;
 };
 
-// 0x080be040  cract.c:66
 TShortway::TShortway(TCreature *cr, int VisibleX, int VisibleY) {
 	Map = nullptr;
 	if (cr == nullptr) {
@@ -90,12 +89,10 @@ TShortway::TShortway(TCreature *cr, int VisibleX, int VisibleY) {
 	FillMap();
 }
 
-// 0x080be190  cract.c:91
 TShortway::~TShortway() {
 	delete Map;
 }
 
-// 0x080be1d0  cract.c:102
 void TShortway::FillMap() {
 	MinWaypoints = 1000;
 	for (int x = -VisibleX; x <= VisibleX; x++) {
@@ -136,7 +133,6 @@ void TShortway::FillMap() {
 	}
 }
 
-// 0x080be6d0  cract.c:136
 void TShortway::ClearMap() {
 	for (int x = -VisibleX; x <= VisibleX; x++) {
 		for (int y = -VisibleY; y <= VisibleY; y++) {
@@ -150,7 +146,6 @@ void TShortway::ClearMap() {
 	FirstToExpand = nullptr;
 }
 
-// 0x080be8e0  cract.c:155
 bool TShortway::Calculate(int DestX, int DestY, bool MustReach, int MaxSteps) {
 	if (Map == nullptr) {
 		error("TShortway::Calculate: Karte existiert nicht.\n");
@@ -194,7 +189,6 @@ bool TShortway::Calculate(int DestX, int DestY, bool MustReach, int MaxSteps) {
 	return true;
 }
 
-// 0x080bec20  cract.c:190
 void TShortway::Expand(TShortwayPoint *Node) {
 	if (Node == nullptr) {
 		error("TShortway::Expand: \xdc" "bergebener Knoten ist NULL.\n");
@@ -267,7 +261,6 @@ void TShortway::Expand(TShortwayPoint *Node) {
 	}
 }
 
-// 0x080beed0  cract.c:244
 bool TCreature::SetOnMap() {
 	bool NoRoom = false;
 	if (!SearchLoginField(posx, posy, posz, 1, Type == PLAYER)) {
@@ -307,7 +300,6 @@ bool TCreature::SetOnMap() {
 	return true;
 }
 
-// 0x080bf130  cract.c:288
 bool TCreature::DelOnMap() {
 	if (CrObject != NONE) {
 		Object Help = CrObject;
@@ -323,7 +315,6 @@ bool TCreature::DelOnMap() {
 	return true;
 }
 
-// 0x080bf1c0  cract.c:308
 void TCreature::Go(int x, int y, int z) {
 	if (z != posz || abs(x - posx) > 1 || abs(y - posy) > 1) {
 		throw NOTACCESSIBLE;
@@ -379,13 +370,11 @@ void TCreature::Go(int x, int y, int z) {
 	::Move(ID, CrObject, GetMapContainer(x, y, z), -1, false, NONE);
 }
 
-// 0x080bf6d0  cract.c:345
 void TCreature::Rotate(unsigned char Dir) {
 	Direction = Dir;
 	AnnounceChangedObject(CrObject, 2);
 }
 
-// 0x080bf710  cract.c:354
 void TCreature::Rotate(TCreature *Target) {
 	if (Target == nullptr) {
 		error("TCreature::Rotate: Target ist NULL.\n");
@@ -404,7 +393,6 @@ void TCreature::Rotate(TCreature *Target) {
 	Rotate((unsigned char)Dir);
 }
 
-// 0x080bf7b0  cract.c:371
 void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 	if (!Obj.exists()) {
 		throw NOTACCESSIBLE;
@@ -545,7 +533,6 @@ void TCreature::Move(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 	}
 }
 
-// 0x080c0200  cract.c:456
 void TCreature::Trade(Object Obj, uint32_t PartnerID) {
 	if (Type != PLAYER) {
 		error("TCreature::Trade: Nur Spieler k\xf6nnen handeln.\n");
@@ -614,7 +601,6 @@ void TCreature::Trade(Object Obj, uint32_t PartnerID) {
 	}
 }
 
-// 0x080c0630  cract.c:498
 void TCreature::Use(Object Obj1, Object Obj2, unsigned char Dummy) {
 	if (!Obj1.exists() || (Obj2 != NONE && !Obj2.exists())) {
 		throw DESTROYED;
@@ -648,7 +634,6 @@ void TCreature::Use(Object Obj1, Object Obj2, unsigned char Dummy) {
 	::Use(ID, Obj1, Obj2, Dummy);
 }
 
-// 0x080c09c0  cract.c:522
 void TCreature::Turn(Object Obj) {
 	if (!Obj.exists()) {
 		throw DESTROYED;
@@ -657,12 +642,10 @@ void TCreature::Turn(Object Obj) {
 	::Turn(ID, Obj);
 }
 
-// 0x080c0a40  cract.c:531
 void TCreature::Attack() {
 	Combat.Attack();
 }
 
-// 0x080c0a80  cract.c:543
 void TCreature::NotifyGo() {
 	int x, y, z;
 	GetObjectCoordinates(CrObject, x, y, z);
@@ -790,7 +773,6 @@ void TCreature::NotifyGo() {
 	EarliestWalkTime = ServerMilliseconds + (Waypoints * 1000 / GetSpeed() + Beat - 1) / Beat * Beat;
 }
 
-// 0x080c10d0  cract.c:639
 void TCreature::NotifyTurn(Object DestCon) {
 	int x, y, z;
 	GetObjectCoordinates(DestCon, x, y, z);
@@ -807,7 +789,6 @@ void TCreature::NotifyTurn(Object DestCon) {
 	}
 }
 
-// 0x080c1160  cract.c:656
 void TCreature::NotifyDelete() {
 	if (Type == PLAYER && GetConnection() != nullptr) {
 		GetConnection()->Logout(30, true);
@@ -821,12 +802,10 @@ void TCreature::NotifyDelete() {
 	DeleteChainCreature(this);
 }
 
-// 0x080c11d0  cract.c:670
 void TCreature::NotifyCreate() {
 	InsertChainCreature(this, 0, 0);
 }
 
-// 0x080c1200  cract.c:679
 void TCreature::NotifyChangeInventory() {
 	if (CrObject == NONE) {
 		return;
@@ -915,7 +894,6 @@ void TCreature::NotifyChangeInventory() {
 	SendPlayerData(GetConnection());
 }
 
-// 0x080c15c0  cract.c:736
 void TCreature::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	if (CreatureID == ID || CreatureID == 0 || CreatureID != Combat.GetAttackDest()) {
 		return;
@@ -961,7 +939,6 @@ void TCreature::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 	}
 }
 
-// 0x080c19d0  cract.c:763
 int TCreature::CalculateDelay() {
 	TToDoEntry TD = ToDoList(ActToDo);
 	if (TD.Code == TDGo && EarliestWalkTime > ServerMilliseconds) {
@@ -983,7 +960,6 @@ int TCreature::CalculateDelay() {
 	return 0;
 }
 
-// 0x080c1af0  cract.c:780
 void TCreature::Execute() {
 again:
 	if (!LockToDo || IsDead || NextWakeup > ServerMilliseconds) {
@@ -1098,7 +1074,6 @@ again:
 	goto again;
 }
 
-// 0x080c2070  cract.c:843
 bool TCreature::ToDoClear() {
 	bool SnapbackNecessary = false;
 	for (int i = 0; i < NrToDo; i++) {
@@ -1133,7 +1108,6 @@ bool TCreature::ToDoClear() {
 	return SnapbackNecessary;
 }
 
-// 0x080c2150  cract.c:874
 void TCreature::ToDoStop() {
 	if (LockToDo) {
 		Stop = true;
@@ -1142,7 +1116,6 @@ void TCreature::ToDoStop() {
 	}
 }
 
-// 0x080c2190  cract.c:884
 void TCreature::ToDoAdd(TToDoEntry &TD) {
 	if (LockToDo) {
 		if (ToDoClear() && Type == PLAYER) {
@@ -1154,7 +1127,6 @@ void TCreature::ToDoAdd(TToDoEntry &TD) {
 	NrToDo++;
 }
 
-// 0x080c2220  cract.c:895
 void TCreature::ToDoStart() {
 	if (NrToDo == 0) {
 		return;
@@ -1167,7 +1139,6 @@ void TCreature::ToDoStart() {
 	NextWakeup = ServerMilliseconds + Delay;
 }
 
-// 0x080c22a0  cract.c:909
 void TCreature::ToDoYield() {
 	if (!LockToDo) {
 		ToDoWait(0);
@@ -1175,7 +1146,6 @@ void TCreature::ToDoYield() {
 	}
 }
 
-// 0x080c2320  cract.c:919
 void TCreature::ToDoWait(int Delay) {
 	TToDoEntry TD;
 	TD.Code = TDWait;
@@ -1183,7 +1153,6 @@ void TCreature::ToDoWait(int Delay) {
 	ToDoAdd(TD);
 }
 
-// 0x080c23d0  cract.c:930
 void TCreature::ToDoTalk(int Mode, char *Addressee, char *Text, bool CheckSpamming) {
 	TToDoEntry TD;
 	TD.Code = TDTalk;
@@ -1207,7 +1176,6 @@ void TCreature::ToDoTalk(int Mode, char *Addressee, char *Text, bool CheckSpammi
 	ToDoAdd(TD);
 }
 
-// 0x080c24f0  cract.c:947
 void TCreature::ToDoChangeState(int NewState) {
 	TToDoEntry TD;
 	TD.Code = TDChangeState;
@@ -1215,7 +1183,6 @@ void TCreature::ToDoChangeState(int NewState) {
 	ToDoAdd(TD);
 }
 
-// 0x080c2590  cract.c:961
 void TCreature::ToDoGo(int DestX, int DestY, int DestZ, bool Dest, int MaxSteps) {
 	if (DestZ > posz) {
 		throw DOWNSTAIRS;
@@ -1262,7 +1229,6 @@ void TCreature::ToDoGo(int DestX, int DestY, int DestZ, bool Dest, int MaxSteps)
 	}
 }
 
-// 0x080c2880  cract.c:993
 void TCreature::ToDoRotate(int Direction) {
 	// Negative directions are not rejected, as in the original.
 	if (Direction > 3) {
@@ -1275,7 +1241,6 @@ void TCreature::ToDoRotate(int Direction) {
 	ToDoAdd(TD);
 }
 
-// 0x080c2970  cract.c:1006
 void TCreature::ToDoMove(int sx, int sy, int sz, ObjectType Type, unsigned char RNum, int zx, int zy, int zz, unsigned char Count) {
 	Object Obj = GetObject(ID, sx, sy, sz, RNum, Type);
 	if (!Obj.exists()) {
@@ -1330,7 +1295,6 @@ void TCreature::ToDoMove(int sx, int sy, int sz, ObjectType Type, unsigned char 
 	ToDoAdd(TD);
 }
 
-// 0x080c2cb0  cract.c:1044
 void TCreature::ToDoMove(Object Obj, int zx, int zy, int zz, unsigned char Count) {
 	if (!Obj.exists()) {
 		throw NOTACCESSIBLE;
@@ -1354,7 +1318,6 @@ void TCreature::ToDoMove(Object Obj, int zx, int zy, int zz, unsigned char Count
 	ToDoAdd(TD);
 }
 
-// 0x080c2e80  cract.c:1068
 void TCreature::ToDoTrade(int x, int y, int z, ObjectType Type, unsigned char RNum, uint32_t TradePartner) {
 	Object Obj = GetObject(ID, x, y, z, RNum, Type);
 	if (!Obj.exists()) {
@@ -1410,7 +1373,6 @@ void TCreature::ToDoTrade(int x, int y, int z, ObjectType Type, unsigned char RN
 	ToDoAdd(TD);
 }
 
-// 0x080c31a0  cract.c:1107
 void TCreature::ToDoUse(unsigned char Count, int x1, int y1, int z1, ObjectType Type1, unsigned char RNum1, unsigned char Dummy, int x2, int y2, int z2, ObjectType Type2, unsigned char RNum2) {
 	Object Obj1, Obj2;
 	Obj1 = GetObject(ID, x1, y1, z1, RNum1, Type1);
@@ -1451,7 +1413,6 @@ void TCreature::ToDoUse(unsigned char Count, int x1, int y1, int z1, ObjectType 
 	ToDoAdd(TD);
 }
 
-// 0x080c3490  cract.c:1135
 void TCreature::ToDoUse(unsigned char Count, Object Obj1, Object Obj2) {
 	if (!Obj1.exists()) {
 		throw NOTACCESSIBLE;
@@ -1482,7 +1443,6 @@ void TCreature::ToDoUse(unsigned char Count, Object Obj1, Object Obj2) {
 	ToDoAdd(TD);
 }
 
-// 0x080c3660  cract.c:1160
 void TCreature::ToDoTurn(int x, int y, int z, ObjectType Type, unsigned char RNum) {
 	Object Obj = GetObject(ID, x, y, z, RNum, Type);
 	if (!Obj.exists()) {
@@ -1511,7 +1471,6 @@ void TCreature::ToDoTurn(int x, int y, int z, ObjectType Type, unsigned char RNu
 	ToDoAdd(TD);
 }
 
-// 0x080c3870  cract.c:1181
 void TCreature::ToDoAttack() {
 	Combat.CanToDoAttack();
 	if (Combat.GetDistance() != 1) {

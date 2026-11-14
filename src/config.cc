@@ -47,7 +47,6 @@ TDatabaseSettings MANAGER_DATABASE;	// config.c:54
 int NumberOfQueryManagers;	// config.c:56
 TQueryManagerSettings QUERY_MANAGER[10];	// config.c:57
 
-// 0x08052c10  config.c:71
 void DisguisePassword(char *Password, const char *Key) {
 	if (Password == nullptr) {
 		throw "password is null";
@@ -68,7 +67,6 @@ void DisguisePassword(char *Password, const char *Key) {
 	}
 }
 
-// 0x08052d00  config.c:88
 void ReadConfig() {
 	BINPATH[0] = 0;
 	DATAPATH[0] = 0;

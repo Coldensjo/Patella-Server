@@ -113,7 +113,6 @@ struct TSkillSoulpoints : public TSkillAdd {
 	// inline  crskill.c:125
 	TSkillSoulpoints(int nr, TCreature *cr) : TSkillAdd(nr, cr) {}
 	virtual void Set(int a);
-	// 0x080cab50  crskill.c:127
 	virtual int TimerValue() { return (Cycle - 1) * MaxCount + Count; }
 	virtual void Event(int);
 };
@@ -132,7 +131,6 @@ struct TSkillCarryStrength : public TSkillAdd {
 	virtual void Set(int a);
 };
 
-// 0x080cab70  cmath.tcc:40
 // std::__cmath_power<double> of the original's libstdc++ 3.2, which its
 // pow(double, int) goes through. Today's pow(double, int) is libm's
 // pow(double, double) and rounds differently, which moves skill thresholds.
@@ -157,7 +155,6 @@ static long double __pow_helper(double __x, int __n) {
 		: __cmath_power(__x, __n);
 }
 
-// 0x080c71e0  crskill.c:154
 int GetSkillByName(char *Name) {
 	if (strcmp(Name, "level") == 0) {
 		return 0;
@@ -231,7 +228,6 @@ int GetSkillByName(char *Name) {
 	return -1;
 }
 
-// 0x080c7550  crskill.c:189
 TSkillBase::TSkillBase() {
 	// The original loop runs to i <= 25, one past both arrays. The extra round
 	// only clears TimerList[0] and FirstFreeTimer, which are cleared anyway.
@@ -242,14 +238,12 @@ TSkillBase::TSkillBase() {
 	FirstFreeTimer = 0;
 }
 
-// 0x080c75b0  crskill.c:200
 TSkillBase::~TSkillBase() {
 	for (int i = 0; i < 25; i++) {
 		delete Skills[i];
 	}
 }
 
-// 0x080c75e0  crskill.c:211
 void TSkillBase::DelTimer(unsigned short SkNr) {
 	if (SkNr >= 25) {
 		error("TSkillBase::DelTimer: Ungueltige SkNr: %d\n", SkNr);
@@ -271,7 +265,6 @@ void TSkillBase::DelTimer(unsigned short SkNr) {
 	}
 }
 
-// 0x080c7670  crskill.c:230
 bool TSkillBase::SetTimer(unsigned short SkNr, int cyc, int cou, int maxcou, int additionalvalue) {
 	if (SkNr >= 25) {
 		error("TSkillBase::SetTimer: Ungueltige SkNr: %d\n", SkNr);
@@ -288,7 +281,6 @@ bool TSkillBase::SetTimer(unsigned short SkNr, int cyc, int cou, int maxcou, int
 	return result;
 }
 
-// 0x080c7700  crskill.c:253
 void TSkillBase::ProcessSkills() {
 	int i = 0;
 	while (i < FirstFreeTimer) {
@@ -305,7 +297,6 @@ void TSkillBase::ProcessSkills() {
 	}
 }
 
-// 0x080c7780  crskill.c:271
 bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
 	if (SkillNo >= 25) {
 		error("TSkillBase::NewSkill: unbekannte SkillNummer %d\n", SkillNo);
@@ -371,7 +362,6 @@ bool TSkillBase::NewSkill(unsigned short SkillNo, TCreature *cr) {
 	return true;
 }
 
-// 0x080c7f60  crskill.c:317
 bool TSkillBase::SetSkills(int Race) {
 	if (Race < 1 || Race > 511) {
 		error("TSkillBase::SetSkills: Ung\xfcltige Rassennummer %d.\n", Race);
@@ -394,21 +384,18 @@ bool TSkillBase::SetSkills(int Race) {
 	return true;
 }
 
-// 0x080c80b0  crskill.c:346
 TSkill::TSkill(int nr, TCreature *cr) {
 	SkNr = nr;
 	Reset();
 	Master = cr;
 }
 
-// 0x080c8180  crskill.c:355
 TSkill::~TSkill() {
 	if (Master != nullptr) {
 		Master->DelTimer(SkNr);
 	}
 }
 
-// 0x080c8200  crskill.c:364
 void TSkill::Reset() {
 	Act = 0;
 	Max = 0x7fffffff;
@@ -427,7 +414,6 @@ void TSkill::Reset() {
 	AddLevel = 0;
 }
 
-// 0x080c8280  crskill.c:382
 void TSkill::Load(int act, int max, int min, int dact, int mdact, int cyc, int maxcyc, int cnt, int maxcnt, int addlvl, int exp, int fp, int nextlvl, int delta) {
 	Act = act;
 	Max = max;
@@ -449,7 +435,6 @@ void TSkill::Load(int act, int max, int min, int dact, int mdact, int cyc, int m
 	}
 }
 
-// 0x080c8390  crskill.c:407
 void TSkill::Save(int &act, int &max, int &min, int &dact, int &mdact, int &cyc, int &maxcyc, int &cnt, int &maxcnt, int &addlvl, int &exp, int &fp, int &nextlvl, int &delta) {
 	act = Act;
 	max = Max;
@@ -467,16 +452,13 @@ void TSkill::Save(int &act, int &max, int &min, int &dact, int &mdact, int &cyc,
 	delta = Delta;
 }
 
-// 0x080c8410  crskill.c:428
 void TSkill::Event(int) {
 }
 
-// 0x080c8420  crskill.c:435
 bool TSkill::Jump(int) {
 	return true;
 }
 
-// 0x080c8430  crskill.c:442
 int TSkill::Get() {
 	int a = Act;
 	if (a < Min) {
@@ -485,7 +467,6 @@ int TSkill::Get() {
 	return a + MDAct + DAct;
 }
 
-// 0x080c8450  crskill.c:453
 int TSkill::GetProgress() {
 	if (NextLevel <= LastLevel) {
 		return 0;
@@ -503,7 +484,6 @@ int TSkill::GetProgress() {
 	return Percent;
 }
 
-// 0x080c8540  crskill.c:468
 void TSkill::SetMDAct(int value) {
 	MDAct = value;
 	if (SkNr == 4 && Master != nullptr && Master->Type == PLAYER) {
@@ -511,26 +491,22 @@ void TSkill::SetMDAct(int value) {
 	}
 }
 
-// 0x080c8570  crskill.c:477
 void TSkill::Set(int a) {
 	Act = a;
 	Check();
 }
 
-// 0x080c8590  crskill.c:485
 void TSkill::Change(int a) {
 	Set(GetAct() + a);
 	Check();
 }
 
-// 0x080c85d0  crskill.c:494
 void TSkill::Check() {
 	if (Act > Max) {
 		Act = Max;
 	}
 }
 
-// 0x080c85f0  crskill.c:504
 bool TSkill::Process() {
 	if (Cycle == 0) {
 		if (Master != nullptr && Master->Type == PLAYER) {
@@ -551,7 +527,6 @@ bool TSkill::Process() {
 	return false;
 }
 
-// 0x080c8660  crskill.c:523
 bool TSkill::SetTimer(int cyc, int cou, int maxcou, int) {
 	Cycle = cyc;
 	Count = cou;
@@ -562,7 +537,6 @@ bool TSkill::SetTimer(int cyc, int cou, int maxcou, int) {
 	return true;
 }
 
-// 0x080c86a0  crskill.c:537
 bool TSkill::DelTimer() {
 	Cycle = 0;
 	Count = 0;
@@ -573,7 +547,6 @@ bool TSkill::DelTimer() {
 	return true;
 }
 
-// 0x080c86f0  crskill.c:554
 int TSkillLevel::GetExpForLevel(int Level) {
 	if (Level < 1) {
 		error("TSkillLevel::GetExpForLevel: Ung\xfcltiger Level %d.\n", Level);
@@ -593,7 +566,6 @@ int TSkillLevel::GetExpForLevel(int Level) {
 	return (((Level - 6) * Level + 17) * Level - 12) / 6 * Delta;
 }
 
-// 0x080c8780  crskill.c:574
 void TSkillLevel::Increase(int Amount) {
 	if (Amount < 0) {
 		error("TSkillLevel::Increase: Amount negativ (%d).\n", Amount);
@@ -631,7 +603,6 @@ void TSkillLevel::Increase(int Amount) {
 	}
 }
 
-// 0x080c8880  crskill.c:607
 void TSkillLevel::Decrease(int Amount) {
 	if (Amount < 0) {
 		error("TSkillLevel::Decrease: Amount negativ (%d).\n", Amount);
@@ -676,7 +647,6 @@ void TSkillLevel::Decrease(int Amount) {
 	}
 }
 
-// 0x080c8970  crskill.c:641
 bool TSkillLevel::Jump(int Range) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -711,7 +681,6 @@ bool TSkillLevel::Jump(int Range) {
 	return true;
 }
 
-// 0x080c8aa0  crskill.c:685
 bool TSkillProbe::SetTimer(int cyc, int cou, int maxcou, int) {
 	TSkill::SetTimer(cyc, cou, maxcou, -1);
 
@@ -727,7 +696,6 @@ bool TSkillProbe::SetTimer(int cyc, int cou, int maxcou, int) {
 	return true;
 }
 
-// 0x080c8b20  crskill.c:700
 void TSkillProbe::Event(int) {
 	if (Cycle == 0) {
 		TCreature *cr = GetMaster();
@@ -743,7 +711,6 @@ void TSkillProbe::Event(int) {
 	}
 }
 
-// 0x080c8ba0  crskill.c:716
 bool TSkillProbe::Jump(int Range) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -798,7 +765,6 @@ bool TSkillProbe::Jump(int Range) {
 	return true;
 }
 
-// 0x080c8d00  crskill.c:743
 int TSkillProbe::GetExpForLevel(int Level) {
 	if (Level < 0 || Level < Min) {
 		error("TSkillProbe::GetExpForLevel: Ung\xfcltiger Level %d.\n", Level);
@@ -831,7 +797,6 @@ int TSkillProbe::GetExpForLevel(int Level) {
 	return (int)(double)floorl((__pow_helper(FP, Level - Min) - 1.0L) / (FP - 1.0L) * Delta);
 }
 
-// 0x080c8e70  crskill.c:766
 void TSkillProbe::Increase(int Amount) {
 	if (Amount < 0) {
 		error("TSkillProbe::Increase: Amount negativ (%d).\n", Amount);
@@ -869,7 +834,6 @@ void TSkillProbe::Increase(int Amount) {
 	}
 }
 
-// 0x080c9180  crskill.c:798
 void TSkillProbe::Decrease(int Amount) {
 	if (Amount < 0) {
 		error("TSkillProbe::Decrease: Amount negativ (%d).\n", Amount);
@@ -909,7 +873,6 @@ void TSkillProbe::Decrease(int Amount) {
 	}
 }
 
-// 0x080c9460  crskill.c:829
 bool TSkillProbe::Probe(int Diff, int Prob, bool _Increase) {
 	if (_Increase) {
 		Increase(1);
@@ -926,7 +889,6 @@ bool TSkillProbe::Probe(int Diff, int Prob, bool _Increase) {
 	return rand() % 100 <= Prob;
 }
 
-// 0x080c94f0  crskill.c:843
 int TSkillProbe::ProbeValue(int max, bool _Increase) {
 	if (_Increase) {
 		Increase(1);
@@ -937,7 +899,6 @@ int TSkillProbe::ProbeValue(int max, bool _Increase) {
 	return Result;
 }
 
-// 0x080c95d0  crskill.c:858
 void TSkillProbe::ChangeSkill(int fp, int delta) {
 	// As in GetExpForLevel: extended precision, rounded to double only where
 	// the x87 code stores (Progress, FP and the results of floor()).
@@ -966,20 +927,17 @@ void TSkillProbe::ChangeSkill(int fp, int delta) {
 	}
 }
 
-// 0x080c97e0  crskill.c:890
 void TSkillAdd::Advance(int Range) {
 	Max += AddLevel * Range;
 	Act += AddLevel * Range;
 	Check();
 }
 
-// 0x080c9810  crskill.c:905
 void TSkillPoison::Reset() {
 	TSkill::Reset();
 	FactorPercent = 50;
 }
 
-// 0x080c9890  crskill.c:916
 bool TSkillPoison::SetTimer(int cyc, int cou, int maxcou, int additionalvalue) {
 	bool retval = TSkill::SetTimer(cyc, cou, maxcou, additionalvalue);
 	if (additionalvalue == -1) {
@@ -995,7 +953,6 @@ bool TSkillPoison::SetTimer(int cyc, int cou, int maxcou, int additionalvalue) {
 	return retval;
 }
 
-// 0x080c9910  crskill.c:930
 bool TSkillPoison::Process() {
 	if (Cycle == 0) {
 		if (Master != nullptr && Master->Type == PLAYER) {
@@ -1019,7 +976,6 @@ bool TSkillPoison::Process() {
 	return false;
 }
 
-// 0x080c99b0  crskill.c:949
 void TSkillPoison::Event(int Range) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -1043,7 +999,6 @@ void TSkillPoison::Event(int Range) {
 	}
 }
 
-// 0x080c9ad0  crskill.c:974
 void TSkillBurning::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -1063,7 +1018,6 @@ void TSkillBurning::Event(int) {
 	}
 }
 
-// 0x080c9bf0  crskill.c:998
 void TSkillEnergy::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -1083,7 +1037,6 @@ void TSkillEnergy::Event(int) {
 	}
 }
 
-// 0x080c9d10  crskill.c:1022
 void TSkillFed::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -1142,7 +1095,6 @@ void TSkillFed::Event(int) {
 	}
 }
 
-// 0x080c9e90  crskill.c:1060
 void TSkillIllusion::Event(int) {
 	if (Cycle == 0) {
 		TCreature *cr = GetMaster();
@@ -1159,7 +1111,6 @@ void TSkillIllusion::Event(int) {
 	}
 }
 
-// 0x080c9f40  crskill.c:1078
 bool TSkillIllusion::SetTimer(int cyc, int cou, int maxcou, int) {
 	TSkill::SetTimer(cyc, cou, maxcou, -1);
 
@@ -1175,7 +1126,6 @@ bool TSkillIllusion::SetTimer(int cyc, int cou, int maxcou, int) {
 	return true;
 }
 
-// 0x080c9fe0  crskill.c:1099
 void TSkillLight::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -1186,7 +1136,6 @@ void TSkillLight::Event(int) {
 	AnnounceChangedCreature(cr->ID, 2);
 }
 
-// 0x080ca010  crskill.c:1112
 bool TSkillLight::SetTimer(int cyc, int cou, int maxcou, int) {
 	TSkill::SetTimer(cyc, cou, maxcou, -1);
 
@@ -1202,7 +1151,6 @@ bool TSkillLight::SetTimer(int cyc, int cou, int maxcou, int) {
 	return true;
 }
 
-// 0x080ca0b0  crskill.c:1132
 void TSkillHitpoints::Set(int a) {
 	TCreature *cr = GetMaster();
 	if (cr != nullptr && cr->IsDead && a > 0) {
@@ -1219,7 +1167,6 @@ void TSkillHitpoints::Set(int a) {
 	}
 }
 
-// 0x080ca140  crskill.c:1153
 void TSkillMana::Set(int a) {
 	TSkill::Set(a);
 
@@ -1229,7 +1176,6 @@ void TSkillMana::Set(int a) {
 	}
 }
 
-// 0x080ca180  crskill.c:1167
 void TSkillSoulpoints::Set(int a) {
 	TSkill::Set(a);
 
@@ -1239,7 +1185,6 @@ void TSkillSoulpoints::Set(int a) {
 	}
 }
 
-// 0x080ca1c0  crskill.c:1177
 void TSkillSoulpoints::Event(int) {
 	TCreature *cr = GetMaster();
 	if (cr == nullptr) {
@@ -1252,7 +1197,6 @@ void TSkillSoulpoints::Event(int) {
 	}
 }
 
-// 0x080ca220  crskill.c:1195
 bool TSkillGoStrength::SetTimer(int cyc, int cou, int maxcou, int) {
 	TSkill::SetTimer(cyc, cou, maxcou, -1);
 	if (cyc == 0) {
@@ -1269,7 +1213,6 @@ bool TSkillGoStrength::SetTimer(int cyc, int cou, int maxcou, int) {
 	return true;
 }
 
-// 0x080ca2d0  crskill.c:1211
 void TSkillGoStrength::Event(int) {
 	if (Cycle == 0) {
 		TCreature *cr = GetMaster();
@@ -1283,7 +1226,6 @@ void TSkillGoStrength::Event(int) {
 	}
 }
 
-// 0x080ca350  crskill.c:1231
 void TSkillCarryStrength::Set(int a) {
 	TSkill::Set(a);
 
@@ -1293,10 +1235,8 @@ void TSkillCarryStrength::Set(int a) {
 	}
 }
 
-// 0x080ca390  crskill.c:1246
 void InitCrskill() {
 }
 
-// 0x080ca3a0  crskill.c:1253
 void ExitCrskill() {
 }

@@ -220,24 +220,16 @@ struct TSkill {
 	virtual void Set(int a);
 	void Change(int a);
 	void Check();
-	// 0x080caa50  cr.h:273
 	virtual void Increase(int) {}
-	// 0x080caa60  cr.h:274
 	virtual void Decrease(int) {}
-	// 0x080caa70  cr.h:275
 	virtual int GetExpForLevel(int) { return 0; }
-	// 0x080caa80  cr.h:276
 	virtual void Advance(int) {}
-	// 0x080caa90  cr.h:277
 	virtual void ChangeSkill(int, int) {}
-	// 0x080caaa0  cr.h:280
 	virtual int ProbeValue(int, bool) { return 0; }
-	// 0x080caab0  cr.h:281
 	virtual bool Probe(int, int, bool) { return false; }
 	virtual bool Process();
 	virtual bool SetTimer(int cyc, int cou, int maxcou, int);
 	virtual bool DelTimer();
-	// 0x080caac0  cr.h:287
 	virtual int TimerValue() { return Cycle; }
 protected:
 	virtual bool Jump(int);
@@ -293,9 +285,7 @@ struct TCreature : public TSkillBase {
 	// inline  cr.h:351
 	bool IsInvisible() { return Outfit.OutfitID == 0 && Outfit.ObjectType == 0; }
 	virtual bool MovePossible(int x, int y, int z, bool Execute, bool Jump);
-	// 0x080a53a0  cr.h:353
 	virtual bool IsPeaceful() { return true; }
-	// 0x080a53b0  cr.h:354
 	virtual uint32_t GetMaster() { return 0; }
 	void StartLogout(bool Force, bool StopFight);
 	int LogoutPossible();
@@ -330,14 +320,10 @@ struct TCreature : public TSkillBase {
 	void ToDoTurn(int x, int y, int z, ObjectType Type, unsigned char RNum);
 	void ToDoAttack();
 	void ToDoChangeState(int NewState);
-	// 0x080a53c0  cr.h:393
 	virtual void TalkStimulus(uint32_t, char *) {}
-	// 0x080a53d0  cr.h:394
 	virtual void DamageStimulus(uint32_t, int, int) {}
-	// 0x080a53e0  cr.h:395
 	virtual void IdleStimulus() {}
 	virtual void CreatureMoveStimulus(uint32_t CreatureID, int Type);
-	// 0x080a53f0  cr.h:397
 	virtual void AttackStimulus(uint32_t) {}
 	// inline  cr.h:399
 	Object GetCreatureObject() { return CrObject; }

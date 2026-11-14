@@ -14,7 +14,6 @@
 
 static char ErrorString[100];	// script.c:14
 
-// 0x0804ea20  script.c:21
 void SaveFile(char *Filename) {
 	if (Filename == nullptr) {
 		error("SaveFile: Filename ist NULL.\n");
@@ -56,13 +55,11 @@ void SaveFile(char *Filename) {
 	}
 }
 
-// 0x0804ec30  script.c:63
 TReadScriptFile::TReadScriptFile() {
 	RecursionDepth = -1;
 	Bytes = (unsigned char *)String;
 }
 
-// 0x0804ecc0  script.c:72
 TReadScriptFile::~TReadScriptFile() {
 	if (RecursionDepth != -1) {
 		::error("TReadScriptFile::~TReadScriptFile: Datei ist noch offen.\n");
@@ -72,7 +69,6 @@ TReadScriptFile::~TReadScriptFile() {
 	}
 }
 
-// 0x0804ed30  script.c:83
 void TReadScriptFile::open(char *FileName) {
 	RecursionDepth++;
 	if (RecursionDepth == MAXIMUMRECURSIONDEPTH) {
@@ -104,7 +100,6 @@ void TReadScriptFile::open(char *FileName) {
 	Line[RecursionDepth] = 1;
 }
 
-// 0x0804eec0  script.c:110
 void TReadScriptFile::close() {
 	if (RecursionDepth == -1) {
 		::error("TReadScriptFile::close: Keine Datei offen.\n");
@@ -117,7 +112,6 @@ void TReadScriptFile::close() {
 	RecursionDepth--;
 }
 
-// 0x0804ef30  script.c:123
 void TReadScriptFile::error(char *Text) {
 	char *p = findLast(Filename[RecursionDepth], '/');
 	if (p != nullptr) {
@@ -135,7 +129,6 @@ void TReadScriptFile::error(char *Text) {
 	throw ErrorString;
 }
 
-// 0x0804f040  script.c:137
 void TReadScriptFile::nextToken() {
 	if (RecursionDepth == -1) {
 		::error("TReadScriptFile::nextToken: Kein Skript zum Lesen ge\xf6" "ffnet.\n");
@@ -539,7 +532,6 @@ again:
 	}
 }
 
-// 0x0804f950  script.c:311
 char *TReadScriptFile::readIdentifier() {
 	nextToken();
 	if (Token != IDENTIFIER) {
@@ -548,7 +540,6 @@ char *TReadScriptFile::readIdentifier() {
 	return getIdentifier();
 }
 
-// 0x0804f9d0  script.c:322
 int TReadScriptFile::readNumber() {
 	int sgn = 1;
 	nextToken();
@@ -562,7 +553,6 @@ int TReadScriptFile::readNumber() {
 	return (int)((unsigned int)sgn * (unsigned int)getNumber());
 }
 
-// 0x0804fa80  script.c:338
 char *TReadScriptFile::readString() {
 	nextToken();
 	if (Token != STRING) {
@@ -571,7 +561,6 @@ char *TReadScriptFile::readString() {
 	return getString();
 }
 
-// 0x0804faf0  script.c:349
 unsigned char *TReadScriptFile::readBytesequence() {
 	nextToken();
 	if (Token != BYTES) {
@@ -580,7 +569,6 @@ unsigned char *TReadScriptFile::readBytesequence() {
 	return getBytesequence();
 }
 
-// 0x0804fb60  script.c:360
 void TReadScriptFile::readCoordinate(int &x, int &y, int &z) {
 	nextToken();
 	if (Token != COORDINATE) {
@@ -589,7 +577,6 @@ void TReadScriptFile::readCoordinate(int &x, int &y, int &z) {
 	getCoordinate(x, y, z);
 }
 
-// 0x0804fbf0  script.c:371
 char TReadScriptFile::readSpecial() {
 	nextToken();
 	if (Token != SPECIAL) {
@@ -598,7 +585,6 @@ char TReadScriptFile::readSpecial() {
 	return getSpecial();
 }
 
-// 0x0804fc60  script.c:382
 void TReadScriptFile::readSymbol(char Symbol) {
 	nextToken();
 	if (Token != SPECIAL) {
@@ -609,7 +595,6 @@ void TReadScriptFile::readSymbol(char Symbol) {
 	}
 }
 
-// 0x0804fd00  script.c:392
 char *TReadScriptFile::getIdentifier() {
 	if (Token != IDENTIFIER) {
 		error("identifier expected");
@@ -618,7 +603,6 @@ char *TReadScriptFile::getIdentifier() {
 	return String;
 }
 
-// 0x0804fd50  script.c:402
 int TReadScriptFile::getNumber() {
 	if (Token != NUMBER) {
 		error("number expected");
@@ -626,7 +610,6 @@ int TReadScriptFile::getNumber() {
 	return Number;
 }
 
-// 0x0804fda0  script.c:411
 char *TReadScriptFile::getString() {
 	if (Token != STRING) {
 		error("string expected");
@@ -634,7 +617,6 @@ char *TReadScriptFile::getString() {
 	return String;
 }
 
-// 0x0804fdf0  script.c:420
 unsigned char *TReadScriptFile::getBytesequence() {
 	if (Token != BYTES) {
 		error("byte-sequence expected");
@@ -642,7 +624,6 @@ unsigned char *TReadScriptFile::getBytesequence() {
 	return Bytes;
 }
 
-// 0x0804fe40  script.c:429
 void TReadScriptFile::getCoordinate(int &x, int &y, int &z) {
 	if (Token != COORDINATE) {
 		error("coordinates expected");
@@ -652,7 +633,6 @@ void TReadScriptFile::getCoordinate(int &x, int &y, int &z) {
 	z = CoordZ;
 }
 
-// 0x0804feb0  script.c:440
 char TReadScriptFile::getSpecial() {
 	if (Token != SPECIAL) {
 		error("special-char expected");
@@ -660,12 +640,10 @@ char TReadScriptFile::getSpecial() {
 	return Special;
 }
 
-// 0x0804ff10  script.c:454
 TWriteScriptFile::TWriteScriptFile() {
 	File = nullptr;
 }
 
-// 0x0804ff90  script.c:462
 TWriteScriptFile::~TWriteScriptFile() {
 	if (File != nullptr) {
 		::error("TWriteScriptFile::~TWriteScriptFile: Datei %s ist noch offen.\n", Filename);
@@ -675,7 +653,6 @@ TWriteScriptFile::~TWriteScriptFile() {
 	}
 }
 
-// 0x08050000  script.c:473
 void TWriteScriptFile::open(char *FileName) {
 	if (File != nullptr) {
 		::error("TWriteScriptFile::open: Altes Skript ist noch offen.\n");
@@ -697,7 +674,6 @@ void TWriteScriptFile::open(char *FileName) {
 	strcpy(Filename, FileName);
 }
 
-// 0x08050110  script.c:494
 void TWriteScriptFile::close() {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::close: Kein Skript offen.\n");
@@ -710,7 +686,6 @@ void TWriteScriptFile::close() {
 	File = nullptr;
 }
 
-// 0x08050180  script.c:507
 void TWriteScriptFile::error(char *Text) {
 	if (File != nullptr) {
 		if (fclose(File) != 0) {
@@ -723,7 +698,6 @@ void TWriteScriptFile::error(char *Text) {
 	throw ErrorString;
 }
 
-// 0x08050240  script.c:520
 void TWriteScriptFile::writeLn() {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::writeLn: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
@@ -733,7 +707,6 @@ void TWriteScriptFile::writeLn() {
 	putc('\n', File);
 }
 
-// 0x080502b0  script.c:532
 void TWriteScriptFile::writeText(char *Text) {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::writeText: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
@@ -751,7 +724,6 @@ void TWriteScriptFile::writeText(char *Text) {
 	}
 }
 
-// 0x08050350  script.c:549
 void TWriteScriptFile::writeString(char *Text) {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::writeString: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
@@ -779,7 +751,6 @@ void TWriteScriptFile::writeString(char *Text) {
 	putc('"', File);
 }
 
-// 0x08050470  script.c:574
 void TWriteScriptFile::writeNumber(int Number) {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::writeNumber: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
@@ -791,7 +762,6 @@ void TWriteScriptFile::writeNumber(int Number) {
 	writeText(s);
 }
 
-// 0x08050510  script.c:589
 void TWriteScriptFile::writeBytesequence(unsigned char *Sequence, int Length) {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::writeBytesequence: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
@@ -816,7 +786,6 @@ void TWriteScriptFile::writeBytesequence(unsigned char *Sequence, int Length) {
 	}
 }
 
-// 0x08050660  script.c:612
 void TWriteScriptFile::writeCoordinate(int x, int y, int z) {
 	if (File == nullptr) {
 		::error("TWriteScriptFile::writeCoordinate: Kein Skript zum Schreiben ge\xf6" "ffnet.\n");
@@ -833,12 +802,10 @@ void TWriteScriptFile::writeCoordinate(int x, int y, int z) {
 	writeText(s);
 }
 
-// 0x08050760  script.c:635
 TReadBinaryFile::TReadBinaryFile() {
 	File = nullptr;
 }
 
-// 0x080507f0  script.c:643
 TReadBinaryFile::~TReadBinaryFile() {
 	if (File != nullptr) {
 		::error("TReadBinaryFile::~TReadBinaryFile: Datei %s ist noch offen.\n", Filename);
@@ -848,7 +815,6 @@ TReadBinaryFile::~TReadBinaryFile() {
 	}
 }
 
-// 0x080508d0  script.c:654
 void TReadBinaryFile::open(char *FileName) {
 	if (File != nullptr) {
 		error("File still open");
@@ -864,7 +830,6 @@ void TReadBinaryFile::open(char *FileName) {
 	FileSize = -1;
 }
 
-// 0x08050a00  script.c:669
 void TReadBinaryFile::close() {
 	if (fclose(File) != 0) {
 		int ErrorCode = errno;
@@ -874,7 +839,6 @@ void TReadBinaryFile::close() {
 	File = nullptr;
 }
 
-// 0x08050a70  script.c:682
 void TReadBinaryFile::seek(int32_t Offset) {
 	if (File == nullptr) {
 		error("File not open for seek");
@@ -887,7 +851,6 @@ void TReadBinaryFile::seek(int32_t Offset) {
 	fseek(File, Offset, SEEK_SET);
 }
 
-// 0x08050ba0  script.c:692
 int TReadBinaryFile::getSize() {
 	if (FileSize == -1) {
 		int Position = (int)ftell(File);
@@ -898,12 +861,10 @@ int TReadBinaryFile::getSize() {
 	return FileSize;
 }
 
-// 0x08050c20  script.c:706
 int TReadBinaryFile::getPosition() {
 	return (int)ftell(File);
 }
 
-// 0x08050c40  script.c:714
 void TReadBinaryFile::error(char *Text) {
 	if (File != nullptr) {
 		if (fclose(File) != 0) {
@@ -916,7 +877,6 @@ void TReadBinaryFile::error(char *Text) {
 	throw ErrorString;
 }
 
-// 0x08050cf0  script.c:727
 unsigned char TReadBinaryFile::readByte() {
 	unsigned char Help;
 	int Result = (int)fread(&Help, 1, 1, File);
@@ -935,7 +895,6 @@ unsigned char TReadBinaryFile::readByte() {
 	return Help;
 }
 
-// 0x08050e60  script.c:746
 void TReadBinaryFile::readBytes(unsigned char *Buffer, int Count) {
 	int Result = (int)fread(Buffer, 1, Count, File);
 	if (Result != Count) {
@@ -953,7 +912,6 @@ void TReadBinaryFile::readBytes(unsigned char *Buffer, int Count) {
 	}
 }
 
-// 0x08050fd0  script.c:763
 bool TReadBinaryFile::eof() {
 	if (File == nullptr) {
 		error("File not open for eof check");
@@ -962,7 +920,6 @@ bool TReadBinaryFile::eof() {
 	return getPosition() >= getSize();
 }
 
-// 0x080510f0  script.c:772
 void TReadBinaryFile::skip(int Count) {
 	if (File == nullptr) {
 		error("File not open for skip");
@@ -971,12 +928,10 @@ void TReadBinaryFile::skip(int Count) {
 	seek(getPosition() + Count);
 }
 
-// 0x080511c0  script.c:786
 TWriteBinaryFile::TWriteBinaryFile() {
 	File = nullptr;
 }
 
-// 0x08051250  script.c:794
 TWriteBinaryFile::~TWriteBinaryFile() {
 	if (File != nullptr) {
 		::error("TWriteBinaryFile::~TWriteBinaryFile: Datei %s ist noch offen.\n", Filename);
@@ -986,7 +941,6 @@ TWriteBinaryFile::~TWriteBinaryFile() {
 	}
 }
 
-// 0x08051330  script.c:805
 void TWriteBinaryFile::open(char *FileName) {
 	if (File != nullptr) {
 		error("File still open");
@@ -1004,7 +958,6 @@ void TWriteBinaryFile::open(char *FileName) {
 	strcpy(Filename, FileName);
 }
 
-// 0x08051490  script.c:822
 void TWriteBinaryFile::close() {
 	if (fclose(File) != 0) {
 		int ErrorCode = errno;
@@ -1014,7 +967,6 @@ void TWriteBinaryFile::close() {
 	File = nullptr;
 }
 
-// 0x08051500  script.c:835
 void TWriteBinaryFile::error(char *Text) {
 	if (File != nullptr) {
 		if (fclose(File) != 0) {
@@ -1027,7 +979,6 @@ void TWriteBinaryFile::error(char *Text) {
 	throw ErrorString;
 }
 
-// 0x080515b0  script.c:848
 void TWriteBinaryFile::writeByte(unsigned char Number) {
 	unsigned char Help = Number;
 	int Result = (int)fwrite(&Help, 1, 1, File);
@@ -1045,7 +996,6 @@ void TWriteBinaryFile::writeByte(unsigned char Number) {
 	}
 }
 
-// 0x08051710  script.c:866
 void TWriteBinaryFile::writeBytes(unsigned char *Buffer, int Count) {
 	int Result = (int)fwrite(Buffer, 1, Count, File);
 	if (Result != Count) {

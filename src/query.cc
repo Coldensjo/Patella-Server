@@ -24,7 +24,6 @@
 int ApplicationType;	// query.c:85
 char LoginData[30];	// query.c:86
 
-// 0x080e0210  query.c:97
 void SetQueryManagerLoginData(int Type, char *Data) {
 	ApplicationType = Type;
 	if (Data != nullptr) {
@@ -34,7 +33,6 @@ void SetQueryManagerLoginData(int Type, char *Data) {
 	}
 }
 
-// 0x080e0310  query.c:109
 TQueryManagerConnection::TQueryManagerConnection(int QueryBufferSize) : Buffer(new unsigned char[std::max(QueryBufferSize, 16384)]), ReadBuffer(Buffer, std::max(QueryBufferSize, 16384)), WriteBuffer(Buffer, std::max(QueryBufferSize, 16384)) {
 	BufferSize = std::max(QueryBufferSize, 16384);
 	Socket = -1;
@@ -42,13 +40,11 @@ TQueryManagerConnection::TQueryManagerConnection(int QueryBufferSize) : Buffer(n
 	connect();
 }
 
-// 0x080e0440  query.c:123
 TQueryManagerConnection::~TQueryManagerConnection() {
 	disconnect();
 	delete[] Buffer;
 }
 
-// 0x080e04b0  query.c:132
 void TQueryManagerConnection::connect() {
 	for (int Try = 0; Try < NumberOfQueryManagers; Try++) {
 		sockaddr_in QueryManagerAddress;
@@ -103,7 +99,6 @@ void TQueryManagerConnection::connect() {
 	Socket = -1;
 }
 
-// 0x080e0820  query.c:184
 void TQueryManagerConnection::disconnect() {
 	if (isConnected()) {
 		if (close(Socket) < 0) {
@@ -113,7 +108,6 @@ void TQueryManagerConnection::disconnect() {
 	}
 }
 
-// 0x080e0870  query.c:195
 int TQueryManagerConnection::write(unsigned char *Buffer, int Size) {
 	int Chances = 50;
 	int nleft = Size;
@@ -136,7 +130,6 @@ int TQueryManagerConnection::write(unsigned char *Buffer, int Size) {
 	return Size - nleft;
 }
 
-// 0x080e0900  query.c:217
 int TQueryManagerConnection::read(unsigned char *Buffer, int Size, int Timeout) {
 	int Chances = 50;
 	int nleft = Size;
@@ -175,7 +168,6 @@ int TQueryManagerConnection::read(unsigned char *Buffer, int Size, int Timeout) 
 	return Size - nleft;
 }
 
-// 0x080e09e0  query.c:254
 void TQueryManagerConnection::prepareQuery(int QueryType) {
 	try {
 		QueryOk = true;
@@ -188,12 +180,10 @@ void TQueryManagerConnection::prepareQuery(int QueryType) {
 	}
 }
 
-// 0x080e0a60  query.c:270
 void TQueryManagerConnection::sendFlag(bool f) {
 	WriteBuffer.writeByte(f ? 1 : 0);
 }
 
-// 0x080e0a80  query.c:278
 void TQueryManagerConnection::sendByte(unsigned char b) {
 	try {
 		WriteBuffer.writeByte(b);
@@ -203,7 +193,6 @@ void TQueryManagerConnection::sendByte(unsigned char b) {
 	}
 }
 
-// 0x080e0af0  query.c:291
 void TQueryManagerConnection::sendWord(unsigned short w) {
 	try {
 		WriteBuffer.writeWord(w);
@@ -213,7 +202,6 @@ void TQueryManagerConnection::sendWord(unsigned short w) {
 	}
 }
 
-// 0x080e0b60  query.c:304
 void TQueryManagerConnection::sendQuad(uint32_t q) {
 	try {
 		WriteBuffer.writeQuad(q);
@@ -223,7 +211,6 @@ void TQueryManagerConnection::sendQuad(uint32_t q) {
 	}
 }
 
-// 0x080e0bd0  query.c:316
 void TQueryManagerConnection::sendString(char *s) {
 	try {
 		WriteBuffer.writeString(s);
@@ -233,7 +220,6 @@ void TQueryManagerConnection::sendString(char *s) {
 	}
 }
 
-// 0x080e0c40  query.c:329
 void TQueryManagerConnection::sendBytes(unsigned char *Buffer, int Count) {
 	try {
 		WriteBuffer.writeBytes(Buffer, Count);
@@ -243,12 +229,10 @@ void TQueryManagerConnection::sendBytes(unsigned char *Buffer, int Count) {
 	}
 }
 
-// 0x080e0cb0  query.c:342
 bool TQueryManagerConnection::getFlag() {
 	return getByte() != 0;
 }
 
-// 0x080e0d10  query.c:350
 unsigned char TQueryManagerConnection::getByte() {
 	try {
 		return ReadBuffer.readByte();
@@ -258,7 +242,6 @@ unsigned char TQueryManagerConnection::getByte() {
 	}
 }
 
-// 0x080e0d70  query.c:363
 unsigned short TQueryManagerConnection::getWord() {
 	try {
 		return ReadBuffer.readWord();
@@ -268,7 +251,6 @@ unsigned short TQueryManagerConnection::getWord() {
 	}
 }
 
-// 0x080e0dd0  query.c:376
 uint32_t TQueryManagerConnection::getQuad() {
 	try {
 		return ReadBuffer.readQuad();
@@ -278,7 +260,6 @@ uint32_t TQueryManagerConnection::getQuad() {
 	}
 }
 
-// 0x080e0e30  query.c:389
 void TQueryManagerConnection::getString(char *Buffer, int MaxLength) {
 	try {
 		ReadBuffer.readString(Buffer, MaxLength);
@@ -288,7 +269,6 @@ void TQueryManagerConnection::getString(char *Buffer, int MaxLength) {
 	}
 }
 
-// 0x080e0ea0  query.c:402
 void TQueryManagerConnection::getBytes(unsigned char *Buffer, int Count) {
 	try {
 		ReadBuffer.readBytes(Buffer, Count);
@@ -297,7 +277,6 @@ void TQueryManagerConnection::getBytes(unsigned char *Buffer, int Count) {
 	}
 }
 
-// 0x080e0f10  query.c:416
 int TQueryManagerConnection::executeQuery(int Timeout, bool AutoReconnect) {
 	int DataSize = WriteBuffer.getDataSize();
 	WriteBuffer.rewind();
@@ -406,7 +385,6 @@ again:
 	return Result;
 }
 
-// 0x080e1440  query.c:505
 int TQueryManagerConnection::checkAccountPassword(uint32_t AccountID, char *Password, char *IPAddress) {
 	prepareQuery(10);
 	sendQuad(AccountID);
@@ -429,7 +407,6 @@ int TQueryManagerConnection::checkAccountPassword(uint32_t AccountID, char *Pass
 	return -1;
 }
 
-// 0x080e1610  query.c:531
 int TQueryManagerConnection::loginAdmin(uint32_t AccountID, bool PrivateWorld, int &NumberOfCharacters, char (*Characters)[30], char (*Worlds)[30], unsigned char (*IPAddresses)[4], unsigned short *Ports, unsigned short &PremiumDaysLeft) {
 	prepareQuery(12);
 	sendQuad(AccountID);
@@ -460,7 +437,6 @@ int TQueryManagerConnection::loginAdmin(uint32_t AccountID, bool PrivateWorld, i
 	return -1;
 }
 
-// 0x080e1950  query.c:561
 int TQueryManagerConnection::loadWorldConfig(int &WorldType, int &RebootTime, int *IPAddress, int &Port, int &MaxPlayers, int &PremiumPlayerBuffer, int &MaxNewbies, int &PremiumNewbieBuffer) {
 	prepareQuery(53);
 	int Result = executeQuery(30, true);
@@ -482,7 +458,6 @@ int TQueryManagerConnection::loadWorldConfig(int &WorldType, int &RebootTime, in
 	return 0;
 }
 
-// 0x080e1c10  query.c:588
 int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, char *Password, char *IPAddress, bool PrivateWorld, bool PremiumAccountRequired, bool GamemasterRequired, uint32_t &CharacterID, int &Sex, char *Guild, char *Rank, char *Title, int &NumberOfBuddies, uint32_t *BuddyIDs, char (*BuddyNames)[30], unsigned char *Rights, bool &PremiumAccountActivated) {
 	prepareQuery(20);
 	sendQuad(AccountID);
@@ -660,7 +635,6 @@ int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, cha
 	return -1;
 }
 
-// 0x080e3010  query.c:760
 int TQueryManagerConnection::logoutGame(uint32_t CharacterID, int Level, char *Profession, char *Residence, time_t LastLoginTime, int TutorActivities) {
 	prepareQuery(21);
 	sendQuad(CharacterID);
@@ -676,7 +650,6 @@ int TQueryManagerConnection::logoutGame(uint32_t CharacterID, int Level, char *P
 	return 0;
 }
 
-// 0x080e3240  query.c:777
 int TQueryManagerConnection::setNotation(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment, uint32_t &BanishmentID) {
 	prepareQuery(26);
 	sendQuad(GamemasterID);
@@ -704,7 +677,6 @@ int TQueryManagerConnection::setNotation(uint32_t GamemasterID, char *PlayerName
 	return -1;
 }
 
-// 0x080e34f0  query.c:806
 int TQueryManagerConnection::setNamelock(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment) {
 	prepareQuery(23);
 	sendQuad(GamemasterID);
@@ -731,7 +703,6 @@ int TQueryManagerConnection::setNamelock(uint32_t GamemasterID, char *PlayerName
 	return -1;
 }
 
-// 0x080e3760  query.c:834
 int TQueryManagerConnection::banishAccount(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment, bool &FinalWarning, int &Days, uint32_t &BanishmentID) {
 	prepareQuery(25);
 	sendQuad(GamemasterID);
@@ -766,7 +737,6 @@ int TQueryManagerConnection::banishAccount(uint32_t GamemasterID, char *PlayerNa
 	return -1;
 }
 
-// 0x080e3b00  query.c:867
 int TQueryManagerConnection::reportStatement(uint32_t ReporterID, char *PlayerName, char *Reason, char *Comment, uint32_t BanishmentID, uint32_t StatementID, int NumberOfStatements, uint32_t *StatementIDs, uint32_t *TimeStamps, uint32_t *CharacterIDs, char (*Channels)[30], char (*Texts)[256]) {
 	prepareQuery(27);
 	sendQuad(ReporterID);
@@ -812,7 +782,6 @@ int TQueryManagerConnection::reportStatement(uint32_t ReporterID, char *PlayerNa
 	return -1;
 }
 
-// 0x080e3fc0  query.c:908
 int TQueryManagerConnection::banishIPAddress(uint32_t GamemasterID, char *PlayerName, char *IPAddress, char *Reason, char *Comment) {
 	prepareQuery(28);
 	sendQuad(GamemasterID);
@@ -839,7 +808,6 @@ int TQueryManagerConnection::banishIPAddress(uint32_t GamemasterID, char *Player
 	return -1;
 }
 
-// 0x080e4230  query.c:936
 int TQueryManagerConnection::logCharacterDeath(uint32_t CharacterID, int Level, uint32_t Offender, char *Remark, bool Unjustified, time_t Time) {
 	prepareQuery(29);
 	sendQuad(CharacterID);
@@ -856,7 +824,6 @@ int TQueryManagerConnection::logCharacterDeath(uint32_t CharacterID, int Level, 
 	return 0;
 }
 
-// 0x080e4480  query.c:956
 int TQueryManagerConnection::addBuddy(uint32_t AccountID, uint32_t Buddy) {
 	prepareQuery(30);
 	sendQuad(AccountID);
@@ -869,7 +836,6 @@ int TQueryManagerConnection::addBuddy(uint32_t AccountID, uint32_t Buddy) {
 	return 0;
 }
 
-// 0x080e45b0  query.c:972
 int TQueryManagerConnection::removeBuddy(uint32_t AccountID, uint32_t Buddy) {
 	prepareQuery(31);
 	sendQuad(AccountID);
@@ -882,7 +848,6 @@ int TQueryManagerConnection::removeBuddy(uint32_t AccountID, uint32_t Buddy) {
 	return 0;
 }
 
-// 0x080e46e0  query.c:988
 int TQueryManagerConnection::decrementIsOnline(uint32_t CharacterID) {
 	prepareQuery(32);
 	sendQuad(CharacterID);
@@ -894,7 +859,6 @@ int TQueryManagerConnection::decrementIsOnline(uint32_t CharacterID) {
 	return 0;
 }
 
-// 0x080e47e0  query.c:1004
 int TQueryManagerConnection::finishAuctions(int &NumberOfAuctions, unsigned short *HouseIDs, uint32_t *CharacterIDs, char (*CharacterNames)[30], int *Bids) {
 	prepareQuery(33);
 	if (executeQuery(60, true) != 0) {
@@ -919,7 +883,6 @@ int TQueryManagerConnection::finishAuctions(int &NumberOfAuctions, unsigned shor
 	return 0;
 }
 
-// 0x080e4a30  query.c:1030
 int TQueryManagerConnection::excludeFromAuctions(uint32_t CharacterID, bool Banish) {
 	prepareQuery(51);
 	sendQuad(CharacterID);
@@ -932,7 +895,6 @@ int TQueryManagerConnection::excludeFromAuctions(uint32_t CharacterID, bool Bani
 	return 0;
 }
 
-// 0x080e4b40  query.c:1047
 int TQueryManagerConnection::transferHouses(int &NumberOfTransfers, unsigned short *HouseIDs, uint32_t *NewOwnerIDs, char (*NewOwnerNames)[30], int *Prices) {
 	prepareQuery(35);
 	if (executeQuery(60, true) != 0) {
@@ -957,7 +919,6 @@ int TQueryManagerConnection::transferHouses(int &NumberOfTransfers, unsigned sho
 	return 0;
 }
 
-// 0x080e4d90  query.c:1073
 int TQueryManagerConnection::cancelHouseTransfer(unsigned short HouseID) {
 	prepareQuery(52);
 	sendWord(HouseID);
@@ -969,7 +930,6 @@ int TQueryManagerConnection::cancelHouseTransfer(unsigned short HouseID) {
 	return 0;
 }
 
-// 0x080e4e90  query.c:1089
 int TQueryManagerConnection::evictFreeAccounts(int &NumberOfEvictions, unsigned short *HouseIDs, uint32_t *OwnerIDs) {
 	prepareQuery(36);
 	if (executeQuery(60, true) != 0) {
@@ -992,7 +952,6 @@ int TQueryManagerConnection::evictFreeAccounts(int &NumberOfEvictions, unsigned 
 	return 0;
 }
 
-// 0x080e5030  query.c:1114
 int TQueryManagerConnection::evictDeletedCharacters(int &NumberOfEvictions, unsigned short *HouseIDs) {
 	prepareQuery(37);
 	if (executeQuery(60, true) != 0) {
@@ -1014,7 +973,6 @@ int TQueryManagerConnection::evictDeletedCharacters(int &NumberOfEvictions, unsi
 	return 0;
 }
 
-// 0x080e51a0  query.c:1135
 int TQueryManagerConnection::evictExGuildleaders(int NumberOfGuildhouses, int &NumberOfEvictions, unsigned short *HouseIDs, uint32_t *Guildleaders) {
 	prepareQuery(38);
 	sendWord(static_cast<unsigned short>(NumberOfGuildhouses));
@@ -1036,7 +994,6 @@ int TQueryManagerConnection::evictExGuildleaders(int NumberOfGuildhouses, int &N
 	return 0;
 }
 
-// 0x080e53e0  query.c:1157
 int TQueryManagerConnection::insertHouseOwner(unsigned short HouseID, uint32_t OwnerID, int PaidUntil) {
 	prepareQuery(39);
 	sendWord(HouseID);
@@ -1050,7 +1007,6 @@ int TQueryManagerConnection::insertHouseOwner(unsigned short HouseID, uint32_t O
 	return 0;
 }
 
-// 0x080e5550  query.c:1174
 int TQueryManagerConnection::updateHouseOwner(unsigned short HouseID, uint32_t OwnerID, int PaidUntil) {
 	prepareQuery(40);
 	sendWord(HouseID);
@@ -1064,7 +1020,6 @@ int TQueryManagerConnection::updateHouseOwner(unsigned short HouseID, uint32_t O
 	return 0;
 }
 
-// 0x080e56c0  query.c:1191
 int TQueryManagerConnection::deleteHouseOwner(unsigned short HouseID) {
 	prepareQuery(41);
 	sendWord(HouseID);
@@ -1076,7 +1031,6 @@ int TQueryManagerConnection::deleteHouseOwner(unsigned short HouseID) {
 	return 0;
 }
 
-// 0x080e57c0  query.c:1206
 int TQueryManagerConnection::getHouseOwners(int &NumberOfHouses, unsigned short *HouseIDs, uint32_t *OwnerIDs, char (*OwnerNames)[30], int *PaidUntils) {
 	prepareQuery(42);
 	if (executeQuery(60, true) != 0) {
@@ -1101,7 +1055,6 @@ int TQueryManagerConnection::getHouseOwners(int &NumberOfHouses, unsigned short 
 	return 0;
 }
 
-// 0x080e5a10  query.c:1232
 int TQueryManagerConnection::getAuctions(int &NumberOfAuctions, unsigned short *HouseIDs) {
 	prepareQuery(43);
 	if (executeQuery(120, true) != 0) {
@@ -1123,7 +1076,6 @@ int TQueryManagerConnection::getAuctions(int &NumberOfAuctions, unsigned short *
 	return 0;
 }
 
-// 0x080e5b80  query.c:1254
 int TQueryManagerConnection::startAuction(unsigned short HouseID) {
 	prepareQuery(44);
 	sendWord(HouseID);
@@ -1135,7 +1087,6 @@ int TQueryManagerConnection::startAuction(unsigned short HouseID) {
 	return 0;
 }
 
-// 0x080e5c80  query.c:1269
 int TQueryManagerConnection::insertHouses(int NumberOfHouses, unsigned short *HouseIDs, char **Names, int *Rents, char **Descriptions, int *Sizes, int *PositionsX, int *PositionsY, int *PositionsZ, char (*Towns)[30], bool *Guildhouses) {
 	prepareQuery(45);
 	sendWord(static_cast<unsigned short>(NumberOfHouses));
@@ -1160,7 +1111,6 @@ int TQueryManagerConnection::insertHouses(int NumberOfHouses, unsigned short *Ho
 	return 0;
 }
 
-// 0x080e6080  query.c:1297
 int TQueryManagerConnection::clearIsOnline(int &NumberOfAffectedPlayers) {
 	prepareQuery(46);
 	if (executeQuery(120, true) != 0) {
@@ -1172,7 +1122,6 @@ int TQueryManagerConnection::clearIsOnline(int &NumberOfAffectedPlayers) {
 	return 0;
 }
 
-// 0x080e6170  query.c:1313
 int TQueryManagerConnection::createPlayerlist(int NumberOfPlayers, char **Names, int *Levels, char (*Professions)[30], bool &NewRecord) {
 	prepareQuery(47);
 	sendWord(NumberOfPlayers >= 0 ? static_cast<unsigned short>(NumberOfPlayers) : 0xFFFF);
@@ -1191,7 +1140,6 @@ int TQueryManagerConnection::createPlayerlist(int NumberOfPlayers, char **Names,
 	return 0;
 }
 
-// 0x080e63b0  query.c:1334
 int TQueryManagerConnection::logKilledCreatures(int NumberOfRaces, char **Names, int *KilledPlayers, int *KilledCreatures) {
 	prepareQuery(48);
 	sendWord(static_cast<unsigned short>(NumberOfRaces));
@@ -1209,7 +1157,6 @@ int TQueryManagerConnection::logKilledCreatures(int NumberOfRaces, char **Names,
 	return 0;
 }
 
-// 0x080e6590  query.c:1355
 int TQueryManagerConnection::loadPlayers(uint32_t MinimumCharacterID, int &NumberOfPlayers, char (*Names)[30], uint32_t *CharacterIDs) {
 	prepareQuery(50);
 	sendQuad(MinimumCharacterID);
@@ -1227,7 +1174,6 @@ int TQueryManagerConnection::loadPlayers(uint32_t MinimumCharacterID, int &Numbe
 	return 0;
 }
 
-// 0x080e6770  query.c:1376
 int TQueryManagerConnection::getKeptCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs) {
 	prepareQuery(200);
 	sendQuad(MinimumCharacterID);
@@ -1244,7 +1190,6 @@ int TQueryManagerConnection::getKeptCharacters(uint32_t MinimumCharacterID, int 
 	return 0;
 }
 
-// 0x080e6900  query.c:1394
 int TQueryManagerConnection::getDeletedCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs) {
 	prepareQuery(201);
 	sendQuad(MinimumCharacterID);
@@ -1262,7 +1207,6 @@ int TQueryManagerConnection::getDeletedCharacters(uint32_t MinimumCharacterID, i
 	return 0;
 }
 
-// 0x080e6a90  query.c:1411
 int TQueryManagerConnection::deleteOldCharacter(uint32_t CharacterID) {
 	prepareQuery(202);
 	sendQuad(CharacterID);
@@ -1274,7 +1218,6 @@ int TQueryManagerConnection::deleteOldCharacter(uint32_t CharacterID) {
 	return 0;
 }
 
-// 0x080e6b90  query.c:1427
 int TQueryManagerConnection::getHiddenCharacters(uint32_t MinimumCharacterID, int &NumberOfPlayers, uint32_t *CharacterIDs) {
 	prepareQuery(203);
 	sendQuad(MinimumCharacterID);
@@ -1291,7 +1234,6 @@ int TQueryManagerConnection::getHiddenCharacters(uint32_t MinimumCharacterID, in
 	return 0;
 }
 
-// 0x080e6d20  query.c:1444
 int TQueryManagerConnection::createHighscores(int NumberOfPlayers, uint32_t *CharacterIDs, int *ExpPoints, int *ExpLevel, int *Fist, int *Club, int *Axe, int *Sword, int *Distance, int *Shielding, int *Magic, int *Fishing) {
 	prepareQuery(204);
 	sendQuad(NumberOfPlayers);
@@ -1317,7 +1259,6 @@ int TQueryManagerConnection::createHighscores(int NumberOfPlayers, uint32_t *Cha
 	return 0;
 }
 
-// 0x080e7150  query.c:1472
 int TQueryManagerConnection::createCensus() {
 	prepareQuery(205);
 	if (executeQuery(600, true) != 0) {
@@ -1328,7 +1269,6 @@ int TQueryManagerConnection::createCensus() {
 	return 0;
 }
 
-// 0x080e7200  query.c:1486
 int TQueryManagerConnection::createKillStatistics() {
 	prepareQuery(206);
 	if (executeQuery(300, true) != 0) {
@@ -1339,7 +1279,6 @@ int TQueryManagerConnection::createKillStatistics() {
 	return 0;
 }
 
-// 0x080e72b0  query.c:1500
 int TQueryManagerConnection::getPlayersOnline(int &NumberOfWorlds, char (*Names)[30], unsigned short *Players) {
 	prepareQuery(207);
 	if (executeQuery(120, true) != 0) {
@@ -1356,7 +1295,6 @@ int TQueryManagerConnection::getPlayersOnline(int &NumberOfWorlds, char (*Names)
 	return 0;
 }
 
-// 0x080e7450  query.c:1519
 int TQueryManagerConnection::getWorlds(int &NumberOfWorlds, char (*Names)[30]) {
 	prepareQuery(208);
 	if (executeQuery(120, true) != 0) {
@@ -1372,7 +1310,6 @@ int TQueryManagerConnection::getWorlds(int &NumberOfWorlds, char (*Names)[30]) {
 	return 0;
 }
 
-// 0x080e75b0  query.c:1535
 int TQueryManagerConnection::getServerLoad(char *World, int Period, int *Data) {
 	prepareQuery(209);
 	sendString(World);
@@ -1390,7 +1327,6 @@ int TQueryManagerConnection::getServerLoad(char *World, int Period, int *Data) {
 	return 0;
 }
 
-// 0x080e7740  query.c:1556
 int TQueryManagerConnection::insertPaymentDataOld(uint32_t PurchaseNr, uint32_t ReferenceNr, char *FirstName, char *LastName, char *Company, char *Street, char *Zip, char *City, char *Country, char *State, char *Phone, char *Fax, char *EMail, char *PaymentMethod, uint32_t ProductID, char *Registrant, uint32_t AccountID, uint32_t &PaymentID) {
 	prepareQuery(210);
 	sendQuad(PurchaseNr);
@@ -1430,7 +1366,6 @@ int TQueryManagerConnection::insertPaymentDataOld(uint32_t PurchaseNr, uint32_t 
 	return -1;
 }
 
-// 0x080e7d00  query.c:1599
 int TQueryManagerConnection::addPaymentOld(uint32_t AccountID, char *Description, uint32_t PaymentID, int Days, int &ActionTaken) {
 	prepareQuery(211);
 	sendQuad(AccountID);
@@ -1457,7 +1392,6 @@ int TQueryManagerConnection::addPaymentOld(uint32_t AccountID, char *Description
 	return -1;
 }
 
-// 0x080e7f70  query.c:1629
 int TQueryManagerConnection::cancelPaymentOld(uint32_t PurchaseNr, uint32_t ReferenceNr, uint32_t AccountID, bool &IllegalUse, char *EMailAddress) {
 	prepareQuery(212);
 	sendQuad(PurchaseNr);
@@ -1486,7 +1420,6 @@ int TQueryManagerConnection::cancelPaymentOld(uint32_t PurchaseNr, uint32_t Refe
 	return -1;
 }
 
-// 0x080e81e0  query.c:1658
 int TQueryManagerConnection::insertPaymentDataNew(uint32_t PurchaseNr, uint32_t ReferenceNr, char *FirstName, char *LastName, char *Company, char *Street, char *Zip, char *City, char *Country, char *State, char *Phone, char *Fax, char *EMail, char *PaymentMethod, uint32_t ProductID, char *Registrant, char *PaymentKey, uint32_t &PaymentID) {
 	prepareQuery(213);
 	sendQuad(PurchaseNr);
@@ -1526,7 +1459,6 @@ int TQueryManagerConnection::insertPaymentDataNew(uint32_t PurchaseNr, uint32_t 
 	return -1;
 }
 
-// 0x080e87a0  query.c:1702
 int TQueryManagerConnection::addPaymentNew(char *PaymentKey, uint32_t PaymentID, int &ActionTaken, char *EMailReceiver) {
 	prepareQuery(214);
 	sendString(PaymentKey);
@@ -1555,7 +1487,6 @@ int TQueryManagerConnection::addPaymentNew(char *PaymentKey, uint32_t PaymentID,
 	return -1;
 }
 
-// 0x080e89e0  query.c:1731
 int TQueryManagerConnection::cancelPaymentNew(uint32_t PurchaseNr, uint32_t ReferenceNr, char *PaymentKey, bool &IllegalUse, bool &Present, char *EMailAddress) {
 	prepareQuery(215);
 	sendQuad(PurchaseNr);
@@ -1585,7 +1516,6 @@ int TQueryManagerConnection::cancelPaymentNew(uint32_t PurchaseNr, uint32_t Refe
 	return -1;
 }
 
-// 0x080e8d20  query.c:1761
 TQueryManagerConnectionPool::TQueryManagerConnectionPool(int Connections) : FreeQueryManagerConnections(Connections), QueryManagerConnectionMutex(1) {
 	if (Connections <= 0) {
 		error("TQueryManagerConnectionPool::TQueryManagerConnectionPool: Ung\xfcltige Verbindungsanzahl %d.\n", Connections);
@@ -1597,7 +1527,6 @@ TQueryManagerConnectionPool::TQueryManagerConnectionPool(int Connections) : Free
 	QueryManagerConnectionFree = nullptr;
 }
 
-// 0x080e8dc0  query.c:1778
 void TQueryManagerConnectionPool::init() {
 	QueryManagerConnection = new TQueryManagerConnection[NumberOfConnections];
 	QueryManagerConnectionFree = new bool[NumberOfConnections];
@@ -1611,7 +1540,6 @@ void TQueryManagerConnectionPool::init() {
 	}
 }
 
-// 0x080e8f10  query.c:1796
 void TQueryManagerConnectionPool::exit() {
 	for (int i = 0; i < NumberOfConnections; i++) {
 		FreeQueryManagerConnections.down();
@@ -1621,7 +1549,6 @@ void TQueryManagerConnectionPool::exit() {
 	delete[] QueryManagerConnectionFree;
 }
 
-// 0x080e8f90  query.c:1808
 TQueryManagerConnection *TQueryManagerConnectionPool::getConnection() {
 	FreeQueryManagerConnections.down();
 	QueryManagerConnectionMutex.down();
@@ -1638,7 +1565,6 @@ TQueryManagerConnection *TQueryManagerConnectionPool::getConnection() {
 	return nullptr;
 }
 
-// 0x080e9000  query.c:1825
 void TQueryManagerConnectionPool::releaseConnection(TQueryManagerConnection *Connection) {
 	for (int i = 0; i < NumberOfConnections; i++) {
 		if (&QueryManagerConnection[i] == Connection) {
@@ -1651,7 +1577,6 @@ void TQueryManagerConnectionPool::releaseConnection(TQueryManagerConnection *Con
 	error("TQueryManagerConnectionPool::releaseConnection: Verbindung nicht gefunden.\n");
 }
 
-// 0x080e90f0  query.c:1843
 TQueryManagerPoolConnection::TQueryManagerPoolConnection(TQueryManagerConnectionPool *Pool) {
 	if (Pool == nullptr) {
 		error("TQueryManagerPoolConnection::TQueryManagerPoolConnection: Pool ist NULL.\n");
@@ -1663,7 +1588,6 @@ TQueryManagerPoolConnection::TQueryManagerPoolConnection(TQueryManagerConnection
 	QueryManagerConnection = Pool->getConnection();
 }
 
-// 0x080e9220  query.c:1857
 TQueryManagerPoolConnection::~TQueryManagerPoolConnection() {
 	if (QueryManagerConnection != nullptr) {
 		QueryManagerConnectionPool->releaseConnection(QueryManagerConnection);

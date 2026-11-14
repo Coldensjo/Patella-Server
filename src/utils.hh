@@ -105,7 +105,6 @@ extern TPrintFunction *PrintFunction;
 extern TErrorFunction *ErrorFunction;
 extern char StandardLogfile[4096];
 
-// 0x080721b0  utils.h:132  (RandomShuffle<int>)
 // Defined below the prototypes it uses; the original header declares them first.
 template<class T>
 void RandomShuffle(T *Buffer, int Size) {

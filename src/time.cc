@@ -9,7 +9,6 @@ uint32_t ServerMilliseconds = 0;	// time.c:13
 // time_t was a 32-bit long in the original; time() is narrowed to that width
 // wherever it is stored.
 
-// 0x08053c00  time.c:19
 void GetAmbiente(int &Brightness, int &Color) {
 	int Hour, Minute;
 
@@ -45,7 +44,6 @@ void GetAmbiente(int &Brightness, int &Color) {
 	}
 }
 
-// 0x08053d10  time.c:43
 void GetDate(int &Year, int &Cycle, int &Day) {
 	time_t t = static_cast<int32_t>(time(nullptr));
 	struct tm *Time = localtime(&t);
@@ -55,7 +53,6 @@ void GetDate(int &Year, int &Cycle, int &Day) {
 	Day = Time->tm_hour;
 }
 
-// 0x08053d90  time.c:56
 void GetTime(int &Hour, int &Minute) {
 	time_t t = static_cast<int32_t>(time(nullptr));
 	struct tm *Time = localtime(&t);
@@ -64,7 +61,6 @@ void GetTime(int &Hour, int &Minute) {
 	Minute = (Time->tm_min * 60 + Time->tm_sec) % 150 * 2 / 5;
 }
 
-// 0x08053e20  time.c:67
 void GetRealTime(int &Hour, int &Minute) {
 	time_t t = static_cast<int32_t>(time(nullptr));
 	struct tm *Time = localtime(&t);
@@ -73,7 +69,6 @@ void GetRealTime(int &Hour, int &Minute) {
 	Minute = Time->tm_min;
 }
 
-// 0x08053e60  time.c:78
 uint32_t GetRoundAtTime(int Hour, int Minute) {
 	time_t t = static_cast<int32_t>(time(nullptr));
 	struct tm *Time = localtime(&t);
@@ -85,7 +80,6 @@ uint32_t GetRoundAtTime(int Hour, int Minute) {
 	return RoundNr + Delta;
 }
 
-// 0x08053ed0  time.c:90
 uint32_t GetRoundForNextMinute() {
 	int Hour, Minute;
 

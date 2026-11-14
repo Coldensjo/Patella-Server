@@ -25,7 +25,6 @@
 // specifications, so an exception of another type now propagates instead of
 // ending in std::unexpected().
 
-// 0x080c3ff0  crcombat.c:33
 // Following is not initialized, as in the original.
 TCombat::TCombat() {
 	Master = nullptr;
@@ -54,7 +53,6 @@ TCombat::TCombat() {
 	SecureMode = 1;
 }
 
-// 0x080c40c0  crcombat.c:62
 void TCombat::CanToDoAttack() {
 	if (AttackDest == 0) {
 		return;
@@ -117,7 +115,6 @@ void TCombat::CanToDoAttack() {
 	}
 }
 
-// 0x080c4420  crcombat.c:116
 int TCombat::GetDistance() {
 	int range = 0;
 	if (Close != NONE || Fist) {
@@ -130,7 +127,6 @@ int TCombat::GetDistance() {
 	return range;
 }
 
-// 0x080c44a0  crcombat.c:129
 void TCombat::Attack() {
 	if (AttackDest == 0 || Following) {
 		return;
@@ -227,7 +223,6 @@ void TCombat::Attack() {
 	}
 }
 
-// 0x080c4980  crcombat.c:204
 void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 	if (AttackDest == dfd && Following == Follow) {
 		return;
@@ -307,7 +302,6 @@ void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 	}
 }
 
-// 0x080c4e70  crcombat.c:266
 void TCombat::SetAttackMode(unsigned char b) {
 	if (b < 1 || b > 3) {
 		error("TCombat::SetAttackMode: Ung\xfcltiger Angriffsmodus %d.\n", b);
@@ -320,7 +314,6 @@ void TCombat::SetAttackMode(unsigned char b) {
 	}
 }
 
-// 0x080c4ee0  crcombat.c:281
 void TCombat::SetChaseMode(unsigned char b) {
 	if (b > 1) {
 		error("TCombat::SetChaseMode: Ung\xfcltiger Verfolgungsmodus %d.\n", b);
@@ -330,7 +323,6 @@ void TCombat::SetChaseMode(unsigned char b) {
 	ChaseMode = b;
 }
 
-// 0x080c4f10  crcombat.c:294
 void TCombat::SetSecureMode(unsigned char b) {
 	if (b > 1) {
 		error("TCombat::SetSecureMode: Ung\xfcltiger Sicherheitsmodus %d.\n", b);
@@ -340,7 +332,6 @@ void TCombat::SetSecureMode(unsigned char b) {
 	SecureMode = b;
 }
 
-// 0x080c4f40  crcombat.c:306
 void TCombat::StopAttack(int Delay) {
 	if (Delay == 0) {
 		AttackDest = 0;
@@ -352,12 +343,10 @@ void TCombat::StopAttack(int Delay) {
 	}
 }
 
-// 0x080c4f80  crcombat.c:317
 void TCombat::DelayAttack(int Milliseconds) {
 	EarliestAttackTime = std::max<uint32_t>(EarliestAttackTime, ServerMilliseconds + Milliseconds);
 }
 
-// 0x080c4fc0  crcombat.c:326
 void TCombat::CheckCombatValues() {
 	Object OldMissile = Missile;
 	Object OldWand = Wand;
@@ -377,7 +366,6 @@ void TCombat::CheckCombatValues() {
 	}
 }
 
-// 0x080c50d0  crcombat.c:346
 unsigned short TCombat::GetArmorStrength() {
 	unsigned short Value = 0;
 	for (int i = 1; i <= 10; i++) {
@@ -396,7 +384,6 @@ unsigned short TCombat::GetArmorStrength() {
 	return Value;
 }
 
-// 0x080c5220  crcombat.c:364
 void TCombat::AddDamageToCombatList(uint32_t atk, unsigned short Damage) {
 	CombatDamage += Damage;
 	for (int i = 0; i < 20; i++) {
@@ -416,7 +403,6 @@ void TCombat::AddDamageToCombatList(uint32_t atk, unsigned short Damage) {
 	}
 }
 
-// 0x080c5290  crcombat.c:383
 void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 	print(3, "%s ist gestorben. Verteile %ld EXP...\n", Master->Name, (long)(int32_t)Exp);
 	if (CombatDamage == 0) {
@@ -463,7 +449,6 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 	}
 }
 
-// 0x080c54d0  crcombat.c:416
 uint32_t TCombat::GetDamageByCreature(uint32_t CreatureID) {
 	for (int i = 0; i < 20; i++) {
 		if (CombatList[i].ID == CreatureID) {
@@ -473,7 +458,6 @@ uint32_t TCombat::GetDamageByCreature(uint32_t CreatureID) {
 	return 0;
 }
 
-// 0x080c5500  crcombat.c:426
 uint32_t TCombat::GetMostDangerousAttacker() {
 	uint32_t Attacker = 0;
 	uint32_t MaximumDamage = 0;
@@ -487,7 +471,6 @@ uint32_t TCombat::GetMostDangerousAttacker() {
 	return Attacker;
 }
 
-// 0x080c5540  crcombat.c:442
 int TCombat::TypeToSkill(int type) {
 	switch (type) {
 		case 0: return 11;
@@ -501,7 +484,6 @@ int TCombat::TypeToSkill(int type) {
 	}
 }
 
-// 0x080c5590  crcombat.c:459
 void TCombat::GetWeapon() {
 	Missile = NONE;
 	Wand = NONE;
@@ -558,7 +540,6 @@ void TCombat::GetWeapon() {
 	}
 }
 
-// 0x080c5840  crcombat.c:490
 void TCombat::GetAmmo() {
 	if (Missile != NONE) {
 		Ammo = GetBodyObject(Master->ID, 10);
@@ -573,7 +554,6 @@ void TCombat::GetAmmo() {
 	}
 }
 
-// 0x080c5980  crcombat.c:505
 void TCombat::CloseAttack(TCreature *dfd) {
 	int Attack = GetAttackDamage();
 	int Defend = dfd->Combat.GetDefendDamage();
@@ -608,7 +588,6 @@ void TCombat::CloseAttack(TCreature *dfd) {
 	}
 }
 
-// 0x080c5ca0  crcombat.c:540
 void TCombat::RangeAttack(TCreature *dfd) {
 	int x, y, z;
 	int Attack, Damage, DiffLvl;
@@ -762,7 +741,6 @@ void TCombat::RangeAttack(TCreature *dfd) {
 	}
 }
 
-// 0x080c6b20  crcombat.c:654
 void TCombat::GetAttackValue(short &Value, unsigned short &Skill) {
 	unsigned short Type;
 	Value = 0;
@@ -786,7 +764,6 @@ void TCombat::GetAttackValue(short &Value, unsigned short &Skill) {
 	Skill = TypeToSkill(Type);
 }
 
-// 0x080c6c90  crcombat.c:681
 void TCombat::GetDefendValue(short &Value, unsigned short &Skill) {
 	unsigned short Type;
 	Value = 0;
@@ -810,7 +787,6 @@ void TCombat::GetDefendValue(short &Value, unsigned short &Skill) {
 	Skill = TypeToSkill(Type);
 }
 
-// 0x080c6e00  crcombat.c:708
 short TCombat::GetAttackDamage() {
 	TSkill *sk;
 	short Value;
@@ -831,7 +807,6 @@ short TCombat::GetAttackDamage() {
 	return Value;
 }
 
-// 0x080c6ee0  crcombat.c:730
 short TCombat::GetDefendDamage() {
 	TSkill *sk;
 	short Value;
@@ -880,7 +855,6 @@ short TCombat::GetDefendDamage() {
 	return Value;
 }
 
-// 0x080c7180  crcombat.c:767
 void TCombat::ActivateLearning() {
 	LearningPoints = 30;
 }

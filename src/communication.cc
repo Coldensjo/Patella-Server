@@ -81,7 +81,6 @@ TWaitinglistEntry *WaitinglistHead;	// communication.c:77
 static thread_local timer_t LoginTimer;
 static thread_local bool LoginTimerCreated;
 
-// 0x080dbbd0  communication.c:88
 void InitCommunicationThreadStacks() {
 	if (!UseOwnStacks) {
 		return;
@@ -95,7 +94,6 @@ void InitCommunicationThreadStacks() {
 	NumberOfFreeCommunicationThreadStacks = 1100;
 }
 
-// 0x080dbc30  communication.c:104
 void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
 	if (!UseOwnStacks) {
 		error("GetCommunicationThreadStack: Bibliothek unterst\xfctzt keine eigenen Stacks.\n");
@@ -123,13 +121,11 @@ void GetCommunicationThreadStack(int &StackNumber, void *&Stack) {
 	CommunicationThreadMutex.up();
 }
 
-// 0x080dbd10  communication.c:131
 void AttachCommunicationThreadStack(int StackNumber) {
 	// The original stores getpid(), under LinuxThreads the ID of the calling thread.
 	LastUsingCommunicationThread[StackNumber] = gettid();
 }
 
-// 0x080dbd30  communication.c:139
 void ReleaseCommunicationThreadStack(int StackNumber) {
 	CommunicationThreadMutex.down();
 	FreeCommunicationThreadStacks[NumberOfFreeCommunicationThreadStacks] = StackNumber;
@@ -137,7 +133,6 @@ void ReleaseCommunicationThreadStack(int StackNumber) {
 	CommunicationThreadMutex.up();
 }
 
-// 0x080dbd70  communication.c:150
 void ExitCommunicationThreadStacks() {
 	if (!UseOwnStacks) {
 		return;
@@ -167,7 +162,6 @@ void ExitCommunicationThreadStacks() {
 	}
 }
 
-// 0x080dbe10  communication.c:175
 void InitLoadHistory() {
 	for (int i = 0; i < 360; i++) {
 		LoadHistory[i] = 0;
@@ -181,12 +175,10 @@ void InitLoadHistory() {
 	InitLog("netload");
 }
 
-// 0x080dbe70  communication.c:190
 bool LagDetected() {
 	return RoundNr <= LagEnd;
 }
 
-// 0x080dbe90  communication.c:198
 void NetLoad(int Amount, bool Send) {
 	CommunicationThreadMutex.down();
 	if (Send) {
@@ -197,7 +189,6 @@ void NetLoad(int Amount, bool Send) {
 	CommunicationThreadMutex.up();
 }
 
-// 0x080dbee0  communication.c:209
 void NetLoadSummary() {
 	CommunicationThreadMutex.down();
 	Log("netload", "gesendet:  %d Bytes.\n", TotalSend);
@@ -207,7 +198,6 @@ void NetLoadSummary() {
 	CommunicationThreadMutex.up();
 }
 
-// 0x080dbf50  communication.c:223
 void NetLoadCheck() {
 	static int LastRecv = 0;
 
@@ -258,7 +248,6 @@ void NetLoadCheck() {
 	}
 }
 
-// 0x080dc0c0  communication.c:270
 bool WriteToSocket(TConnection *Connection, unsigned char *Buffer, int Size) {
 	while (Size % 8 != 0) {
 		Buffer[Size + 2] = static_cast<unsigned char>(rand_r(&Connection->RandomSeed));
@@ -304,7 +293,6 @@ bool WriteToSocket(TConnection *Connection, unsigned char *Buffer, int Size) {
 	return true;
 }
 
-// 0x080dc280  communication.c:311
 bool SendLoginMessage(TConnection *Connection, int Type, char *Message, int WaitingTime) {
 	if (Type < 20 || Type > 22) {
 		error("SendLoginMessage: Ung\xfcltiger Meldungstyp %d.\n", Type);
@@ -347,7 +335,6 @@ bool SendLoginMessage(TConnection *Connection, int Type, char *Message, int Wait
 	return true;
 }
 
-// 0x080dc430  communication.c:353
 bool SendData(TConnection *Connection) {
 	if (Connection == nullptr) {
 		error("SendData: Verbindung ist NULL.\n");
@@ -381,7 +368,6 @@ bool SendData(TConnection *Connection) {
 	return true;
 }
 
-// 0x080dc580  communication.c:385
 bool SendData(TConnection *Connection, char *Data, int Size) {
 	if (Connection == nullptr) {
 		error("SendData: Connection ist NULL.\n");
@@ -399,7 +385,6 @@ bool SendData(TConnection *Connection, char *Data, int Size) {
 	return SendData(Connection);
 }
 
-// 0x080dc610  communication.c:410
 bool GetWaitinglistEntry(char *Name, uint32_t &NextTry, bool &FreeAccount, bool &Newbie) {
 	CommunicationThreadMutex.down();
 	TWaitinglistEntry *Search = WaitinglistHead;
@@ -418,7 +403,6 @@ bool GetWaitinglistEntry(char *Name, uint32_t &NextTry, bool &FreeAccount, bool 
 	return false;
 }
 
-// 0x080dc6b0  communication.c:448
 void InsertWaitinglistEntry(char *Name, uint32_t NextTry, bool FreeAccount, bool Newbie) {
 	CommunicationThreadMutex.down();
 	TWaitinglistEntry *Last = nullptr;
@@ -452,7 +436,6 @@ void InsertWaitinglistEntry(char *Name, uint32_t NextTry, bool FreeAccount, bool
 	Log("queue", "F\xfcge %s in die Warteschlange ein.\n", Name);
 }
 
-// 0x080dc7b0  communication.c:476
 void DeleteWaitinglistEntry(char *Name) {
 	CommunicationThreadMutex.down();
 	TWaitinglistEntry *Entry = nullptr;
@@ -479,7 +462,6 @@ void DeleteWaitinglistEntry(char *Name) {
 	CommunicationThreadMutex.up();
 }
 
-// 0x080dc890  communication.c:498
 int GetWaitinglistPosition(char *Name, bool FreeAccount, bool Newbie) {
 	int FreeNewbies = 0;
 	int FreeVeterans = 0;
@@ -544,7 +526,6 @@ int GetWaitinglistPosition(char *Name, bool FreeAccount, bool Newbie) {
 	return PremiumVeterans + 1;
 }
 
-// 0x080dca60  communication.c:533
 int CheckWaitingTime(char *Name, TConnection *Connection, bool FreeAccount, bool Newbie) {
 	const char *Reason = nullptr;
 	int Position = GetWaitinglistPosition(Name, FreeAccount, Newbie);
@@ -592,7 +573,6 @@ int CheckWaitingTime(char *Name, TConnection *Connection, bool FreeAccount, bool
 	return WaitingTime;
 }
 
-// 0x080dccf0  communication.c:588
 int ReadFromSocket(TConnection *Connection, unsigned char *Buffer, int Size) {
 	int Chances = 50;
 	int nleft = Size;
@@ -623,7 +603,6 @@ int ReadFromSocket(TConnection *Connection, unsigned char *Buffer, int Size) {
 	return Size - nleft;
 }
 
-// 0x080dcd90  communication.c:615
 bool CallGameThread(TConnection *Connection) {
 	if (GameRunning()) {
 		Connection->WaitingForACK = true;
@@ -639,7 +618,6 @@ bool CallGameThread(TConnection *Connection) {
 	return true;
 }
 
-// 0x080dce10  communication.c:631
 bool CheckConnection(TConnection *Connection) {
 	pollfd Status;
 	Status.fd = Connection->GetSocket();
@@ -651,7 +629,6 @@ bool CheckConnection(TConnection *Connection) {
 	return (Status.revents & POLLIN) == 0;
 }
 
-// 0x080dce70  communication.c:643
 TPlayerData *PerformRegistration(TConnection *Connection, char *PlayerName, uint32_t AccountID, char *PlayerPassword, bool GamemasterClient) {
 	TQueryManagerPoolConnection QueryManagerConnection(&QueryManagerConnectionPool);
 	if (QueryManagerConnection.operator->() == nullptr) {
@@ -810,7 +787,6 @@ TPlayerData *PerformRegistration(TConnection *Connection, char *PlayerName, uint
 	return PlayerData;
 }
 
-// 0x080dd5b0  communication.c:800
 bool HandleLogin(TConnection *Connection) {
 	TReadBuffer Buffer(Connection->InData + 2, 2046);
 	unsigned char Command;
@@ -1012,7 +988,6 @@ again:
 	return CallGameThread(Connection);
 }
 
-// 0x080dde60  communication.c:985
 bool ReceiveCommand(TConnection *Connection) {
 	if (Connection == nullptr) {
 		error("ReceiveCommand: Connection ist NULL.\n");
@@ -1115,21 +1090,18 @@ again:
 	return true;
 }
 
-// 0x080de220  communication.c:1068
 void IncrementActiveConnections() {
 	CommunicationThreadMutex.down();
 	ActiveConnections++;
 	CommunicationThreadMutex.up();
 }
 
-// 0x080de250  communication.c:1078
 void DecrementActiveConnections() {
 	CommunicationThreadMutex.down();
 	ActiveConnections--;
 	CommunicationThreadMutex.up();
 }
 
-// 0x080de280  communication.c:1089
 void CommunicationThread(int Socket) {
 	TConnection *Connection = AssignFreeConnection();
 	if (Connection == nullptr) {
@@ -1278,7 +1250,6 @@ void CommunicationThread(int Socket) {
 	Connection->Free();
 }
 
-// 0x080de550  communication.c:1165
 int HandleConnection(void *Data) {
 	// Data is no pointer: the acceptor packs the stack number and the socket
 	// into it. The original casts it to int directly.
@@ -1316,7 +1287,6 @@ int HandleConnection(void *Data) {
 	return 0;
 }
 
-// 0x080de690  communication.c:1197
 bool OpenSocket() {
 	print(1, "Starte Game-Server...\n");
 	print(1, "Pid %d - horche an Port %d\n", getpid(), GamePort);
@@ -1365,7 +1335,6 @@ bool OpenSocket() {
 	return true;
 }
 
-// 0x080de8b0  communication.c:1245
 int AcceptorThreadLoop(void *) {
 	// Not in the original: under LinuxThreads this thread had its own PID, so
 	// neither the game thread's beat SIGALRM (whose SA_INTERRUPT would break
@@ -1455,7 +1424,6 @@ int AcceptorThreadLoop(void *) {
 	return 0;
 }
 
-// 0x080dec20  communication.c:1354
 void CheckThreadlibVersion() {
 	UseOwnStacks = !FileExists("/etc/image-release");
 	if (UseOwnStacks) {
@@ -1465,7 +1433,6 @@ void CheckThreadlibVersion() {
 	}
 }
 
-// 0x080dec60  communication.c:1364
 // The original is declared throw(const char *), which C++17 no longer has.
 void InitCommunication() {
 	CheckThreadlibVersion();
@@ -1489,7 +1456,6 @@ void InitCommunication() {
 	}
 }
 
-// 0x080dee30  communication.c:1384
 void ExitCommunication() {
 	print(3, "Beende alle Verbindungen...\n");
 	TConnection *Connection = GetFirstConnection();

@@ -67,7 +67,6 @@ static Semaphore OrderBufferEmpty(200);	// reader.c:57
 static Semaphore OrderBufferFull(0);	// reader.c:58
 static TDynamicWriteBuffer HelpBuffer(65536);	// reader.c:61
 
-// 0x080df270  reader.c:73
 void InitReaderBuffers() {
 	OrderPointerWrite = 0;
 	OrderPointerRead = 0;
@@ -75,7 +74,6 @@ void InitReaderBuffers() {
 	ReplyPointerRead = 0;
 }
 
-// 0x080df2a0  reader.c:85
 void InsertOrder(TReaderThreadOrderType OrderType, int SectorX, int SectorY, int SectorZ, uint32_t CharacterID) {
 	if (OrderPointerWrite - OrderPointerRead >= ORDER_BUFFER_SIZE) {
 		error("InsertOrder (Reader): Order-Puffer ist voll => Vergr\xf6\xdf" "ern.\n");
@@ -91,7 +89,6 @@ void InsertOrder(TReaderThreadOrderType OrderType, int SectorX, int SectorY, int
 	OrderBufferFull.up();
 }
 
-// 0x080df370  reader.c:103
 void GetOrder(TReaderThreadOrderType &OrderType, int &SectorX, int &SectorY, int &SectorZ, uint32_t &CharacterID) {
 	OrderBufferFull.down();
 	OrderType = OrderBuffer[OrderPointerRead % ORDER_BUFFER_SIZE].OrderType;
@@ -103,7 +100,6 @@ void GetOrder(TReaderThreadOrderType &OrderType, int &SectorX, int &SectorY, int
 	OrderBufferEmpty.up();
 }
 
-// 0x080df490  reader.c:119
 void InsertReply(TReaderThreadReplyType ReplyType, int SectorX, int SectorY, int SectorZ, unsigned char *Data, int Size) {
 	while (ReplyPointerWrite - ReplyPointerRead >= REPLY_BUFFER_SIZE) {
 		error("InsertReply (Reader): Puffer ist voll; warte...\n");
@@ -119,7 +115,6 @@ void InsertReply(TReaderThreadReplyType ReplyType, int SectorX, int SectorY, int
 	ReplyPointerWrite++;
 }
 
-// 0x080df560  reader.c:139
 bool GetReply(TReaderThreadReplyType &ReplyType, int &SectorX, int &SectorY, int &SectorZ, unsigned char *&Data, int &Size) {
 	if (ReplyPointerRead == ReplyPointerWrite) {
 		return false;
@@ -135,22 +130,18 @@ bool GetReply(TReaderThreadReplyType &ReplyType, int &SectorX, int &SectorY, int
 	return true;
 }
 
-// 0x080df670  reader.c:162
 void TerminateReaderOrder() {
 	InsertOrder(ORDER_TERMINATE, 0, 0, 0, 0);
 }
 
-// 0x080df720  reader.c:171
 void LoadSectorOrder(int SectorX, int SectorY, int SectorZ) {
 	InsertOrder(ORDER_LOADSECTOR, SectorX, SectorY, SectorZ, 0);
 }
 
-// 0x080df7f0  reader.c:179
 void LoadCharacterOrder(uint32_t CharacterID) {
 	InsertOrder(ORDER_LOADCHARACTER, 0, 0, 0, CharacterID);
 }
 
-// 0x080df8a0  reader.c:193
 void ProcessLoadSectorOrder(int SectorX, int SectorY, int SectorZ) {
 	char FileName[4096];
 
@@ -216,7 +207,6 @@ void ProcessLoadSectorOrder(int SectorX, int SectorY, int SectorZ) {
 	}
 }
 
-// 0x080dfc10  reader.c:247
 void ProcessLoadCharacterOrder(uint32_t CharacterID) {
 again:
 	TPlayerData *PlayerData = AssignPlayerPoolSlot(CharacterID, true);
@@ -240,7 +230,6 @@ again:
 	InsertReply(REPLY_CHARACTERDATA, 0, 0, 0, nullptr, (int)CharacterID);
 }
 
-// 0x080dfd50  reader.c:271
 int ReaderThreadLoop(void *) {
 	while (true) {
 		TReaderThreadOrderType OrderType;
@@ -267,13 +256,11 @@ int ReaderThreadLoop(void *) {
 	}
 }
 
-// 0x080dfe30  reader.c:296
 void ProcessSectorReply(TRefreshSectorFunction *RefreshSector, int SectorX, int SectorY, int SectorZ, unsigned char *Data, int Size) {
 	RefreshSector(SectorX, SectorY, SectorZ, Data, Size);
 	delete[] Data;
 }
 
-// 0x080dfe80  reader.c:307
 void ProcessCharacterReply(TSendMailsFunction *SendMails, uint32_t CharacterID) {
 	TPlayerData *PlayerData = AttachPlayerPoolSlot(CharacterID, true);
 	if (PlayerData == nullptr) {
@@ -286,7 +273,6 @@ void ProcessCharacterReply(TSendMailsFunction *SendMails, uint32_t CharacterID) 
 	ReleasePlayerPoolSlot(PlayerData);
 }
 
-// 0x080dfef0  reader.c:323
 void ProcessReaderThreadReplies(TRefreshSectorFunction *RefreshSector, TSendMailsFunction *SendMails) {
 	while (true) {
 		TReaderThreadReplyType ReplyType;
@@ -314,7 +300,6 @@ void ProcessReaderThreadReplies(TRefreshSectorFunction *RefreshSector, TSendMail
 	}
 }
 
-// 0x080e0030  reader.c:349
 void InitReader() {
 	InitReaderBuffers();
 	ReaderThread = StartThread(ReaderThreadLoop, nullptr, false);
@@ -323,7 +308,6 @@ void InitReader() {
 	}
 }
 
-// 0x080e00c0  reader.c:360
 void ExitReader() {
 	if (ReaderThread != 0) {
 		TerminateReaderOrder();

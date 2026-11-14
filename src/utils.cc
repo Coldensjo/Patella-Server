@@ -16,25 +16,20 @@ TPrintFunction *PrintFunction = nullptr;	// utils.c:15
 TErrorFunction *ErrorFunction = nullptr;	// utils.c:16
 char StandardLogfile[4096] = "";	// utils.c:17
 
-// 0x0804cfc0  utils.c:28
 void SetPrintFunction(TPrintFunction *Function) {
 	PrintFunction = Function;
 }
 
-// 0x0804cfd0  utils.c:36
 void SetErrorFunction(TErrorFunction *Function) {
 	ErrorFunction = Function;
 }
 
-// 0x0804cfe0  utils.c:49
 void SilentHandler(int, char *) {
 }
 
-// 0x0804cff0  utils.c:56
 void SilentHandler(char *) {
 }
 
-// 0x0804d000  utils.c:63
 void LogfileHandler(int, char *Text) {
 	if (StandardLogfile[0] == 0) {
 		return;
@@ -51,7 +46,6 @@ void LogfileHandler(int, char *Text) {
 	}
 }
 
-// 0x0804d080  utils.c:75
 void LogfileHandler(char *Text) {
 	if (StandardLogfile[0] == 0) {
 		return;
@@ -68,7 +62,6 @@ void LogfileHandler(char *Text) {
 	}
 }
 
-// 0x0804d100  utils.c:92
 void print(int Level, char *Text, ...) {
 	va_list args;
 	char s[1024];
@@ -84,7 +77,6 @@ void print(int Level, char *Text, ...) {
 	}
 }
 
-// 0x0804d160  utils.c:107
 void error(char *Text, ...) {
 	va_list args;
 	char s[1024];
@@ -100,19 +92,16 @@ void error(char *Text, ...) {
 	}
 }
 
-// 0x0804d1c0  utils.c:127
 bool TReadStream::readFlag() {
 	return readByte() != 0;
 }
 
-// 0x0804d200  utils.c:135
 unsigned short TReadStream::readWord() {
 	unsigned char Lo = readByte();
 	unsigned char Hi = readByte();
 	return static_cast<unsigned short>(Lo | (Hi << 8));
 }
 
-// 0x0804d250  utils.c:145
 uint32_t TReadStream::readQuad() {
 	unsigned char Lo = readByte();
 	unsigned char lo = readByte();
@@ -124,7 +113,6 @@ uint32_t TReadStream::readQuad() {
 		| (static_cast<uint32_t>(Hi) << 24);
 }
 
-// 0x0804d2d0  utils.c:159
 void TReadStream::readString(char *Buffer, int MaxLength) {
 	if (Buffer == nullptr) {
 		error("TReadStream::readString: \xdc" "bergebener Puffer existiert nicht.\n");
@@ -151,7 +139,6 @@ void TReadStream::readString(char *Buffer, int MaxLength) {
 	}
 }
 
-// 0x0804d3c0  utils.c:182
 void TReadStream::readBytes(unsigned char *Buffer, int Count) {
 	if (Buffer == nullptr) {
 		error("TReadStream::readBytes: \xdc" "bergebener Puffer existiert nicht.\n");
@@ -163,18 +150,15 @@ void TReadStream::readBytes(unsigned char *Buffer, int Count) {
 	}
 }
 
-// 0x0804d460  utils.c:199
 void TWriteStream::writeFlag(bool f) {
 	writeByte(f ? 1 : 0);
 }
 
-// 0x0804d4a0  utils.c:207
 void TWriteStream::writeWord(unsigned short w) {
 	writeByte(static_cast<unsigned char>(w));
 	writeByte(static_cast<unsigned char>(w >> 8));
 }
 
-// 0x0804d500  utils.c:216
 void TWriteStream::writeQuad(uint32_t q) {
 	writeByte(static_cast<unsigned char>(q));
 	writeByte(static_cast<unsigned char>(q >> 8));
@@ -182,7 +166,6 @@ void TWriteStream::writeQuad(uint32_t q) {
 	writeByte(static_cast<unsigned char>(q >> 24));
 }
 
-// 0x0804d580  utils.c:230
 void TWriteStream::writeString(char *s) {
 	if (s == nullptr) {
 		writeWord(0);
@@ -202,7 +185,6 @@ void TWriteStream::writeString(char *s) {
 	}
 }
 
-// 0x0804d630  utils.c:248
 void TWriteStream::writeBytes(unsigned char *Buffer, int Count) {
 	if (Buffer == nullptr) {
 		error("TWriteStream::writeBytes: \xdc" "bergebener Puffer existiert nicht.\n");
@@ -214,7 +196,6 @@ void TWriteStream::writeBytes(unsigned char *Buffer, int Count) {
 	}
 }
 
-// 0x0804d730  utils.c:265
 TReadBuffer::TReadBuffer(unsigned char *data, int size) {
 	Data = data;
 	Size = size;
@@ -229,7 +210,6 @@ TReadBuffer::TReadBuffer(unsigned char *data, int size) {
 	}
 }
 
-// 0x0804d790  utils.c:285
 unsigned char TReadBuffer::readByte() {
 	if (Position > Size - 1) {
 		throw "buffer empty";
@@ -240,7 +220,6 @@ unsigned char TReadBuffer::readByte() {
 	return b;
 }
 
-// 0x0804d800  utils.c:296
 unsigned short TReadBuffer::readWord() {
 	if (Position > Size - 2) {
 		throw "buffer empty";
@@ -251,7 +230,6 @@ unsigned short TReadBuffer::readWord() {
 	return w;
 }
 
-// 0x0804d880  utils.c:307
 uint32_t TReadBuffer::readQuad() {
 	if (Position > Size - 4) {
 		throw "buffer empty";
@@ -265,7 +243,6 @@ uint32_t TReadBuffer::readQuad() {
 	return q;
 }
 
-// 0x0804d910  utils.c:318
 void TReadBuffer::readBytes(unsigned char *Buffer, int Count) {
 	if (Buffer == nullptr) {
 		error("TReadBuffer::readBytes: \xdc" "bergebener Puffer existiert nicht.\n");
@@ -280,12 +257,10 @@ void TReadBuffer::readBytes(unsigned char *Buffer, int Count) {
 	Position += Count;
 }
 
-// 0x0804d9c0  utils.c:332
 bool TReadBuffer::eof() {
 	return Position >= Size;
 }
 
-// 0x0804d9e0  utils.c:340
 void TReadBuffer::skip(int Count) {
 	if (Position > Size - Count) {
 		throw "buffer empty";
@@ -294,7 +269,6 @@ void TReadBuffer::skip(int Count) {
 	Position += Count;
 }
 
-// 0x0804dab0  utils.c:354
 TWriteBuffer::TWriteBuffer(unsigned char *data, int size) {
 	Data = data;
 	Size = size;
@@ -309,7 +283,6 @@ TWriteBuffer::TWriteBuffer(unsigned char *data, int size) {
 	}
 }
 
-// 0x0804db10  utils.c:373
 void TWriteBuffer::writeByte(unsigned char b) {
 	if (Position > Size - 1) {
 		throw "buffer full";
@@ -319,7 +292,6 @@ void TWriteBuffer::writeByte(unsigned char b) {
 	Position += 1;
 }
 
-// 0x0804db80  utils.c:383
 void TWriteBuffer::writeWord(unsigned short w) {
 	if (Position > Size - 2) {
 		throw "buffer full";
@@ -330,7 +302,6 @@ void TWriteBuffer::writeWord(unsigned short w) {
 	Position += 2;
 }
 
-// 0x0804dc00  utils.c:394
 void TWriteBuffer::writeQuad(uint32_t q) {
 	if (Position > Size - 4) {
 		throw "buffer full";
@@ -343,7 +314,6 @@ void TWriteBuffer::writeQuad(uint32_t q) {
 	Position += 4;
 }
 
-// 0x0804dca0  utils.c:410
 void TWriteBuffer::writeBytes(unsigned char *Buffer, int Count) {
 	if (Position > Size - Count) {
 		throw "buffer full";
@@ -353,16 +323,13 @@ void TWriteBuffer::writeBytes(unsigned char *Buffer, int Count) {
 	Position += Count;
 }
 
-// 0x0804dd60  utils.c:422
 TDynamicWriteBuffer::TDynamicWriteBuffer(int InitialSize) : TWriteBuffer(new unsigned char[InitialSize], InitialSize) {
 }
 
-// 0x0804ddd0  utils.c:433
 TDynamicWriteBuffer::~TDynamicWriteBuffer() {
 	delete[] Data;
 }
 
-// 0x0804de40  utils.c:442
 void TDynamicWriteBuffer::resizeBuffer() {
 	unsigned char *Help = new unsigned char[Size * 2];
 	memcpy(Help, Data, Size);
@@ -371,7 +338,6 @@ void TDynamicWriteBuffer::resizeBuffer() {
 	Size *= 2;
 }
 
-// 0x0804dea0  utils.c:456
 void TDynamicWriteBuffer::writeByte(unsigned char b) {
 	while (Position > Size - 1) {
 		resizeBuffer();
@@ -381,7 +347,6 @@ void TDynamicWriteBuffer::writeByte(unsigned char b) {
 	Position += 1;
 }
 
-// 0x0804df50  utils.c:466
 void TDynamicWriteBuffer::writeWord(unsigned short w) {
 	while (Position > Size - 2) {
 		resizeBuffer();
@@ -392,7 +357,6 @@ void TDynamicWriteBuffer::writeWord(unsigned short w) {
 	Position += 2;
 }
 
-// 0x0804e010  utils.c:477
 void TDynamicWriteBuffer::writeQuad(uint32_t q) {
 	while (Position > Size - 4) {
 		resizeBuffer();
@@ -405,7 +369,6 @@ void TDynamicWriteBuffer::writeQuad(uint32_t q) {
 	Position += 4;
 }
 
-// 0x0804e0e0  utils.c:493
 void TDynamicWriteBuffer::writeBytes(unsigned char *Buffer, int Count) {
 	while (Position > Size - Count) {
 		resizeBuffer();
@@ -415,7 +378,6 @@ void TDynamicWriteBuffer::writeBytes(unsigned char *Buffer, int Count) {
 	Position += Count;
 }
 
-// 0x0804e1a0  utils.c:509
 int val(char c) {
 	if (c >= '0' && c <= '9') {
 		return c - '0';
@@ -429,7 +391,6 @@ int val(char c) {
 	return 0;
 }
 
-// 0x0804e1f0  utils.c:520
 int random(int low, int high) {
 	// Computed unsigned so that a span of 2^31 or more wraps as it did in the original.
 	int range = static_cast<int>(static_cast<uint32_t>(high) - static_cast<uint32_t>(low) + 1);
@@ -439,7 +400,6 @@ int random(int low, int high) {
 	return low + rand() % range;
 }
 
-// 0x0804e230  utils.c:530
 bool FileExists(char *FileName) {
 	struct stat Buffer;
 
@@ -455,7 +415,6 @@ bool FileExists(char *FileName) {
 	return false;
 }
 
-// 0x0804e290  utils.c:544
 void TreatAllFiles(char *Directory, char *Extension, TFileHandlerFunction *Function) {
 	DIR *WorkingDirectory;
 	struct dirent *DirectoryEntry;
@@ -481,7 +440,6 @@ void TreatAllFiles(char *Directory, char *Extension, TFileHandlerFunction *Funct
 	closedir(WorkingDirectory);
 }
 
-// 0x0804e4a0  utils.c:566
 void SendMail(char *Address, char *Subject, char *Text) {
 	static char *mailer = "/usr/sbin/sendmail";
 	static char *envelope = "auto-responder@tibia.com";
@@ -542,34 +500,29 @@ void SendMail(char *Address, char *Subject, char *Text) {
 	}
 }
 
-// 0x0804e910  utils.c:637
 void RemoveZombie() {
 	int status;
 	waitpid(-1, &status, WNOHANG | WUNTRACED);
 }
 
-// 0x0804e940  utils.c:646
 uint32_t PackAbsoluteCoordinate(int x, int y, int z) {
 	return ((static_cast<uint32_t>(x) - 24576) << 18)
 		+ ((static_cast<uint32_t>(y) - 24576) << 4)
 		+ static_cast<uint32_t>(z);
 }
 
-// 0x0804e970  utils.c:654
 uint32_t PackRelativeCoordinate(int dx, int dy, int dz) {
 	return ((static_cast<uint32_t>(dx) + 8192) << 18)
 		+ ((static_cast<uint32_t>(dy) + 8192) << 4)
 		+ static_cast<uint32_t>(dz) + 8;
 }
 
-// 0x0804e9a0  utils.c:662
 void UnpackAbsoluteCoordinate(uint32_t Code, int &x, int &y, int &z) {
 	x = static_cast<int>(Code >> 18) + 24576;
 	y = static_cast<int>((Code >> 4) & 0x3FFF) + 24576;
 	z = static_cast<int>(Code & 0xF);
 }
 
-// 0x0804e9e0  utils.c:672
 void UnpackRelativeCoordinate(uint32_t Code, int &dx, int &dy, int &dz) {
 	dx = static_cast<int>(Code >> 18) - 8192;
 	dy = static_cast<int>((Code >> 4) & 0x3FFF) - 8192;

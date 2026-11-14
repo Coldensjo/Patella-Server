@@ -67,7 +67,6 @@ static inline void SendQuad(TConnection *Connection, uint32_t Value) {
 	}
 }
 
-// 0x080d6630  sending.c:158
 static inline void SendText(TConnection *Connection, const char *Text, int Length) {
 	if (Text == nullptr) {
 		error("SendText: Text ist NULL.\n");
@@ -117,7 +116,6 @@ static inline void SendObjectType(TConnection *Connection, Object Obj) {
 	}
 }
 
-// 0x080cc0b0  sending.c:43
 bool BeginSendData(TConnection *Connection) {
 	if (Connection == nullptr) {
 		return false;
@@ -137,7 +135,6 @@ bool BeginSendData(TConnection *Connection) {
 	return true;
 }
 
-// 0x080cc130  sending.c:61
 void FinishSendData(TConnection *Connection) {
 	if (Connection == nullptr) {
 		error("FinishSendData: Verbindung ist NULL.\n");
@@ -162,7 +159,6 @@ void FinishSendData(TConnection *Connection) {
 	}
 }
 
-// 0x080cc1c0  sending.c:88
 void SendAll() {
 	TConnection *Connection = FirstSendingConnection;
 	while (Connection != nullptr) {
@@ -181,7 +177,6 @@ void SendAll() {
 	FirstSendingConnection = nullptr;
 }
 
-// 0x080cc250  sending.c:213
 void SkipFlush(TConnection *Connection) {
 	if (Skip == -1) {
 		return;
@@ -200,7 +195,6 @@ void SkipFlush(TConnection *Connection) {
 	} while (Skip >= 0);
 }
 
-// 0x080cc3e0  sending.c:232
 void SendMapObject(TConnection *Connection, Object Obj) {
 	if (!Obj.exists()) {
 		error("SendMapObject: \xdc" "bergebenes Objekt existiert nicht.\n");
@@ -291,7 +285,6 @@ void SendMapObject(TConnection *Connection, Object Obj) {
 	}
 }
 
-// 0x080cd200  sending.c:302
 void SendMapPoint(TConnection *Connection, int x, int y, int z) {
 	Object Obj = GetFirstObject(x, y, z);
 	if (Obj == NONE) {
@@ -314,7 +307,6 @@ void SendMapPoint(TConnection *Connection, int x, int y, int z) {
 	Skip++;
 }
 
-// 0x080cd2c0  sending.c:329
 void SendResult(TConnection *Connection, RESULT r) {
 	if (Connection == nullptr) {
 		return;
@@ -393,7 +385,6 @@ void SendResult(TConnection *Connection, RESULT r) {
 	}
 }
 
-// 0x080cd690  sending.c:401
 void SendRefresh(TConnection *Connection) {
 	SendFullScreen(Connection);
 	SendAmbiente(Connection);
@@ -401,7 +392,6 @@ void SendRefresh(TConnection *Connection) {
 	SendPlayerSkills(Connection);
 }
 
-// 0x080cd7d0  sending.c:412
 void SendInitGame(TConnection *Connection, uint32_t id) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -414,7 +404,6 @@ void SendInitGame(TConnection *Connection, uint32_t id) {
 	FinishSendData(Connection);
 }
 
-// 0x080cd9e0  sending.c:425
 void SendRights(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -449,7 +438,6 @@ void SendRights(TConnection *Connection) {
 	}
 }
 
-// 0x080cdb90  sending.c:448
 void SendPing(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -459,7 +447,6 @@ void SendPing(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080cdc10  sending.c:458
 void SendFullScreen(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -498,7 +485,6 @@ void SendFullScreen(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080cdf70  sending.c:491
 void SendRow(TConnection *Connection, int Direction) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -573,7 +559,6 @@ void SendRow(TConnection *Connection, int Direction) {
 	FinishSendData(Connection);
 }
 
-// 0x080ce310  sending.c:536
 void SendFloors(TConnection *Connection, bool Up) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -637,7 +622,6 @@ void SendFloors(TConnection *Connection, bool Up) {
 	FinishSendData(Connection);
 }
 
-// 0x080ce530  sending.c:569
 void SendFieldData(TConnection *Connection, int x, int y, int z) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -653,7 +637,6 @@ void SendFieldData(TConnection *Connection, int x, int y, int z) {
 	FinishSendData(Connection);
 }
 
-// 0x080ce710  sending.c:585
 void SendCloseContainer(TConnection *Connection, int ContNr) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -664,7 +647,6 @@ void SendCloseContainer(TConnection *Connection, int ContNr) {
 	FinishSendData(Connection);
 }
 
-// 0x080ce7e0  sending.c:596
 void SendContainer(TConnection *Connection, int ContNr) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -711,7 +693,6 @@ void SendContainer(TConnection *Connection, int ContNr) {
 	FinishSendData(Connection);
 }
 
-// 0x080cef60  sending.c:632
 void SendCreateInContainer(TConnection *Connection, int ContNr, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -737,7 +718,6 @@ void SendCreateInContainer(TConnection *Connection, int ContNr, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080cf2d0  sending.c:651
 void SendChangeInContainer(TConnection *Connection, int ContNr, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -769,7 +749,6 @@ void SendChangeInContainer(TConnection *Connection, int ContNr, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080cf6b0  sending.c:673
 void SendDeleteInContainer(TConnection *Connection, int ContNr, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -791,7 +770,6 @@ void SendDeleteInContainer(TConnection *Connection, int ContNr, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080cf7f0  sending.c:691
 void SendBodyInventory(TConnection *Connection, uint32_t CreatureID) {
 	for (int Position = 1; Position <= 10; Position++) {
 		Object Obj = GetBodyObject(CreatureID, Position);
@@ -801,7 +779,6 @@ void SendBodyInventory(TConnection *Connection, uint32_t CreatureID) {
 	}
 }
 
-// 0x080cf860  sending.c:702
 void SendSetInventory(TConnection *Connection, int Position, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -827,7 +804,6 @@ void SendSetInventory(TConnection *Connection, int Position, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080cfbd0  sending.c:721
 void SendDeleteInventory(TConnection *Connection, int Position) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -838,7 +814,6 @@ void SendDeleteInventory(TConnection *Connection, int Position) {
 	FinishSendData(Connection);
 }
 
-// 0x080cfca0  sending.c:733
 void SendTradeObjects(TConnection *Connection, Object Obj) {
 	if (!Obj.exists()) {
 		return;
@@ -864,7 +839,6 @@ void SendTradeObjects(TConnection *Connection, Object Obj) {
 	}
 }
 
-// 0x080cfff0  sending.c:752
 void SendTradeOffer(TConnection *Connection, char *Name, bool OwnOffer, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -887,7 +861,6 @@ void SendTradeOffer(TConnection *Connection, char *Name, bool OwnOffer, Object O
 	FinishSendData(Connection);
 }
 
-// 0x080d01b0  sending.c:773
 void SendCloseTrade(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -897,7 +870,6 @@ void SendCloseTrade(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d0230  sending.c:783
 void SendAddField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -916,7 +888,6 @@ void SendAddField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080d03f0  sending.c:801
 void SendDeleteField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -941,7 +912,6 @@ void SendDeleteField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080d0600  sending.c:821
 void SendChangeField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -966,7 +936,6 @@ void SendChangeField(TConnection *Connection, int x, int y, int z, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080d0820  sending.c:842
 void SendMoveCreature(TConnection *Connection, uint32_t CreatureID, int x, int y, int z) {
 	if (Connection == nullptr) {
 		return;
@@ -1007,7 +976,6 @@ void SendMoveCreature(TConnection *Connection, uint32_t CreatureID, int x, int y
 	}
 }
 
-// 0x080d0c60  sending.c:875
 void SendGraphicalEffect(TConnection *Connection, int x, int y, int z, int Type) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1021,7 +989,6 @@ void SendGraphicalEffect(TConnection *Connection, int x, int y, int z, int Type)
 	FinishSendData(Connection);
 }
 
-// 0x080d0e50  sending.c:889
 void SendTextualEffect(TConnection *Connection, int x, int y, int z, int Color, char *Text) {
 	if (Text == nullptr) {
 		error("SendTextualEffect: Text ist NULL.\n");
@@ -1046,7 +1013,6 @@ void SendTextualEffect(TConnection *Connection, int x, int y, int z, int Color, 
 	FinishSendData(Connection);
 }
 
-// 0x080d1130  sending.c:912
 void SendMissileEffect(TConnection *Connection, int sx, int sy, int sz, int zx, int zy, int zz, int Type) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1063,7 +1029,6 @@ void SendMissileEffect(TConnection *Connection, int sx, int sy, int sz, int zx, 
 	FinishSendData(Connection);
 }
 
-// 0x080d1450  sending.c:929
 void SendMarkCreature(TConnection *Connection, uint32_t CreatureID, int Color) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1075,7 +1040,6 @@ void SendMarkCreature(TConnection *Connection, uint32_t CreatureID, int Color) {
 	FinishSendData(Connection);
 }
 
-// 0x080d15c0  sending.c:941
 void SendEditText(TConnection *Connection, Object Obj) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1134,7 +1098,6 @@ void SendEditText(TConnection *Connection, Object Obj) {
 	FinishSendData(Connection);
 }
 
-// 0x080d1d80  sending.c:994
 void SendEditList(TConnection *Connection, unsigned char Type, uint32_t ID, char *Text) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1152,7 +1115,6 @@ void SendEditList(TConnection *Connection, unsigned char Type, uint32_t ID, char
 	FinishSendData(Connection);
 }
 
-// 0x080d1fd0  sending.c:1011
 void SendAmbiente(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1167,7 +1129,6 @@ void SendAmbiente(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d2100  sending.c:1025
 void SendCreatureHealth(TConnection *Connection, uint32_t CreatureID) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1186,7 +1147,6 @@ void SendCreatureHealth(TConnection *Connection, uint32_t CreatureID) {
 	FinishSendData(Connection);
 }
 
-// 0x080d22a0  sending.c:1042
 void SendCreatureLight(TConnection *Connection, uint32_t CreatureID) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1208,7 +1168,6 @@ void SendCreatureLight(TConnection *Connection, uint32_t CreatureID) {
 	FinishSendData(Connection);
 }
 
-// 0x080d24b0  sending.c:1062
 void SendCreatureOutfit(TConnection *Connection, uint32_t CreatureID) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1232,7 +1191,6 @@ void SendCreatureOutfit(TConnection *Connection, uint32_t CreatureID) {
 	FinishSendData(Connection);
 }
 
-// 0x080d2720  sending.c:1081
 void SendCreatureSpeed(TConnection *Connection, uint32_t CreatureID) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1251,7 +1209,6 @@ void SendCreatureSpeed(TConnection *Connection, uint32_t CreatureID) {
 	FinishSendData(Connection);
 }
 
-// 0x080d28f0  sending.c:1098
 void SendCreatureSkull(TConnection *Connection, uint32_t CreatureID) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1270,7 +1227,6 @@ void SendCreatureSkull(TConnection *Connection, uint32_t CreatureID) {
 	FinishSendData(Connection);
 }
 
-// 0x080d2aa0  sending.c:1115
 void SendCreatureParty(TConnection *Connection, uint32_t CreatureID) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1289,7 +1245,6 @@ void SendCreatureParty(TConnection *Connection, uint32_t CreatureID) {
 	FinishSendData(Connection);
 }
 
-// 0x080d2c50  sending.c:1132
 void SendClearTarget(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1299,7 +1254,6 @@ void SendClearTarget(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d2cd0  sending.c:1142
 void SendPlayerData(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1389,7 +1343,6 @@ void SendPlayerData(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d3630  sending.c:1179
 void SendPlayerSkills(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1490,7 +1443,6 @@ void SendPlayerSkills(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d3f30  sending.c:1217
 void SendPlayerState(TConnection *Connection, unsigned char State) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1501,7 +1453,6 @@ void SendPlayerState(TConnection *Connection, unsigned char State) {
 	FinishSendData(Connection);
 }
 
-// 0x080d4000  sending.c:1228
 void SendMessage(TConnection *Connection, int Mode, char *Text, ...) {
 	if (Mode != TALK_ADMIN_MESSAGE && Mode != TALK_EVENT_MESSAGE && Mode != TALK_LOGIN_MESSAGE
 			&& Mode != TALK_STATUS_MESSAGE && Mode != TALK_INFO_MESSAGE && Mode != TALK_FAILURE_MESSAGE) {
@@ -1525,7 +1476,6 @@ void SendMessage(TConnection *Connection, int Mode, char *Text, ...) {
 	FinishSendData(Connection);
 }
 
-// 0x080d41b0  sending.c:1251
 void SendSnapback(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1541,7 +1491,6 @@ void SendSnapback(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d4290  sending.c:1264
 void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int Mode, char *Text, int Data) {
 	if (Mode != TALK_PRIVATE_MESSAGE && Mode != TALK_GAMEMASTER_ANSWER && Mode != TALK_PLAYER_ANSWER
 			&& Mode != TALK_GAMEMASTER_REQUEST && Mode != TALK_GAMEMASTER_MESSAGE && Mode != TALK_GAMEMASTER_BROADCAST) {
@@ -1574,7 +1523,6 @@ void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int M
 	FinishSendData(Connection);
 }
 
-// 0x080d46d0  sending.c:1292
 void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int Mode, int Channel, char *Text) {
 	if (Mode != TALK_CHANNEL_CALL && Mode != TALK_GAMEMASTER_CHANNELCALL
 			&& Mode != TALK_HIGHLIGHT_CHANNELCALL && Mode != TALK_ANONYMOUS_CHANNELCALL) {
@@ -1609,7 +1557,6 @@ void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int M
 	FinishSendData(Connection);
 }
 
-// 0x080d4b70  sending.c:1320
 void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int Mode, int x, int y, int z, char *Text) {
 	if (Mode != TALK_SAY && Mode != TALK_WHISPER && Mode != TALK_YELL
 			&& Mode != TALK_ANIMAL_LOW && Mode != TALK_ANIMAL_LOUD) {
@@ -1642,7 +1589,6 @@ void SendTalk(TConnection *Connection, uint32_t StatementID, char *Sender, int M
 	FinishSendData(Connection);
 }
 
-// 0x080d5000  sending.c:1350
 void SendChannels(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1685,7 +1631,6 @@ void SendChannels(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5410  sending.c:1382
 void SendOpenChannel(TConnection *Connection, int Channel) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1712,7 +1657,6 @@ void SendOpenChannel(TConnection *Connection, int Channel) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5640  sending.c:1404
 void SendPrivateChannel(TConnection *Connection, char *Name) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1728,7 +1672,6 @@ void SendPrivateChannel(TConnection *Connection, char *Name) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5790  sending.c:1419
 void SendOpenRequestQueue(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1739,7 +1682,6 @@ void SendOpenRequestQueue(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5870  sending.c:1430
 void SendDeleteRequest(TConnection *Connection, char *Name) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1755,7 +1697,6 @@ void SendDeleteRequest(TConnection *Connection, char *Name) {
 	FinishSendData(Connection);
 }
 
-// 0x080d59c0  sending.c:1445
 void SendFinishRequest(TConnection *Connection, char *Name) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1771,7 +1712,6 @@ void SendFinishRequest(TConnection *Connection, char *Name) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5b10  sending.c:1460
 void SendCloseRequest(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1781,7 +1721,6 @@ void SendCloseRequest(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5b90  sending.c:1470
 void SendOpenOwnChannel(TConnection *Connection, int Channel) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1803,7 +1742,6 @@ void SendOpenOwnChannel(TConnection *Connection, int Channel) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5da0  sending.c:1488
 void SendCloseChannel(TConnection *Connection, int Channel) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1814,7 +1752,6 @@ void SendCloseChannel(TConnection *Connection, int Channel) {
 	FinishSendData(Connection);
 }
 
-// 0x080d5ea0  sending.c:1499
 void SendOutfit(TConnection *Connection) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1838,7 +1775,6 @@ void SendOutfit(TConnection *Connection) {
 	FinishSendData(Connection);
 }
 
-// 0x080d6170  sending.c:1520
 void SendBuddyData(TConnection *Connection, uint32_t CharacterID, char *Name, bool Online) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1855,7 +1791,6 @@ void SendBuddyData(TConnection *Connection, uint32_t CharacterID, char *Name, bo
 	FinishSendData(Connection);
 }
 
-// 0x080d63b0  sending.c:1534
 void SendBuddyStatus(TConnection *Connection, uint32_t CharacterID, bool Online) {
 	if (!BeginSendData(Connection)) {
 		return;
@@ -1866,7 +1801,6 @@ void SendBuddyStatus(TConnection *Connection, uint32_t CharacterID, bool Online)
 	FinishSendData(Connection);
 }
 
-// 0x080d6500  sending.c:1545
 void BroadcastMessage(int Mode, char *Text, ...) {
 	va_list args;
 	char Message[1024];
@@ -1884,7 +1818,6 @@ void BroadcastMessage(int Mode, char *Text, ...) {
 	}
 }
 
-// 0x080d6580  sending.c:1559
 void DeleteGamemasterRequest(char *Name) {
 	if (Name == nullptr) {
 		error("DeleteGamemasterRequest: Name ist NULL.\n");

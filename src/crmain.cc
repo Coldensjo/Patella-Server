@@ -47,7 +47,6 @@ matrix<uint32_t> *FirstChainCreature;	// crmain.c:160
 int KilledCreatures[512];	// crmain.c:323
 int KilledPlayers[512];	// crmain.c:324
 
-// 0x0809df10  crmain.c:48
 TCreature *GetCreature(uint32_t id) {
 	if (id == 0) {
 		return nullptr;
@@ -62,17 +61,14 @@ TCreature *GetCreature(uint32_t id) {
 	return cr;
 }
 
-// 0x0809df70  crmain.c:66
 TCreature *GetCreature(Object Obj) {
 	return GetCreature(Obj.getCreatureID());
 }
 
-// 0x0809df90  crmain.c:74
 bool IsCreaturePlayer(uint32_t CreatureID) {
 	return CreatureID < 0x40000000;
 }
 
-// 0x0809dfb0  crmain.c:82
 void ProcessSkills() {
 	for (int i = 0; i < FirstFreeCreature; i++) {
 		TCreature *cr = CreatureList(i);
@@ -87,7 +83,6 @@ void ProcessSkills() {
 	}
 }
 
-// 0x0809e020  crmain.c:97
 void ProcessCreatures() {
 	for (int i = 0; i < FirstFreeCreature; i++) {
 		TCreature *cr = CreatureList(i);
@@ -135,7 +130,6 @@ void ProcessCreatures() {
 	}
 }
 
-// 0x0809e230  crmain.c:136
 void MoveCreatures(int Delay) {
 	ServerMilliseconds += Delay;
 
@@ -155,7 +149,6 @@ void MoveCreatures(int Delay) {
 	}
 }
 
-// 0x0809e2d0  crmain.c:166
 void DeleteChainCreature(TCreature *cr) {
 	if (cr == nullptr) {
 		error("DeleteChainCreature: \xdc" "begebene Kreatur existiert nicht.\n");
@@ -190,7 +183,6 @@ void DeleteChainCreature(TCreature *cr) {
 	}
 }
 
-// 0x0809e430  crmain.c:198
 void InsertChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
 		// The original names DeleteChainCreature here.
@@ -211,7 +203,6 @@ void InsertChainCreature(TCreature *cr, int newx, int newy) {
 	(*FirstChainCreature)(blockx, blocky) = cr->ID;
 }
 
-// 0x0809e5a0  crmain.c:213
 void MoveChainCreature(TCreature *cr, int newx, int newy) {
 	if (cr == nullptr) {
 		// The original names DeleteChainCreature here.
@@ -227,12 +218,10 @@ void MoveChainCreature(TCreature *cr, int newx, int newy) {
 	InsertChainCreature(cr, newx, newy);
 }
 
-// 0x0809e6d0  crmain.c:229
 TFindCreatures::TFindCreatures(int radx, int rady, int x, int y, int Mask) {
 	initSearch(radx, rady, x, y, Mask);
 }
 
-// 0x0809e7f0  crmain.c:238
 // Only finished is set if the creature does not exist, as in the original.
 TFindCreatures::TFindCreatures(int radx, int rady, uint32_t CreatureID, int Mask) {
 	TCreature *cr = GetCreature(CreatureID);
@@ -246,7 +235,6 @@ TFindCreatures::TFindCreatures(int radx, int rady, uint32_t CreatureID, int Mask
 	SkipID = CreatureID;
 }
 
-// 0x0809e960  crmain.c:254
 // Only finished is set if the object does not exist, as in the original.
 TFindCreatures::TFindCreatures(int radx, int rady, Object Obj, int Mask) {
 	if (!Obj.exists()) {
@@ -260,7 +248,6 @@ TFindCreatures::TFindCreatures(int radx, int rady, Object Obj, int Mask) {
 	initSearch(radx, rady, x, y, Mask);
 }
 
-// 0x0809ea30  crmain.c:269
 void TFindCreatures::initSearch(int radx, int rady, int x, int y, int mask) {
 	startx = x - radx;
 	starty = y - rady;
@@ -274,7 +261,6 @@ void TFindCreatures::initSearch(int radx, int rady, int x, int y, int mask) {
 	finished = false;
 }
 
-// 0x0809eab0  crmain.c:286
 uint32_t TFindCreatures::getNext() {
 	if (finished) {
 		return 0;
@@ -330,7 +316,6 @@ again:
 	return cr->ID;
 }
 
-// 0x0809ecb0  crmain.c:330
 void InitKillStatistics() {
 	for (int i = 0; i < 512; i++) {
 		KilledCreatures[i] = 0;
@@ -338,7 +323,6 @@ void InitKillStatistics() {
 	}
 }
 
-// 0x0809ece0  crmain.c:342
 void WriteKillStatistics() {
 	int NumberOfRaces = 0;
 	char *Names = new char[512 * 30];
@@ -368,7 +352,6 @@ void WriteKillStatistics() {
 	InitKillStatistics();
 }
 
-// 0x0809ee50  crmain.c:370
 void AddKillStatistics(int AttackerRace, int DefenderRace) {
 	if (strcmp(RaceData[AttackerRace].Name, "human") == 0) {
 		KilledCreatures[DefenderRace]++;
@@ -379,12 +362,10 @@ void AddKillStatistics(int AttackerRace, int DefenderRace) {
 	}
 }
 
-// 0x0809eed0  crmain.c:379
 void ExitKillStatistics() {
 	WriteKillStatistics();
 }
 
-// 0x0809f0c0  crmain.c:389
 // Name, OrgOutfit, Outfit, Sex, Race, Type and Profession are not
 // initialized, as in the original.
 TCreature::TCreature() : ToDoList(0, 20, 10) {
@@ -431,7 +412,6 @@ TCreature::TCreature() : ToDoList(0, 20, 10) {
 	EnergyDamageOrigin = 0;
 }
 
-// 0x0809f960  crmain.c:431
 TCreature::~TCreature() noexcept(false) {
 	if (IsDead) {
 		try {
@@ -531,7 +511,6 @@ TCreature::~TCreature() noexcept(false) {
 	}
 }
 
-// 0x080a06e0  crmain.c:501
 void TCreature::SetID(uint32_t CharacterID) {
 	if (ID != 0) {
 		error("TCreature::SetID: ID ist schon gesetzt.\n");
@@ -564,7 +543,6 @@ void TCreature::SetID(uint32_t CharacterID) {
 	HashList[m] = this;
 }
 
-// 0x080a07e0  crmain.c:530
 // The entry is found by its ID, and the successor of the found entry is
 // linked in, as in the original.
 void TCreature::DelID() {
@@ -597,13 +575,11 @@ void TCreature::DelID() {
 	ocr->NextHashEntry = cr->NextHashEntry;
 }
 
-// 0x080a08a0  crmain.c:555
 void TCreature::SetInCrList() {
 	CreatureList(FirstFreeCreature) = this;
 	FirstFreeCreature++;
 }
 
-// 0x080a08d0  crmain.c:564
 void TCreature::DelInCrList() {
 	for (int i = 0; i < FirstFreeCreature; i++) {
 		if (CreatureList(i) == this) {
@@ -614,7 +590,6 @@ void TCreature::DelInCrList() {
 	}
 }
 
-// 0x080a0970  crmain.c:576
 void TCreature::StartLogout(bool Force, bool StopFight) {
 	LoggingOut = true;
 	if (Force || LagDetected()) {
@@ -628,7 +603,6 @@ void TCreature::StartLogout(bool Force, bool StopFight) {
 	Combat.StopAttack(StopFight ? 0 : 60);
 }
 
-// 0x080a0a00  crmain.c:587
 int TCreature::LogoutPossible() {
 	if (LogoutAllowed || GameEnding() || IsDead) {
 		return 0;
@@ -646,7 +620,6 @@ int TCreature::LogoutPossible() {
 	return 0;
 }
 
-// 0x080a0a90  crmain.c:601
 void TCreature::BlockLogout(int Delay, bool BlockProtectionZone) {
 	if (WorldType == NON_PVP) {
 		BlockProtectionZone = false;
@@ -673,7 +646,6 @@ void TCreature::BlockLogout(int Delay, bool BlockProtectionZone) {
 	((TPlayer *)this)->CheckState();
 }
 
-// 0x080a0b70  crmain.c:617
 int TCreature::GetHealth() {
 	TSkill *sk = Skills[2];
 	int MaxHitpoints = sk->GetMax();
@@ -692,7 +664,6 @@ int TCreature::GetHealth() {
 	return Health;
 }
 
-// 0x080a0bf0  crmain.c:634
 int TCreature::GetSpeed() {
 	TSkill *sk = Skills[4];
 	if (sk == nullptr) {
@@ -703,13 +674,11 @@ int TCreature::GetSpeed() {
 	return sk->Get() * 2 + 80;
 }
 
-// 0x080a0c20  crmain.c:647
 void TCreature::Death() {
 	IsDead = true;
 	LoggingOut = true;
 }
 
-// 0x080a0c40  crmain.c:659
 int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	if (IsDead || Type == NPC) {
 		return 0;
@@ -1114,7 +1083,6 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	return Damage;
 }
 
-// 0x080a2010  crmain.c:950
 bool TCreature::MovePossible(int x, int y, int z, bool Execute, bool Jump) {
 	if (Jump) {
 		if (!JumpPossible(x, y, z, false)) {
@@ -1133,7 +1101,6 @@ bool TCreature::MovePossible(int x, int y, int z, bool Execute, bool Jump) {
 	return true;
 }
 
-// 0x080a22f0  crmain.c:963
 TRaceData::TRaceData() : Skill(1, 5, 5), Talk(1, 5, 5, 0), Item(1, 5, 5), Spell(1, 5, 5) {
 	Name[0] = 0;
 	Article[0] = 0;
@@ -1172,7 +1139,6 @@ TRaceData::TRaceData() : Skill(1, 5, 5), Talk(1, 5, 5, 0), Item(1, 5, 5), Spell(
 	Spells = 0;
 }
 
-// 0x080a24e0  crmain.c:1005
 char *GetRaceName(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceName: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1182,7 +1148,6 @@ char *GetRaceName(int Race) {
 	return RaceData[Race].Name;
 }
 
-// 0x080a2520  crmain.c:1017
 TOutfit GetRaceOutfit(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceOutfit: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1192,7 +1157,6 @@ TOutfit GetRaceOutfit(int Race) {
 	return RaceData[Race].Outfit;
 }
 
-// 0x080a2580  crmain.c:1029
 bool GetRaceNoSummon(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceNoSummon: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1202,7 +1166,6 @@ bool GetRaceNoSummon(int Race) {
 	return RaceData[Race].NoSummon;
 }
 
-// 0x080a25c0  crmain.c:1041
 bool GetRaceNoConvince(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceNoConvince: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1212,7 +1175,6 @@ bool GetRaceNoConvince(int Race) {
 	return RaceData[Race].NoConvince;
 }
 
-// 0x080a2600  crmain.c:1053
 bool GetRaceNoIllusion(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceNoIllusion: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1222,7 +1184,6 @@ bool GetRaceNoIllusion(int Race) {
 	return RaceData[Race].NoIllusion;
 }
 
-// 0x080a2640  crmain.c:1065
 bool GetRaceNoParalyze(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceNoParalyze: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1232,7 +1193,6 @@ bool GetRaceNoParalyze(int Race) {
 	return RaceData[Race].NoParalyze;
 }
 
-// 0x080a2680  crmain.c:1077
 int GetRaceSummonCost(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceSummonCost: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1242,7 +1202,6 @@ int GetRaceSummonCost(int Race) {
 	return RaceData[Race].SummonCost;
 }
 
-// 0x080a26c0  crmain.c:1089
 int GetRacePoison(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRacePoison: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1252,7 +1211,6 @@ int GetRacePoison(int Race) {
 	return RaceData[Race].Poison;
 }
 
-// 0x080a2700  crmain.c:1101
 bool GetRaceUnpushable(int Race) {
 	if (Race < 1 || Race >= 512) {
 		error("GetRaceUnpushable: Ung\xfcltige Rassen-Nummer %d.\n", Race);
@@ -1262,7 +1220,6 @@ bool GetRaceUnpushable(int Race) {
 	return RaceData[Race].Unpushable;
 }
 
-// 0x080a2740  crmain.c:1114
 // The properties are tested one after the other without else, and neither an
 // unknown property nor an unknown flag is an error, as in the original.
 void LoadRace(char *FileName) {
@@ -1628,7 +1585,6 @@ void LoadRace(char *FileName) {
 	Script.close();
 }
 
-// 0x080a3a90  crmain.c:1358
 void LoadRaces() {
 	DIR *WorkDir = opendir(MONSTERPATH);
 	if (WorkDir == nullptr) {
@@ -1649,7 +1605,6 @@ void LoadRaces() {
 	closedir(WorkDir);
 }
 
-// 0x080a3c30  crmain.c:1382
 TAttackWave::TAttackWave() : ExtraItem(1, 5, 5) {
 	x = 0;
 	y = 0;
@@ -1664,14 +1619,12 @@ TAttackWave::TAttackWave() : ExtraItem(1, 5, 5) {
 	ExtraItems = 0;
 }
 
-// 0x080a3d00  crmain.c:1403
 TAttackWave::~TAttackWave() {
 	if (Message != 0) {
 		DeleteDynamicString(Message);
 	}
 }
 
-// 0x080a3d40  crmain.c:1413
 // The properties of a wave are tested one after the other without else, and
 // an unknown property is not an error, as in the original. Type is only
 // written with the type of the raid; it is not preset.
@@ -1853,7 +1806,6 @@ void LoadMonsterRaid(char *FileName, int Start, bool *Type, int *Date, int *Inte
 	Script.close();
 }
 
-// 0x080a4650  crmain.c:1516
 void LoadMonsterRaids() {
 	time_t Now = static_cast<int32_t>(time(nullptr));
 	int Hour, Minute;
@@ -1915,7 +1867,6 @@ void LoadMonsterRaids() {
 	}
 }
 
-// 0x080a4a40  crmain.c:1570
 void ProcessMonsterRaids() {
 	uint32_t ExecutionRound;
 	TAttackWave *AttackWave;
@@ -2006,7 +1957,6 @@ void ProcessMonsterRaids() {
 	}
 }
 
-// 0x080a50f0  crmain.c:1639
 void InitCr() {
 	FirstChainCreature = new matrix<uint32_t>(SectorXMin * 2, SectorXMax * 2 + 1, SectorYMin * 2, SectorYMax * 2 + 1, 0);
 	NextCreatureID = 0x40000000;
@@ -2019,7 +1969,6 @@ void InitCr() {
 	InitKillStatistics();
 }
 
-// 0x080a51f0  crmain.c:1657
 void ExitCr() {
 	ExitKillStatistics();
 	ExitPlayer();

@@ -202,7 +202,6 @@ public:
 		Data = (*Entry)(1).Data;
 		return true;
 	}
-	// 0x080a55e0  containr.h:622  (priority_queue<long unsigned int,long unsigned int>)
 	void deleteMin() {
 		if (Entries == 0) {
 			error("priority_queue::deleteMin: Warteschlange ist leer.\n");
@@ -234,7 +233,6 @@ public:
 
 		Entries--;
 	}
-	// 0x080a67d0  containr.h:645  (priority_queue<long unsigned int,TAttackWave*>)
 	void insert(K Key, T &Data) {
 		Entries++;
 		(*Entry)(Entries).Key = Key;
@@ -254,7 +252,6 @@ public:
 	}
 };
 
-// 0x080a6a40  containr.h:220  (matrix<long unsigned int>)
 template<class T>
 matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax, T init) {
 	this->xmin = xmin;
@@ -273,7 +270,6 @@ matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax, T init) {
 	}
 }
 
-// 0x08072100  containr.h:236  (matrix<int>)
 template<class T>
 matrix<T>::matrix(int xmin, int xmax, int ymin, int ymax) {
 	this->xmin = xmin;
@@ -312,7 +308,6 @@ T &matrix<T>::operator()(int x, int y) {
 	return entry[y * dx + x];
 }
 
-// 0x080608e0  containr.h:269  (matrix3d<TSector*>)
 template<class T>
 matrix3d<T>::matrix3d(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax, T init) {
 	this->xmin = xmin;
@@ -360,7 +355,6 @@ T &matrix3d<T>::operator()(int x, int y, int z) {
 	return entry[z * dx * dy + y * dx + x];
 }
 
-// 0x080a5880  containr.h:329  (vector<long unsigned int>)
 // inline  containr.h:329  (vector<TCreature*>)
 template<class T>
 vector<T>::vector(int min, int max, int block, T init) {
@@ -387,7 +381,6 @@ vector<T>::vector(int min, int max, int block, T init) {
 	}
 }
 
-// 0x08067140  containr.h:352  (vector<THouseGuest>)
 // inline  containr.h:352  (vector<TChannel>)
 template<class T>
 vector<T>::vector(int min, int max, int block) {
@@ -416,7 +409,6 @@ vector<T>::~vector() {
 	delete[] entry;
 }
 
-// 0x080561a0  containr.h:379  (vector<TObjectType>)
 template<class T>
 T &vector<T>::operator()(int i) {
 	// Growth moves the old elements by swapping their raw bytes with the
@@ -522,7 +514,6 @@ list<T>::~list() {
 	}
 }
 
-// 0x08052b10  containr.h:474  (list<TStaticStringTableBlock>)
 template<class T>
 listnode<T> *list<T>::append() {
 	listnode<T> *newNode = new listnode<T>();
@@ -538,7 +529,6 @@ listnode<T> *list<T>::append() {
 	return lastNode;
 }
 
-// 0x080bde40  containr.h:491  (list<storeunit<TNode, 256> >)
 // inline  containr.h:491  (list<TDynamicStringTableBlock>)
 template<class T>
 void list<T>::remove(listnode<T> *node) {
@@ -575,7 +565,6 @@ store<T, N>::~store() {
 	delete Units;
 }
 
-// 0x080afba0  containr.h:524  (store<TPlayerIndexLeafNode,100>)
 template<class T, int N>
 T *store<T, N>::getFreeItem() {
 	if (firstFreeItem == nullptr) {
@@ -616,7 +605,6 @@ fifo<T>::~fifo() {
 	delete[] Entry;
 }
 
-// 0x0809d4f0  containr.h:570  (fifo<TStatement>)
 template<class T>
 T *fifo<T>::append() {
 	if (Head - Tail + 1 == Size) {
