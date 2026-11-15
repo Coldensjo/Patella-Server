@@ -1,5 +1,6 @@
-# The game server, game, built from the units in this folder, and game_flags,
-# the compile options of its units (tools/convert compiles some of them too).
+# The game server, game, built from the units in this folder; game_flags, the
+# compile options of its units (tools/convert compiles some of them too); and
+# the tests of its units.
 
 find_package(Threads REQUIRED)
 
@@ -63,3 +64,10 @@ target_compile_options(game_flags INTERFACE
 )
 target_link_libraries(game PRIVATE game_flags Threads::Threads tomlplusplus sol2)
 
+# The tests of the game's units. game_test_scripting: the Lua engine
+# (scripting.cc) on its own, with utils.cc for print, error and random; its
+# scripts are made in a scratch folder the test creates.
+add_executable(game_test_scripting tests/test_scripting.cc scripting.cc utils.cc)
+target_include_directories(game_test_scripting PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(game_test_scripting PRIVATE game_flags sol2)
+add_test(NAME game_scripting COMMAND game_test_scripting)
