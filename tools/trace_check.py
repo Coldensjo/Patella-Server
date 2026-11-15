@@ -39,7 +39,11 @@ What it does, in WSL Ubuntu-24.04:
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
      At the start of the AdvanceGame call of round --stop-round (default 232, after the last step of full) gdb
      delivers SIGQUIT and the game shuts down by itself. This is the SCENARIO and STOPROUND mode of the reference
-     project's notes/boot/compare.sh.
+     project's notes/boot/compare.sh. One addition: the game runs with a small library preloaded (RAND_SHIM, built
+     with gcc for each run) whose rand() is the C library's in the main thread and draws from a sequence of its own
+     in any other thread. A connection thread calls rand() when a client connects (the seed of the connection's
+     packet padding), at a moment that depends on the threads' timing; with the one sequence of the C library, a
+     login during a creature's move gives the creatures other numbers in one run than in the other.
   4. Compares the two traces with tools/trace/compare_traces.py. What follows the wall clock and not the rounds may
      differ and is reported apart: the world light (message 0x82), the "New record: N players are logged in."
      broadcast (it follows the player list, made when the real minute is a multiple of 5) and dates in texts. The
@@ -433,8 +437,50 @@ def saved_characters(binaries, game, db, characters, out):
 	return texts
 
 
-def gdb_script(seed_value, stop_round):
-	"""The gdb commands of compare.sh's SCENARIO and STOPROUND mode (breakpoint 2 is the one of the stop round)."""
+# The library the game runs with (LD_PRELOAD, see the comment at the top, step 3): rand() of the main thread is the
+# C library's, that of any other thread draws from a sequence of its own.
+RAND_SHIM = r"""
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+static unsigned int OtherSeed = 1;
+static pthread_mutex_t OtherLock = PTHREAD_MUTEX_INITIALIZER;
+
+int rand(void) {
+	static int (*Real)(void);
+	if ((pid_t)syscall(SYS_gettid) != getpid()) {
+		pthread_mutex_lock(&OtherLock);
+		int Value = rand_r(&OtherSeed);
+		pthread_mutex_unlock(&OtherLock);
+		return Value;
+	}
+	if (Real == NULL) {
+		Real = (int (*)(void))dlsym(RTLD_NEXT, "rand");
+	}
+	return Real();
+}
+"""
+
+
+def build_rand_shim(folder):
+	"""Compiles RAND_SHIM into folder/randshim.so; returns its path."""
+	source = os.path.join(folder, "randshim.c")
+	library = os.path.join(folder, "randshim.so")
+	with open(source, "w") as f:
+		f.write(RAND_SHIM)
+	if subprocess.run(["gcc", "-O2", "-shared", "-fPIC", "-o", library, source, "-ldl", "-lpthread"],
+			check=False).returncode != 0:
+		raise CheckError("cannot build %s" % library)
+	return library
+
+
+def gdb_script(seed_value, stop_round, rand_shim):
+	"""The gdb commands of compare.sh's SCENARIO and STOPROUND mode (breakpoint 2 is the one of the stop round), the
+	game run with rand_shim (build_rand_shim) preloaded."""
 	return "\n".join([
 		"set pagination off",
 		"set confirm off",
@@ -458,6 +504,7 @@ def gdb_script(seed_value, stop_round):
 		'printf "@@ROUND %u@@\\n", RoundNr',
 		"continue",
 		"end",
+		"set environment LD_PRELOAD %s" % rand_shim,
 		"run nofork",
 		"quit",
 		""])
@@ -567,7 +614,7 @@ def run(side, build, data, options, key, root):
 			raise CheckError("%s: the query manager did not start; see %s" % (side, os.path.join(out, "qm.stderr")))
 		script = os.path.join(out, "gdb.cmd")
 		with open(script, "w") as f:
-			f.write(gdb_script(options["seed"], options["stop_round"]))
+			f.write(gdb_script(options["seed"], options["stop_round"], build_rand_shim(out)))
 		console = os.path.join(out, "console")
 		with open(console, "wb") as f:
 			gdb = subprocess.Popen(["gdb", "-q", "-batch", "-x", script, "--args", os.path.join(binaries, "src", "game")],
