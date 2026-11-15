@@ -43,6 +43,7 @@ add_executable(game
 	TXTEASymmetricKey.cc
 	vlong.cc
 	rsakeyfile.cc
+	scripting.cc
 )
 target_include_directories(game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # -Wno-write-strings: many prototypes take `char *` and are called with
@@ -60,4 +61,5 @@ target_compile_options(game_flags INTERFACE
 	-Wno-write-strings -fwrapv -fno-strict-aliasing -U_FORTIFY_SOURCE
 	-Wno-format-overflow -Wno-format-truncation -Wno-stringop-truncation -Wno-stringop-overflow
 )
-target_link_libraries(game PRIVATE game_flags Threads::Threads tomlplusplus)
+target_link_libraries(game PRIVATE game_flags Threads::Threads tomlplusplus sol2)
+

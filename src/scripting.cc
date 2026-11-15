@@ -1,0 +1,1366 @@
+// scripting.cc: the Lua engine (scripting.hh, scripting_api.hh). One LuaJIT
+// state with the sandbox of rule 7, strict shared globals and API tables, the
+// core API (game, result), the restricted require, the loaded scripts with
+// their environments, and the calls of their handlers (TScriptCall).
+//
+// The functions Lua calls (the core API, the metamethods, require, the message
+// handlers) use only Lua's C API and plain C data: they throw no C++ exception
+// and hold no C++ object with a destructor when they raise a Lua error.
+//
+// The shared tables (the API tables and the libraries string, table, math,
+// bit, coroutine) reach the scripts as read-only proxies: an empty userdata
+// whose metatable reads from the real table (__index), refuses writes
+// (__newindex) and hides itself (__metatable). A userdata, not a table: the
+// table library writes raw (table.insert(t, v) is a lua_rawseti), so a proxy
+// table would take raw writes that every script then reads; a userdata it
+// refuses ("table expected"). type() of a shared table is therefore
+// "userdata".
+
+#include <cassert>
+#include <cerrno>
+#include <climits>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <pthread.h>
+#include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <vector>
+
+#include "objects.hh"
+#include "map.hh"
+#include "info.hh"
+#include "utils.hh"
+#include "scripting_api.hh"
+
+// The longest script name LoadScript and require accept.
+const int MAX_SCRIPT_NAME = 256;
+
+// The registry keys of the engine's own Lua values.
+static const char *const RESULT_METATABLE = "patella.result";
+static const char *const ENVIRONMENT_METATABLE = "patella.environment";
+static const char *const MODULES = "patella.modules";
+static const char *const REQUIRE_STACK = "patella.require_stack";
+// The real API tables, by name (the shared globals hold their proxies).
+static const char *const API_TABLES = "patella.api_tables";
+// The last error a module raised that the module message handler traced: a
+// table whose [1] is the error value and [2] its text with the traceback
+// (made with room for both, so clearing it never allocates).
+static const char *const TRACED_ERROR = "patella.traced_error";
+
+// A loaded script: its name and the registry reference of the table it
+// returned.
+struct TScript {
+	std::string Name;
+	int Table;
+};
+
+static sol::state *State = nullptr;
+static pthread_t MainThread;
+static std::string Folder;
+static std::vector<TScript> Scripts;
+// The text of the last const char * thrown by LoadScript or RequireHandler.
+static std::string ErrorText;
+// The number of modules require is loading now: the entries 1 to
+// RequireStackDepth of the registry's REQUIRE_STACK.
+static int RequireStackDepth = 0;
+
+// The names of RESULT (info.hh), in the order of their numbers. The checks
+// below fail to compile when an entry is missing, misplaced or out of step
+// with ERROR and LOWLEVEL, the first and last values of RESULT.
+struct TResultName {
+	RESULT Code;
+	const char *Name;
+};
+
+#define RESULT_NAME(Name) {Name, #Name}
+static constexpr TResultName ResultNames[] = {
+	RESULT_NAME(ERROR),
+	RESULT_NAME(NOERROR),
+	RESULT_NAME(NOTACCESSIBLE),
+	RESULT_NAME(NOTMOVABLE),
+	RESULT_NAME(NOTTAKABLE),
+	RESULT_NAME(NOROOM),
+	RESULT_NAME(OUTOFRANGE),
+	RESULT_NAME(OUTOFHOME),
+	RESULT_NAME(CANNOTTHROW),
+	RESULT_NAME(TOOHEAVY),
+	RESULT_NAME(CROSSREFERENCE),
+	RESULT_NAME(CONTAINERFULL),
+	RESULT_NAME(WRONGPOSITION),
+	RESULT_NAME(WRONGPOSITION2),
+	RESULT_NAME(WRONGCLOTHES),
+	RESULT_NAME(HANDSNOTFREE),
+	RESULT_NAME(HANDBLOCKED),
+	RESULT_NAME(ONEWEAPONONLY),
+	RESULT_NAME(NOMATCH),
+	RESULT_NAME(NOTCUMULABLE),
+	RESULT_NAME(TOOMANYPARTS),
+	RESULT_NAME(EMPTYCONTAINER),
+	RESULT_NAME(SPLITOBJECT),
+	RESULT_NAME(NOKEYMATCH),
+	RESULT_NAME(UPSTAIRS),
+	RESULT_NAME(DOWNSTAIRS),
+	RESULT_NAME(CREATURENOTEXISTING),
+	RESULT_NAME(PLAYERNOTEXISTING),
+	RESULT_NAME(PLAYERNOTONLINE),
+	RESULT_NAME(NAMEAMBIGUOUS),
+	RESULT_NAME(NOTUSABLE),
+	RESULT_NAME(FEDUP),
+	RESULT_NAME(DESTROYED),
+	RESULT_NAME(SPELLUNKNOWN),
+	RESULT_NAME(LOWMAGICLEVEL),
+	RESULT_NAME(MAGICITEM),
+	RESULT_NAME(NOTENOUGHMANA),
+	RESULT_NAME(NOSKILL),
+	RESULT_NAME(TARGETLOST),
+	RESULT_NAME(OUTOFAMMO),
+	RESULT_NAME(NOCREATURE),
+	RESULT_NAME(TOOLONG),
+	RESULT_NAME(TARGETOUTOFRANGE),
+	RESULT_NAME(TARGETHIDDEN),
+	RESULT_NAME(ATTACKNOTALLOWED),
+	RESULT_NAME(NOWAY),
+	RESULT_NAME(LOGINERROR),
+	RESULT_NAME(LOGINABORT),
+	RESULT_NAME(PROTECTIONZONE),
+	RESULT_NAME(ENTERPROTECTIONZONE),
+	RESULT_NAME(EXHAUSTED),
+	RESULT_NAME(NOTINVITED),
+	RESULT_NAME(NOPREMIUMACCOUNT),
+	RESULT_NAME(MOVENOTPOSSIBLE),
+	RESULT_NAME(ALREADYTRADING),
+	RESULT_NAME(PARTNERTRADING),
+	RESULT_NAME(TOOMANYOBJECTS),
+	RESULT_NAME(TOOMANYSLAVES),
+	RESULT_NAME(NOTTURNABLE),
+	RESULT_NAME(SECUREMODE),
+	RESULT_NAME(NOTENOUGHSOULPOINTS),
+	RESULT_NAME(LOWLEVEL),
+};
+#undef RESULT_NAME
+
+const int NUMBER_OF_RESULTS = static_cast<int>(sizeof(ResultNames) / sizeof(ResultNames[0]));
+
+// Whether entry i of ResultNames has the number ERROR + i.
+static constexpr bool ResultNamesInOrder() {
+	for (int i = 0; i < NUMBER_OF_RESULTS; i++) {
+		if (static_cast<int>(ResultNames[i].Code) != static_cast<int>(ERROR) + i) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static_assert(NUMBER_OF_RESULTS == static_cast<int>(LOWLEVEL) - static_cast<int>(ERROR) + 1,
+		"ResultNames must name every value of RESULT from ERROR to LOWLEVEL");
+static_assert(ResultNames[NUMBER_OF_RESULTS - 1].Code == LOWLEVEL, "ResultNames must end with LOWLEVEL");
+static_assert(ResultNamesInOrder(), "ResultNames must be in the order of the numbers of RESULT");
+
+// Asserts (debug builds) that the engine is used from the thread that ran
+// InitScripting (rule 1), while it is active. The entry points that need an
+// active engine assert ScriptingActive before this.
+static inline void AssertMainThread() {
+	assert(State == nullptr || pthread_equal(pthread_self(), MainThread));
+}
+
+// Text with each '%' doubled, for the texts that reach error() (and so Log)
+// as part of a format string (scripting.hh, "Logged texts").
+static std::string DoublePercent(const std::string &Text) {
+	std::string Result;
+	Result.reserve(Text.size());
+	for (char c : Text) {
+		Result += c;
+		if (c == '%') {
+			Result += '%';
+		}
+	}
+	return Result;
+}
+
+// The name of the result code Code, or nullptr for a number that is not one.
+static const char *ResultName(int Code) {
+	if (Code < static_cast<int>(ERROR) || Code > static_cast<int>(LOWLEVEL)) {
+		return nullptr;
+	}
+	return ResultNames[Code - static_cast<int>(ERROR)].Name;
+}
+
+// Sets Code to the number of the result named Name; false for a name that is
+// not one.
+static bool ResultCode(const char *Name, int *Code) {
+	for (int i = 0; i < NUMBER_OF_RESULTS; i++) {
+		if (strcmp(ResultNames[i].Name, Name) == 0) {
+			*Code = static_cast<int>(ResultNames[i].Code);
+			return true;
+		}
+	}
+	return false;
+}
+
+// The text of a result code as an error value shows it: "result NOROOM", or
+// "result <number>" for a number that is not a result code.
+static std::string ResultText(int Code) {
+	const char *Name = ResultName(Code);
+	if (Name != nullptr) {
+		return std::string("result ") + Name;
+	}
+	return "result " + std::to_string(Code);
+}
+
+// Makes a stack index that may be relative (negative) absolute.
+static int AbsoluteIndex(lua_State *L, int Index) {
+	if (Index < 0 && Index > LUA_REGISTRYINDEX) {
+		return lua_gettop(L) + Index + 1;
+	}
+	return Index;
+}
+
+// Whether the value at Index is a result-error value (RaiseResult); sets
+// *Code to its code then, when Code is not nullptr.
+static bool IsResultError(lua_State *L, int Index, int *Code) {
+	Index = AbsoluteIndex(L, Index);
+	if (lua_type(L, Index) != LUA_TUSERDATA || !lua_getmetatable(L, Index)) {
+		return false;
+	}
+	lua_getfield(L, LUA_REGISTRYINDEX, RESULT_METATABLE);
+	bool Same = lua_rawequal(L, -1, -2) != 0;
+	lua_pop(L, 2);
+	if (Same && Code != nullptr) {
+		memcpy(Code, lua_touserdata(L, Index), sizeof(int));
+	}
+	return Same;
+}
+
+// The text of the error value at Index, read without calling Lua: a string or
+// number as it is, a result error as ResultText, anything else as "(error
+// object is a <type> value)".
+static std::string ErrorValueText(lua_State *L, int Index) {
+	int Code;
+	if (IsResultError(L, Index, &Code)) {
+		return ResultText(Code);
+	}
+	int Type = lua_type(L, Index);
+	if (Type == LUA_TSTRING || Type == LUA_TNUMBER) {
+		size_t Length;
+		lua_pushvalue(L, Index);
+		const char *Text = lua_tolstring(L, -1, &Length);
+		std::string Result(Text, Length);
+		lua_pop(L, 1);
+		return Result;
+	}
+	return std::string("(error object is a ") + luaL_typename(L, Index) + " value)";
+}
+
+// Throws ErrorText, set to "<Where>: <What>" (or What without Where) with
+// each '%' doubled, as a const char *: InitAll logs the text it catches with
+// error("...%s...", Text), and error() hands that to Log as its format
+// string, so the logged line shows one '%' (the text itself shows two).
+[[noreturn]] static void ThrowError(const char *Where, const std::string &What) {
+	if (Where != nullptr) {
+		ErrorText = DoublePercent(std::string(Where) + ": " + What);
+	} else {
+		ErrorText = DoublePercent(What);
+	}
+	throw ErrorText.c_str();
+}
+
+// Whether Name is a script name: only a-z, 0-9, '_', '-', '/' and '.'; parts
+// between single '/' that are neither empty nor "." nor ".."; the ending
+// ".lua" after a file name; at most MAX_SCRIPT_NAME characters.
+static bool ValidScriptName(const char *Name) {
+	size_t Length = strlen(Name);
+	if (Length > static_cast<size_t>(MAX_SCRIPT_NAME) || Length < 4 || strcmp(Name + Length - 4, ".lua") != 0) {
+		return false;
+	}
+
+	size_t PartStart = 0;
+	for (size_t i = 0; i <= Length; i++) {
+		char c = Name[i];
+		if (c == '/' || c == 0) {
+			size_t PartLength = i - PartStart;
+			const char *Part = Name + PartStart;
+			if (PartLength == 0 || (PartLength == 1 && Part[0] == '.')
+					|| (PartLength == 2 && Part[0] == '.' && Part[1] == '.')) {
+				return false;
+			}
+			if (c == 0 && PartLength <= 4) {
+				// The file name is only ".lua".
+				return false;
+			}
+			PartStart = i + 1;
+		} else if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Writes the script name of the module Module ("lib.x" gives "lib/x.lua")
+// into Name (Size bytes); false when Module has a character other than a-z,
+// 0-9, '_', '-' and '.' or the name is not a valid script name.
+static bool ModuleScriptName(const char *Module, char *Name, size_t Size) {
+	size_t Length = strlen(Module);
+	if (Length + 5 > Size) {
+		return false;
+	}
+	for (size_t i = 0; i < Length; i++) {
+		char c = Module[i];
+		if (c == '.') {
+			Name[i] = '/';
+		} else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
+			Name[i] = c;
+		} else {
+			return false;
+		}
+	}
+	memcpy(Name + Length, ".lua", 5);
+	return ValidScriptName(Name);
+}
+
+
+// Loads the script Name from the scripts folder as a function and pushes it;
+// on failure pushes the message instead and returns false. The chunk name is
+// "@<Name>", so Lua's messages and tracebacks begin "<Name>:<line>:". The
+// file is read into a Lua userdata (luaL_loadbuffer then compiles it), so
+// nothing leaks on a Lua error; binary (precompiled) chunks are refused.
+static bool LoadChunk(lua_State *L, const char *Name) {
+	char Path[4096 + MAX_SCRIPT_NAME + 2];
+	int PathLength = snprintf(Path, sizeof(Path), "%s/%s", Folder.c_str(), Name);
+	if (PathLength < 0 || PathLength >= static_cast<int>(sizeof(Path))) {
+		lua_pushfstring(L, "cannot open %s: path too long", Name);
+		return false;
+	}
+
+	struct stat FileStatus;
+	if (stat(Path, &FileStatus) != 0) {
+		lua_pushfstring(L, "cannot open %s: %s", Name, strerror(errno));
+		return false;
+	}
+	if (!S_ISREG(FileStatus.st_mode)) {
+		lua_pushfstring(L, "cannot open %s: not a file", Name);
+		return false;
+	}
+
+	size_t Size = static_cast<size_t>(FileStatus.st_size);
+	char *Buffer = static_cast<char *>(lua_newuserdata(L, Size > 0 ? Size : 1));
+	FILE *File = fopen(Path, "rb");
+	if (File == nullptr) {
+		lua_pop(L, 1);
+		lua_pushfstring(L, "cannot open %s: %s", Name, strerror(errno));
+		return false;
+	}
+	size_t Read = fread(Buffer, 1, Size, File);
+	bool Failed = ferror(File) != 0 || Read != Size;
+	fclose(File);
+	if (Failed) {
+		lua_pop(L, 1);
+		lua_pushfstring(L, "cannot read %s", Name);
+		return false;
+	}
+	if (Size > 0 && Buffer[0] == '\033') {
+		lua_pop(L, 1);
+		lua_pushfstring(L, "cannot load %s: binary chunks are not allowed", Name);
+		return false;
+	}
+
+	lua_pushfstring(L, "@%s", Name);
+	int Status = luaL_loadbuffer(L, Buffer, Size, lua_tostring(L, -1));
+	// The stack is: buffer, chunk name, function or message.
+	lua_replace(L, -3);
+	lua_pop(L, 1);
+	return Status == 0;
+}
+
+// Pushes a new script environment: an empty table whose reads fall back to
+// the shared globals (and so are strict).
+static void PushEnvironment(lua_State *L) {
+	lua_newtable(L);
+	lua_getfield(L, LUA_REGISTRYINDEX, ENVIRONMENT_METATABLE);
+	lua_setmetatable(L, -2);
+}
+
+// Pushes the text of the key at Index for the messages of the strict tables:
+// a string or number as it is, anything else as "(<type>)".
+static const char *PushKeyText(lua_State *L, int Index) {
+	int Type = lua_type(L, Index);
+	if (Type == LUA_TSTRING || Type == LUA_TNUMBER) {
+		lua_pushvalue(L, Index);
+		return lua_tostring(L, -1);
+	}
+	return lua_pushfstring(L, "(%s)", luaL_typename(L, Index));
+}
+
+// __index of the shared globals: reading a name they lack (directly or through
+// a script environment) is the Lua error "unknown name '<name>'", at the line
+// that reads it.
+static int StrictGlobalIndex(lua_State *L) {
+	return luaL_error(L, "unknown name '%s'", PushKeyText(L, 2));
+}
+
+// __index of an API table, whose name is its upvalue: reading a field it lacks
+// is the Lua error "unknown name '<table>.<field>'", at the line that reads it.
+static int StrictAPIIndex(lua_State *L) {
+	const char *Table = lua_tostring(L, lua_upvalueindex(1));
+	return luaL_error(L, "unknown name '%s.%s'", Table, PushKeyText(L, 2));
+}
+
+// __newindex of a read-only proxy, whose table's name is its upvalue: writing
+// a field is the Lua error "<table>.<field> is read-only", at the line that
+// writes it.
+static int ReadOnlyNewIndex(lua_State *L) {
+	const char *Table = lua_tostring(L, lua_upvalueindex(1));
+	return luaL_error(L, "%s.%s is read-only", Table, PushKeyText(L, 2));
+}
+
+// Pushes a read-only proxy of the table at Index, named Name in its messages:
+// an empty userdata whose metatable reads from the table (so an API table's
+// strict __index still applies), makes every write an error and cannot be
+// read or replaced by a script (getmetatable gives false; setmetatable takes
+// only tables).
+static void PushProxy(lua_State *L, int Index, const char *Name) {
+	Index = AbsoluteIndex(L, Index);
+	lua_newuserdata(L, 0);
+	lua_createtable(L, 0, 3);
+	lua_pushvalue(L, Index);
+	lua_setfield(L, -2, "__index");
+	lua_pushstring(L, Name);
+	lua_pushcclosure(L, ReadOnlyNewIndex, 1);
+	lua_setfield(L, -2, "__newindex");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_setmetatable(L, -2);
+}
+
+// Replaces the shared global Name, a table, by its read-only proxy.
+static void MakeGlobalReadOnly(lua_State *L, const char *Name) {
+	lua_pushstring(L, Name);
+	lua_pushstring(L, Name);
+	lua_rawget(L, LUA_GLOBALSINDEX);
+	PushProxy(L, -1, Name);
+	lua_remove(L, -2);
+	lua_rawset(L, LUA_GLOBALSINDEX);
+}
+
+// The shared globals the libraries make that the sandbox removes. _G, getfenv
+// and setfenv would let a script reach the shared globals or another
+// script's environment past its own; rawset would write past the read-only
+// proxies; newproxy gives userdata with __gc, whose finalizers run (and may
+// call rand()) whenever the collector runs, in another handler;
+// collectgarbage and gcinfo control or read the collector, which is shared.
+static const char *const RemovedGlobals[] = {"dofile", "loadfile", "load", "loadstring", "print", "_G", "getfenv",
+		"setfenv", "rawset", "newproxy", "collectgarbage", "gcinfo", LUA_JITLIBNAME};
+
+// The globals of the libraries the sandbox does not open (rule 7).
+static const char *const NeverOpenedGlobals[] = {"io", "os", "debug", "ffi", "package", "module"};
+
+// Whether Name is a global the sandbox removed or never opened.
+static bool SandboxRemovedName(const char *Name) {
+	for (const char *Removed : RemovedGlobals) {
+		if (strcmp(Name, Removed) == 0) {
+			return true;
+		}
+	}
+	for (const char *Removed : NeverOpenedGlobals) {
+		if (strcmp(Name, Removed) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Pushes the API table Name: the real table behind the shared global Name's
+// read-only proxy. When there is none yet, makes it, empty with a strict
+// metatable, and sets the shared global Name to its proxy. Throws a const
+// char * when the shared global Name is something other than an API table,
+// or is a name the sandbox removed or never opened (the stack is as before
+// then).
+static void PushAPITable(lua_State *L, const char *Name) {
+	lua_getfield(L, LUA_REGISTRYINDEX, API_TABLES);
+	lua_getfield(L, -1, Name);
+	if (lua_istable(L, -1)) {
+		lua_remove(L, -2);
+		return;
+	}
+	lua_pop(L, 1);
+	if (SandboxRemovedName(Name)) {
+		lua_pop(L, 1);
+		ThrowError(nullptr, std::string("ScriptAPITable: the name ") + Name + " is removed by the sandbox");
+	}
+	lua_pushstring(L, Name);
+	lua_rawget(L, LUA_GLOBALSINDEX);
+	bool Taken = !lua_isnil(L, -1);
+	lua_pop(L, 1);
+	if (Taken) {
+		lua_pop(L, 1);
+		ThrowError(nullptr, std::string("ScriptAPITable: the shared global ") + Name + " is not an API table");
+	}
+
+	lua_newtable(L);
+	lua_newtable(L);
+	lua_pushstring(L, Name);
+	lua_pushcclosure(L, StrictAPIIndex, 1);
+	lua_setfield(L, -2, "__index");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_setmetatable(L, -2);
+	// The stack is: API_TABLES, the table.
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -3, Name);
+	lua_pushstring(L, Name);
+	PushProxy(L, -2, Name);
+	lua_rawset(L, LUA_GLOBALSINDEX);
+	lua_remove(L, -2);
+}
+
+// Forgets the error recorded in TRACED_ERROR. Allocates nothing, so it may be
+// called outside a protected call.
+static void ClearTracedError(lua_State *L) {
+	lua_getfield(L, LUA_REGISTRYINDEX, TRACED_ERROR);
+	lua_pushnil(L);
+	lua_rawseti(L, -2, 1);
+	lua_pushnil(L);
+	lua_rawseti(L, -2, 2);
+	lua_pop(L, 1);
+}
+
+// When the error value at Index (absolute) is the one recorded in
+// TRACED_ERROR, pushes its recorded text with the traceback and returns true;
+// otherwise pushes nothing and returns false.
+static bool PushRecordedTrace(lua_State *L, int Index) {
+	lua_getfield(L, LUA_REGISTRYINDEX, TRACED_ERROR);
+	lua_rawgeti(L, -1, 1);
+	bool Same = !lua_isnil(L, -1) && lua_rawequal(L, -1, Index);
+	lua_pop(L, 1);
+	if (Same) {
+		lua_rawgeti(L, -1, 2);
+		lua_remove(L, -2);
+		return true;
+	}
+	lua_pop(L, 1);
+	return false;
+}
+
+// Pushes the text of the error value at stack index 1 followed by Lua's
+// traceback from the function that raised it. The text is read without
+// calling Lua (no __tostring, no other metamethod, so no script code runs
+// while an error is handled): a string or number as it is, anything else as
+// "(error object is a <type> value)".
+static void PushTraceback(lua_State *L) {
+	int Type = lua_type(L, 1);
+	if (Type == LUA_TSTRING || Type == LUA_TNUMBER) {
+		// A copy: lua_tostring turns a number into a string in place.
+		lua_pushvalue(L, 1);
+		lua_tostring(L, -1);
+	} else {
+		lua_pushfstring(L, "(error object is a %s value)", lua_typename(L, Type));
+	}
+	luaL_traceback(L, L, lua_tostring(L, -1), 1);
+	lua_remove(L, -2);
+}
+
+// The pcall message handler of the entry points (LoadScript, TScriptCall): a
+// result error stays as it is; an error a module raised that
+// ModuleMessageHandler traced becomes the text it recorded (so the traceback
+// is the one taken where the error was raised, inside the module, and there
+// is one); any other error becomes its text followed by Lua's traceback
+// (PushTraceback).
+static int MessageHandler(lua_State *L) {
+	lua_settop(L, 1);
+	if (IsResultError(L, 1, nullptr)) {
+		return 1;
+	}
+	if (PushRecordedTrace(L, 1)) {
+		return 1;
+	}
+	PushTraceback(L);
+	return 1;
+}
+
+// The pcall message handler of require, which runs a module: the error value
+// stays as it is (require raises it again, and a script's pcall of require
+// gets what the module raised). A non-result error that is not the one
+// recorded already (raised again by a nested require) is recorded in
+// TRACED_ERROR with its text and the traceback taken here, where it was
+// raised, for MessageHandler.
+static int ModuleMessageHandler(lua_State *L) {
+	lua_settop(L, 1);
+	if (IsResultError(L, 1, nullptr)) {
+		return 1;
+	}
+	if (PushRecordedTrace(L, 1)) {
+		lua_settop(L, 1);
+		return 1;
+	}
+	PushTraceback(L);
+	lua_getfield(L, LUA_REGISTRYINDEX, TRACED_ERROR);
+	lua_pushvalue(L, 1);
+	lua_rawseti(L, -2, 1);
+	lua_pushvalue(L, -2);
+	lua_rawseti(L, -2, 2);
+	lua_settop(L, 1);
+	return 1;
+}
+
+// require(module): the value of the script "lib/x.lua" for "lib.x"
+// (scripting.hh). Runs the module once, in an environment of its own, and
+// keeps what it returned (true for nil) for later calls. Lua errors: a module
+// name that is not allowed, a module that cannot be loaded, a module that
+// requires itself (directly or through others), and whatever the module
+// raises (the same error value, raised again once the module has left the
+// stack of modules being loaded, so a failed require can be retried). A
+// non-result error of the module is traced where it was raised
+// (ModuleMessageHandler).
+static int LuaRequire(lua_State *L) {
+	const char *Module = luaL_checkstring(L, 1);
+	char Name[MAX_SCRIPT_NAME + 1];
+	if (!ModuleScriptName(Module, Name, sizeof(Name))) {
+		return luaL_error(L, "require: module name '%s' is not allowed", Module);
+	}
+
+	lua_settop(L, 1);
+	lua_getfield(L, LUA_REGISTRYINDEX, MODULES);       // 2: the loaded modules
+	lua_getfield(L, 2, Name);
+	if (!lua_isnil(L, -1)) {
+		return 1;
+	}
+	lua_pop(L, 1);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, REQUIRE_STACK); // 3: the modules being loaded
+	int Depth = RequireStackDepth;
+	for (int i = 1; i <= Depth; i++) {
+		lua_rawgeti(L, 3, i);
+		bool Same = strcmp(lua_tostring(L, -1), Name) == 0;
+		lua_pop(L, 1);
+		if (Same) {
+			// "<where>require: 'lib.a' requires itself: lib/a.lua -> lib/b.lua -> lib/a.lua"
+			luaL_checkstack(L, 2 * (Depth - i + 1) + 3, "require: too many modules");
+			luaL_where(L, 1);
+			lua_pushfstring(L, "require: '%s' requires itself: ", Module);
+			for (int j = i; j <= Depth; j++) {
+				lua_rawgeti(L, 3, j);
+				lua_pushliteral(L, " -> ");
+			}
+			lua_pushstring(L, Name);
+			lua_concat(L, 2 * (Depth - i + 1) + 3);
+			return lua_error(L);
+		}
+	}
+
+	if (!LoadChunk(L, Name)) {                         // 4: the message
+		luaL_where(L, 1);
+		lua_pushfstring(L, "require '%s': ", Module);
+		lua_pushvalue(L, 4);
+		lua_concat(L, 3);
+		return lua_error(L);
+	}
+	PushEnvironment(L);
+	lua_setfenv(L, 4);
+	lua_pushcfunction(L, ModuleMessageHandler);
+	lua_insert(L, 4);                                  // 4: the message handler, 5: the module
+	lua_pushstring(L, Name);
+	lua_rawseti(L, 3, Depth + 1);
+	RequireStackDepth = Depth + 1;
+	// An error recorded before is not this module's.
+	ClearTracedError(L);
+	int Status = lua_pcall(L, 0, 1, 4);                // 5: what the module returned, or the error
+	lua_pushnil(L);
+	lua_rawseti(L, 3, Depth + 1);
+	RequireStackDepth = Depth;
+	if (Status != 0) {
+		return lua_error(L);
+	}
+	if (lua_isnil(L, 5)) {
+		lua_pop(L, 1);
+		lua_pushboolean(L, 1);
+	}
+	lua_pushvalue(L, 5);
+	lua_setfield(L, 2, Name);
+	return 1;
+}
+
+// The argument at Index as a C++ int: a number without fraction in the range
+// of int; anything else is a Lua error.
+static int CheckInt(lua_State *L, int Index) {
+	if (lua_type(L, Index) != LUA_TNUMBER) {
+		return luaL_typerror(L, Index, "number");
+	}
+	double Value = lua_tonumber(L, Index);
+	if (!(Value >= INT_MIN && Value <= INT_MAX) || Value != floor(Value)) {
+		return luaL_argerror(L, Index, "integer expected");
+	}
+	return static_cast<int>(Value);
+}
+
+// __tostring of a result error: "result <NAME>".
+static int ResultErrorToString(lua_State *L) {
+	int Code;
+	memcpy(&Code, lua_touserdata(L, 1), sizeof(int));
+	const char *Name = ResultName(Code);
+	if (Name != nullptr) {
+		lua_pushfstring(L, "result %s", Name);
+	} else {
+		lua_pushfstring(L, "result %d", Code);
+	}
+	return 1;
+}
+
+// __index of a result error: err.code is its code; any other field is nil.
+static int ResultErrorIndex(lua_State *L) {
+	if (lua_type(L, 2) == LUA_TSTRING && strcmp(lua_tostring(L, 2), "code") == 0) {
+		int Code;
+		memcpy(&Code, lua_touserdata(L, 1), sizeof(int));
+		lua_pushinteger(L, Code);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+// game.random(low, high): random(low, high) of utils.cc, low + rand() %
+// (high - low + 1), low for an empty span. Arguments: ints. Returns the int.
+static int GameRandom(lua_State *L) {
+	int Low = CheckInt(L, 1);
+	int High = CheckInt(L, 2);
+	lua_pushinteger(L, random(Low, High));
+	return 1;
+}
+
+// game.rand(): rand(), as the C++ code calls it directly. Returns the int.
+static int GameRand(lua_State *L) {
+	lua_pushinteger(L, rand());
+	return 1;
+}
+
+// game.idiv(a, b): a / b of C++ ints, truncated toward zero. Arguments: ints.
+// Returns the int. b == 0, and INT_MIN / -1 (which C++ cannot compute), are
+// Lua errors.
+static int GameIdiv(lua_State *L) {
+	int a = CheckInt(L, 1);
+	int b = CheckInt(L, 2);
+	if (b == 0) {
+		return luaL_error(L, "game.idiv: division by zero");
+	}
+	if (a == INT_MIN && b == -1) {
+		return luaL_error(L, "game.idiv: overflow");
+	}
+	lua_pushinteger(L, a / b);
+	return 1;
+}
+
+// game.imod(a, b): a % b of C++ ints, with the sign of a. Arguments: ints.
+// Returns the int. b == 0, and INT_MIN % -1 (which C++ cannot compute), are
+// Lua errors.
+static int GameImod(lua_State *L) {
+	int a = CheckInt(L, 1);
+	int b = CheckInt(L, 2);
+	if (b == 0) {
+		return luaL_error(L, "game.imod: division by zero");
+	}
+	if (a == INT_MIN && b == -1) {
+		return luaL_error(L, "game.imod: overflow");
+	}
+	lua_pushinteger(L, a % b);
+	return 1;
+}
+
+// game.print(level, text): print(Level, "%s", Text) of utils.cc. Arguments:
+// an int and a string. Returns nothing.
+static int GamePrint(lua_State *L) {
+	int Level = CheckInt(L, 1);
+	const char *Text = luaL_checkstring(L, 2);
+	print(Level, "%s", Text);
+	return 0;
+}
+
+// game.error(text): error("%s", Text) of utils.cc, with each '%' of Text
+// doubled (error() hands the text to Log as its format string). Argument: a
+// string. Returns nothing.
+static int GameError(lua_State *L) {
+	const char *Text = luaL_checkstring(L, 1);
+	error("%s", luaL_gsub(L, Text, "%", "%%"));
+	return 0;
+}
+
+// game.throw(code): raises the result code, a number of RESULT or its name
+// ("NOROOM"), as a C++ throw of it would: a Lua error whose value carries the
+// code. Does not return; a value that is not a result code is a plain Lua
+// error.
+static int GameThrow(lua_State *L) {
+	int Code;
+	int Type = lua_type(L, 1);
+	if (Type == LUA_TSTRING) {
+		const char *Name = lua_tostring(L, 1);
+		if (!ResultCode(Name, &Code)) {
+			return luaL_error(L, "game.throw: unknown result '%s'", Name);
+		}
+	} else if (Type == LUA_TNUMBER) {
+		double Value = lua_tonumber(L, 1);
+		if (!(Value >= ERROR && Value <= LOWLEVEL) || Value != floor(Value)) {
+			return luaL_error(L, "game.throw: %s is not a result code", lua_tostring(L, 1));
+		}
+		Code = static_cast<int>(Value);
+	} else {
+		return luaL_typerror(L, 1, "result code");
+	}
+	RaiseResult(L, Code);
+}
+
+// game.result_of(err): the result code the error value err (from pcall)
+// carries, as a number, or nil for another error.
+static int GameResultOf(lua_State *L) {
+	int Code;
+	if (lua_gettop(L) >= 1 && IsResultError(L, 1, &Code)) {
+		lua_pushinteger(L, Code);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+// A C function and its name: the core API in the table game, and the
+// libraries of the sandbox.
+struct TCoreFunction {
+	const char *Name;
+	lua_CFunction Function;
+};
+
+static const TCoreFunction GameFunctions[] = {
+	{"random", GameRandom},
+	{"rand", GameRand},
+	{"idiv", GameIdiv},
+	{"imod", GameImod},
+	{"print", GamePrint},
+	{"error", GameError},
+	{"throw", GameThrow},
+	{"result_of", GameResultOf},
+};
+
+// The libraries of the sandbox (rule 7), opened as luaL_openlibs opens them.
+// luaopen_jit switches the JIT compiler on; its table jit is removed after.
+static const TCoreFunction Libraries[] = {
+	{"", luaopen_base},
+	{LUA_TABLIBNAME, luaopen_table},
+	{LUA_STRLIBNAME, luaopen_string},
+	{LUA_MATHLIBNAME, luaopen_math},
+	{LUA_BITLIBNAME, luaopen_bit},
+	{LUA_JITLIBNAME, luaopen_jit},
+};
+
+// The libraries the scripts reach through read-only proxies.
+static const char *const ReadOnlyLibraries[] = {LUA_STRLIBNAME, LUA_TABLIBNAME, LUA_MATHLIBNAME, LUA_BITLIBNAME,
+		LUA_COLIBNAME};
+
+// Builds the sandbox, the metatables, require and the core API in the new
+// state L.
+static void SetUpState(lua_State *L) {
+	for (const TCoreFunction &Library : Libraries) {
+		lua_pushcfunction(L, Library.Function);
+		lua_pushstring(L, Library.Name);
+		lua_call(L, 1, 0);
+	}
+	for (const char *Name : RemovedGlobals) {
+		lua_pushnil(L);
+		lua_setfield(L, LUA_GLOBALSINDEX, Name);
+	}
+	lua_getfield(L, LUA_GLOBALSINDEX, LUA_STRLIBNAME);
+	lua_pushnil(L);
+	lua_setfield(L, -2, "dump");
+	lua_pop(L, 1);
+	lua_getfield(L, LUA_GLOBALSINDEX, LUA_MATHLIBNAME);
+	lua_pushnil(L);
+	lua_setfield(L, -2, "random");
+	lua_pushnil(L);
+	lua_setfield(L, -2, "randomseed");
+	lua_pop(L, 1);
+
+	// The libraries become read-only. The strings' metatable keeps the real
+	// string library as its __index (("x"):upper()) and cannot be read, so it
+	// cannot be changed either.
+	for (const char *Name : ReadOnlyLibraries) {
+		MakeGlobalReadOnly(L, Name);
+	}
+	lua_pushliteral(L, "");
+	lua_getmetatable(L, -1);
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_pop(L, 2);
+
+	// The result errors: a userdata holding the code.
+	luaL_newmetatable(L, RESULT_METATABLE);
+	lua_pushcfunction(L, ResultErrorToString);
+	lua_setfield(L, -2, "__tostring");
+	lua_pushcfunction(L, ResultErrorIndex);
+	lua_setfield(L, -2, "__index");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_pop(L, 1);
+
+	// The script environments read the shared globals.
+	lua_newtable(L);
+	lua_pushvalue(L, LUA_GLOBALSINDEX);
+	lua_setfield(L, -2, "__index");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_setfield(L, LUA_REGISTRYINDEX, ENVIRONMENT_METATABLE);
+
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, MODULES);
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, REQUIRE_STACK);
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, API_TABLES);
+	lua_createtable(L, 2, 0);
+	lua_pushboolean(L, 0);
+	lua_rawseti(L, -2, 1);
+	lua_pushboolean(L, 0);
+	lua_rawseti(L, -2, 2);
+	lua_setfield(L, LUA_REGISTRYINDEX, TRACED_ERROR);
+	lua_pushcfunction(L, LuaRequire);
+	lua_setfield(L, LUA_GLOBALSINDEX, "require");
+
+	PushAPITable(L, "game");
+	for (const TCoreFunction &Function : GameFunctions) {
+		lua_pushcfunction(L, Function.Function);
+		lua_setfield(L, -2, Function.Name);
+	}
+	lua_pop(L, 1);
+
+	PushAPITable(L, "result");
+	for (const TResultName &Result : ResultNames) {
+		lua_pushinteger(L, static_cast<int>(Result.Code));
+		lua_setfield(L, -2, Result.Name);
+		lua_pushstring(L, Result.Name);
+		lua_rawseti(L, -2, static_cast<int>(Result.Code));
+	}
+	lua_pop(L, 1);
+
+	// Last, the shared globals become strict.
+	lua_newtable(L);
+	lua_pushcfunction(L, StrictGlobalIndex);
+	lua_setfield(L, -2, "__index");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_setmetatable(L, LUA_GLOBALSINDEX);
+}
+
+// SetUpState as a function for lua_cpcall, so that a Lua error while setting
+// up (out of memory) is returned instead of ending the program.
+static int ProtectedSetUpState(lua_State *L) {
+	lua_settop(L, 0);
+	SetUpState(L);
+	return 0;
+}
+
+void InitScripting(const char *Folder) {
+	if (State != nullptr) {
+		throw "InitScripting: the scripting engine is active already";
+	}
+	// sol::state uses the state luaL_newstate gives without checking it (a
+	// null state would crash), so Lua is asked for one first.
+	lua_State *Probe = luaL_newstate();
+	if (Probe == nullptr) {
+		throw "InitScripting: Lua cannot create its state";
+	}
+	lua_close(Probe);
+	sol::state *NewState = nullptr;
+	try {
+		NewState = new sol::state();
+	} catch (const std::exception &) {
+		throw "InitScripting: Lua cannot create its state";
+	}
+	// Set up in a protected call; on failure the half-made state is closed
+	// and the engine stays inactive, so InitScripting may be tried again.
+	lua_State *L = NewState->lua_state();
+	if (lua_cpcall(L, ProtectedSetUpState, nullptr) != 0) {
+		std::string Message = ErrorValueText(L, -1);
+		delete NewState;
+		ThrowError(nullptr, "InitScripting: Lua cannot set up its state: " + Message);
+	}
+	lua_settop(L, 0);
+	MainThread = pthread_self();
+	::Folder = Folder;
+	Scripts.clear();
+	RequireStackDepth = 0;
+	State = NewState;
+}
+
+void ExitScripting() {
+	if (State == nullptr) {
+		return;
+	}
+	AssertMainThread();
+	delete State;
+	State = nullptr;
+	Scripts.clear();
+	Folder.clear();
+	RequireStackDepth = 0;
+}
+
+bool ScriptingActive() {
+	return State != nullptr;
+}
+
+int LoadScript(const char *Name, const char *Where) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	if (!ScriptingActive()) {
+		ThrowError(Where, "the scripting engine is not active");
+	}
+	if (Name == nullptr || !ValidScriptName(Name)) {
+		ThrowError(Where, std::string("script name '") + (Name != nullptr ? Name : "") + "' is not allowed");
+	}
+	for (size_t i = 0; i < Scripts.size(); i++) {
+		if (Scripts[i].Name == Name) {
+			return static_cast<int>(i);
+		}
+	}
+
+	lua_State *L = State->lua_state();
+	int Top = lua_gettop(L);
+	lua_pushcfunction(L, MessageHandler);
+	if (!LoadChunk(L, Name)) {
+		std::string Message = ErrorValueText(L, -1);
+		lua_settop(L, Top);
+		ThrowError(Where, Message);
+	}
+	PushEnvironment(L);
+	lua_setfenv(L, -2);
+	int Depth = RequireStackDepth;
+	ClearTracedError(L);
+	int Status = lua_pcall(L, 0, 1, Top + 1);
+	ClearTracedError(L);
+	// require takes its modules off the stack whether they fail or not.
+	assert(RequireStackDepth == Depth);
+	(void) Depth;
+	if (Status != 0) {
+		std::string Message = ErrorValueText(L, -1);
+		lua_settop(L, Top);
+		ThrowError(Where, Message);
+	}
+	if (!lua_istable(L, -1)) {
+		std::string Message = std::string(Name) + " returns " + luaL_typename(L, -1) + ", not a table";
+		lua_settop(L, Top);
+		ThrowError(Where, Message);
+	}
+	int Table = luaL_ref(L, LUA_REGISTRYINDEX);
+	lua_settop(L, Top);
+	Scripts.push_back(TScript{Name, Table});
+	return static_cast<int>(Scripts.size()) - 1;
+}
+
+const char *ScriptName(int Script) {
+	AssertMainThread();
+	assert(Script >= 0 && Script < static_cast<int>(Scripts.size()));
+	if (Script < 0 || Script >= static_cast<int>(Scripts.size())) {
+		return nullptr;
+	}
+	return Scripts[Script].Name.c_str();
+}
+
+// Pushes the handler Handler of the script Script (a raw field of the table
+// it returned, so no metamethod runs), or nil when there is none.
+static void PushHandler(lua_State *L, int Script, const char *Handler) {
+	lua_rawgeti(L, LUA_REGISTRYINDEX, Scripts[Script].Table);
+	lua_pushstring(L, Handler);
+	lua_rawget(L, -2);
+	lua_remove(L, -2);
+}
+
+bool HasHandler(int Script, const char *Handler) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	assert(Script >= 0 && Script < static_cast<int>(Scripts.size()));
+	if (!ScriptingActive() || Script < 0 || Script >= static_cast<int>(Scripts.size())) {
+		return false;
+	}
+	lua_State *L = State->lua_state();
+	PushHandler(L, Script, Handler);
+	bool Result = lua_isfunction(L, -1);
+	lua_pop(L, 1);
+	return Result;
+}
+
+void RequireHandler(int Script, const char *Handler, const char *Where) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	if (!HasHandler(Script, Handler)) {
+		const char *Name = ScriptName(Script);
+		ThrowError(Where, std::string(Name != nullptr ? Name : "(no script)") + " has no function " + Handler);
+	}
+}
+
+sol::state &ScriptState() {
+	assert(ScriptingActive());
+	AssertMainThread();
+	return *State;
+}
+
+sol::table ScriptAPITable(const char *Name) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	if (!ScriptingActive()) {
+		throw "ScriptAPITable: the scripting engine is not active";
+	}
+	lua_State *L = State->lua_state();
+	PushAPITable(L, Name);
+	sol::table Table(L, -1);
+	lua_pop(L, 1);
+	return Table;
+}
+
+void RaiseResult(lua_State *L, int Code) {
+	int *Value = static_cast<int *>(lua_newuserdata(L, sizeof(int)));
+	*Value = Code;
+	lua_getfield(L, LUA_REGISTRYINDEX, RESULT_METATABLE);
+	lua_setmetatable(L, -2);
+	lua_error(L);
+	// lua_error does not return.
+	abort();
+}
+
+void RaiseError(lua_State *L, const char *Text) {
+	lua_pushstring(L, Text);
+	luaL_where(L, 1);
+	lua_insert(L, -2);
+	lua_concat(L, 2);
+	lua_error(L);
+	// lua_error does not return.
+	abort();
+}
+
+// An argument of a TScriptCall: its Lua type and value.
+struct TScriptCall::TArgument {
+	int Type;
+	double Number;
+	bool Boolean;
+	std::string String;
+
+	// Pushes the value.
+	void push(lua_State *L) const {
+		switch (Type) {
+		case LUA_TNUMBER:
+			lua_pushnumber(L, Number);
+			break;
+		case LUA_TBOOLEAN:
+			lua_pushboolean(L, Boolean);
+			break;
+		case LUA_TSTRING:
+			lua_pushlstring(L, String.data(), String.size());
+			break;
+		default:
+			lua_pushnil(L);
+			break;
+		}
+	}
+};
+
+// What a handler returned first: its Lua type and value.
+struct TCallResult {
+	int Type;
+	double Number;
+	bool Boolean;
+};
+
+// Gives a new, nil argument at the end of a TScriptCall's arguments, doubling
+// the array when it is full. (A template, so it needs not name the private
+// TScriptCall::TArgument.)
+template<typename T>
+static T &AppendArgument(T *&Arguments, int &NumberOfArguments, int &Capacity) {
+	if (NumberOfArguments == Capacity) {
+		int NewCapacity = Capacity > 0 ? 2 * Capacity : 4;
+		T *NewArguments = new T[NewCapacity];
+		for (int i = 0; i < NumberOfArguments; i++) {
+			NewArguments[i] = std::move(Arguments[i]);
+		}
+		delete[] Arguments;
+		Arguments = NewArguments;
+		Capacity = NewCapacity;
+	}
+	T &Argument = Arguments[NumberOfArguments++];
+	Argument.Type = LUA_TNIL;
+	return Argument;
+}
+
+// Logs a non-result error of a handler call with error() as "Script error in
+// <script name> (<handler>): <Message>", each '%' of Message doubled (it
+// comes from Lua and reaches Log as part of the format string), and throws
+// ERROR.
+[[noreturn]] static void ScriptFailure(int Script, const char *Handler, const std::string &Message) {
+	const char *Name = "(no script)";
+	if (Script >= 0 && Script < static_cast<int>(Scripts.size())) {
+		Name = Scripts[Script].Name.c_str();
+	}
+	error("Script error in %s (%s): %s\n", Name, Handler, DoublePercent(Message).c_str());
+	throw ERROR;
+}
+
+// Calls the handler Handler of the script Script with the arguments and sets
+// Result to its first result. Throws the result code the handler raised as
+// RESULT; any other failure goes to ScriptFailure.
+template<typename T>
+static void CallHandler(int Script, const char *Handler, const T *Arguments, int NumberOfArguments,
+		TCallResult *Result) {
+	if (!ScriptingActive()) {
+		ScriptFailure(Script, Handler, "the scripting engine is not active");
+	}
+	if (Script < 0 || Script >= static_cast<int>(Scripts.size())) {
+		ScriptFailure(Script, Handler, "there is no script number " + std::to_string(Script));
+	}
+
+	lua_State *L = State->lua_state();
+	int Top = lua_gettop(L);
+	if (!lua_checkstack(L, NumberOfArguments + 3)) {
+		ScriptFailure(Script, Handler, "too many arguments");
+	}
+	lua_pushcfunction(L, MessageHandler);
+	PushHandler(L, Script, Handler);
+	if (!lua_isfunction(L, -1)) {
+		lua_settop(L, Top);
+		ScriptFailure(Script, Handler, Scripts[Script].Name + " has no function " + Handler);
+	}
+	for (int i = 0; i < NumberOfArguments; i++) {
+		Arguments[i].push(L);
+	}
+
+	int Depth = RequireStackDepth;
+	ClearTracedError(L);
+	int Status = lua_pcall(L, NumberOfArguments, 1, Top + 1);
+	ClearTracedError(L);
+	// require takes its modules off the stack whether they fail or not.
+	assert(RequireStackDepth == Depth);
+	(void) Depth;
+	if (Status != 0) {
+		int Code;
+		if (IsResultError(L, -1, &Code) && ResultName(Code) != nullptr) {
+			lua_settop(L, Top);
+			throw static_cast<RESULT>(Code);
+		}
+		std::string Message = ErrorValueText(L, -1);
+		lua_settop(L, Top);
+		ScriptFailure(Script, Handler, Message);
+	}
+
+	Result->Type = lua_type(L, -1);
+	Result->Number = Result->Type == LUA_TNUMBER ? lua_tonumber(L, -1) : 0;
+	Result->Boolean = Result->Type == LUA_TBOOLEAN && lua_toboolean(L, -1);
+	lua_settop(L, Top);
+}
+
+// The text of a handler's result for the messages of runNumber and runBoolean:
+// the value, or its type.
+static std::string ResultValueText(const TCallResult &Result) {
+	if (Result.Type == LUA_TNUMBER) {
+		char Text[64];
+		snprintf(Text, sizeof(Text), "%.17g", Result.Number);
+		return Text;
+	}
+	if (Result.Type == LUA_TBOOLEAN) {
+		return Result.Boolean ? "true" : "false";
+	}
+	return std::string("a ") + lua_typename(State->lua_state(), Result.Type);
+}
+
+TScriptCall::TScriptCall(int Script, const char *Handler) :
+		Script(Script), Handler(Handler), Arguments(nullptr), NumberOfArguments(0), Capacity(0), Done(false) {
+	AssertMainThread();
+}
+
+TScriptCall::~TScriptCall() {
+	AssertMainThread();
+	delete[] Arguments;
+}
+
+void TScriptCall::addNumber(int Value) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TNUMBER;
+	Argument.Number = Value;
+}
+
+void TScriptCall::addNumber(uint32_t Value) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TNUMBER;
+	Argument.Number = Value;
+}
+
+void TScriptCall::addBoolean(bool Value) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TBOOLEAN;
+	Argument.Boolean = Value;
+}
+
+void TScriptCall::addString(const char *Value) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	if (Value != nullptr) {
+		Argument.Type = LUA_TSTRING;
+		Argument.String = Value;
+	}
+}
+
+void TScriptCall::addNil() {
+	AssertMainThread();
+	assert(!Done);
+	AppendArgument(Arguments, NumberOfArguments, Capacity);
+}
+
+void TScriptCall::run() {
+	assert(ScriptingActive());
+	AssertMainThread();
+	assert(!Done);
+	if (Done) {
+		ScriptFailure(Script, Handler, "the call has run already");
+	}
+	Done = true;
+	TCallResult Result;
+	CallHandler(Script, Handler, Arguments, NumberOfArguments, &Result);
+}
+
+int TScriptCall::runNumber() {
+	assert(ScriptingActive());
+	AssertMainThread();
+	assert(!Done);
+	if (Done) {
+		ScriptFailure(Script, Handler, "the call has run already");
+	}
+	Done = true;
+	TCallResult Result;
+	CallHandler(Script, Handler, Arguments, NumberOfArguments, &Result);
+	if (Result.Type == LUA_TNIL) {
+		return 0;
+	}
+	if (Result.Type != LUA_TNUMBER || !(Result.Number >= INT_MIN && Result.Number <= INT_MAX)
+			|| Result.Number != floor(Result.Number)) {
+		ScriptFailure(Script, Handler, std::string(Handler) + " returned " + ResultValueText(Result) + ", not an integer");
+	}
+	return static_cast<int>(Result.Number);
+}
+
+bool TScriptCall::runBoolean() {
+	assert(ScriptingActive());
+	AssertMainThread();
+	assert(!Done);
+	if (Done) {
+		ScriptFailure(Script, Handler, "the call has run already");
+	}
+	Done = true;
+	TCallResult Result;
+	CallHandler(Script, Handler, Arguments, NumberOfArguments, &Result);
+	if (Result.Type == LUA_TNIL) {
+		return false;
+	}
+	if (Result.Type != LUA_TBOOLEAN) {
+		ScriptFailure(Script, Handler, std::string(Handler) + " returned " + ResultValueText(Result) + ", not a boolean");
+	}
+	return Result.Boolean;
+}
