@@ -16,6 +16,7 @@
 #include <cstring>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include "script.hh"
 #include "config.hh"
@@ -58,6 +59,11 @@ bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2);
 // The trigger library (LoadScript's number of "lib/triggers.lua"), -1 until
 // InitTriggers loads it.
 static int TriggerLibrary = -1;
+
+// The rules' filters, by rule number (TTriggerRule::Number; entry 0 unused):
+// the library's getRuleFilter, the type obj1 must have for the rule to hold,
+// 0 for a rule without one (and for a rule with a script). Set at start.
+static std::vector<int> RuleFilters;
 
 vector<TDelayedMail> DelayedMail(0, 10, 10);
 int DelayedMails;
@@ -552,6 +558,19 @@ void TextEffect(char *Text, int x, int y, int z, int Radius) {
 // over CheckCondition and ExecuteAction did); a rule with a script by its
 // onCheck(event, user, obj1, obj2), and onRun with the same arguments when
 // that gives true. The objects are Items, nil for NONE, made once per event
+// A rule with a filter T (getRuleFilter) begins with the condition
+// is_type(obj1, T), and evaluateRule's first step is then Item.getId(obj1),
+// that is Obj1.getObjectType().getTypeID(), compared with T; when they differ
+// it gives false and does nothing else. HandleEvent makes that same call
+// itself (one AccessObject, as getId made it, at the same point of the loop)
+// and passes over the rule without calling Lua when the type is not T; for
+// an object that no longer exists both give the type of the hash table's
+// entry 0, without a log. For NONE, where AccessObject logs, it calls
+// evaluateRule as before. The call is made per rule, not once per event:
+// getId made it per rule, and AccessObject swaps obj1's sector in when it
+// finds it swapped out (as when a condition of an earlier rule swapped in
+// another sector, which swapped obj1's out).
+//
 // (TScriptEvent).
 //
 // Exceptions: CheckCondition caught nothing, so an exception of a condition
@@ -581,6 +600,11 @@ bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 			fulfilled = Call.check(Script, "onCheck", 0);
 			if (fulfilled) {
 				Call.run(Script, "onRun");
+			size_t Number = static_cast<size_t>(Rule.Number);
+			int Filter = Number < RuleFilters.size() ? RuleFilters[Number] : 0;
+			if (Filter != 0 && Obj1 != NONE && Obj1.getObjectType().getTypeID() != Filter) {
+				continue;
+			}
 			}
 		} else {
 			fulfilled = Call.check(TriggerLibrary, "evaluateRule", Rule.Number);
@@ -966,6 +990,7 @@ void UseKeyDoor(uint32_t, Object Key, Object Door) {
 
 	ObjectType Target = Door.getAttribute(KEYDOORTARGET);
 	if (Target == 0) {
+	RequireHandler(TriggerLibrary, "getRuleFilter", nullptr);
 		error("UseKeyDoor: Target door for door %d not specified.\n", Door.getObjectType().getTypeID());
 		throw ERROR;
 	}
@@ -999,6 +1024,33 @@ void UseNameDoor(uint32_t CreatureID, Object Door) {
 		throw ERROR;
 	}
 
+
+	RuleFilters.assign(TriggerRules.size() + 1, 0);
+	for (size_t k = 0; k < TriggerRules.size(); k++) {
+		const TTriggerRuleEntry &Entry = TriggerRules[k];
+		TTriggerRule &Rule = TriggerDatabases[Entry.Event].Rules(Entry.Rule);
+		if (Rule.Script >= 0) {
+			continue;
+		}
+
+		std::string Where = "lib/triggers.lua: getRuleFilter of rule " + std::to_string(Rule.Number);
+		TScriptCall Call(TriggerLibrary, "getRuleFilter");
+		Call.addNumber(Rule.Number);
+		int Filter;
+		try {
+			Filter = Call.runNumber();
+		} catch (RESULT r) {
+			const char *Message = Call.failure();
+			if (Message != nullptr) {
+				ThrowTriggerError(Where, Message);
+			}
+			ThrowTriggerError(Where, "the trigger library raised result " + std::to_string(static_cast<int>(r)));
+		}
+		if (Filter < 0) {
+			ThrowTriggerError(Where, "gave " + std::to_string(Filter) + ", not a type or 0");
+		}
+		RuleFilters[static_cast<size_t>(Rule.Number)] = Filter;
+	}
 	int x, y, z;
 	GetObjectCoordinates(Door, x, y, z);
 	unsigned short HouseID = GetHouseID(x, y, z);
@@ -1477,7 +1529,8 @@ static void RunPreparation(TScriptCall &Call, const std::string &Where) {
 
 // Loads the trigger library and hands it every rule's conditions and actions
 // in the order of triggers.toml (prepareCondition, prepareAction); loads the
-// scripts the rules name and checks their handlers. Throws a const char * for
+// scripts the rules name and checks their handlers; then asks the library for
+// every rule's filter (getRuleFilter, RuleFilters). Throws a const char * for
 // what fails, with the place of the entry in triggers.toml where there is
 // one.
 static void PrepareTriggerRules() {

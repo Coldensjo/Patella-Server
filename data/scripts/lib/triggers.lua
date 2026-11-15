@@ -312,6 +312,31 @@ function prepareAction(rule, name, ...)
 	actions[#actions + 1] = {name = name, fn = fn, args = {n = select('#', ...), ...}}
 end
 
+-- The type the rule needs obj1 to have, so that HandleEvent can pass over a
+-- rule without calling evaluateRule: the type T when the rule's first
+-- condition is is_type(obj1, T) without negate and ignoreResult. Then
+-- evaluateRule's first step is Item.getId(obj1) == T, and when that is false
+-- it gives false without anything else. 0 for any other rule (also when the
+-- first condition could log or draw a random number before obj1's type is
+-- read). Called at start, after the preparation of every rule.
+function getRuleFilter(rule)
+	local entry = Rules[rule]
+	if entry == nil then
+		return 0
+	end
+	local condition = entry.conditions[1]
+	if condition == nil or condition.fn ~= Conditions.is_type or condition.negate or condition.ignoreResult then
+		return 0
+	end
+	local args = condition.args
+	local typeId = args[2]
+	if args[1] ~= "obj1" or type(typeId) ~= "number" or typeId ~= math.floor(typeId)
+			or typeId < 1 or typeId > 0x7FFFFFFF then
+		return 0
+	end
+	return typeId
+end
+
 -- The context the conditions of every rule are checked with (evaluateRule).
 local CheckContext = {get = getEventObject}
 
