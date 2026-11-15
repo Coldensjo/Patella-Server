@@ -1,9 +1,7 @@
 -- spells/flame_strike.lua: Flame Strike ("exori flam"), what CastSpell's case
 -- SPELL_FLAME_STRIKE did: fire damage of 45 plus or minus 10 on the field in
 -- front of the caster.
-return {
-	on_cast = function(caster, spell, mana, soul_points, words)
-		local amount = magic.compute_damage(caster, spell, 45, 10)
-		magic.angle_combat(caster, mana, soul_points, amount, effect.FIRE_AREA, 1, 0, damage.FIRE)
-	end,
-}
+function onCastSpell(caster, spell, mana, soulPoints, words)
+	local amount = Magic.computeDamage(caster, spell, 45, 10)
+	Magic.angleCombat(caster, mana, soulPoints, amount, CONST_ME_FIREAREA, 1, 0, COMBAT_FIREDAMAGE)
+end

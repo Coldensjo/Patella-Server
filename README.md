@@ -80,10 +80,11 @@ commands (the spells of the classes al and om: name, words, the rights each
 needs and the script) from `commands.toml`, and the circles, the area shapes
 the spells hit, from `circles.toml`, all in its data folder. What a spell or
 command does is its script, a Lua file in the scripts folder (see Scripts)
-that its entry names: `spells/<name>.lua` for a spell cast at once (ex, ut),
-whose function `on_cast` runs when it is cast; `runes/<name>.lua` for a rune
-spell (ad), whose `on_use` runs when its rune is used; `commands/<name>.lua`
-for a command, whose `on_say` runs when it is given. The scripts in
+that its entry names: `spells/<name>.lua` for a spell cast at once (ex, ut)
+and `runes/<name>.lua` for a rune spell (ad), whose global function
+`onCastSpell` runs when the spell is cast or its rune is used;
+`commands/<name>.lua` for a command, whose global function `onSay` runs when
+it is given. The scripts in
 `data/scripts/spells`, `runes` and `commands` are named after the cases of the
 code they replaced (`SPELL_LIGHT_HEALING` is `spells/light_healing.lua`).
 `data/spells.toml` and `data/commands.toml` are the spell table the game had
@@ -103,8 +104,13 @@ folder: what the spells, runes and commands do. `data/scripts/` holds them,
 `commands/` for the commands; copy it into the installation's data folder.
 The game loads the scripts `spells.toml` and `commands.toml` name when it
 starts, and stops with an error that names the file, line and column when one
-does not load. The rules of the engine, which every script keeps, are in the
-comment at the top of `src/scripting.hh`.
+does not load. A script's handlers are global functions, `onCastSpell` for
+the spells and runes and `onSay` for the commands, and the script returns
+nothing. The Lua API uses the names and style of The Forgotten Server (TFS):
+camelCase functions and methods, PascalCase tables and classes, upper-case
+constants, with the values of 7.72, so scripts written for TFS port with few
+changes. `src/scripting.hh` lists the API; the rules of the engine, which
+every script keeps, are in the comment at its top.
 
 ## Trigger rules
 

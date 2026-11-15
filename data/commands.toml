@@ -30,7 +30,7 @@
 #           point to the rule violation dialog (Ctrl+Y): they have none.
 #           Every other command needs it.
 #   script  The script that does what the command does, "commands/<name>.lua"
-#           in the scripts folder, whose function on_say runs when it is
+#           in the scripts folder, whose global function onSay runs when it is
 #           given. Left out, giving the command does nothing.
 #
 # The rights:

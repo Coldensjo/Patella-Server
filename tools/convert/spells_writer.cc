@@ -96,11 +96,11 @@ static std::string Header() {
 	Text += "#                charges left out are 0. Left out, the spell makes no rune.\n";
 	Text += "#   script       The script that does what the spell does, its path in the\n";
 	Text += "#                scripts folder: \"spells/<name>.lua\" for a spell cast at once\n";
-	Text += "#                (\"ex\", \"ut\"), whose function on_cast runs when it is cast;\n";
-	Text += "#                \"runes/<name>.lua\" for a rune spell (\"ad\"), whose function\n";
-	Text += "#                on_use runs when its rune is used (making the rune is the\n";
-	Text += "#                game's). Left out, casting the spell does nothing beyond its\n";
-	Text += "#                checks, and its rune cannot be used.\n";
+	Text += "#                (\"ex\", \"ut\"), \"runes/<name>.lua\" for a rune spell (\"ad\"). Its\n";
+	Text += "#                global function onCastSpell runs when the spell is cast or\n";
+	Text += "#                its rune is used (making the rune is the game's). Left out,\n";
+	Text += "#                casting the spell does nothing beyond its checks, and its\n";
+	Text += "#                rune cannot be used.\n";
 	Text += "#\n";
 	Text += "# The syllables:\n";
 	std::vector<std::string> Words;
@@ -276,7 +276,7 @@ static std::string CommandsHeader() {
 	Text += "#           point to the rule violation dialog (Ctrl+Y): they have none.\n";
 	Text += "#           Every other command needs it.\n";
 	Text += "#   script  The script that does what the command does, \"commands/<name>.lua\"\n";
-	Text += "#           in the scripts folder, whose function on_say runs when it is\n";
+	Text += "#           in the scripts folder, whose global function onSay runs when it is\n";
 	Text += "#           given. Left out, giving the command does nothing.\n";
 	Text += "#\n";
 	Text += "# The rights:\n";

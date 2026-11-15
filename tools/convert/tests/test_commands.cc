@@ -15,7 +15,7 @@
 //     and rights as the code did; every change of one value of commands.toml
 //     must give another table or other rights, or an error; and every script
 //     commands.toml names must be a file in the scripts folder next to it
-//     with the handler on_say.
+//     with the handler onSay.
 //
 // Every load runs in a child process of its own, on a table and rights filled
 // with a byte pattern first. The whole table is compared, spells 0 to 255, as

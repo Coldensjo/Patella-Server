@@ -44,11 +44,11 @@
 #                charges left out are 0. Left out, the spell makes no rune.
 #   script       The script that does what the spell does, its path in the
 #                scripts folder: "spells/<name>.lua" for a spell cast at once
-#                ("ex", "ut"), whose function on_cast runs when it is cast;
-#                "runes/<name>.lua" for a rune spell ("ad"), whose function
-#                on_use runs when its rune is used (making the rune is the
-#                game's). Left out, casting the spell does nothing beyond its
-#                checks, and its rune cannot be used.
+#                ("ex", "ut"), "runes/<name>.lua" for a rune spell ("ad"). Its
+#                global function onCastSpell runs when the spell is cast or
+#                its rune is used (making the rune is the game's). Left out,
+#                casting the spell does nothing beyond its checks, and its
+#                rune cannot be used.
 #
 # The syllables:
 #   al, ad, ex, ut, om, para, ana, evo, ori, mort, lux, liber, vita, flam, pox,

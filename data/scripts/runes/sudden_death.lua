@@ -1,8 +1,6 @@
 -- runes/sudden_death.lua: Sudden Death ("adori vita vis"), what UseMagicItem's
 -- case SPELL_SUDDEN_DEATH did: physical damage to the target.
-return {
-	on_use = function(user, spell, mana, soul_points, target, target_creature)
-		local amount = magic.compute_damage(user, spell, 150, 20)
-		magic.combat(user, target, 0, 0, amount, effect.DEATH, animation.DEATH, damage.PHYSICAL)
-	end,
-}
+function onCastSpell(user, spell, mana, soulPoints, target, targetCreature)
+	local amount = Magic.computeDamage(user, spell, 150, 20)
+	Magic.combat(user, target, 0, 0, amount, CONST_ME_MORTAREA, CONST_ANI_DEATH, COMBAT_PHYSICALDAMAGE)
+end
