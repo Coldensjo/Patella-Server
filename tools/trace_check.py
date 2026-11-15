@@ -27,8 +27,9 @@ What it does, in WSL Ubuntu-24.04:
      port --port, default 17171), adds the test accounts with a new character each (900001 'Testa Alpha', male, and
      900002 'Testb Beta', female; and the gamemasters 900003 to 900007, 'Testc Gamma' to 'Testg Eta', male, each with
      some of the rights the commands check, GM_RIGHTS; and the caster 900008 'Testh Theta', male, with the rights to
-     cast every spell and make and use every rune, CASTER_RIGHTS; none may have a player file or player data) and
-     starts the build's query manager. A build whose query manager keeps the player data (its database has the table
+     cast every spell and make and use every rune, CASTER_RIGHTS; and the door opener 900009 'Testi Iota', male, who
+     may open every name door, DOOR_RIGHTS; none may have a player file or player data) and starts the build's query
+     manager. A build whose query manager keeps the player data (its database has the table
      player_data) gets them from the player files with the seed, which imports them; the copy's usr/ is then removed,
      so the run also shows that its game no longer reads or writes player files. The game runs with HOME set to the
      copy, so it reads the copy's config.toml (or .tibia). The copy gets the check's RSA key (repro_check's key
@@ -116,6 +117,11 @@ def gm_rights(bit):
 CASTER_RIGHTS = ["ALL_SPELLS", "UNLIMITED_MANA", "PREMIUM_ACCOUNT", "ATTACK_EVERYWHERE", "INVULNERABLE",
 	"CREATE_OBJECTS", "CREATE_MONSTERS", "TELEPORT_TO_COORDINATE", "CHANGE_PROFESSION"]
 
+# The rights of the door opener 'Testi Iota' (scenario items): it opens a house door as no test character can own a
+# house, and goes there by Move to coordinates. The query manager and the game's query client spell the right
+# OPEN_NAMEDDOORS (the game's right OPEN_NAMEDOORS), as the original query manager did.
+DOOR_RIGHTS = ["OPEN_NAMEDDOORS", "TELEPORT_TO_COORDINATE"]
+
 # Account, password, sex, character name and rights.
 TEST_ACCOUNTS = [
 	(900001, "testa", 1, "Testa Alpha", []),
@@ -126,6 +132,7 @@ TEST_ACCOUNTS = [
 	(900006, "testf", 1, "Testf Zeta", gm_rights(3)),
 	(900007, "testg", 1, "Testg Eta", gm_rights(4)),
 	(900008, "testh", 1, "Testh Theta", CASTER_RIGHTS),
+	(900009, "testi", 1, "Testi Iota", DOOR_RIGHTS),
 ]
 BOOT_SECONDS = 300
 STOP_SECONDS = 600
