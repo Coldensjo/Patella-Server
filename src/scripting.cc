@@ -1,9 +1,10 @@
 // scripting.cc: the Lua engine (scripting.hh, scripting_api.hh). One LuaJIT
 // state with the sandbox of rule 7, strict shared globals and API tables, the
 // core API (Game, print, debugPrint, math.random, the RETURNVALUE_
-// constants), the objects (Creature, Player, Item, Vocation), the read-only
-// constants, the restricted require, the loaded scripts with their
-// environments, and the calls of their handlers (TScriptCall).
+// constants), the objects (Creature, Player, Item, Vocation), the Position,
+// the read-only constants, the restricted require, the loaded scripts with
+// their environments, and the calls of their handlers (TScriptCall,
+// TScriptEvent).
 //
 // The functions Lua calls (the core API, the metamethods, require, the message
 // handlers) use only Lua's C API and plain C data: they throw no C++ exception
@@ -53,6 +54,11 @@ static const char *const API_TABLES = "patella.api_tables";
 static const char *const CONSTANTS = "patella.constants";
 // The kinds of the objects by their metatables (TScriptObjectKind numbers).
 static const char *const OBJECT_KINDS = "patella.object_kinds";
+// The metatable of the Positions.
+static const char *const POSITION_METATABLE = "patella.position";
+// The pcall message handler of the entry points (MessageHandler), made once
+// so that a call pushes it without allocating.
+static const char *const MESSAGE_HANDLER = "patella.message_handler";
 // The last error a module raised that the module message handler traced: a
 // table whose [1] is the error value and [2] its text with the traceback
 // (made with room for both, so clearing it never allocates).
@@ -882,6 +888,122 @@ static int CreatureGetId(lua_State *L) {
 }
 
 // ---------------------------------------------------------------------------
+// The Position: a userdata of three ints (x, y, z) whose metatable gives the
+// fields x, y and z (any other field is the Lua error "unknown name
+// 'Position.<field>'"), refuses writes, compares by value (__eq), names it
+// without an address (__tostring "Position(x, y, z)") and is hidden from
+// scripts (__metatable). No __gc.
+
+bool IsScriptPosition(lua_State *L, int Index) {
+	Index = AbsoluteIndex(L, Index);
+	if (lua_type(L, Index) != LUA_TUSERDATA || !lua_getmetatable(L, Index)) {
+		return false;
+	}
+	lua_getfield(L, LUA_REGISTRYINDEX, POSITION_METATABLE);
+	bool Same = lua_rawequal(L, -1, -2) != 0;
+	lua_pop(L, 2);
+	return Same;
+}
+
+void GetScriptPosition(lua_State *L, int Index, int *x, int *y, int *z) {
+	int Values[3] = {0, 0, 0};
+	if (IsScriptPosition(L, Index)) {
+		memcpy(Values, lua_touserdata(L, Index), sizeof(Values));
+	}
+	*x = Values[0];
+	*y = Values[1];
+	*z = Values[2];
+}
+
+void PushScriptPosition(lua_State *L, int x, int y, int z) {
+	int Values[3] = {x, y, z};
+	void *Data = lua_newuserdata(L, sizeof(Values));
+	memcpy(Data, Values, sizeof(Values));
+	lua_getfield(L, LUA_REGISTRYINDEX, POSITION_METATABLE);
+	lua_setmetatable(L, -2);
+}
+
+// Pushes the text of the Position at Index: "Position(x, y, z)".
+static void PushPositionText(lua_State *L, int Index) {
+	int x, y, z;
+	GetScriptPosition(L, Index, &x, &y, &z);
+	lua_pushfstring(L, "Position(%d, %d, %d)", x, y, z);
+}
+
+// Position(x, y, z): a new Position. Arguments: three ints. Returns it. Any
+// other number of arguments is a Lua error.
+static int PositionNew(lua_State *L) {
+	if (lua_gettop(L) != 3) {
+		return luaL_error(L, "Position: three arguments expected (x, y, z)");
+	}
+	int x = CheckInt(L, 1);
+	int y = CheckInt(L, 2);
+	int z = CheckInt(L, 3);
+	PushScriptPosition(L, x, y, z);
+	return 1;
+}
+
+// __index of the Positions: position.x, .y, .z.
+static int PositionIndex(lua_State *L) {
+	int x, y, z;
+	GetScriptPosition(L, 1, &x, &y, &z);
+	if (lua_type(L, 2) == LUA_TSTRING) {
+		const char *Field = lua_tostring(L, 2);
+		if (strcmp(Field, "x") == 0) {
+			lua_pushinteger(L, x);
+			return 1;
+		}
+		if (strcmp(Field, "y") == 0) {
+			lua_pushinteger(L, y);
+			return 1;
+		}
+		if (strcmp(Field, "z") == 0) {
+			lua_pushinteger(L, z);
+			return 1;
+		}
+	}
+	return luaL_error(L, "unknown name 'Position.%s'", PushKeyText(L, 2));
+}
+
+// __eq of the Positions: the same three coordinates.
+static int PositionEqual(lua_State *L) {
+	bool Equal = false;
+	if (IsScriptPosition(L, 1) && IsScriptPosition(L, 2)) {
+		int x1, y1, z1, x2, y2, z2;
+		GetScriptPosition(L, 1, &x1, &y1, &z1);
+		GetScriptPosition(L, 2, &x2, &y2, &z2);
+		Equal = x1 == x2 && y1 == y2 && z1 == z2;
+	}
+	lua_pushboolean(L, Equal);
+	return 1;
+}
+
+// __tostring of the Positions.
+static int PositionToString(lua_State *L) {
+	PushPositionText(L, 1);
+	return 1;
+}
+
+// Makes the Positions' metatable and the shared global Position.
+static void MakePosition(lua_State *L) {
+	luaL_newmetatable(L, POSITION_METATABLE);
+	lua_pushcfunction(L, PositionIndex);
+	lua_setfield(L, -2, "__index");
+	lua_pushstring(L, "Position");
+	lua_pushcclosure(L, ReadOnlyNewIndex, 1);
+	lua_setfield(L, -2, "__newindex");
+	lua_pushcfunction(L, PositionEqual);
+	lua_setfield(L, -2, "__eq");
+	lua_pushcfunction(L, PositionToString);
+	lua_setfield(L, -2, "__tostring");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_pop(L, 1);
+	lua_pushcfunction(L, PositionNew);
+	lua_setfield(L, LUA_GLOBALSINDEX, "Position");
+}
+
+// ---------------------------------------------------------------------------
 // The constants
 
 // Sets the shared global Name to the constant Value and records it in
@@ -956,8 +1078,8 @@ const int SCRIPT_PRINT_LEVEL = 2;
 // print(...): its arguments as text, separated by tabs and ended by a
 // newline, as Lua's print writes them, given to print(SCRIPT_PRINT_LEVEL,
 // "%s", Text) of utils.cc. Strings and numbers as tostring gives them,
-// booleans, nil, the objects ("Player 123") and result errors ("result
-// RETURNVALUE_..."); a table, a function, a coroutine or any other userdata
+// booleans, nil, the objects ("Player 123"), the Positions ("Position(x, y,
+// z)") and result errors ("result RETURNVALUE_..."); a table, a function, a coroutine or any other userdata
 // is a Lua error, so no address is ever printed (rule 4). Calls no
 // metamethod. Returns nothing.
 static int LuaPrint(lua_State *L) {
@@ -979,6 +1101,8 @@ static int LuaPrint(lua_State *L) {
 			lua_pushliteral(L, "nil");
 		} else if (Kind != SCRIPT_NO_OBJECT) {
 			PushObjectText(L, Kind, ScriptObjectValue(L, i));
+		} else if (IsScriptPosition(L, i)) {
+			PushPositionText(L, i);
 		} else if (IsResultError(L, i, &Code)) {
 			PushResultText(L, Code);
 		} else {
@@ -1192,6 +1316,8 @@ static void SetUpState(lua_State *L) {
 	lua_setfield(L, LUA_REGISTRYINDEX, TRACED_ERROR);
 	lua_pushcfunction(L, LuaRequire);
 	lua_setfield(L, LUA_GLOBALSINDEX, "require");
+	lua_pushcfunction(L, MessageHandler);
+	lua_setfield(L, LUA_REGISTRYINDEX, MESSAGE_HANDLER);
 
 	PushAPITable(L, "Game");
 	for (const TCoreFunction &Function : GameFunctions) {
@@ -1215,6 +1341,7 @@ static void SetUpState(lua_State *L) {
 	lua_pushcfunction(L, CreatureGetId);
 	lua_setfield(L, -2, "getId");
 	lua_pop(L, 1);
+	MakePosition(L);
 
 	// Last, the shared globals become strict.
 	lua_newtable(L);
@@ -1427,9 +1554,12 @@ void RaiseError(lua_State *L, const char *Text) {
 	abort();
 }
 
+// The Type of a TScriptCall argument that is a Position (not a Lua type).
+const int POSITION_ARGUMENT = -100;
+
 // An argument of a TScriptCall: its Lua type and value (LUA_TTABLE: an array
 // of the strings Strings; LUA_TUSERDATA: an object of the kind Kind holding
-// Object).
+// Object; POSITION_ARGUMENT: a Position of the coordinates Position).
 struct TScriptCall::TArgument {
 	int Type;
 	double Number;
@@ -1438,6 +1568,7 @@ struct TScriptCall::TArgument {
 	std::vector<std::string> Strings;
 	TScriptObjectKind Kind = SCRIPT_NO_OBJECT;
 	uint32_t Object = 0;
+	int Position[3] = {0, 0, 0};
 
 	// Pushes the value; an array as a new table, which takes one more stack
 	// slot while it is filled.
@@ -1452,6 +1583,9 @@ struct TScriptCall::TArgument {
 			break;
 		case LUA_TUSERDATA:
 			PushScriptObject(L, Kind, Object);
+			break;
+		case POSITION_ARGUMENT:
+			PushScriptPosition(L, Position[0], Position[1], Position[2]);
 			break;
 		case LUA_TNUMBER:
 			lua_pushnumber(L, Number);
@@ -1496,47 +1630,32 @@ static T &AppendArgument(T *&Arguments, int &NumberOfArguments, int &Capacity) {
 	return Argument;
 }
 
+// The message of the last non-result error of a handler call (without the
+// traceback) and the number of such errors so far (TScriptCall::failure).
+static std::string FailureText;
+static unsigned FailureCount = 0;
+
 // Logs a non-result error of a handler call with error() as "Script error in
 // <script name> (<handler>): <Message>", each '%' of Message doubled (it
-// comes from Lua and reaches Log as part of the format string), and throws
-// ERROR.
+// comes from Lua and reaches Log as part of the format string), records it
+// for TScriptCall::failure and throws ERROR.
 [[noreturn]] static void ScriptFailure(int Script, const char *Handler, const std::string &Message) {
 	const char *Name = "(no script)";
 	if (Script >= 0 && Script < static_cast<int>(Scripts.size())) {
 		Name = Scripts[Script].Name.c_str();
 	}
 	error("Script error in %s (%s): %s\n", Name, Handler, DoublePercent(Message).c_str());
+	FailureText = Message.substr(0, Message.find("\nstack traceback:"));
+	FailureCount++;
 	throw ERROR;
 }
 
-// Calls the handler Handler of the script Script with the arguments and sets
-// Result to its first result. Throws the result code the handler raised as
-// RESULT; any other failure goes to ScriptFailure.
-template<typename T>
-static void CallHandler(int Script, const char *Handler, const T *Arguments, int NumberOfArguments,
+// Runs the call prepared on L's stack above Top (the message handler at Top +
+// 1, the handler, NumberOfArguments arguments), sets Result to the handler's
+// first result and leaves the stack at Top. Throws the result code the
+// handler raised as RESULT; any other failure goes to ScriptFailure.
+static void FinishCall(lua_State *L, int Top, int Script, const char *Handler, int NumberOfArguments,
 		TCallResult *Result) {
-	if (!ScriptingActive()) {
-		ScriptFailure(Script, Handler, "the scripting engine is not active");
-	}
-	if (Script < 0 || Script >= static_cast<int>(Scripts.size())) {
-		ScriptFailure(Script, Handler, "there is no script number " + std::to_string(Script));
-	}
-
-	lua_State *L = State->lua_state();
-	int Top = lua_gettop(L);
-	if (!lua_checkstack(L, NumberOfArguments + 3)) {
-		ScriptFailure(Script, Handler, "too many arguments");
-	}
-	lua_pushcfunction(L, MessageHandler);
-	PushHandler(L, Script, Handler);
-	if (!lua_isfunction(L, -1)) {
-		lua_settop(L, Top);
-		ScriptFailure(Script, Handler, Scripts[Script].Name + " has no function " + Handler);
-	}
-	for (int i = 0; i < NumberOfArguments; i++) {
-		Arguments[i].push(L);
-	}
-
 	int Depth = RequireStackDepth;
 	ClearTracedError(L);
 	int Status = lua_pcall(L, NumberOfArguments, 1, Top + 1);
@@ -1561,6 +1680,49 @@ static void CallHandler(int Script, const char *Handler, const T *Arguments, int
 	lua_settop(L, Top);
 }
 
+// Pushes the message handler and the handler Handler of the script Script on
+// L's stack, after checking that the engine is active, Script exists, there
+// is room for NumberOfArguments more values and the handler is a function;
+// returns the stack top before them. Failures go to ScriptFailure (the stack
+// as before). Allocates nothing: the message handler is the one function
+// made at start (MESSAGE_HANDLER), the handler's name an existing string.
+static int PrepareCall(int Script, const char *Handler, int NumberOfArguments) {
+	if (!ScriptingActive()) {
+		ScriptFailure(Script, Handler, "the scripting engine is not active");
+	}
+	if (Script < 0 || Script >= static_cast<int>(Scripts.size())) {
+		ScriptFailure(Script, Handler, "there is no script number " + std::to_string(Script));
+	}
+
+	lua_State *L = State->lua_state();
+	int Top = lua_gettop(L);
+	if (!lua_checkstack(L, NumberOfArguments + 3)) {
+		ScriptFailure(Script, Handler, "too many arguments");
+	}
+	lua_getfield(L, LUA_REGISTRYINDEX, MESSAGE_HANDLER);
+	PushHandler(L, Script, Handler);
+	if (!lua_isfunction(L, -1)) {
+		lua_settop(L, Top);
+		ScriptFailure(Script, Handler, Scripts[Script].Name + " has no function " + Handler);
+	}
+	return Top;
+}
+
+// Calls the handler Handler of the script Script with the arguments and sets
+// Result to its first result. Throws the result code the handler raised as
+// RESULT; any other failure goes to ScriptFailure.
+template<typename T>
+static void CallHandler(int Script, const char *Handler, const T *Arguments, int NumberOfArguments,
+		TCallResult *Result) {
+	int Top = PrepareCall(Script, Handler, NumberOfArguments);
+	lua_State *L = State->lua_state();
+	for (int i = 0; i < NumberOfArguments; i++) {
+		Arguments[i].push(L);
+	}
+
+	FinishCall(L, Top, Script, Handler, NumberOfArguments, Result);
+}
+
 // The text of a handler's result for the messages of runNumber and runBoolean:
 // the value, or its type.
 static std::string ResultValueText(const TCallResult &Result) {
@@ -1576,8 +1738,17 @@ static std::string ResultValueText(const TCallResult &Result) {
 }
 
 TScriptCall::TScriptCall(int Script, const char *Handler) :
-		Script(Script), Handler(Handler), Arguments(nullptr), NumberOfArguments(0), Capacity(0), Done(false) {
+		Script(Script), Handler(Handler), Arguments(nullptr), NumberOfArguments(0), Capacity(0), Done(false),
+		FailuresBefore(0) {
 	AssertMainThread();
+}
+
+const char *TScriptCall::failure() const {
+	AssertMainThread();
+	if (!Done || FailureCount == FailuresBefore) {
+		return nullptr;
+	}
+	return FailureText.c_str();
 }
 
 TScriptCall::~TScriptCall() {
@@ -1644,9 +1815,21 @@ void TScriptCall::addItem(uint32_t ObjectHandle) {
 	AssertMainThread();
 	assert(!Done);
 	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
-	Argument.Type = LUA_TUSERDATA;
-	Argument.Kind = SCRIPT_ITEM;
-	Argument.Object = ObjectHandle;
+	if (ObjectHandle != 0) {
+		Argument.Type = LUA_TUSERDATA;
+		Argument.Kind = SCRIPT_ITEM;
+		Argument.Object = ObjectHandle;
+	}
+}
+
+void TScriptCall::addPosition(int x, int y, int z) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = POSITION_ARGUMENT;
+	Argument.Position[0] = x;
+	Argument.Position[1] = y;
+	Argument.Position[2] = z;
 }
 
 void TScriptCall::addNil() {
@@ -1677,6 +1860,7 @@ void TScriptCall::run() {
 		ScriptFailure(Script, Handler, "the call has run already");
 	}
 	Done = true;
+	FailuresBefore = FailureCount;
 	TCallResult Result;
 	CallHandler(Script, Handler, Arguments, NumberOfArguments, &Result);
 }
@@ -1689,6 +1873,7 @@ int TScriptCall::runNumber() {
 		ScriptFailure(Script, Handler, "the call has run already");
 	}
 	Done = true;
+	FailuresBefore = FailureCount;
 	TCallResult Result;
 	CallHandler(Script, Handler, Arguments, NumberOfArguments, &Result);
 	if (Result.Type == LUA_TNIL) {
@@ -1709,6 +1894,7 @@ bool TScriptCall::runBoolean() {
 		ScriptFailure(Script, Handler, "the call has run already");
 	}
 	Done = true;
+	FailuresBefore = FailureCount;
 	TCallResult Result;
 	CallHandler(Script, Handler, Arguments, NumberOfArguments, &Result);
 	if (Result.Type == LUA_TNIL) {
@@ -1718,4 +1904,76 @@ bool TScriptCall::runBoolean() {
 		ScriptFailure(Script, Handler, std::string(Handler) + " returned " + ResultValueText(Result) + ", not a boolean");
 	}
 	return Result.Boolean;
+}
+
+// Pushes an object handle as an Item, nil for 0 (NONE).
+static void PushItemOrNil(lua_State *L, uint32_t ObjectHandle) {
+	if (ObjectHandle == 0) {
+		lua_pushnil(L);
+	} else {
+		PushScriptObject(L, SCRIPT_ITEM, ObjectHandle);
+	}
+}
+
+TScriptEvent::TScriptEvent(const char *Event, uint32_t User, uint32_t Obj1, uint32_t Obj2) :
+		Event(Event), Base(0) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	if (!ScriptingActive()) {
+		error("TScriptEvent: the scripting engine is not active.\n");
+		throw ERROR;
+	}
+	lua_State *L = State->lua_state();
+	Base = lua_gettop(L);
+	if (!lua_checkstack(L, 3)) {
+		error("TScriptEvent: no room on Lua's stack.\n");
+		throw ERROR;
+	}
+	PushItemOrNil(L, User);
+	PushItemOrNil(L, Obj1);
+	PushItemOrNil(L, Obj2);
+}
+
+TScriptEvent::~TScriptEvent() {
+	AssertMainThread();
+	if (ScriptingActive()) {
+		lua_settop(State->lua_state(), Base);
+	}
+}
+
+bool TScriptEvent::check(int Script, const char *Handler, int Rule) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	int NumberOfArguments = Rule > 0 ? 5 : 4;
+	int Top = PrepareCall(Script, Handler, NumberOfArguments);
+	lua_State *L = State->lua_state();
+	if (Rule > 0) {
+		lua_pushinteger(L, Rule);
+	}
+	lua_pushstring(L, Event);
+	lua_pushvalue(L, Base + 1);
+	lua_pushvalue(L, Base + 2);
+	lua_pushvalue(L, Base + 3);
+	TCallResult Result;
+	FinishCall(L, Top, Script, Handler, NumberOfArguments, &Result);
+	if (Result.Type == LUA_TNIL) {
+		return false;
+	}
+	if (Result.Type != LUA_TBOOLEAN) {
+		ScriptFailure(Script, Handler, std::string(Handler) + " returned " + ResultValueText(Result) + ", not a boolean");
+	}
+	return Result.Boolean;
+}
+
+void TScriptEvent::run(int Script, const char *Handler) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	int Top = PrepareCall(Script, Handler, 4);
+	lua_State *L = State->lua_state();
+	lua_pushstring(L, Event);
+	lua_pushvalue(L, Base + 1);
+	lua_pushvalue(L, Base + 2);
+	lua_pushvalue(L, Base + 3);
+	TCallResult Result;
+	FinishCall(L, Top, Script, Handler, 4, &Result);
 }

@@ -1,9 +1,11 @@
 // test_scripting.cc: the Lua engine (scripting.cc) on its own. Loading scripts
 // and its errors, global handlers, the sandbox, require, result codes in both
 // directions and their RETURNVALUE_ names, the logging of other errors, the
-// calls a script makes, the objects, the constants, the core API
-// (math.random, print, integer arithmetic), the results of runNumber and
-// runBoolean, the script environments, and a restart of the engine. The
+// calls a script makes, the objects, the Positions, the constants, the core
+// API (math.random, print, integer arithmetic), the results of runNumber and
+// runBoolean, the calls of an event's rules (TScriptEvent), the message of a
+// failed call (TScriptCall::failure), the script environments, and a restart
+// of the engine. The
 // scripts are written into a scratch folder that is removed at the end.
 // Prints what failed; exits 1 on any failure, 0 when all pass.
 
@@ -217,6 +219,26 @@ static int CreatureTestHealth(TScriptCreature Self) {
 	return 100;
 }
 
+// test.positionText(position): "x y z".
+static std::string TestPositionText(TScriptPosition Position) {
+	return std::to_string(Position.x) + " " + std::to_string(Position.y) + " " + std::to_string(Position.z);
+}
+
+// test.makePosition(x, y, z): a Position.
+static TScriptPosition TestMakePosition(int x, int y, int z) {
+	return TScriptPosition{x, y, z};
+}
+
+// The script test.nestedEvent calls, set by TestEvents.
+static int NestedEventScript = -1;
+
+// test.nestedEvent(): a TScriptEvent ("separation", objects 0, 21, 0) inside
+// a call, checking rule 7 with onRule of NestedEventScript; its result.
+static bool TestNestedEvent() {
+	TScriptEvent Event("separation", 0, 21, 0);
+	return Event.check(NestedEventScript, "onRule", 7);
+}
+
 static void RegisterTestAPI() {
 	sol::table API = ScriptAPITable("test");
 	API.set_function("count", Guarded(&TestCount));
@@ -234,6 +256,9 @@ static void RegisterTestAPI() {
 	API.set_function("makeItem", Guarded(&TestMakeItem));
 	API.set_function("vocation", Guarded(&TestVocation));
 	API.set_function("vocationPlayer", Guarded(&TestVocationPlayer));
+	API.set_function("positionText", Guarded(&TestPositionText));
+	API.set_function("makePosition", Guarded(&TestMakePosition));
+	API.set_function("nestedEvent", Guarded(&TestNestedEvent));
 	sol::table Creature = ScriptAPITable("Creature");
 	Creature.set_function("testName", Guarded(&CreatureTestName));
 	Creature.set_function("testHealth", Guarded(&CreatureTestHealth));
@@ -1259,6 +1284,207 @@ static void TestObjects() {
 	CHECK(TakeErrors() == "Creature.testHealth: Creature does not exist.\n");
 }
 
+// The Positions: made by TScriptCall::addPosition, Position(x, y, z) and a
+// binding; their fields, ==, tostring and print, read-only, hidden metatable;
+// what a Position parameter refuses. addItem(0) gives nil.
+static void TestPositions() {
+	WriteScript("positions.lua",
+			"function onPosition(p, q, item)\n"
+			"  print(p, Position(-1, 0, 15))\n"
+			"  return type(p) == 'userdata' and p.x == 32000 and p.y == 31000 and p.z == 7\n"
+			"    and p == q and not rawequal(p, q) and getmetatable(p) == false\n"
+			"    and tostring(p) == 'Position(32000, 31000, 7)' and tostring(Position(-1, -2, -3)) == 'Position(-1, -2, -3)'\n"
+			"    and Position(1, 2, 3) == Position(1, 2, 3) and Position(1, 2, 3) ~= Position(1, 2, 4)\n"
+			"    and Position(1, 2, 3) ~= Position(0, 2, 3) and Position(1, 2, 3) ~= Position(1, 0, 3)\n"
+			"    and p ~= item and p ~= nil and p ~= 32000\n"
+			"    and test.positionText(p) == '32000 31000 7' and test.makePosition(1, 2, 3) == Position(1, 2, 3)\n"
+			"    and test.positionText(Position(2147483647, -2147483648, 0)) == '2147483647 -2147483648 0'\n"
+			"end\n"
+			"function onRefused(i, p, item)\n"
+			"  local calls = {\n"
+			"    function() p.x = 1 end,\n"
+			"    function() return p.w end,\n"
+			"    function() return p[1] end,\n"
+			"    function() return Position(1, 2) end,\n"
+			"    function() return Position(1, 2, 3, 4) end,\n"
+			"    function() return Position(1.5, 2, 3) end,\n"
+			"    function() return Position('1', 2, 3) end,\n"
+			"    function() return Position(1, 2, 2147483648) end,\n"
+			"    function() return test.positionText(item) end,\n"
+			"    function() return test.positionText({x = 1, y = 2, z = 3}) end,\n"
+			"    function() return test.positionText(nil) end,\n"
+			"    function() return test.itemHandle(p) end,\n"
+			"  }\n"
+			"  local ok, err = pcall(calls[i])\n"
+			"  test.record(tostring(err))\n"
+			"  return ok\n"
+			"end\n"
+			"function onNil(...)\n"
+			"  return select('#', ...) == 3 and select(1, ...) == nil and tostring((select(2, ...))) == 'Item 9'\n"
+			"    and select(3, ...) == nil\n"
+			"end\n");
+	int Script = Load("positions.lua");
+	TakeErrors();
+
+	Prints.clear();
+	TScriptCall Positions(Script, "onPosition");
+	Positions.addPosition(32000, 31000, 7);
+	Positions.addPosition(32000, 31000, 7);
+	Positions.addItem(9);
+	TOutcome Outcome = Run(Positions, RUN_BOOLEAN);
+	CHECK(!Outcome.Thrown && Outcome.Boolean);
+	CHECK((Prints == std::vector<std::string>{"2:Position(32000, 31000, 7)\tPosition(-1, 0, 15)\n"}));
+	CHECK(TakeErrors() == "");
+
+	const char *Refusals[] = {"Position.x is read-only", "unknown name 'Position.w'", "unknown name 'Position.1'",
+			"three arguments expected", "three arguments expected", "integer expected", "number expected",
+			"integer expected", "Position expected", "Position expected", "Position expected", "Item expected"};
+	int Count = static_cast<int>(sizeof(Refusals) / sizeof(Refusals[0]));
+	for (int i = 1; i <= Count; i++) {
+		Records.clear();
+		TScriptCall Refused(Script, "onRefused");
+		Refused.addNumber(i);
+		Refused.addPosition(1, 2, 3);
+		Refused.addItem(9);
+		TOutcome RefusedOutcome = Run(Refused, RUN_BOOLEAN);
+		CHECK(!RefusedOutcome.Thrown && !RefusedOutcome.Boolean);
+		if (RefusedOutcome.Thrown || RefusedOutcome.Boolean) {
+			fprintf(stderr, "  position refusal number %d was not refused\n", i);
+		}
+		CHECK(Records.size() == 1);
+		if (Records.size() == 1) {
+			CHECK_CONTAINS(Records[0], Refusals[i - 1]);
+		}
+	}
+	CHECK(TakeErrors() == "");
+
+	TScriptCall Nil(Script, "onNil");
+	Nil.addItem(0);
+	Nil.addItem(9);
+	Nil.addItem(0);
+	TOutcome NilOutcome = Run(Nil, RUN_BOOLEAN);
+	CHECK(!NilOutcome.Thrown && NilOutcome.Boolean);
+}
+
+// TScriptEvent: the rule number (or none), the event's name and the three
+// objects (nil for 0), the same values for every call; results as
+// runBoolean; errors; an event inside a call; the stack as before.
+static void TestEvents() {
+	WriteScript("events.lua",
+			"seen = {}\n"
+			"function onRule(rule, event, user, item1, item2)\n"
+			"  test.record(tostring(rule) .. ' ' .. event .. ' ' .. tostring(user) .. ' ' .. tostring(item1) .. ' '\n"
+			"      .. tostring(item2))\n"
+			"  if rule == 1 then seen[1] = item1 end\n"
+			"  if rule == 2 then return seen[1] == item1 and rawequal(seen[1], item1) end\n"
+			"  if rule == 3 then return nil end\n"
+			"  if rule == 4 then return 1 end\n"
+			"  if rule == 5 then test.exhaust() end\n"
+			"  if rule == 6 then error('rule six') end\n"
+			"  if rule == 8 then return test.nestedEvent() end\n"
+			"  return rule == 7\n"
+			"end\n"
+			"function onCheck(...)\n"
+			"  test.record(select('#', ...) .. ' ' .. table.concat({tostring((select(1, ...))), tostring((select(2, ...))),\n"
+			"      tostring((select(3, ...))), tostring((select(4, ...)))}, ' '))\n"
+			"  return true\n"
+			"end\n"
+			"function onRun(...) test.record('run ' .. select('#', ...)) end\n");
+	int Script = Load("events.lua");
+	NestedEventScript = Script;
+	lua_State *L = ScriptState().lua_state();
+	int Top = lua_gettop(L);
+	TakeErrors();
+	Records.clear();
+	{
+		TScriptEvent Event("collision", 0, 9, 10);
+		CHECK(lua_gettop(L) == Top + 3);
+		CHECK(!Event.check(Script, "onRule", 1));
+		CHECK(Event.check(Script, "onRule", 2));
+		CHECK(!Event.check(Script, "onRule", 3));
+		CHECK(Event.check(Script, "onRule", 7));
+		CHECK(Event.check(Script, "onCheck", 0));
+		Event.run(Script, "onRun");
+		CHECK(Event.check(Script, "onRule", 8));
+		CHECK(lua_gettop(L) == Top + 3);
+		CHECK(TakeErrors() == "");
+
+		bool Thrown = false;
+		try {
+			Event.check(Script, "onRule", 4);
+		} catch (RESULT r) {
+			Thrown = r == ERROR;
+		}
+		CHECK(Thrown);
+		CHECK_CONTAINS(TakeErrors(), "Script error in events.lua (onRule): onRule returned 1, not a boolean");
+		Thrown = false;
+		try {
+			Event.check(Script, "onRule", 5);
+		} catch (RESULT r) {
+			Thrown = r == EXHAUSTED;
+		}
+		CHECK(Thrown);
+		CHECK(TakeErrors() == "");
+		Thrown = false;
+		try {
+			Event.check(Script, "onRule", 6);
+		} catch (RESULT r) {
+			Thrown = r == ERROR;
+		}
+		CHECK(Thrown);
+		std::string Logged = TakeErrors();
+		CHECK(StartsWith(Logged, "Script error in events.lua (onRule): events.lua:10: rule six"));
+		CHECK_CONTAINS(Logged, "stack traceback:");
+		Thrown = false;
+		try {
+			Event.check(Script, "noSuchHandler", 1);
+		} catch (RESULT r) {
+			Thrown = r == ERROR;
+		}
+		CHECK(Thrown);
+		CHECK_CONTAINS(TakeErrors(), "events.lua has no function noSuchHandler");
+		CHECK(lua_gettop(L) == Top + 3);
+	}
+	CHECK(lua_gettop(L) == Top);
+	CHECK((Records == std::vector<std::string>{
+			"1 collision nil Item 9 Item 10",
+			"2 collision nil Item 9 Item 10",
+			"3 collision nil Item 9 Item 10",
+			"7 collision nil Item 9 Item 10",
+			"4 collision nil Item 9 Item 10",
+			"run 4",
+			"8 collision nil Item 9 Item 10",
+			"7 separation nil Item 21 nil",
+			"4 collision nil Item 9 Item 10",
+			"5 collision nil Item 9 Item 10",
+			"6 collision nil Item 9 Item 10",
+	}));
+}
+
+// TScriptCall::failure: Lua's message of a failed call without the traceback;
+// nullptr after a call that ran or raised a result code.
+static void TestFailure() {
+	WriteScript("failure.lua",
+			"function onFail() error('it failed') end\n"
+			"function onResult() test.exhaust() end\n"
+			"function onFine() end\n");
+	int Script = Load("failure.lua");
+	TScriptCall Fail(Script, "onFail");
+	CHECK(Fail.failure() == nullptr);
+	TOutcome FailOutcome = Run(Fail, RUN);
+	CHECK(FailOutcome.Thrown && FailOutcome.Code == ERROR);
+	CHECK(Fail.failure() != nullptr && std::string(Fail.failure()) == "failure.lua:1: it failed");
+	CHECK_CONTAINS(TakeErrors(), "stack traceback:");
+	TScriptCall Result(Script, "onResult");
+	TOutcome ResultOutcome = Run(Result, RUN);
+	CHECK(ResultOutcome.Thrown && ResultOutcome.Code == EXHAUSTED);
+	CHECK(Result.failure() == nullptr);
+	TScriptCall Fine(Script, "onFine");
+	TOutcome FineOutcome = Run(Fine, RUN);
+	CHECK(!FineOutcome.Thrown && Fine.failure() == nullptr);
+	CHECK(TakeErrors() == "");
+}
+
 // The constants are read-only, also as a script's own global; SetScriptConstant
 // refuses a name that is taken.
 static void TestConstants() {
@@ -1629,6 +1855,9 @@ int main() {
 	TestArithmetic();
 	TestRunResults();
 	TestObjects();
+	TestPositions();
+	TestEvents();
+	TestFailure();
 	TestConstants();
 	TestEnvironments();
 	TestReadOnly();

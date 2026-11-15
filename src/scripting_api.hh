@@ -24,8 +24,9 @@
 //
 // A binding's parameters are numbers (integral or floating types, bool),
 // strings (const char *, std::string), the objects below (TScriptCreature,
-// TScriptPlayer, TScriptItem, TScriptThing, TScriptVocation) or sol::optional
-// of those ("|nil"); Guarded refuses any other parameter type at compile
+// TScriptPlayer, TScriptItem, TScriptThing, TScriptVocation), a Position
+// (TScriptPosition) or sol::optional of those ("|nil"); Guarded refuses any
+// other parameter type at compile
 // time. A script can so pass only numbers, booleans, strings, nil and the
 // objects; any other value where an object is expected (a table, a shared
 // table's proxy, a result error) is a Lua argument error. Tables never reach
@@ -108,6 +109,14 @@ void PushScriptObject(lua_State *L, TScriptObjectKind Kind, uint32_t Value);
 // otherwise.
 void PushScriptCreature(lua_State *L, uint32_t ID);
 
+// A Position (scripting.hh, "Position"): a userdata holding three ints, not
+// one of the objects above (ScriptObjectKind gives SCRIPT_NO_OBJECT for it).
+// Whether the value at Index is a Position (calls no metamethod); its
+// coordinates; pushing a new one.
+bool IsScriptPosition(lua_State *L, int Index);
+void GetScriptPosition(lua_State *L, int Index, int *x, int *y, int *z);
+void PushScriptPosition(lua_State *L, int x, int y, int z);
+
 // The parameter and result types of the objects. TScriptCreature takes a
 // Creature or a Player; TScriptPlayer only a Player; TScriptItem only an
 // Item; TScriptThing an Item, a Creature or a Player (for the C++ functions
@@ -131,6 +140,13 @@ struct TScriptThing {
 
 struct TScriptVocation {
 	uint32_t PlayerID;
+};
+
+// A Position as a parameter or result.
+struct TScriptPosition {
+	int x;
+	int y;
+	int z;
 };
 
 // How each object type is checked, read and pushed (sol's customization
@@ -262,6 +278,32 @@ SCRIPT_OBJECT_TYPE(TScriptVocation)
 
 #undef SCRIPT_OBJECT_TYPE
 
+// sol's customization points of a Position parameter (only a Position; any
+// other value is the argument error "Position expected") and result.
+template<typename Handler>
+bool sol_lua_check(sol::types<TScriptPosition>, lua_State *L, int Index, Handler &&handler,
+		sol::stack::record &tracking) {
+	tracking.use(1);
+	if (IsScriptPosition(L, Index)) {
+		return true;
+	}
+	handler(L, Index, sol::type::userdata, sol::type_of(L, Index), "Position expected");
+	return false;
+}
+
+inline TScriptPosition sol_lua_get(sol::types<TScriptPosition>, lua_State *L, int Index,
+		sol::stack::record &tracking) {
+	tracking.use(1);
+	TScriptPosition Position;
+	GetScriptPosition(L, Index, &Position.x, &Position.y, &Position.z);
+	return Position;
+}
+
+inline int sol_lua_push(sol::types<TScriptPosition>, lua_State *L, const TScriptPosition &Value) {
+	PushScriptPosition(L, Value.x, Value.y, Value.z);
+	return 1;
+}
+
 // Guarded(f): a function for sol's set_function that calls f with the same
 // arguments and gives its result. A RESULT f throws is caught and raised with
 // RaiseResult after the catch block has ended. A const char * or a
@@ -276,7 +318,7 @@ struct TScriptArgument : std::integral_constant<bool, std::is_arithmetic<T>::val
 		|| std::is_same<T, const char *>::value || std::is_same<T, std::string>::value
 		|| std::is_same<T, TScriptCreature>::value || std::is_same<T, TScriptPlayer>::value
 		|| std::is_same<T, TScriptItem>::value || std::is_same<T, TScriptThing>::value
-		|| std::is_same<T, TScriptVocation>::value> {};
+		|| std::is_same<T, TScriptVocation>::value || std::is_same<T, TScriptPosition>::value> {};
 template<typename T>
 struct TScriptArgument<sol::optional<T>> : TScriptArgument<std::decay_t<T>> {};
 
@@ -307,7 +349,8 @@ auto Guarded(R (*Function)(A...)) {
 }
 
 // The registration of each area's API, called by InitAll right after
-// InitScripting (scripting.hh lists the functions).
+// InitScripting, in this order (scripting.hh lists the functions).
 void RegisterMagicAPI();
+void RegisterTriggerAPI();
 
 #endif

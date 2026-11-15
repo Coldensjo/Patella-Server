@@ -1,5 +1,6 @@
 // triggers.hh: the functions and data of triggers.cc: the events that run the
-// trigger rules (triggersdata.hh), the object functions their actions use,
+// trigger rules (triggersdata.hh, the trigger library of data/scripts/lib/),
+// the object functions their actions use,
 // depot boxes, mail, and the built-in uses of objects (containers, chests,
 // liquids, food, texts, doors, weapons).
 
@@ -15,8 +16,6 @@ struct ObjectType;
 struct TDelayedMail;
 struct TPlayerData;
 
-Object GetEventObject(int Number, Object User, Object Obj1, Object Obj2, Object Temp);
-bool Compare(int Value1, int Operator, int Value2);
 Object CreateObject(Object Con, ObjectType Type, uint32_t Value);
 void ChangeObject(Object Obj, ObjectType NewType, uint32_t Value);
 void MoveOneObject(Object Obj, Object Con);

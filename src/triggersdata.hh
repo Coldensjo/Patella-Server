@@ -1,9 +1,16 @@
 // triggersdata.hh: the trigger rules (triggersdata.cc): their events,
 // conditions and actions, the tables the game keeps them in, and their loader,
-// which reads triggers.toml. triggers.cc holds what the rules do.
+// which reads triggers.toml. This is the schema of the file: the names of the
+// conditions and actions with the kinds of their arguments, how each kind is
+// checked and held. What a condition or action does is the function of that
+// name in the trigger library (data/scripts/lib/triggers.lua and
+// lib/triggers_actions.lua); triggers.cc hands the rules to it and runs them.
 
 #ifndef PATELLA_TRIGGERSDATA_HH
 #define PATELLA_TRIGGERSDATA_HH
+
+#include <string>
+#include <vector>
 
 #include "containr.hh"
 #include "tomlfile.hh"
@@ -24,6 +31,9 @@ enum ModifierType {
 	MODIFIER_TRUE = 2,
 };
 
+// The condition and action types: the indices of ConditionSignatures and
+// ActionSignatures (the names triggers.toml gives), not code; the old reader
+// of moveuse.dat (tools/convert) sets them by name.
 enum ConditionType {
 	CONDITION_ISPOSITION = 0,
 	CONDITION_ISTYPE = 1,
@@ -100,7 +110,7 @@ enum ActionType {
 // (PackAbsoluteCoordinate), a vector (PackRelativeCoordinate), a right
 // (RIGHT), a skill number, a number, a text (a dynamic string's number,
 // AddDynamicString) or a comparison ('<', 'L' for <=, '=', 'G' for >=, '>',
-// 'N' for <>, as Compare takes it).
+// 'N' for <>, as the old Compare of triggers.cc took it).
 enum ParameterType {
 	PARAMETER_OBJECT = 0,
 	PARAMETER_TYPE = 1,
@@ -126,8 +136,8 @@ const int NUMBER_OF_ACTION_TYPES = 38;
 // The most parameters a condition or an action has.
 const int MAX_PARAMETERS = 5;
 
-// The objects a rule names (a PARAMETER_OBJECT, GetEventObject's Number):
-// "null", "obj1", "obj2", "user" and "temp".
+// The objects a rule names (a PARAMETER_OBJECT; the trigger library gets the
+// name): "null", "obj1", "obj2", "user" and "temp".
 const int EVENTOBJECT_NULL = 0;
 const int EVENTOBJECT_OBJ1 = 1;
 const int EVENTOBJECT_OBJ2 = 2;
@@ -147,12 +157,16 @@ struct TTriggerAction {
 };
 
 // A rule: its conditions and actions, as index ranges into TriggerConditions
-// and TriggerActions.
+// and TriggerActions (both empty for a rule with a script), its number in the
+// file (1 for the first [[rule]]; the trigger library knows the rule by it)
+// and its script, an index into TriggerScripts, or -1 for none.
 struct TTriggerRule {
 	int FirstCondition;
 	int LastCondition;
 	int FirstAction;
 	int LastAction;
+	int Number;
+	int Script;
 };
 
 struct TTriggerDatabase {
@@ -186,14 +200,34 @@ struct TTriggerKey {
 extern const TTriggerKey RightKeys[2];
 extern const TTriggerKey ComparisonKeys[6];
 
+// The script of a rule (script = "triggers/<name>.lua"): its name, the place
+// of the key ("<file>:<line>:<column>", for LoadScript's errors) and the
+// number LoadScript gave it (-1 until InitTriggers loads it).
+struct TTriggerScript {
+	std::string Name;
+	std::string Where;
+	int Number;
+};
+
+// A rule in the order of the file: its event and its number in that event's
+// database.
+struct TTriggerRuleEntry {
+	int Event;
+	int Rule;
+};
+
 // Reads the [[rule]] entries of a parsed triggers.toml into the tables, in
 // their order: each rule becomes the next rule of its event's database, its
 // conditions and actions are appended to TriggerConditions and
 // TriggerActions after the ones there, and its texts are added as dynamic
-// strings in their order. Empties the databases first, as the game's old
-// LoadDataBase did; InitTriggers sets the condition and action counts to 0.
-// Throws a const char * "<file>:<line>:<column>: <what>" for what is wrong
-// with it. The object types must be loaded: a type a rule names must exist.
+// strings in their order. Records each rule in TriggerRules, each script in
+// TriggerScripts and the place of each condition and action in
+// TriggerConditionPlaces and TriggerActionPlaces. Empties the databases,
+// TriggerRules and TriggerScripts first, as the game's old LoadDataBase
+// emptied the databases; InitTriggers sets the condition and action counts
+// to 0. Throws a const char * "<file>:<line>:<column>: <what>" for what is
+// wrong with it. The object types must be loaded: a type a rule names must
+// exist.
 void ReadTriggerRules(const toml::table &File);
 
 // ReadTriggerRules of the triggers.toml file FileName.
@@ -208,5 +242,15 @@ extern int NumberOfTriggerConditions;
 extern vector<TTriggerAction> TriggerActions;
 extern int NumberOfTriggerActions;
 extern TTriggerDatabase TriggerDatabases[NUMBER_OF_EVENT_TYPES];
+
+// The rules in the order of the file: TriggerRules[k] is rule k + 1.
+extern std::vector<TTriggerRuleEntry> TriggerRules;
+// The scripts the rules name (TTriggerRule::Script).
+extern std::vector<TTriggerScript> TriggerScripts;
+// The places of the conditions and actions in the file, "<file>:<line>:
+// <column>" of their entries, by their numbers in TriggerConditions and
+// TriggerActions (entry 0 unused).
+extern std::vector<std::string> TriggerConditionPlaces;
+extern std::vector<std::string> TriggerActionPlaces;
 
 #endif

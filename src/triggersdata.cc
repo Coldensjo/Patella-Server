@@ -1,7 +1,7 @@
-// triggersdata.cc: the trigger rules (triggersdata.hh): the tables the game
-// keeps them in and their loader, which reads triggers.toml
-// (data/triggers.toml in the repository, converted from the original
-// moveuse.dat by tools/convert).
+// triggersdata.cc: the trigger rules (triggersdata.hh): the schema of
+// triggers.toml, the tables the game keeps the rules in and their loader,
+// which reads triggers.toml (data/triggers.toml in the repository, converted
+// from the original moveuse.dat by tools/convert).
 
 #include "tomlfile.hh"
 
@@ -25,6 +25,10 @@ int NumberOfTriggerConditions;
 vector<TTriggerAction> TriggerActions(1, 1000, 1000);
 int NumberOfTriggerActions;
 TTriggerDatabase TriggerDatabases[NUMBER_OF_EVENT_TYPES];
+std::vector<TTriggerRuleEntry> TriggerRules;
+std::vector<TTriggerScript> TriggerScripts;
+std::vector<std::string> TriggerConditionPlaces;
+std::vector<std::string> TriggerActionPlaces;
 
 const TTriggerSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES] = {
 	{"is_position", 2, {PARAMETER_OBJECT, PARAMETER_COORDINATE}},
@@ -163,6 +167,47 @@ const int MIN_VECTOR_XY = -8192;
 const int MAX_VECTOR_XY = 8191;
 const int MIN_VECTOR_Z = -8;
 const int MAX_VECTOR_Z = 7;
+
+// "<file>:<line>:<column>" of a place in the file, as TomlError writes it.
+static std::string Place(const toml::source_region &Where) {
+	return std::string(Where.path != nullptr ? Where.path->c_str() : "(unknown file)") + ":"
+			+ std::to_string(Where.begin.line) + ":" + std::to_string(Where.begin.column);
+}
+
+// Sets entry Number of Places to Place, making room for it.
+static void SetPlace(std::vector<std::string> &Places, int Number, const std::string &Where) {
+	if (Places.size() <= static_cast<size_t>(Number)) {
+		Places.resize(static_cast<size_t>(Number) + 1);
+	}
+	Places[static_cast<size_t>(Number)] = Where;
+}
+
+// Whether Name is a script name of a rule: "triggers/<name>.lua" and a script
+// name as scripting.hh defines it (only a-z, 0-9, '_', '-', '/' and '.'; no
+// part empty, "." or ".."; at most 256 characters).
+static bool ValidRuleScript(const std::string &Name) {
+	const std::string Prefix = "triggers/";
+	const std::string Ending = ".lua";
+	if (Name.size() > 256 || Name.size() <= Prefix.size() + Ending.size()
+			|| Name.compare(0, Prefix.size(), Prefix) != 0
+			|| Name.compare(Name.size() - Ending.size(), Ending.size(), Ending) != 0) {
+		return false;
+	}
+	size_t PartStart = 0;
+	for (size_t i = 0; i <= Name.size(); i++) {
+		char c = i < Name.size() ? Name[i] : 0;
+		if (c == '/' || c == 0) {
+			std::string Part = Name.substr(PartStart, i - PartStart);
+			if (Part.empty() || Part == "." || Part == ".." || (c == 0 && Part == Ending)) {
+				return false;
+			}
+			PartStart = i + 1;
+		} else if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')) {
+			return false;
+		}
+	}
+	return true;
+}
 
 // The index of Key in Keys (Count of them), or -1.
 static int FindKey(const char *const *Keys, int Count, const std::string &Key) {
@@ -360,7 +405,7 @@ static void ReadRule(const toml::node &Node) {
 	if (Rule == nullptr) {
 		TomlError(Node.source(), "an entry of rule must be a table");
 	}
-	TomlCheckKeys(*Rule, "[[rule]]", {"section", "event", "conditions", "actions", "note"});
+	TomlCheckKeys(*Rule, "[[rule]]", {"section", "event", "script", "conditions", "actions", "note"});
 
 	// The section and the note are for the reader; the game leaves them.
 	if (const toml::array *Section = TomlGetArray(*Rule, "section")) {
@@ -383,15 +428,45 @@ static void ReadRule(const toml::node &Node) {
 		TomlError(Node.source(), "a rule needs event");
 	}
 	int EventType = ReadKey(*Event, "event", EventKeys, NUMBER_OF_EVENT_TYPES);
+
+	// A rule has a script, or conditions and actions.
+	if (const toml::node *Script = Rule->get("script")) {
+		std::string Name = Script->is_string() ? Script->as_string()->get() : std::string();
+		if (!Script->is_string() || !ValidRuleScript(Name)) {
+			TomlError(Script->source(), "script must be a script name \"triggers/<name>.lua\" (a-z, 0-9, _, -, /, .)");
+		}
+		for (const char *Key : {"conditions", "actions"}) {
+			if (const toml::node *List = Rule->get(Key)) {
+				TomlError(List->source(), "a rule with script has no %s", Key);
+			}
+		}
+		TTriggerDatabase &Database = TriggerDatabases[EventType];
+		Database.NumberOfRules++;
+		TTriggerRule &Entry = Database.Rules(Database.NumberOfRules);
+		Entry.FirstCondition = NumberOfTriggerConditions + 1;
+		Entry.LastCondition = NumberOfTriggerConditions;
+		Entry.FirstAction = NumberOfTriggerActions + 1;
+		Entry.LastAction = NumberOfTriggerActions;
+		Entry.Script = static_cast<int>(TriggerScripts.size());
+		TriggerScripts.push_back(TTriggerScript{Name, Place(Script->source()), -1});
+		TriggerRules.push_back(TTriggerRuleEntry{EventType, Database.NumberOfRules});
+		Entry.Number = static_cast<int>(TriggerRules.size());
+		return;
+	}
+
 	const toml::array &Conditions = ReadList(*Rule, "conditions");
 	const toml::array &Actions = ReadList(*Rule, "actions");
 
 	TTriggerDatabase &Database = TriggerDatabases[EventType];
 	Database.NumberOfRules++;
 	TTriggerRule &Entry = Database.Rules(Database.NumberOfRules);
+	TriggerRules.push_back(TTriggerRuleEntry{EventType, Database.NumberOfRules});
+	Entry.Number = static_cast<int>(TriggerRules.size());
+	Entry.Script = -1;
 	Entry.FirstCondition = NumberOfTriggerConditions + 1;
 	for (const toml::node &ConditionNode : Conditions) {
 		NumberOfTriggerConditions++;
+		SetPlace(TriggerConditionPlaces, NumberOfTriggerConditions, Place(ConditionNode.source()));
 		TTriggerCondition &Condition = TriggerConditions(NumberOfTriggerConditions);
 		int Type = ReadEntry(ConditionNode, "conditions", "condition", {"name", "args", "negate", "ignore_result"},
 				ConditionSignatures, NUMBER_OF_CONDITION_TYPES, Condition.Parameters);
@@ -409,6 +484,7 @@ static void ReadRule(const toml::node &Node) {
 	Entry.FirstAction = NumberOfTriggerActions + 1;
 	for (const toml::node &ActionNode : Actions) {
 		NumberOfTriggerActions++;
+		SetPlace(TriggerActionPlaces, NumberOfTriggerActions, Place(ActionNode.source()));
 		TTriggerAction &Action = TriggerActions(NumberOfTriggerActions);
 		int Type = ReadEntry(ActionNode, "actions", "action", {"name", "args"}, ActionSignatures,
 				NUMBER_OF_ACTION_TYPES, Action.Parameters);
@@ -421,6 +497,8 @@ void ReadTriggerRules(const toml::table &File) {
 	for (int i = 0; i < NUMBER_OF_EVENT_TYPES; i++) {
 		TriggerDatabases[i].NumberOfRules = 0;
 	}
+	TriggerRules.clear();
+	TriggerScripts.clear();
 
 	TomlCheckKeys(File, "the top level", {"rule"});
 	if (const toml::array *Rules = TomlGetArray(File, "rule")) {

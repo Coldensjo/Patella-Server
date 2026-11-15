@@ -90,7 +90,10 @@
 // what the C++ function does for nullptr; where the C++ function would
 // dereference nullptr, the binding logs "<binding name>: Creature does not
 // exist." and raises ERROR instead. Where an object is expected, any other
-// value is a Lua argument error.
+// value is a Lua argument error. An Item method may be called as a function
+// of the class with nil for self (Item.getId(nil)), and every Item parameter
+// takes nil; both stand for NONE, which the binding passes on to the C++
+// function unchecked (it logs and gives what the C++ gives for NONE).
 //
 // Lua's view of the engine (the core API, bound by scripting.cc):
 //   math.random(m, n)       random(m, n) of utils.cc: m + rand() % (n - m +
@@ -100,7 +103,8 @@
 //                           of the game's informational messages), Text the
 //                           arguments separated by tabs and ended by a
 //                           newline: strings, numbers, booleans, nil, the
-//                           objects ("Player 123") and result errors; any
+//                           objects ("Player 123"), Positions ("Position(x,
+//                           y, z)") and result errors; any
 //                           other value is a Lua error. print() of utils.cc
 //                           formats into 1024 bytes, so a longer text loses
 //                           its end and its newline, and a zero byte ends
@@ -301,6 +305,132 @@
 //   VOCATION_KNIGHT, VOCATION_PALADIN, VOCATION_SORCERER, VOCATION_DRUID,
 //   VOCATION_PROMOTION (cr.hh's PROFESSION_).
 //
+// Trigger rules (phase 3; scripting_triggers.cc, RegisterTriggerAPI). The
+// rules of triggers.toml keep their order; HandleEvent (triggers.cc) keeps the
+// loop over the rules of an event, the loop limit and "the first rule whose
+// conditions hold", and calls Lua once per rule. The conditions and actions
+// are the functions of the trigger library, the script lib/triggers.lua (the
+// conditions; it requires the module lib/triggers_actions.lua, the actions),
+// named there as triggers.toml names them (is_type, move_rel, ...). The
+// library defines these global functions, which the C++ side calls:
+//   prepareCondition(rule, name, negate, ignoreResult, ...)
+//   prepareAction(rule, name, ...)
+//       At start, for each condition and each action of each rule, in the
+//       order of triggers.toml; rule is the rule's number in the file (1 for
+//       the first [[rule]]), the arguments those of the entry, converted by
+//       their kind (triggersdata.hh): an object as its name ("obj1", "obj2",
+//       "user", "temp", "null"), a type, flag, type_attribute,
+//       instance_attribute, right, skill or number as a number, a coordinate
+//       or a vector as a Position, a text as the number of the dynamic string
+//       the loader made of it (AddDynamicString, in the file's order, as
+//       before), a comparison as its text ("<", "<=", "=", ">=", ">", "<>").
+//       A name the library does not know is a Lua error, which the loader
+//       reports with the entry's position.
+//   evaluateRule(rule, event, user, item1, item2) -> boolean
+//       HandleEvent's check of one rule: event is the event's name ("use",
+//       "multi_use", "movement", "collision", "separation"), user, item1 and
+//       item2 the event's objects as Items (nil for NONE). It checks the
+//       rule's conditions in order (negate inverts one, ignoreResult makes
+//       one hold whatever it gives; a condition may set the rule's temp
+//       object), and when all hold it runs the actions in order and gives
+//       true. An action that raises a result code is logged as
+//       "ExecuteAction: Exception <code> (action <name>)." and the next one
+//       runs, as ExecuteAction caught RESULT.
+// A rule may name a script instead (script = "triggers/<name>.lua", no
+// conditions or actions), for new content: its global functions
+// onCheck(event, user, item1, item2) -> boolean and onRun(event, user, item1,
+// item2) take the place of the conditions and the actions. None of the
+// converted rules does.
+//
+// Position: an object holding a field's coordinates (or a vector's offsets),
+// three ints; Position(x, y, z) makes one; position.x, .y, .z read them;
+// == compares them; it cannot be changed (a new one is made instead).
+// The objects' methods for the trigger library (Item: any object handle;
+// nil stands for NONE where an argument says |nil or a result says so):
+//   item:getId() -> getObjectType().getTypeID().
+//   item:isCreature() -> isCreature().
+//   item:getCreature() -> the creature of a creature object as a Creature
+//       or Player (GetCreature(Obj)), nil when there is none.
+//   item:getCreatureId() -> getCreatureID().
+//   item:hasFlag(flag) -> getFlag(flag) (the FLAG number).
+//   item:getTypeAttribute(attribute) -> getAttribute(TYPEATTRIBUTE).
+//   item:getAttribute(attribute) -> getAttribute(INSTANCEATTRIBUTE).
+//   item:setAttribute(attribute, value) -> Change(Obj, INSTANCEATTRIBUTE,
+//       Value) of operate.cc (sends the change; raises what it throws).
+//   item:getPosition() -> GetObjectCoordinates, as a Position.
+//   item:getContainer() -> getContainer() (nil for NONE).
+//   item:getMapContainer() -> GetMapContainer(Obj).
+//   item:getNextObject() -> getNextObject() (nil for NONE).
+//   item:getFirstObject() -> GetFirstContainerObject(Obj) (nil for NONE).
+//   item:countObjects() -> CountObjectsInContainer(Obj).
+//   item:getBodyPosition() -> GetObjectBodyPosition(Obj).
+//   item:getDescription() -> GetInfo(Obj).
+//   item:getCronInfo() -> CronInfo(Obj, false).
+//   item:sendMagicEffect(effect) -> GraphicalEffect(Obj, Effect).
+//   creature:isPlayer() -> Type == PLAYER.
+//   creature:isPeaceful() -> IsPeaceful().
+//   creature:getName() -> Name.
+//   creature:probeSkill(skill, a, b) -> Skills[skill]->Probe(a, b, true);
+//       skill 0 to SKILL_LAST.
+//   creature:damage(attacker|nil, amount, damageType) -> Damage(atk,
+//       Amount, DamageType).
+//   creature:startLogout() -> StartLogout(true, true).
+//   player:canLogout() -> LogoutPossible() == LOGOUT_POSSIBLE.
+//   player:hasRight(right) -> CheckRight(ID, right) (the RIGHT number).
+//   player:getStorageValue(number) -> GetQuestValue(Number).
+//   player:setStorageValue(number, value) -> SetQuestValue(Number, Value).
+//   player:isHouseOwner(houseId) -> IsOwner(HouseID, pl).
+//   player:setStartPosition(position) -> what the action set_start did:
+//       Log("game", "Setting new start position for %s.\n", Name), the
+//       start coordinates set, SaveData().
+//   player:sendTextMessage(mode, text) -> SendMessage(GetConnection(), Mode,
+//       "%s", Text).
+// Game, the map:
+//   Game.getCreature(id) -> GetCreature(ID) as a Creature or Player, nil for
+//       none.
+//   Game.getMapContainer(position) -> GetMapContainer(x, y, z).
+//   Game.getFirstObject(position) -> GetFirstObject(x, y, z) (nil: none).
+//   Game.getFirstObjectOfType(position, type) -> GetFirstSpecObject(x, y,
+//       z, ObjectType(Type)) (nil: none; type TYPEID_CREATURE finds a
+//       creature).
+//   Game.getTopObject(position) -> GetTopObject(x, y, z, false) (nil: none).
+//   Game.getInventoryObject(creatureId, type, value) ->
+//       GetInventoryObject(CreatureID, ObjectType(Type), Value) (nil: none).
+//   Game.isProtectionZone(position), Game.isHouse(position),
+//       Game.getHouseId(position) -> IsProtectionZone, IsHouse, GetHouseID.
+//   Game.createObject(container, type, value) -> CreateObject(Con,
+//       ObjectType(Type), Value) of triggers.cc.
+//   Game.changeObject(item, type, value) -> ChangeObject(Obj,
+//       ObjectType(Type), Value) of triggers.cc.
+//   Game.createMonsterOfRace(race, position) -> CreateMonster(Race, x, y, z,
+//       0, 0, true).
+//   Game.textEffect(text|nil, position, radius) -> TextEffect(Text, x, y,
+//       z, Radius) of triggers.cc.
+//   Game.getDynamicString(number) -> GetDynamicString(Number) (nil for
+//       nullptr), Game.addDynamicString(text) -> AddDynamicString(Text),
+//       Game.deleteDynamicString(number) -> DeleteDynamicString(Number).
+//   Game.moveObject(item, container) -> MoveOneObject(Obj, Con).
+//   Game.moveAllObjects(item|nil, container, exclude|nil, moveUnmovable) ->
+//       MoveAllObjects(Obj, Dest, Exclude, MoveUnmovable).
+//   Game.deleteAllObjects(item|nil, exclude|nil, deleteUnmovable) ->
+//       DeleteAllObjects(Obj, Exclude, DeleteUnmovable).
+//   Game.deleteObject(item, count) -> Delete(Obj, Count).
+//   Game.deleteAtCreature(creatureId, type, amount, value) ->
+//       DeleteAtCreature(CreatureID, ObjectType(Type), Amount, Data).
+//   Game.loadDepotBox(creatureId, number, container),
+//       Game.saveDepotBox(creatureId, number, container) -> LoadDepotBox,
+//       SaveDepotBox of triggers.cc.
+//   Game.sendMail(item) -> SendMail(Obj) of triggers.cc.
+// Constants: TYPEID_CREATURE (the object type of creatures), SKILL_LAST
+// (MAX_SKILLS - 1), MESSAGE_INFO_DESCR (TALK_INFO_MESSAGE, TFS's name), and
+// the numbers of objects.hh's enums by their C++ names: FLAG_<NAME> for
+// every FLAG (FLAG_CLOTHES, FLAG_MAGICFIELD, FLAG_TEXT, FLAG_UNMOVE, ...),
+// ITEMTYPE_ATTRIBUTE_<NAME> for every TYPEATTRIBUTE
+// (ITEMTYPE_ATTRIBUTE_TOTALEXPIRETIME, ITEMTYPE_ATTRIBUTE_BODYPOSITION, ...)
+// and ITEM_ATTRIBUTE_<NAME> for every INSTANCEATTRIBUTE
+// (ITEM_ATTRIBUTE_TEXTSTRING, ITEM_ATTRIBUTE_EDITOR,
+// ITEM_ATTRIBUTE_RESPONSIBLE, ...).
+//
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with
 // error() that comes from a script or from Lua (debugPrint, the script errors
@@ -396,11 +526,19 @@ public:
 	// The creature as an object: nil for 0, a Player for a player's ID, a
 	// Creature otherwise.
 	void addCreature(uint32_t CreatureID);
-	// An Item object holding the object handle (Object::getObjectID).
+	// An Item object holding the object handle (Object::getObjectID); nil
+	// for 0 (NONE).
 	void addItem(uint32_t ObjectHandle);
+	// A Position object (a new one per call).
+	void addPosition(int x, int y, int z);
 	void run();
 	int runNumber();
 	bool runBoolean();
+	// After a run that threw ERROR for a non-result error: that error's
+	// message as it was logged, without the traceback ("lib/triggers.lua:12:
+	// unknown condition 'x'"); nullptr when no handler call failed so since
+	// this call began running. Valid until the next failure.
+	const char *failure() const;
 private:
 	struct TArgument;
 	int Script;
@@ -409,6 +547,34 @@ private:
 	int NumberOfArguments;
 	int Capacity;
 	bool Done;
+	unsigned FailuresBefore;
+};
+
+// The calls of one event's trigger functions (HandleEvent), made cheap for the
+// many rules of an event: the constructor pushes the event's objects user,
+// obj1 and obj2 as Items (nil for 0, NONE) once, and every call passes those
+// same three values, so a call allocates nothing on the C++ heap and makes no
+// Lua object of its own (the message handler is made once at start, the
+// event's name an existing string). check calls Handler of Script with
+// (Rule, Event, user, obj1, obj2), or (Event, user, obj1, obj2) for Rule 0,
+// and gives its result as runBoolean does; run calls it with (Event, user,
+// obj1, obj2) and gives nothing. Errors as for TScriptCall::run (a result
+// code thrown as RESULT, any other error logged and thrown as ERROR). The
+// three values stay on Lua's stack until the destructor, so instances nest
+// (an action's event inside a rule's call) and must be destroyed in reverse
+// order of construction, as local variables are. Event must stay valid.
+// The constructor throws ERROR (logged) when the engine is not active.
+class TScriptEvent {
+public:
+	TScriptEvent(const char *Event, uint32_t User, uint32_t Obj1, uint32_t Obj2);
+	~TScriptEvent();
+	TScriptEvent(const TScriptEvent &) = delete;
+	TScriptEvent &operator=(const TScriptEvent &) = delete;
+	bool check(int Script, const char *Handler, int Rule);
+	void run(int Script, const char *Handler);
+private:
+	const char *Event;
+	int Base;
 };
 
 #endif
