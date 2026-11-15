@@ -62,6 +62,19 @@ static std::string Header() {
 	Text += "#                one type), which the game asks for by it (money, depot\n";
 	Text += "#                chests, blood, magic fields, ...).\n";
 	Text += "#\n";
+	Text += "# Each [[use]], at the end of the file, is one of the built-in uses of\n";
+	Text += "# objects, and their order matters: for an object a player uses, the game\n";
+	Text += "# tries the entries in order and runs the script of the first whose flag the\n";
+	Text += "# object has. The script's global function onUse(player, item, target,\n";
+	Text += "# window) gives true when it handled the use, false to go on with the next\n";
+	Text += "# entry whose flag the object has. When no entry handles the use, the player\n";
+	Text += "# gets \"You cannot use this object.\"\n";
+	Text += "#   flag    A flag name of the list below.\n";
+	Text += "#   script  The script that handles the use, \"items/<name>.lua\", a file in\n";
+	Text += "#           the scripts folder (data/scripts/ in the repository).\n";
+	Text += "# The list is the game's (it had it in its code); patella-convert writes it\n";
+	Text += "# as fixed data, the same for every objects.srv.\n";
+	Text += "#\n";
 	Text += "# The flags:\n";
 	std::vector<std::string> Words;
 	for (int i = 0; i < FLAGS; i++) {
@@ -138,6 +151,31 @@ static std::string NamedValue(const TNamedAttribute &Named, uint32_t Value) {
 	return "[" + Text + "]";
 }
 
+// The built-in uses of objects, the entries of [[use]]: the flag and the
+// script of each, in the order in which the game's code tried them (Use of
+// operate.cc, before the uses became scripts).
+static const struct {
+	FLAG Flag;
+	const char *Script;
+} Uses[] = {
+	{CONTAINER, "items/container.lua"},
+	{CHEST, "items/chest.lua"},
+	{LIQUIDCONTAINER, "items/liquid_container.lua"},
+	{FOOD, "items/food.lua"},
+	{WRITE, "items/text_object.lua"},
+	{WRITEONCE, "items/text_object.lua"},
+	{INFORMATION, "items/announcer.lua"},
+	{RUNE, "items/rune.lua"},
+	{KEY, "items/key_door.lua"},
+	{NAMEDOOR, "items/name_door.lua"},
+	{LEVELDOOR, "items/level_door.lua"},
+	{QUESTDOOR, "items/quest_door.lua"},
+	{WEAPON, "items/weapon.lua"},
+	{CHANGEUSE, "items/change_use.lua"},
+	{USEEVENT, "items/use_event.lua"},
+	{TEXT, "items/readable_text.lua"},
+};
+
 std::string ItemsToToml(const TObjectsSrvExtras &Extras) {
 	// A special object whose type was defined again without its meaning keeps
 	// it in SpecialObjects; items.toml has no way to say that.
@@ -198,6 +236,12 @@ std::string ItemsToToml(const TObjectsSrvExtras &Extras) {
 		if (!Attributes.empty()) {
 			Text += "attributes = { " + Attributes + " }\n";
 		}
+	}
+
+	for (const auto &Use : Uses) {
+		Text += "\n[[use]]\n";
+		Text += std::string("flag = ") + TomlQuote(FlagKeys[Use.Flag]) + "\n";
+		Text += std::string("script = ") + TomlQuote(Use.Script) + "\n";
 	}
 	return Text;
 }

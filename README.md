@@ -70,7 +70,13 @@ original installation's `dat/objects.srv` converted with
 `patella-convert items objects.srv items.toml`; copy it into the
 installation's data folder. The comments at its top explain the fields. Keep
 `objects.srv` there too: the original operator tools (`highscores`,
-`deloldusr`, `mgrep`, `ugrep`, `tempel`) still read it.
+`deloldusr`, `mgrep`, `ugrep`, `tempel`) still read it. What happens when an
+object is used is a script in `data/scripts/items/`: the list `[[use]]` at the
+end of `items.toml` names a flag and a script for each built-in use, and the
+game runs the global function `onUse` of the first script in the list whose
+flag the used object has (one that gives false hands the use on to the next).
+The converter writes that list the same for every `objects.srv`, in the order
+the game's code had.
 
 ## Spells, commands and circles
 
@@ -99,14 +105,16 @@ fields.
 ## Scripts
 
 The game runs Lua scripts with LuaJIT, from the folder `scripts` in its data
-folder: what the spells, runes and commands do. `data/scripts/` holds them,
-`spells/` for the spells cast at once, `runes/` for the rune spells and
-`commands/` for the commands; copy it into the installation's data folder.
-The game loads the scripts `spells.toml` and `commands.toml` name when it
-starts, and stops with an error that names the file, line and column when one
-does not load. A script's handlers are global functions, `onCastSpell` for
-the spells and runes and `onSay` for the commands, and the script returns
-nothing. The Lua API uses the names and style of The Forgotten Server (TFS):
+folder: what the spells, runes and commands do, the trigger rules' conditions
+and actions, and the built-in uses of objects. `data/scripts/` holds them,
+`spells/` for the spells cast at once, `runes/` for the rune spells,
+`commands/` for the commands, `items/` for the uses of objects and `lib/` for
+the trigger library; copy it into the installation's data folder. The game
+loads the scripts `spells.toml`, `commands.toml`, `items.toml` and the trigger
+rules name when it starts, and stops with an error that names the file, line
+and column when one does not load. A script's handlers are global functions,
+`onCastSpell` for the spells and runes, `onSay` for the commands and `onUse`
+for the uses of objects, and the script returns nothing. The Lua API uses the names and style of The Forgotten Server (TFS):
 camelCase functions and methods, PascalCase tables and classes, upper-case
 constants, with the values of 7.72, so scripts written for TFS need fewer
 changes; the handlers' arguments, the `Magic` and `Command` functions and the
