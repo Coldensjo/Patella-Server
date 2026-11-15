@@ -1132,16 +1132,26 @@ void RaiseError(lua_State *L, const char *Text) {
 	abort();
 }
 
-// An argument of a TScriptCall: its Lua type and value.
+// An argument of a TScriptCall: its Lua type and value (LUA_TTABLE: an array
+// of the strings Strings).
 struct TScriptCall::TArgument {
 	int Type;
 	double Number;
 	bool Boolean;
 	std::string String;
+	std::vector<std::string> Strings;
 
-	// Pushes the value.
+	// Pushes the value; an array as a new table, which takes one more stack
+	// slot while it is filled.
 	void push(lua_State *L) const {
 		switch (Type) {
+		case LUA_TTABLE:
+			lua_createtable(L, static_cast<int>(Strings.size()), 0);
+			for (size_t i = 0; i < Strings.size(); i++) {
+				lua_pushlstring(L, Strings[i].data(), Strings[i].size());
+				lua_rawseti(L, -2, static_cast<int>(i) + 1);
+			}
+			break;
 		case LUA_TNUMBER:
 			lua_pushnumber(L, Number);
 			break;
@@ -1312,6 +1322,20 @@ void TScriptCall::addNil() {
 	AssertMainThread();
 	assert(!Done);
 	AppendArgument(Arguments, NumberOfArguments, Capacity);
+}
+
+void TScriptCall::addStringArray(const char *const *Values, int Count) {
+	AssertMainThread();
+	assert(!Done);
+	assert(Count >= 0);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TTABLE;
+	Argument.Strings.clear();
+	for (int i = 0; i < Count; i++) {
+		// An array has no holes: a null string (not allowed) gives "".
+		assert(Values[i] != nullptr);
+		Argument.Strings.push_back(Values[i] != nullptr ? Values[i] : "");
+	}
 }
 
 void TScriptCall::run() {

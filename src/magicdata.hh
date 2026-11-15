@@ -1,9 +1,11 @@
 // magicdata.hh: the data of the spells (magicdata.cc): the spell table,
 // loaded from spells.toml and, for the commands (the spells of the classes al
 // and om), from commands.toml, with the syllables of the spells' words; the
-// rights the commands need, also from commands.toml; and the circles, the
-// area shapes the spells and the monsters' spells hit, loaded from
-// circles.toml. magic.cc holds what the spells and commands do.
+// rights the commands need, also from commands.toml; the scripts that do what
+// the spells and commands do, named by the entries of both files (magic.cc
+// loads them and calls them with the spell functions it holds); and the
+// circles, the area shapes the spells and the monsters' spells hit, loaded
+// from circles.toml.
 
 #ifndef PATELLA_MAGICDATA_HH
 #define PATELLA_MAGICDATA_HH
@@ -50,9 +52,8 @@ const int SYLLABLE_PARA = 6;
 const int MAX_SYLLABLES = 51;
 
 // The spell numbers (SpellList) that the code uses, named after the spells'
-// names in spells.toml. The number ties a spell to what it does in the code
-// (CastSpell, CharacterRightSpell, AccountRightSpell, ...) and to the spell
-// lists of the players.
+// names in spells.toml and commands.toml. What a spell or command does is its
+// script (the key script of its entry), not its number.
 const int SPELL_LIGHT_HEALING = 1;
 const int SPELL_INTENSE_HEALING = 2;
 const int SPELL_ULTIMATE_HEALING = 3;
@@ -208,6 +209,16 @@ struct TCommandRightChecks {
 	const char *Names[MAX_COMMAND_RIGHTS];
 };
 TCommandRightChecks GetCommandRightChecks(int SpellNr);
+
+// The script that spells.toml or commands.toml names for the spell or command
+// SpellNr (the key script of its entry: a script name below the scripts folder
+// such as "spells/light_healing.lua", in "spells/" for the classes ex and ut,
+// "runes/" for ad and "commands/" for al and om), or nullptr for none. Set by
+// LoadSpells and LoadCommands, which check the name.
+const char *GetSpellScript(int SpellNr);
+
+// Where that key is, "<file>:<line>:<column>", or nullptr for none.
+const char *GetSpellScriptPosition(int SpellNr);
 
 // The right of a name in commands.toml (PREMIUM_ACCOUNT, ...), or NO_RIGHT
 // for none.

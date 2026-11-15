@@ -731,6 +731,48 @@ static void TestCalls() {
 	CHECK(TakeErrors() == "bad %%s thing\n");
 }
 
+// addStringArray: the strings as a new array table per argument and call,
+// Values[0] at index 1; Count 0 gives an empty table.
+static void TestStringArray() {
+	WriteScript("arrays.lua",
+			"previous = false\n"
+			"return { on_words = function(words, again, empty, after)\n"
+			"  test.record('count ' .. #words .. ' ' .. #again .. ' ' .. #empty .. ' ' .. after)\n"
+			"  for i, w in ipairs(words) do test.record(i .. ' [' .. w .. ']') end\n"
+			"  test.record('distinct ' .. tostring(not rawequal(words, again)))\n"
+			"  test.record('new ' .. tostring(not rawequal(words, previous)))\n"
+			"  test.record('first ' .. tostring(words[1]))\n"
+			"  previous = words\n"
+			"  words[1] = 'changed'\n"
+			"end }\n");
+	int Script = Load("arrays.lua");
+	char SpellStr[4][512] = {"exura", "sio", "Some Name", ""};
+	const char *Words[3] = {SpellStr[1], SpellStr[2], SpellStr[3]};
+	std::vector<std::string> Expected = {"count 3 3 0 7", "1 [sio]", "2 [Some Name]", "3 []", "distinct true",
+			"new true", "first sio"};
+	for (int Round = 0; Round < 2; Round++) {
+		Records.clear();
+		TScriptCall ScriptCall(Script, "on_words");
+		ScriptCall.addStringArray(Words, 3);
+		ScriptCall.addStringArray(Words, 3);
+		ScriptCall.addStringArray(nullptr, 0);
+		ScriptCall.addNumber(7);
+		bool Thrown = false;
+		try {
+			ScriptCall.run();
+		} catch (RESULT) {
+			Thrown = true;
+		}
+		CHECK(!Thrown);
+		// The second round gets a new table: the change of the first is not
+		// seen, and the table is not the one kept.
+		CHECK(Records == Expected);
+		CHECK(TakeErrors() == "");
+	}
+	// The script changed its copy only.
+	CHECK(strcmp(SpellStr[1], "sio") == 0);
+}
+
 static void TestRandom() {
 	WriteScript("random.lua",
 			"return {\n"
@@ -1171,6 +1213,7 @@ int main() {
 	TestModuleTraceback();
 	TestErrorObject();
 	TestCalls();
+	TestStringArray();
 	TestRandom();
 	TestArithmetic();
 	TestRunResults();

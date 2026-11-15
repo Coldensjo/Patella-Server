@@ -82,8 +82,126 @@
 //   result.<NAME>           the numbers of RESULT, by name (result.NOROOM ==
 //                           4, result.ERROR == -1, ...); result[4] gives the
 //                           name "NOROOM".
-// The areas' APIs (spells, triggers, items, ...) come in later phases, each
-// with a Register...API function in its own unit (scripting_api.hh).
+// The areas' APIs follow, each bound by a Register...API function in a unit
+// of its own (scripting_api.hh). Their functions take creature IDs and object
+// handles (rule 2). An actor or target ID that names no creature (0
+// included) gives what the C++ function does when it is given nullptr; where
+// the C++ function would dereference nullptr, the binding logs
+// "<binding name>: Creature does not exist." and raises ERROR instead. A
+// string a binding passes on as a char * is copied into a char[512] first,
+// as CheckForSpell's SpellStr holds the words; nil gives nullptr where the
+// signature says "|nil". Each function raises what the C++ function throws.
+//
+// Spells, runes and commands (phase 2; scripting_magic.cc, RegisterMagicAPI).
+// An entry of spells.toml or commands.toml names its script with script =
+// "<path>"; the script is named after the SPELL_ case of the C++ switch it
+// replaces, lower case without SPELL_ (SPELL_LIGHT_HEALING ->
+// "spells/light_healing.lua", SPELL_FIREBALL -> "runes/fireball.lua",
+// SPELL_GET_ITEM_COUNT -> "commands/get_item_count.lua"). An entry whose
+// case did not exist has no script and does what the switch did without a
+// case. The handlers:
+//   spells/<name>.lua    on_cast(caster, spell, mana, soul_points, words)
+//       CastSpell's case, after the checks: caster is the creature's ID,
+//       spell the entry's number, mana and soul_points its mana and soul
+//       points (SpellList[SpellNr].Mana, .SoulPoints), words an array with
+//       words[k] = SpellStr[k] for k = 1 to the last entry CheckForSpell set
+//       (the empty one that ends them included).
+//   runes/<name>.lua     on_use(user, spell, mana, soul_points, target,
+//                        target_creature)
+//       UseMagicItem's case, after the checks and the choice of the target:
+//       user is the player's ID, target the object Dest, target_creature
+//       the ID of dest, 0 where dest is nullptr.
+//   commands/<name>.lua  on_say(caster, command, words)
+//       CharacterRightSpell's or AccountRightSpell's case (only for a
+//       player); words as for on_cast.
+//
+// magic: the spell functions of magic.cc (actor, target: creature IDs; obj:
+// an object handle; mana, soul: what is spent, as the C++ argument).
+//   compute_damage(actor, spell, damage, variation) -> int     ComputeDamage
+//   heal(actor, mana, soul, amount)                            Heal
+//   mass_heal(actor, obj, mana, soul, amount, radius)          MassHeal
+//   heal_friend(actor, name, mana, soul, amount)               HealFriend
+//   combat(actor, obj, mana, soul, damage, effect, animation, damage_type)
+//                                                              Combat
+//   mass_combat(actor, obj, mana, soul, damage, effect, radius, damage_type,
+//       animation)                                             MassCombat
+//   angle_combat(actor, mana, soul, damage, effect, radius, angle,
+//       damage_type)                                           AngleCombat
+//   kill_all_monsters(actor, effect, radius)                   KillAllMonsters
+//   create_field(actor, mana, soul, field_type)                CreateField(cr, Mana, SoulPoints, Type)
+//   create_field_on(actor, obj, mana, soul, field_type)        CreateField(cr, Obj, Mana, SoulPoints, Type)
+//   mass_create_field(actor, obj, mana, soul, field_type, radius)
+//                                                              MassCreateField
+//   create_field_wall(actor, obj, mana, soul, field_type, extension)
+//                                                              CreateFieldWall
+//   delete_field(actor, obj, mana, soul)                       DeleteField
+//   cleanup_field(actor)                                       CleanupField(cr)
+//   cleanup_field_on(actor, obj, mana, soul)                   CleanupField(cr, Obj, Mana, SoulPoints)
+//   magic_rope(actor, mana, soul)                              MagicRope
+//   magic_climbing(actor, mana, soul, direction)               MagicClimbing(cr, Mana, SoulPoints, Direction)
+//   magic_climbing_free(actor, direction)                      MagicClimbing(cr, Direction)
+//   create_food(actor, mana, soul)                             CreateFood
+//   create_arrows(actor, mana, soul, ammo, amount)             CreateArrows
+//   summon_creature(actor, mana, race_name, god)               SummonCreature(cr, Mana, RaceName, God)
+//   raise_dead(actor, obj, mana, soul)                         RaiseDead
+//   mass_raise_dead(actor, obj, mana, soul, radius)            MassRaiseDead
+//   magic_go_strength(actor, target, mana, soul, percent, duration)
+//                                                              MagicGoStrength
+//   shielding(actor, mana, soul, duration)                     Shielding
+//   negate_poison(actor, mana, soul, target)                   NegatePoison
+//   enlight(actor, mana, soul, radius, duration)               Enlight
+//   invisibility(actor, mana, soul, duration)                  Invisibility
+//   cancel_invisibility(actor, obj, mana, soul, radius)        CancelInvisibility
+//   creature_illusion(actor, mana, soul, race_name, duration)  CreatureIllusion
+//   object_illusion(actor, mana, soul, obj, duration)          ObjectIllusion
+//   enchant_object(actor, mana, soul, origin_type, target_type)
+//                                                              EnchantObject (object type IDs)
+//   convince(actor, target)                                    Convince
+//   challenge(actor, mana, soul, radius)                       Challenge
+//   find_person(actor, mana, soul, name)                       FindPerson
+// command: the commands' functions of magic.cc (actor: the caster's ID; the
+// other arguments are the words, as the C++ case passed SpellStr).
+//   create_thing(actor, p1, p2|nil)           CreateThing
+//   teleport(actor, p)                        Teleport
+//   create_knowledge(actor, p1, p2|nil)       CreateKnowledge
+//   change_data(actor, p)                     ChangeData
+//   teleport_to_creature(actor, name)         TeleportToCreature
+//   teleport_player_to_me(actor, name)        TeleportPlayerToMe
+//   get_position(actor)                       GetPosition
+//   create_money(actor, p)                    CreateMoney
+//   change_profession(actor, p)               ChangeProfession
+//   edit_guests(actor)                        EditGuests
+//   edit_subowners(actor)                     EditSubowners
+//   kick_guest(actor, name)                   KickGuest
+//   edit_name_door(actor)                     EditNameDoor
+//   get_quest_value(actor, p)                 GetQuestValue
+//   set_quest_value(actor, p1, p2)            SetQuestValue
+//   clear_quest_values(actor)                 ClearQuestValues
+//   start_monsterraid(actor, name)            StartMonsterraid
+//   home_teleport(actor, name)                HomeTeleport
+//   banish_account(actor, name, n, reason)    BanishAccount
+//   delete_account(actor, name, reason)       DeleteAccount
+//   set_name_rule(actor, name)                SetNameRule
+//   notation(actor, name, comment)            Notation
+//   name_lock(actor, name)                    NameLock
+//   kick_player(actor, name)                  KickPlayer
+//   delete_character(actor, name, reason)     DeleteCharacter
+//   ip_banishment(actor, name, reason)        IPBanishment
+//   banish_character(actor, name, n, reason)  BanishCharacter
+// game.to_int(text) -> int: (int)std::clamp(strtol(text, nullptr, 10),
+//   (long)INT32_MIN, (long)INT32_MAX), as AccountRightSpell read numbers.
+// creature.object(id) -> the handle of the creature's object
+//   (GetCreatureObject).
+// creature.skill(id, skill) -> Skills[skill]->Get().
+// creature.effective_profession(id) -> GetEffectiveProfession().
+// object.new_type(group, number) -> GetNewObjectType(Group, Number), the
+//   type's ID.
+// Constants (read-only tables of numbers): effect.<X> (EFFECT_X of
+// operate.hh, e.g. effect.DEATH), animation.<X> (ANIMATION_X), damage.<X>
+// (DAMAGE_X of cr.hh), field.<X> (FIELD_X of info.hh), ammo.<X> (the
+// CONJURE_X of magic.cc: ARROW, POISONED_ARROW, EXPLOSIVE_ARROW, BOLT,
+// POWER_BOLT), skill.<X> (SKILL_X of crskill.hh), profession.<X>
+// (PROFESSION_X of cr.hh).
 //
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with
@@ -146,7 +264,7 @@ void RequireHandler(int Script, const char *Handler, const char *Where);
 //	Call.run();
 // Arguments are numbers (ints, uint32_t such as creature IDs and object
 // handles, all exact in a double), booleans, strings (copied; nullptr gives
-// nil) and nil. run calls the handler (which must exist: RequireHandler at
+// nil), arrays of strings (copied; a new Lua table per call) and nil. run calls the handler (which must exist: RequireHandler at
 // load time; a missing one at run time is a non-result error) and gives back
 // nothing; runNumber and runBoolean give its first result (a number that is
 // not an integer, or not a number/boolean, is a non-result error; nil gives
@@ -170,6 +288,8 @@ public:
 	void addBoolean(bool Value);
 	void addString(const char *Value);
 	void addNil();
+	// The Count strings of Values as one Lua array (Values[0] is index 1).
+	void addStringArray(const char *const *Values, int Count);
 	void run();
 	int runNumber();
 	bool runBoolean();

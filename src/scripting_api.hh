@@ -103,4 +103,8 @@ auto Guarded(R (*Function)(A...)) {
 	};
 }
 
+// The registration of each area's API, called by InitAll right after
+// InitScripting (scripting.hh lists the functions).
+void RegisterMagicAPI();
+
 #endif
