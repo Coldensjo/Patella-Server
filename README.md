@@ -108,9 +108,10 @@ does not load. A script's handlers are global functions, `onCastSpell` for
 the spells and runes and `onSay` for the commands, and the script returns
 nothing. The Lua API uses the names and style of The Forgotten Server (TFS):
 camelCase functions and methods, PascalCase tables and classes, upper-case
-constants, with the values of 7.72, so scripts written for TFS port with few
-changes. `src/scripting.hh` lists the API; the rules of the engine, which
-every script keeps, are in the comment at its top.
+constants, with the values of 7.72, so scripts written for TFS need fewer
+changes; the handlers' arguments, the `Magic` and `Command` functions and the
+vocation numbers are Patella's own. `src/scripting.hh` lists the API; the
+rules of the engine, which every script keeps, are in the comment at its top.
 
 ## Trigger rules
 

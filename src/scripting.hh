@@ -81,7 +81,9 @@
 // player's creature ID. A creature ID is a Player when it is a player's
 // (below FIRST_NONPLAYER_CREATURE_ID), a Creature otherwise; nil stands
 // where the C++ code has no creature (nullptr). Two objects are equal (==)
-// when they are of the same class and hold the same ID or handle. A method
+// when they are of the same class and hold the same ID or handle, so two
+// Vocation objects are equal only for the same player, not for two players
+// of the same vocation (compare their getId()). A method
 // is called as object:method(...); the classes' method tables are the
 // shared globals Creature, Player, Item and Vocation (Player's falls back to
 // Creature's). A creature that is gone gives, in a function that takes it,
@@ -99,7 +101,11 @@
 //                           arguments separated by tabs and ended by a
 //                           newline: strings, numbers, booleans, nil, the
 //                           objects ("Player 123") and result errors; any
-//                           other value is a Lua error.
+//                           other value is a Lua error. print() of utils.cc
+//                           formats into 1024 bytes, so a longer text loses
+//                           its end and its newline, and a zero byte ends
+//                           the text; the game's log keeps 126 characters
+//                           of a line, at debug level 2 or more.
 //   debugPrint(text)        error("%s", text) of utils.cc, with each '%' of
 //                           text doubled (see below).
 //   Game.rand()             rand(), as the C++ code calls it directly.

@@ -182,8 +182,9 @@ static inline fs::path TemporaryFolder(const char *Name) {
 // Checks every script that the spells.toml or commands.toml text Toml, the
 // file TomlFile, names (each line "script = \"<name>\""): that it is a file
 // in the scripts folder next to TomlFile and that its text defines the
-// handler of its folder, "function onCastSpell(" for spells/ and runes/ and
-// "function onSay(" for commands/. Returns the number of scripts checked.
+// handler of its folder as a global function at the start of a line,
+// "function onCastSpell(" for spells/ and runes/ and "function onSay(" for
+// commands/ (not "local function"). Returns the number of scripts checked.
 static inline int CheckScriptFiles(const fs::path &TomlFile, const std::string &Toml) {
 	static const struct {
 		const char *Folder;
@@ -214,7 +215,9 @@ static inline int CheckScriptFiles(const fs::path &TomlFile, const std::string &
 		} else if (!fs::is_regular_file(File)) {
 			fprintf(stderr, "%s: script %s: there is no file %s\n", TomlFile.c_str(), Name.c_str(), File.c_str());
 			Failures++;
-		} else if (ReadFile(File).find(Handler) == std::string::npos) {
+		} else if (std::string Text = ReadFile(File);
+				Text.compare(0, strlen(Handler), Handler) != 0
+				&& Text.find(std::string("\n") + Handler) == std::string::npos) {
 			fprintf(stderr, "%s: script %s does not define %s\n", TomlFile.c_str(), Name.c_str(), Handler);
 			Failures++;
 		}
