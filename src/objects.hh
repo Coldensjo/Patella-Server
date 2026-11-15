@@ -1,12 +1,15 @@
 // objects.hh: the object types (ObjectType, a type number) with their flags
 // and attributes, the special meanings, body positions and liquids, and the
-// loading of the types from items.toml (objects.cc).
+// loading of the types and of the list of built-in uses from items.toml
+// (objects.cc).
 
 #ifndef PATELLA_OBJECTS_HH
 #define PATELLA_OBJECTS_HH
 
 #include <cstdint>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #include "containr.hh"
 
@@ -148,9 +151,10 @@ enum TYPEATTRIBUTE {
 
 const int TYPEATTRIBUTES = 62;
 
-// What an INFORMATION object tells, its INFORMATIONTYPE (triggers.cc's
-// UseAnnouncer): the date and the time, the time, the blessings received, or
-// the player's spells (the spellbook; sending.cc's SendEditText shows them).
+// What an INFORMATION object tells, its INFORMATIONTYPE (the script
+// data/scripts/items/announcer.lua): the date and the time, the time, the
+// blessings received, or the player's spells (the spellbook; sending.cc's
+// SendEditText shows them).
 const int INFORMATION_DATE = 1;
 const int INFORMATION_TIME = 2;
 const int INFORMATION_BLESSINGS = 3;
@@ -292,7 +296,12 @@ private:
 
 int GetFlagByName(char *Name);
 int GetTypeAttributeByName(char *Name);
+// Reads the items.toml file FileName: the object types ([[item]]) and the
+// list of built-in uses ([[use]], UseEntries). Throws a const char *
+// "<file>:<line>:<column>: <what>" for what is wrong with it, and as
+// TomlParseFile does for a file that is not there or not TOML.
 void LoadItems(const char *FileName);
+// LoadItems of DATAPATH/items.toml.
 void LoadObjects();
 // Reads the conversion.toml file FileName into NewType: the type number of
 // each old group and number it gives (NewType[Group * 256 + Number]), -1 for
@@ -309,6 +318,24 @@ bool ObjectTypeExists(int TypeID);
 ObjectType GetSpecialObject(SPECIALMEANING Meaning);
 ObjectType GetObjectTypeByName(char *SearchName, bool Movable);
 void InitObjects();
+
+// An entry of the list [[use]] of items.toml (scripting.hh, "Built-in uses of
+// objects"): the flag a used object must have, the script that handles the
+// use ("items/<name>.lua"), the place of the entry's script key
+// ("<file>:<line>:<column>", for the errors of loading the script), and the
+// script's number once InitItemUses (scripting_items.cc) has loaded it (-1
+// before).
+struct TUseEntry {
+	FLAG Flag;
+	std::string Script;
+	std::string Where;
+	int ScriptNumber;
+};
+
+// The entries of [[use]] in the order of items.toml, as the last LoadItems
+// read them; none when the file has no [[use]] (the game refuses to start
+// then, InitItemUses; the converter's tests read files without it).
+extern std::vector<TUseEntry> UseEntries;
 
 extern char FlagNames[FLAGS][20];
 extern char TypeAttributeNames[TYPEATTRIBUTES][30];

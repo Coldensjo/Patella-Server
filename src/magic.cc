@@ -3633,41 +3633,6 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 	}
 }
 
-void DrinkPotion(uint32_t CreatureID, Object Obj) {
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("DrinkPotion: Creature does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Obj.exists()) {
-		error("DrinkPotion: Given object does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Obj.getFlag(LIQUIDCONTAINER)) {
-		error("DrinkPotion: Given object is not a liquid container.\n");
-		throw ERROR;
-	}
-
-	int Refresh;
-	switch (Obj.getAttribute(CONTAINERLIQUIDTYPE)) {
-		case LIQUID_MANAFLUID:
-			Refresh = ComputeDamage(nullptr, 0, 100, 50);
-			RefreshMana(pl, 0, 0, Refresh);
-			break;
-		case LIQUID_LIFEFLUID:
-			Refresh = ComputeDamage(nullptr, 0, 50, 25);
-			Heal(pl, 0, 0, Refresh);
-			break;
-		default:
-			error("DrinkPotion: Object contains no potion.\n");
-			throw ERROR;
-	}
-
-	Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-}
-
 // Loads the script of every spell and command that has one (magicdata's
 // GetSpellScript) and checks its handler: onCastSpell for the classes ex, ut
 // and ad, onSay for al and om. Throws a const char * as LoadScript and
@@ -3762,7 +3727,7 @@ static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool
 }
 
 // EnchantObject through HomeTeleport, CharacterRightSpell, AccountRightSpell,
-// CastSpell, RuneSpell, DeleteRune, UseMagicItem, DrinkPotion and the static
+// CastSpell, RuneSpell, DeleteRune, UseMagicItem and the static
 // CreateField report a failure by throwing a RESULT (CharacterRightSpell,
 // AccountRightSpell, CastSpell and UseMagicItem also the one a script's
 // handler raises, through TScriptCall), and InitMagic by throwing a const

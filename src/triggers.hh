@@ -1,8 +1,9 @@
 // triggers.hh: the functions and data of triggers.cc: the events that run the
 // trigger rules (triggersdata.hh, the trigger library of data/scripts/lib/),
-// the object functions their actions use,
-// depot boxes, mail, and the built-in uses of objects (containers, chests,
-// liquids, food, texts, doors, weapons).
+// the object functions their actions use, depot boxes, mail, opening a
+// container window (UseContainer) and the trigger rules of use and multi-use
+// (UseObject, UseObjects); the other built-in uses of objects are scripts
+// (data/scripts/items/).
 
 #ifndef PATELLA_TRIGGERS_HH
 #define PATELLA_TRIGGERS_HH
@@ -28,17 +29,6 @@ void SendMail(Object Obj);
 void SendMails(TPlayerData *PlayerData);
 void TextEffect(char *Text, int x, int y, int z, int Radius);
 void UseContainer(uint32_t CreatureID, Object Con, unsigned char Window);
-void UseChest(uint32_t CreatureID, Object Chest);
-void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest);
-void UseFood(uint32_t CreatureID, Object Obj);
-void UseTextObject(uint32_t CreatureID, Object Obj);
-void UseAnnouncer(uint32_t CreatureID, Object Obj);
-void UseKeyDoor(uint32_t, Object Key, Object Door);
-void UseNameDoor(uint32_t CreatureID, Object Door);
-void UseLevelDoor(uint32_t CreatureID, Object Door);
-void UseQuestDoor(uint32_t CreatureID, Object Door);
-void UseWeapon(uint32_t CreatureID, Object Weapon, Object Target);
-void UseChangeObject(uint32_t CreatureID, Object Obj);
 void UseObject(uint32_t CreatureID, Object Obj);
 void UseObjects(uint32_t CreatureID, Object Obj1, Object Obj2);
 void MovementEvent(Object Obj, Object Start, Object Dest);

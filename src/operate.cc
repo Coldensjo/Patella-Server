@@ -33,6 +33,7 @@
 #include "triggers.hh"
 #include "magic.hh"
 #include "houses.hh"
+#include "scripting.hh"
 #include <algorithm>
 #include <ctime>
 #include <dirent.h>
@@ -2333,41 +2334,24 @@ void Use(uint32_t CreatureID, Object Obj1, Object Obj2, unsigned char Info) {
 		}
 	}
 
-	if (Obj1.getFlag(CONTAINER)) {
-		UseContainer(CreatureID, Obj1, Info);
-	} else if (Obj1.getFlag(CHEST)) {
-		UseChest(CreatureID, Obj1);
-	} else if (Obj1.getFlag(LIQUIDCONTAINER)) {
-		UseLiquidContainer(CreatureID, Obj1, Obj2);
-	} else if (Obj1.getFlag(FOOD)) {
-		UseFood(CreatureID, Obj1);
-	} else if (Obj1.getFlag(WRITE) || Obj1.getFlag(WRITEONCE)) {
-		UseTextObject(CreatureID, Obj1);
-	} else if (Obj1.getFlag(INFORMATION)) {
-		UseAnnouncer(CreatureID, Obj1);
-	} else if (Obj1.getFlag(RUNE)) {
-		UseMagicItem(CreatureID, Obj1, Obj2);
-	} else if (Obj1.getFlag(KEY)) {
-		UseKeyDoor(CreatureID, Obj1, Obj2);
-	} else if (Obj1.getFlag(NAMEDOOR)) {
-		UseNameDoor(CreatureID, Obj1);
-	} else if (Obj1.getFlag(LEVELDOOR)) {
-		UseLevelDoor(CreatureID, Obj1);
-	} else if (Obj1.getFlag(QUESTDOOR)) {
-		UseQuestDoor(CreatureID, Obj1);
-	} else if (Obj1.getFlag(WEAPON) && in(Obj1.getAttribute(WEAPONTYPE), WEAPON_SWORD, WEAPON_AXE) && Obj2 != NONE && Obj2.getFlag(DESTROY)) {
-		UseWeapon(CreatureID, Obj1, Obj2);
-	} else if (Obj1.getFlag(CHANGEUSE)) {
-		UseChangeObject(CreatureID, Obj1);
-	} else if (Obj1.getFlag(USEEVENT) && Obj2 == NONE) {
-		UseObject(CreatureID, Obj1);
-	} else if (Obj1.getFlag(USEEVENT)) {
-		UseObjects(CreatureID, Obj1, Obj2);
-	} else if (Obj1.getFlag(TEXT) && Obj1.getAttribute(FONTSIZE) == 1) {
-		UseTextObject(CreatureID, Obj1);
-	} else {
-		throw NOTUSABLE;
+	// The built-in uses (scripting.hh): the entries of [[use]] of items.toml
+	// in order; the first whose flag Obj1 has and whose script's onUse gives
+	// true has handled the use. A result code it raises goes up from here.
+	for (const TUseEntry &Entry : UseEntries) {
+		if (!Obj1.getFlag(Entry.Flag)) {
+			continue;
+		}
+		TScriptCall Call(Entry.ScriptNumber, "onUse");
+		Call.addPlayer(CreatureID);
+		Call.addItem(Obj1.getObjectID());
+		Call.addItem(Obj2.getObjectID());
+		Call.addNumber(static_cast<int>(Info));
+		if (Call.runBoolean()) {
+			return;
+		}
 	}
+
+	throw NOTUSABLE;
 }
 
 void Turn(uint32_t CreatureID, Object Obj) {

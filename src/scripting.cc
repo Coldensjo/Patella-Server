@@ -1,7 +1,8 @@
 // scripting.cc: the Lua engine (scripting.hh, scripting_api.hh). One LuaJIT
 // state with the sandbox of rule 7, strict shared globals and API tables, the
 // core API (Game, print, debugPrint, math.random, the RETURNVALUE_
-// constants), the objects (Creature, Player, Item, Vocation), the Position,
+// constants), the objects (Creature, Player, Item, Vocation, ItemType), the
+// Position,
 // the read-only constants, the restricted require, the loaded scripts with
 // their environments, and the calls of their handlers (TScriptCall,
 // TScriptEvent).
@@ -747,7 +748,8 @@ static int ResultErrorIndex(lua_State *L) {
 
 // ---------------------------------------------------------------------------
 // The objects: a userdata of one uint32_t (a creature ID, an object handle,
-// or a Vocation's player ID) whose metatable is its class's (no __gc, so it
+// a Vocation's player ID, or an ItemType's type number, an int kept as its
+// bits) whose metatable is its class's (no __gc, so it
 // is trivially destructible and the collector runs no code). The metatable
 // reads methods from the class's method table, an API table (so an unknown
 // method is "unknown name '<class>.<method>'"), refuses writes, compares by
@@ -755,11 +757,16 @@ static int ResultErrorIndex(lua_State *L) {
 // and is hidden from scripts (__metatable).
 
 // The class names of the kinds (TScriptObjectKind order).
-static const char *const ObjectKindNames[] = {nullptr, "Creature", "Player", "Item", "Vocation"};
+static const char *const ObjectKindNames[] = {nullptr, "Creature", "Player", "Item", "Vocation", "ItemType"};
 
 // The registry keys of the kinds' metatables.
 static const char *const ObjectMetatables[] = {nullptr, "patella.object.Creature", "patella.object.Player",
-		"patella.object.Item", "patella.object.Vocation"};
+		"patella.object.Item", "patella.object.Vocation", "patella.object.ItemType"};
+
+static_assert(sizeof(ObjectKindNames) / sizeof(ObjectKindNames[0]) == SCRIPT_ITEMTYPE + 1,
+		"ObjectKindNames must name every TScriptObjectKind");
+static_assert(sizeof(ObjectMetatables) / sizeof(ObjectMetatables[0]) == SCRIPT_ITEMTYPE + 1,
+		"ObjectMetatables must have a key for every TScriptObjectKind");
 
 TScriptObjectKind ScriptObjectKind(lua_State *L, int Index) {
 	Index = AbsoluteIndex(L, Index);
@@ -784,7 +791,7 @@ uint32_t ScriptObjectValue(lua_State *L, int Index) {
 }
 
 void PushScriptObject(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
-	assert(Kind > SCRIPT_NO_OBJECT && Kind <= SCRIPT_VOCATION);
+	assert(Kind > SCRIPT_NO_OBJECT && Kind <= SCRIPT_ITEMTYPE);
 	void *Data = lua_newuserdata(L, sizeof(Value));
 	memcpy(Data, &Value, sizeof(Value));
 	lua_getfield(L, LUA_REGISTRYINDEX, ObjectMetatables[Kind]);
@@ -802,11 +809,14 @@ void PushScriptCreature(lua_State *L, uint32_t ID) {
 }
 
 // Pushes the text of an object: "Creature 123", "Player 123", "Item 456",
-// "Vocation of Player 123".
+// "Vocation of Player 123", "ItemType 123" (the type number as the int it
+// is, so "ItemType -1").
 static void PushObjectText(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
 	char Text[64];
 	if (Kind == SCRIPT_VOCATION) {
 		snprintf(Text, sizeof(Text), "Vocation of Player %u", static_cast<unsigned>(Value));
+	} else if (Kind == SCRIPT_ITEMTYPE) {
+		snprintf(Text, sizeof(Text), "ItemType %d", static_cast<int>(Value));
 	} else {
 		snprintf(Text, sizeof(Text), "%s %u", ObjectKindNames[Kind], static_cast<unsigned>(Value));
 	}
@@ -885,6 +895,44 @@ static int CreatureGetId(lua_State *L) {
 	}
 	lua_pushnumber(L, ScriptObjectValue(L, 1));
 	return 1;
+}
+
+// The function ItemType(id) makes the type number with
+// (SetItemTypeConstructor); nullptr keeps id as it is.
+static int (*ItemTypeConstructor)(int) = nullptr;
+
+void SetItemTypeConstructor(int (*Constructor)(int)) {
+	AssertMainThread();
+	ItemTypeConstructor = Constructor;
+}
+
+// ItemType(id), the __call of the shared global ItemType (the proxy of the
+// class's method table, which is argument 1): a new ItemType holding the
+// type number ItemTypeConstructor makes of id, any int (the game's is
+// ObjectType(id).getTypeID(), so a number that is no type is logged there and
+// gives 0). Returns it. Any other number of arguments, or an id that is not an
+// int, is a Lua error.
+static int ItemTypeNew(lua_State *L) {
+	if (lua_gettop(L) != 2) {
+		return luaL_error(L, "ItemType: one argument expected (id)");
+	}
+	int TypeID = CheckInt(L, 2);
+	if (ItemTypeConstructor != nullptr) {
+		TypeID = ItemTypeConstructor(TypeID);
+	}
+	PushScriptObject(L, SCRIPT_ITEMTYPE, static_cast<uint32_t>(TypeID));
+	return 1;
+}
+
+// Makes the shared global ItemType callable: ItemType(id) (ItemTypeNew). The
+// class (MakeClass) must exist.
+static void MakeItemTypeConstructor(lua_State *L) {
+	lua_pushstring(L, ObjectKindNames[SCRIPT_ITEMTYPE]);
+	lua_rawget(L, LUA_GLOBALSINDEX);
+	lua_getmetatable(L, -1);
+	lua_pushcfunction(L, ItemTypeNew);
+	lua_setfield(L, -2, "__call");
+	lua_pop(L, 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -1336,7 +1384,9 @@ static void SetUpState(lua_State *L) {
 	MakeClass(L, SCRIPT_PLAYER, SCRIPT_CREATURE, Equal);
 	MakeClass(L, SCRIPT_ITEM, SCRIPT_NO_OBJECT, Equal);
 	MakeClass(L, SCRIPT_VOCATION, SCRIPT_NO_OBJECT, Equal);
+	MakeClass(L, SCRIPT_ITEMTYPE, SCRIPT_NO_OBJECT, Equal);
 	lua_pop(L, 1);
+	MakeItemTypeConstructor(L);
 	PushAPITable(L, ObjectKindNames[SCRIPT_CREATURE]);
 	lua_pushcfunction(L, CreatureGetId);
 	lua_setfield(L, -2, "getId");
@@ -1403,6 +1453,7 @@ void ExitScripting() {
 	Scripts.clear();
 	Folder.clear();
 	RequireStackDepth = 0;
+	ItemTypeConstructor = nullptr;
 }
 
 bool ScriptingActive() {

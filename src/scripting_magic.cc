@@ -141,16 +141,17 @@ static void CheckRadius(int Radius, int Limit, const char *Message) {
 // ---------------------------------------------------------------------------
 // Magic
 
-// Magic.computeDamage(actor, spell, damage, variation) -> int:
+// Magic.computeDamage(actor|nil, spell, damage, variation) -> int:
 // ComputeDamage(cr, SpellNr, Damage, Variation): Damage varied by
 // random(-Variation, Variation), then scaled for a player by level and magic
-// level. nullptr: passed on (ComputeDamage gives the varied damage then).
-// spell must be 0 to MAX_SPELLS - 1 (binding's check). Throws nothing else.
-static int MagicComputeDamage(TScriptCreature Actor, int SpellNr, int Damage, int Variation) {
+// level. nil (as DrinkPotion passed nullptr) or a creature that is gone:
+// nullptr passed on (ComputeDamage gives the varied damage then). spell must
+// be 0 to MAX_SPELLS - 1 (binding's check). Throws nothing else.
+static int MagicComputeDamage(sol::optional<TScriptCreature> Actor, int SpellNr, int Damage, int Variation) {
 	if (SpellNr < 0 || SpellNr >= MAX_SPELLS) {
 		throw "Magic.computeDamage: spell number out of range";
 	}
-	return ComputeDamage(GetCreature(Actor.ID), SpellNr, Damage, Variation);
+	return ComputeDamage(OptionalCreature(Actor), SpellNr, Damage, Variation);
 }
 
 // Magic.heal(actor, mana, soul, amount): Heal(cr, Mana, SoulPoints, Healing).

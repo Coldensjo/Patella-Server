@@ -1,7 +1,7 @@
 // test_scripting.cc: the Lua engine (scripting.cc) on its own. Loading scripts
 // and its errors, global handlers, the sandbox, require, result codes in both
 // directions and their RETURNVALUE_ names, the logging of other errors, the
-// calls a script makes, the objects, the Positions, the constants, the core
+// calls a script makes, the objects, the ItemTypes, the Positions, the constants, the core
 // API (math.random, print, integer arithmetic), the results of runNumber and
 // runBoolean, the calls of an event's rules (TScriptEvent), the message of a
 // failed call (TScriptCall::failure), the script environments, and a restart
@@ -203,6 +203,21 @@ static uint32_t TestVocationPlayer(TScriptVocation Vocation) {
 	return Vocation.PlayerID;
 }
 
+// test.itemTypeId(itemType): the type number of an ItemType.
+static int TestItemTypeId(TScriptItemType ItemType) {
+	return ItemType.TypeID;
+}
+
+// test.makeItemType(id): an ItemType holding id as it is.
+static TScriptItemType TestMakeItemType(int TypeID) {
+	return TScriptItemType{TypeID};
+}
+
+// itemType:testDouble(): twice the type number, a method of ItemType.
+static int ItemTypeTestDouble(TScriptItemType Self) {
+	return 2 * Self.TypeID;
+}
+
 // creature:testName(): "creature <ID>", a method of Creature.
 static std::string CreatureTestName(TScriptCreature Self) {
 	return "creature " + std::to_string(Self.ID);
@@ -259,6 +274,10 @@ static void RegisterTestAPI() {
 	API.set_function("positionText", Guarded(&TestPositionText));
 	API.set_function("makePosition", Guarded(&TestMakePosition));
 	API.set_function("nestedEvent", Guarded(&TestNestedEvent));
+	API.set_function("itemTypeId", Guarded(&TestItemTypeId));
+	API.set_function("makeItemType", Guarded(&TestMakeItemType));
+	sol::table ItemType = ScriptAPITable("ItemType");
+	ItemType.set_function("testDouble", Guarded(&ItemTypeTestDouble));
 	sol::table Creature = ScriptAPITable("Creature");
 	Creature.set_function("testName", Guarded(&CreatureTestName));
 	Creature.set_function("testHealth", Guarded(&CreatureTestHealth));
@@ -1284,6 +1303,105 @@ static void TestObjects() {
 	CHECK(TakeErrors() == "Creature.testHealth: Creature does not exist.\n");
 }
 
+// The constructor of the ItemTypes in TestItemTypes: a negative number is
+// logged and gives 0, as ObjectType(id) does for a number that is no type.
+static int TestItemTypeConstructor(int TypeID) {
+	if (TypeID < 0) {
+		error("Invalid type %d.\n", TypeID);
+		return 0;
+	}
+	return TypeID;
+}
+
+// The ItemTypes: made by ItemType(id) and a binding; ==, tostring and print,
+// read-only, hidden metatable, methods; what an ItemType parameter refuses and
+// what ItemType(...) refuses; the constructor SetItemTypeConstructor sets.
+static void TestItemTypes() {
+	WriteScript("itemtypes.lua",
+			"function onItemType(item, p)\n"
+			"  local t = ItemType(3031)\n"
+			"  print(t, ItemType(-1))\n"
+			"  return type(t) == 'userdata' and getmetatable(t) == false and t == ItemType(3031)\n"
+			"    and not rawequal(t, ItemType(3031)) and t ~= ItemType(3032) and t ~= item and t ~= p\n"
+			"    and ItemType(9) ~= test.makeItem(9) and ItemType(7) ~= p and t ~= 3031 and t ~= nil\n"
+			"    and tostring(t) == 'ItemType 3031' and tostring(ItemType(-1)) == 'ItemType -1'\n"
+			"    and test.itemTypeId(t) == 3031 and test.makeItemType(5) == ItemType(5)\n"
+			"    and test.itemTypeId(ItemType(-2147483648)) == -2147483648 and t:testDouble() == 6062\n"
+			"    and ItemType.testDouble(ItemType(4)) == 8\n"
+			"end\n"
+			"function onRefused(i, item)\n"
+			"  local t = ItemType(1)\n"
+			"  local calls = {\n"
+			"    function() return ItemType() end,\n"
+			"    function() return ItemType(1, 2) end,\n"
+			"    function() return ItemType(1.5) end,\n"
+			"    function() return ItemType('1') end,\n"
+			"    function() return ItemType(2147483648) end,\n"
+			"    function() return test.itemTypeId(item) end,\n"
+			"    function() return test.itemTypeId(1) end,\n"
+			"    function() return test.itemTypeId(nil) end,\n"
+			"    function() return test.itemHandle(t) end,\n"
+			"    function() return test.thing(t) end,\n"
+			"    function() t.x = 1 end,\n"
+			"    function() ItemType.testDouble = nil end,\n"
+			"    function() return t:noSuchMethod() end,\n"
+			"    function() return ItemType.testDouble(item) end,\n"
+			"  }\n"
+			"  local ok, err = pcall(calls[i])\n"
+			"  test.record(tostring(err))\n"
+			"  return ok\n"
+			"end\n"
+			"function onMadeNegative() return test.itemTypeId(ItemType(-5)) end\n"
+			"function onMadePositive() return test.itemTypeId(ItemType(17)) end\n");
+	int Script = Load("itemtypes.lua");
+	TakeErrors();
+
+	Prints.clear();
+	TScriptCall ItemTypes(Script, "onItemType");
+	ItemTypes.addItem(3031);
+	ItemTypes.addPlayer(3031);
+	TOutcome Outcome = Run(ItemTypes, RUN_BOOLEAN);
+	CHECK(!Outcome.Thrown && Outcome.Boolean);
+	CHECK((Prints == std::vector<std::string>{"2:ItemType 3031	ItemType -1\n"}));
+	CHECK(TakeErrors() == "");
+
+	const char *Refusals[] = {"one argument expected", "one argument expected", "integer expected",
+			"number expected", "integer expected", "ItemType expected", "ItemType expected", "ItemType expected",
+			"Item expected", "Item or Creature expected", "ItemType.x is read-only", "ItemType.testDouble is read-only",
+			"unknown name 'ItemType.noSuchMethod'", "ItemType expected"};
+	int Count = static_cast<int>(sizeof(Refusals) / sizeof(Refusals[0]));
+	for (int i = 1; i <= Count; i++) {
+		Records.clear();
+		TScriptCall Refused(Script, "onRefused");
+		Refused.addNumber(i);
+		Refused.addItem(9);
+		TOutcome RefusedOutcome = Run(Refused, RUN_BOOLEAN);
+		CHECK(!RefusedOutcome.Thrown && !RefusedOutcome.Boolean);
+		if (RefusedOutcome.Thrown || RefusedOutcome.Boolean) {
+			fprintf(stderr, "  item type refusal number %d was not refused\n", i);
+		}
+		CHECK(Records.size() == 1);
+		if (Records.size() == 1) {
+			CHECK_CONTAINS(Records[0], Refusals[i - 1]);
+		}
+	}
+	CHECK(TakeErrors() == "");
+
+	// The constructor makes the number once, when the object is made: it
+	// logs there, and the object holds what it gave.
+	SetItemTypeConstructor(&TestItemTypeConstructor);
+	TOutcome Negative = Call(Script, "onMadeNegative", RUN_NUMBER);
+	CHECK(!Negative.Thrown && Negative.Number == 0);
+	CHECK(TakeErrors() == "Invalid type -5.\n");
+	TOutcome Positive = Call(Script, "onMadePositive", RUN_NUMBER);
+	CHECK(!Positive.Thrown && Positive.Number == 17);
+	CHECK(TakeErrors() == "");
+	SetItemTypeConstructor(nullptr);
+	TOutcome Unchanged = Call(Script, "onMadeNegative", RUN_NUMBER);
+	CHECK(!Unchanged.Thrown && Unchanged.Number == -5);
+	CHECK(TakeErrors() == "");
+}
+
 // The Positions: made by TScriptCall::addPosition, Position(x, y, z) and a
 // binding; their fields, ==, tostring and print, read-only, hidden metatable;
 // what a Position parameter refuses. addItem(0) gives nil.
@@ -1856,6 +1974,7 @@ int main() {
 	TestRunResults();
 	TestObjects();
 	TestPositions();
+	TestItemTypes();
 	TestEvents();
 	TestFailure();
 	TestConstants();

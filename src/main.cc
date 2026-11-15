@@ -450,7 +450,9 @@ void InitAll(const char *ConfigFile) {
 		InitScripting(ScriptFolder);
 		RegisterMagicAPI();
 		RegisterTriggerAPI();
+		RegisterItemAPI();
 		InitObjects();
+		InitItemUses();
 		InitMap();
 		InitTriggers();
 		InitMagic();

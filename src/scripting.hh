@@ -205,7 +205,7 @@
 // Creature, or nil where it says "|nil"; obj: an Item or a Creature, whose
 // object is taken (GetCreatureObject); mana, soul: what is spent, as the C++
 // argument).
-//   computeDamage(actor, spell, damage, variation) -> int     ComputeDamage
+//   computeDamage(actor|nil, spell, damage, variation) -> int ComputeDamage
 //   heal(actor, mana, soul, amount)                           Heal
 //   massHeal(actor, obj, mana, soul, amount, radius)          MassHeal
 //   healFriend(actor, name, mana, soul, amount)               HealFriend
@@ -431,6 +431,88 @@
 // (ITEM_ATTRIBUTE_TEXTSTRING, ITEM_ATTRIBUTE_EDITOR,
 // ITEM_ATTRIBUTE_RESPONSIBLE, ...).
 //
+// Built-in uses of objects (phase 4; scripting_items.cc, RegisterItemAPI).
+// Use (operate.cc) keeps its checks (the object exists, can be reached,
+// the second object can be reached or thrown at) and then tries the
+// entries of the ordered list [[use]] of items.toml, each a flag (as
+// items.toml names the flags) and a script (script = "items/<name>.lua"):
+// for the first entry whose flag the used object has, it calls the script's
+// global function
+//   onUse(player, item, target, window) -> boolean
+// player the user (a Player), item the used object, target the object it is
+// used on (an Item, nil for none), window the container window the client
+// asked for (Use's Info). The function gives true when it handled the use;
+// false sends Use on to the next entry whose flag the object has (as the
+// C++ chain went on to its next branch where a branch's extra condition
+// did not hold: a weapon that is no sword or axe or a target that cannot be
+// destroyed, a text whose font size is not 1). No entry handles it: Use
+// throws NOTUSABLE. A result code the function raises goes to Use's caller.
+// The delivered list follows the C++ chain: container, chest,
+// liquid_container, food, write, write_once, information, rune, key,
+// name_door, level_door, quest_door, weapon, change_use, use_event, text.
+// What stays in C++ and is called by the scripts: opening and closing a
+// container window (UseContainer), the text dialog (SendEditText), a rune's
+// use (UseMagicItem, phase 2) and the trigger rules of use and multi_use
+// (UseObject, UseObjects): they are protocol or have their own scripts.
+//
+// ItemType: an object holding an object type's number; ItemType(id) makes
+// one: it builds ObjectType(id) once, when it is made (an invalid number logs
+// there, as the C++ code's ObjectType did, and gives the type 0), and keeps
+// the resulting number.
+//   itemType:getId() -> the number.
+//   itemType:hasFlag(flag) -> ObjectType(id).getFlag(flag).
+//   itemType:getAttribute(attribute) -> getAttribute(TYPEATTRIBUTE).
+//   itemType:getName(count) -> getName(Count) (-1: the name without amount).
+// More object methods for the uses (Item self and Item parameters take nil
+// for NONE, as in the trigger rules):
+//   item:exists() -> exists().
+//   item:getName() -> GetName(Obj).
+//   item:getWeight() -> GetCompleteWeight(Obj).
+//   item:transform(type, value) -> Change(Obj, ObjectType(Type), Value) of
+//       operate.cc.
+//   item:clearField(exclude|nil) -> ClearField(Obj, Exclude) of
+//       triggers.cc.
+//   item:empty(rest) -> Empty(Obj, Rest) of operate.cc.
+//   creature:isRemoved() -> GetCreature(ID) == nullptr (for a Player:
+//       GetPlayer(ID) == nullptr).
+//   creature:say(text) -> Talk(ID, TALK_SAY, nullptr, Text, false).
+//   player:getSkillTimer(skill) -> Skills[skill]->TimerValue().
+//   player:getSkillMax(skill) -> Skills[skill]->GetMax().
+//   player:setSkillTimer(skill, cycle, count, maxCount, additional) ->
+//       SetTimer(skill, Cycle, Count, MaxCount, AdditionalValue).
+//   player:useContainer(item, window) -> UseContainer(ID, Con, Window).
+//   player:sendEditText(item) -> SendEditText(GetConnection(), Obj).
+//   player:mayOpenDoor(door) -> MayOpenDoor(Door, pl).
+// Game:
+//   Game.move(creatureId, item, container, count, noMerge, ignore|nil) (item
+//       an Item, or a Creature for its creature object) ->
+//       Move(CreatureID, Obj, Con, Count, NoMerge, Ignore) of operate.cc.
+//   Game.copyObject(container, item) -> Copy(Con, Source), the copy.
+//   Game.createPool(container, type, liquidType) -> CreatePool(MapCon,
+//       ObjectType(Type), LiquidType).
+//   Game.getBodyObject(creatureId, position) -> GetBodyObject (nil: none),
+//       Game.getBodyContainer(creatureId, position) -> GetBodyContainer.
+//   Game.getInventoryWeight(creatureId) -> GetInventoryWeight.
+//   Game.isLayable(position) -> CoordinateLayable(x, y, z).
+//   Game.getSpecialObject(meaning) -> GetSpecialObject(Meaning), the type's
+//       number.
+//   Game.getDate() -> year, cycle, day (GetDate); Game.getTime() -> hour,
+//       minute (GetTime).
+//   Game.useObject(player, item) -> UseObject(ID, Obj),
+//       Game.useObjects(player, item, target) -> UseObjects(ID, Obj1, Obj2)
+//       (the trigger rules of use and multi_use).
+//   Magic.useMagicItem(player, item, target) -> UseMagicItem(ID, Obj,
+//       Dest) (phase 2's rune use).
+//   Magic.refreshMana(actor, mana, soul, amount) -> RefreshMana.
+// Constants (7.72's values): LIQUID_NONE ... LIQUID_LEMONADE (objects.hh),
+// INFORMATION_DATE, INFORMATION_TIME, INFORMATION_BLESSINGS,
+// INFORMATION_SPELLBOOK, FIRST_BLESSING_QUEST, LAST_BLESSING_QUEST,
+// MAX_QUESTS, MAX_OPEN_CONTAINERS, LAST_BODY_POSITION, WEAPON_NONE ...
+// WEAPON_THROW (cr.hh's weapon types, TFS's names), SPECIAL_<NAME> for every
+// SPECIALMEANING (SPECIAL_BLOOD_POOL, SPECIAL_RUNE_BLANK, ...), RIGHT_<NAME>
+// for every RIGHT of info.hh (RIGHT_UNLIMITED_CAPACITY, RIGHT_ZERO_CAPACITY,
+// RIGHT_OPEN_NAMEDOORS, ...).
+//
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with
 // error() that comes from a script or from Lua (debugPrint, the script errors
@@ -576,5 +658,13 @@ private:
 	const char *Event;
 	int Base;
 };
+
+// Loads the script of each entry of the list [[use]] of items.toml
+// (UseEntries, objects.hh, read by InitObjects) and requires its onUse
+// (scripting_items.cc); a script named twice is loaded once. Called by InitAll
+// after RegisterItemAPI and InitObjects. Throws a const char * (a start
+// error) when items.toml has no [[use]] and as LoadScript and RequireHandler
+// throw, with the position of the entry's script key.
+void InitItemUses();
 
 #endif
