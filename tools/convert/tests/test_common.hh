@@ -1,12 +1,14 @@
 // test_common.hh: what the round-trip tests of the circles and the spells
-// share: CHECK, files, running a load in a child process, and comparing two
-// dumps of "field\tvalue" lines field by field.
+// share: CHECK, files, running a load in a child process, comparing two dumps
+// of "field\tvalue" lines field by field, and checking the scripts that
+// spells.toml and commands.toml name.
 
 #ifndef PATELLA_CONVERT_TEST_COMMON_HH
 #define PATELLA_CONVERT_TEST_COMMON_HH
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -175,6 +177,49 @@ static inline fs::path TemporaryFolder(const char *Name) {
 		exit(1);
 	}
 	return fs::canonical(Pattern);
+}
+
+// Checks every script that the spells.toml or commands.toml text Toml, the
+// file TomlFile, names (each line "script = \"<name>\""): that it is a file
+// in the scripts folder next to TomlFile and that its text defines the
+// handler of its folder, "on_cast = function" for spells/, on_use for runes/
+// and on_say for commands/. Returns the number of scripts checked.
+static inline int CheckScriptFiles(const fs::path &TomlFile, const std::string &Toml) {
+	static const struct {
+		const char *Folder;
+		const char *Handler;
+	} Handlers[] = {
+		{"spells/", "on_cast = function"},
+		{"runes/", "on_use = function"},
+		{"commands/", "on_say = function"},
+	};
+	const std::string Key = "\nscript = \"";
+	fs::path Scripts = TomlFile.parent_path() / "scripts";
+	int Count = 0;
+	for (size_t At = Toml.find(Key); At != std::string::npos; At = Toml.find(Key, At + 1)) {
+		size_t Start = At + Key.size();
+		std::string Name = Toml.substr(Start, Toml.find('"', Start) - Start);
+		Count++;
+		const char *Handler = nullptr;
+		for (const auto &Entry : Handlers) {
+			if (Name.compare(0, strlen(Entry.Folder), Entry.Folder) == 0) {
+				Handler = Entry.Handler;
+			}
+		}
+		fs::path File = Scripts / Name;
+		if (Handler == nullptr) {
+			fprintf(stderr, "%s: script %s is in none of spells/, runes/ and commands/\n", TomlFile.c_str(),
+					Name.c_str());
+			Failures++;
+		} else if (!fs::is_regular_file(File)) {
+			fprintf(stderr, "%s: script %s: there is no file %s\n", TomlFile.c_str(), Name.c_str(), File.c_str());
+			Failures++;
+		} else if (ReadFile(File).find(Handler) == std::string::npos) {
+			fprintf(stderr, "%s: script %s does not define %s\n", TomlFile.c_str(), Name.c_str(), Handler);
+			Failures++;
+		}
+	}
+	return Count;
 }
 
 #endif

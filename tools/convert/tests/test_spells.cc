@@ -9,13 +9,17 @@
 //     With made-up tables and files in a temporary folder.
 //   convert_test_spells --original SPELLS_TOML
 //     With the committed spells.toml: it must be exactly what patella-convert
-//     spells writes, and give the same table as the code did; and every
-//     change of one value of it must give another table or an error.
+//     spells writes, and give the same table as the code did; every change
+//     of one value of it must give another table or an error; and every
+//     script it names must be a file in the scripts folder next to it with
+//     the handler of its folder.
 //
 // Every load runs in a child process of its own, on a table filled with a
 // byte pattern first. The whole table is compared, spells 0 to 255 (0 is
 // never filled): the 10 syllables, rune group and number, name, level, rune
-// level, flags, mana, soul points and charges.
+// level, flags, mana, soul points, charges and script. The script a table
+// filled in the code is expected to give is the one patella-convert writes
+// for it (SpellScript); the script of a loaded table is GetSpellScript.
 
 #include <climits>
 #include <cstdio>
@@ -47,8 +51,21 @@ static std::string Printable(const char *Text) {
 	return Out;
 }
 
+// The script of spell SpellNr: of the loaded file (Loaded), else the one
+// spells.toml is written with; "(none)" for none.
+static std::string Script(int SpellNr, bool Loaded) {
+	if (Loaded) {
+		const char *Name = GetSpellScript(SpellNr);
+		return Name == nullptr ? "(none)" : "\"" + std::string(Name) + "\"";
+	}
+	if (SpellNr == 0 || SpellList[SpellNr].Syllable[0] == 0) {
+		return "(none)";
+	}
+	return "\"" + SpellScript(SpellNr) + "\"";
+}
+
 // The table as "field\tvalue" lines.
-static std::string DumpSpells() {
+static std::string DumpSpells(bool Loaded) {
 	std::string Out;
 	const char *Poisoned;
 	memset(static_cast<void *>(&Poisoned), POISON, sizeof(Poisoned));
@@ -68,15 +85,17 @@ static std::string DumpSpells() {
 		Out += Prefix + "mana\t" + std::to_string(Spell.Mana) + "\n";
 		Out += Prefix + "soul points\t" + std::to_string(Spell.SoulPoints) + "\n";
 		Out += Prefix + "charges\t" + std::to_string(Spell.Amount) + "\n";
+		Out += Prefix + "script\t" + Script(SpellNr, Loaded) + "\n";
 	}
 	return Out;
 }
 
-static std::string Snapshot(const std::function<void()> &Fill) {
+// The table Fill makes, which loads a file (Loaded) or fills it in the code.
+static std::string Snapshot(const std::function<void()> &Fill, bool Loaded = true) {
 	return InChild([&]() {
 		memset(static_cast<void *>(SpellList), POISON, sizeof(SpellList));
 		Fill();
-		return DumpSpells();
+		return DumpSpells(Loaded);
 	});
 }
 
@@ -120,7 +139,7 @@ static std::string RoundTrip(const fs::path &Folder, const char *Name, const std
 			memset(&SpellList[i], 0, sizeof(TSpellList));
 		}
 		Fill();
-	});
+	}, false);
 	std::string Actual = Snapshot(NewLoader(File));
 	if (IsError(Expected) || IsError(Actual)) {
 		fprintf(stderr, "%s: a load failed:\n%s\n%s\n", Name, Expected.substr(0, 300).c_str(),
@@ -153,8 +172,10 @@ static void SetWords(TSpellList &Spell, std::initializer_list<const char *> Word
 
 static void TestRoundTrips(const fs::path &Folder) {
 	// Every syllable, the most syllables, a spell of one syllable, "para"
-	// anywhere, every flag, the largest values, rune number 0, spell 255, an
-	// empty name and a name with quotes, a backslash and Latin-1.
+	// anywhere, every flag, the largest values, rune number 0, the highest
+	// number with a script name (102), an empty name and a name with quotes, a
+	// backslash and Latin-1; the scripts in the folder of each class, after
+	// the numbers whatever the spells there are.
 	std::string Toml = RoundTrip(Folder, "made-up", []() {
 		TSpellList *S = &SpellList[1];
 		SetWords(*S, {"ex", "ura", "gran"});
@@ -179,7 +200,7 @@ static void TestRoundTrips(const fs::path &Folder) {
 		S->Amount = INT_MAX;
 		S->Mana = INT_MAX;
 		S->SoulPoints = INT_MAX;
-		S = &SpellList[255];
+		S = &SpellList[102];
 		SetWords(*S, {"ex", "moe", "ani", "ina", "eta", "amo", "hora", "cogni", "res", "mas"});
 		S->Comment = "Last";
 		S->RuneGr = 1;
@@ -190,25 +211,29 @@ static void TestRoundTrips(const fs::path &Folder) {
 		SetWords(*S, {"ex", "pan", "vid", "isa", "iva", "con", "al", "ad", "ex", "ut"});
 		S->Comment = "y";
 		S->SoulPoints = 1;
-		S = &SpellList[102];
+		S = &SpellList[98];
 		SetWords(*S, {"ex", "om", "para"});
 		S->Comment = "z";
 		S->Flags = SPELLFLAG_PREMIUM;
 	});
 	CHECK(Toml.find("\n[[spell]]\nnumber = 1\nname = \"Healing\"\nwords = \"exura gran\"\nlevel = 9\nmana = 25\n"
-			"soul_points = 0\nflags = [\"factor_min_100\"]\n\n") != std::string::npos);
-	CHECK(Toml.find("number = 2\nname = \"\"\nwords = \"ex\"\nlevel = 0\nmana = 0\nsoul_points = 0\n\n")
+			"soul_points = 0\nflags = [\"factor_min_100\"]\nscript = \"spells/light_healing.lua\"\n\n")
 			!= std::string::npos);
+	CHECK(Toml.find("number = 2\nname = \"\"\nwords = \"ex\"\nlevel = 0\nmana = 0\nsoul_points = 0\n"
+			"script = \"spells/intense_healing.lua\"\n\n") != std::string::npos);
 	CHECK(Toml.find("words = \"utana evo ori mort lux liber vita flam pox\"\n") != std::string::npos);
 	CHECK(Toml.find("name = \"a \\\"quoted\\\" back\\\\slash \xc3\xa4\xc3\xb6\xc3\xbc\xc3\x9f\"\n")
 			!= std::string::npos);
-	CHECK(Toml.find("flags = [\"aggressive\", \"premium\", \"factor_max_100\", \"factor_min_100\"]\n")
-			!= std::string::npos);
+	CHECK(Toml.find("flags = [\"aggressive\", \"premium\", \"factor_max_100\", \"factor_min_100\"]\n"
+			"script = \"spells/ultimate_healing.lua\"\n") != std::string::npos);
 	CHECK(Toml.find("words = \"adpara hur para\"\nlevel = 65535\nmana = 2147483647\nsoul_points = 2147483647\n"
-			"rune = { group = 255, number = 255, magic_level = 65535, charges = 2147483647 }\n") != std::string::npos);
-	CHECK(Toml.find("number = 255\nname = \"Last\"\n") != std::string::npos);
-	CHECK(Toml.find("rune = { group = 1, number = 0, magic_level = 0, charges = 0 }\n") != std::string::npos);
-	CHECK(Toml.find("number = 102\n") < Toml.find("number = 255\n"));
+			"rune = { group = 255, number = 255, magic_level = 65535, charges = 2147483647 }\n"
+			"script = \"runes/intense_healing_rune.lua\"\n") != std::string::npos);
+	CHECK(Toml.find("number = 102\nname = \"Last\"\n") != std::string::npos);
+	CHECK(Toml.find("rune = { group = 1, number = 0, magic_level = 0, charges = 0 }\n"
+			"script = \"spells/start_monsterraid.lua\"\n") != std::string::npos);
+	CHECK(Toml.find("script = \"spells/desintegrate_spell.lua\"\n") != std::string::npos);
+	CHECK(Toml.find("number = 98\n") < Toml.find("number = 102\n"));
 
 	// Each flag on its own; and the empty table.
 	for (int Flag : {SPELLFLAG_AGGRESSIVE, SPELLFLAG_PREMIUM, SPELLFLAG_FACTOR_MAX_100, SPELLFLAG_FACTOR_MIN_100}) {
@@ -236,6 +261,33 @@ static void TestRoundTrips(const fs::path &Folder) {
 	CHECK(WithCommands.find("number = 5\n") != std::string::npos);
 	CHECK(WithCommands.find("number = 6\n") == std::string::npos);
 	CHECK(WithCommands.find("number = 7\n") == std::string::npos);
+}
+
+// The script names: one for each spell and command of the reference table
+// and for no other number, after the SPELL_ constants.
+static void TestScriptNames() {
+	std::string Out = InChild([]() {
+		InitReferenceSpells();
+		std::string Wrong;
+		for (int SpellNr = 0; SpellNr < MAX_SPELLS; SpellNr++) {
+			bool Defined = SpellNr > 0 && SpellList[SpellNr].Syllable[0] != 0;
+			if (Defined != (GetReferenceScriptName(SpellNr) != nullptr)) {
+				Wrong += " " + std::to_string(SpellNr);
+			}
+		}
+		return Wrong;
+	});
+	if (!Out.empty()) {
+		fprintf(stderr, "numbers with a script name but no spell or the other way round:%s\n", Out.c_str());
+		Failures++;
+	}
+	CHECK(strcmp(GetReferenceScriptName(SPELL_LIGHT_HEALING), "light_healing") == 0);
+	CHECK(strcmp(GetReferenceScriptName(SPELL_FIREBALL), "fireball") == 0);
+	CHECK(strcmp(GetReferenceScriptName(SPELL_GET_ITEM_COUNT), "get_item_count") == 0);
+	CHECK(strcmp(GetReferenceScriptName(SPELL_START_MONSTERRAID), "start_monsterraid") == 0);
+	CHECK(GetReferenceScriptName(36) == nullptr);
+	CHECK(GetReferenceScriptName(-1) == nullptr);
+	CHECK(GetReferenceScriptName(MAX_SPELLS) == nullptr);
 }
 
 // What a conversion refuses.
@@ -290,6 +342,16 @@ static void TestRefusals() {
 		S.Comment = nullptr;
 		S.Level = 3;
 	}, "a spell without a name");
+	// Numbers without a SPELL_ constant, so without a script name: one between
+	// the named ones, one past them, the last; a spell and a command.
+	for (int SpellNr : {36, 103, 255}) {
+		for (const char *Class : {"ex", "ad", "al"}) {
+			Refused("number without a script name", [SpellNr, Class](TSpellList &) {
+				SetWords(SpellList[SpellNr], {Class, "ura"});
+				SpellList[SpellNr].Comment = "x";
+			}, "a spell number without a script name");
+		}
+	}
 }
 
 static void TestErrors(const fs::path &Folder) {
@@ -366,15 +428,29 @@ static void TestErrors(const fs::path &Folder) {
 			"magic_level must lie between 0 and 65535");
 	Expect(Spell + "rune = { group = 79, number = 5, charges = -1 }\n", 5, "charges must lie between 0 and 2147483647");
 	Expect(Spell + "[spell.rune]\ngroup = 79\nnumber = 5\ncharges = 1.5\n", 8, "charges must be an integer");
+	Expect(Spell + "script = 5\n", 5, "script must be a string");
+	Expect(Spell + "script = [\"spells/light.lua\"]\n", 5, "script must be a string");
+	for (const char *Name : {"", "spells/light", "spells/.lua", "spells/Light.lua", "spells//light.lua",
+				"spells/../light.lua", "/spells/light.lua", "spells/li ght.lua", "spells/light.lua/"}) {
+		Expect(Spell + "script = \"" + Name + "\"\n", 5,
+				(std::string("script \"") + Name + "\" is not a script name").c_str());
+	}
+	Expect(Spell + "script = \"runes/light.lua\"\n", 5, "the script of a spell of the class ex or ut must be in spells/");
+	Expect(Spell + "script = \"light.lua\"\n", 5, "the script of a spell of the class ex or ut must be in spells/");
+	Expect("[[spell]]\nnumber = 4\nname = \"x\"\nwords = \"adura gran\"\nscript = \"spells/x.lua\"\n", 5,
+			"the script of a rune spell (class ad) must be in runes/");
 	Expect(Spell + "level =\n", 5, "");
 
 	// What loads: no file content, the smallest spell, the rune as a table of
-	// its own, a flag given twice, the most syllables.
+	// its own, a flag given twice, the most syllables, a script, one in a
+	// folder below spells/.
 	CHECK(Load("") == "");
 	CHECK(Load(Spell) == "");
 	CHECK(Load(Spell + "[spell.rune]\ngroup = 79\nnumber = 5\n") == "");
 	CHECK(Load(Spell + "flags = [\"premium\", \"premium\"]\n") == "");
 	CHECK(Load(Words("\"exura gran gran gran gran gran gran gran gran\"")) == "");
+	CHECK(Load(Spell + "script = \"spells/light.lua\"\n") == "");
+	CHECK(Load(Spell + "script = \"spells/more/light-2_b.c.lua\"\n") == "");
 
 	// The same spell written two ways gives the same table.
 	WriteFile(Folder / "inline.toml",
@@ -409,7 +485,7 @@ static std::vector<std::string> SplitSpells(const std::string &Toml, std::string
 
 // The changes of one value of a [[spell]] block: each number one up, the name
 // and the words changed, each flag taken away or added, the rune taken away
-// or added, the block left out.
+// or added, the script changed or left out, the block left out.
 static std::vector<std::pair<std::string, std::string>> Mutations(const std::string &Block) {
 	std::vector<std::pair<std::string, std::string>> Result;
 	std::regex Number("([a-z_]+) = (\\d+)");
@@ -461,6 +537,12 @@ static std::vector<std::pair<std::string, std::string>> Mutations(const std::str
 	} else {
 		Result.push_back({"rune added", Block + "rune = { group = 79, number = 99 }\n"});
 	}
+	size_t Script = Block.find("\nscript = \"");
+	if (Script != std::string::npos) {
+		size_t ScriptEnd = Block.find('"', Script + 11);
+		Result.push_back({"script changed", std::string(Block).insert(ScriptEnd - 4, "x")});
+		Result.push_back({"script left out", std::string(Block).erase(Script, Block.find('\n', Script + 1) - Script)});
+	}
 	Result.push_back({"left out", ""});
 	return Result;
 }
@@ -505,7 +587,7 @@ static int Original(const char *SpellsToml) {
 		Failures++;
 	}
 
-	std::string Expected = Snapshot(InitReferenceSpellsOnly);
+	std::string Expected = Snapshot(InitReferenceSpellsOnly, false);
 	std::string Actual = Snapshot(NewLoader(SpellsToml));
 	if (IsError(Expected) || IsError(Actual)) {
 		fprintf(stderr, "a load failed: %s / %s\n", Expected.substr(0, 200).c_str(), Actual.substr(0, 200).c_str());
@@ -513,15 +595,24 @@ static int Original(const char *SpellsToml) {
 	}
 	if (Same(Expected, Actual, "original", "the code", "spells.toml")) {
 		std::map<std::string, std::string> Values = Fields(Actual);
-		int Spells = 0, Runes = 0;
+		int Spells = 0, Runes = 0, Scripts = 0;
 		for (int SpellNr = 1; SpellNr < MAX_SPELLS; SpellNr++) {
 			std::string Prefix = "spell " + std::to_string(SpellNr) + " ";
-			Spells += Values[Prefix + "name"] != "(null)";
+			bool Spell = Values[Prefix + "name"] != "(null)";
+			Spells += Spell;
 			Runes += Values[Prefix + "rune group"] != "0";
+			Scripts += Values[Prefix + "script"] != "(none)";
+			if (Spell && Values[Prefix + "script"] == "(none)") {
+				fprintf(stderr, "spell %d has no script\n", SpellNr);
+				Failures++;
+			}
 		}
-		printf("the code (without its commands) and %s give the same table: %d spells, %d of them runes; %d fields "
-				"compared\n", SpellsToml, Spells, Runes, static_cast<int>(Values.size()));
+		printf("the code (without its commands) and %s give the same table: %d spells, %d of them runes, %d "
+				"scripts; %d fields compared\n", SpellsToml, Spells, Runes, Scripts, static_cast<int>(Values.size()));
 	}
+
+	int Files = CheckScriptFiles(SpellsToml, Committed);
+	printf("%d scripts that %s names, each a file with its handler\n", Files, SpellsToml);
 
 	fs::path Folder = TemporaryFolder("convert-test-spells-original");
 	int Changes = TestMutations(Folder, Committed, Expected);
@@ -546,6 +637,7 @@ int main(int argc, char **argv) {
 	fs::path Folder = TemporaryFolder("convert-test-spells");
 	try {
 		TestRoundTrips(Folder);
+		TestScriptNames();
 		TestRefusals();
 		TestErrors(Folder);
 	} catch (const char *Error) {

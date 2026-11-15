@@ -1,15 +1,16 @@
 # spells.toml: the spells of the game server, which players and gamemasters
 # cast by saying their words, written by patella-convert from the spell table
 # the game had in its code. The game reads spells.toml in its data folder
-# ([paths] data of config.toml). What a spell does stays in the code; this
-# file says what it is called, how it is cast, what it needs and costs. An
-# unknown key or flag, or a value of the wrong type, is an error.
+# ([paths] data of config.toml). This file says what a spell is called, how it
+# is cast, what it needs and costs, and which script does what it does: a Lua
+# file in the scripts folder (data/scripts/ in the repository). An unknown key
+# or flag, or a value of the wrong type, is an error.
 #
 # Each [[spell]] is one spell:
 #   number       The spell number, 1 to 255, each at most once and none of a
-#                command in commands.toml. It ties the spell to what it does
-#                in the code, and the player files keep the numbers of the
-#                spells a player knows, so a spell keeps its number.
+#                command in commands.toml. The player files keep the numbers
+#                of the spells a player knows, so a spell keeps its number. It
+#                does not say what the spell does; script does.
 #   name         The name the spellbook shows, at most 30 characters.
 #   words        What is said to cast it, as the spellbook shows it: the
 #                class syllable and the next one as one word, every further
@@ -41,6 +42,13 @@
 #                level needed to use the rune (its description says it); and
 #                charges, the charges the rune is made with. magic_level and
 #                charges left out are 0. Left out, the spell makes no rune.
+#   script       The script that does what the spell does, its path in the
+#                scripts folder: "spells/<name>.lua" for a spell cast at once
+#                ("ex", "ut"), whose function on_cast runs when it is cast;
+#                "runes/<name>.lua" for a rune spell ("ad"), whose function
+#                on_use runs when its rune is used (making the rune is the
+#                game's). Left out, casting the spell does nothing beyond its
+#                checks, and its rune cannot be used.
 #
 # The syllables:
 #   al, ad, ex, ut, om, para, ana, evo, ori, mort, lux, liber, vita, flam, pox,
@@ -55,6 +63,7 @@ level = 9
 mana = 25
 soul_points = 0
 flags = ["factor_min_100"]
+script = "spells/light_healing.lua"
 
 [[spell]]
 number = 2
@@ -64,6 +73,7 @@ level = 11
 mana = 40
 soul_points = 0
 flags = ["factor_min_100"]
+script = "spells/intense_healing.lua"
 
 [[spell]]
 number = 3
@@ -73,6 +83,7 @@ level = 20
 mana = 160
 soul_points = 0
 flags = ["factor_min_100"]
+script = "spells/ultimate_healing.lua"
 
 [[spell]]
 number = 4
@@ -83,6 +94,7 @@ mana = 240
 soul_points = 2
 flags = ["factor_min_100"]
 rune = { group = 79, number = 5, magic_level = 1, charges = 1 }
+script = "runes/intense_healing_rune.lua"
 
 [[spell]]
 number = 5
@@ -93,6 +105,7 @@ mana = 400
 soul_points = 3
 flags = ["factor_min_100"]
 rune = { group = 79, number = 13, magic_level = 4, charges = 1 }
+script = "runes/ultimate_healing_rune.lua"
 
 [[spell]]
 number = 6
@@ -102,6 +115,7 @@ level = 14
 mana = 60
 soul_points = 0
 flags = ["premium"]
+script = "spells/haste.lua"
 
 [[spell]]
 number = 7
@@ -112,6 +126,7 @@ mana = 120
 soul_points = 1
 flags = ["aggressive", "factor_min_100"]
 rune = { group = 79, number = 27, magic_level = 0, charges = 5 }
+script = "runes/light_magic_missile.lua"
 
 [[spell]]
 number = 8
@@ -122,6 +137,7 @@ mana = 280
 soul_points = 2
 flags = ["aggressive", "factor_min_100"]
 rune = { group = 79, number = 51, magic_level = 4, charges = 5 }
+script = "runes/heavy_magic_missile.lua"
 
 [[spell]]
 number = 9
@@ -131,6 +147,7 @@ level = 25
 mana = 0
 soul_points = 0
 flags = ["aggressive"]
+script = "spells/summon_creature.lua"
 
 [[spell]]
 number = 10
@@ -139,6 +156,7 @@ words = "utevo lux"
 level = 8
 mana = 20
 soul_points = 0
+script = "spells/light.lua"
 
 [[spell]]
 number = 11
@@ -147,6 +165,7 @@ words = "utevo gran lux"
 level = 13
 mana = 60
 soul_points = 0
+script = "spells/great_light.lua"
 
 [[spell]]
 number = 12
@@ -157,6 +176,7 @@ mana = 200
 soul_points = 3
 flags = ["aggressive"]
 rune = { group = 79, number = 30, magic_level = 5, charges = 1 }
+script = "runes/convince_creature.lua"
 
 [[spell]]
 number = 13
@@ -166,6 +186,7 @@ level = 38
 mana = 250
 soul_points = 0
 flags = ["aggressive"]
+script = "spells/energy_wave.lua"
 
 [[spell]]
 number = 14
@@ -175,6 +196,7 @@ level = 27
 mana = 600
 soul_points = 2
 rune = { group = 79, number = 31, magic_level = 4, charges = 1 }
+script = "runes/chameleon.lua"
 
 [[spell]]
 number = 15
@@ -185,6 +207,7 @@ mana = 160
 soul_points = 2
 flags = ["aggressive", "factor_min_100"]
 rune = { group = 79, number = 42, magic_level = 2, charges = 2 }
+script = "runes/fireball.lua"
 
 [[spell]]
 number = 16
@@ -195,6 +218,7 @@ mana = 480
 soul_points = 3
 flags = ["aggressive", "factor_min_100"]
 rune = { group = 79, number = 44, magic_level = 4, charges = 2 }
+script = "runes/great_fireball.lua"
 
 [[spell]]
 number = 17
@@ -205,6 +229,7 @@ mana = 600
 soul_points = 4
 flags = ["aggressive"]
 rune = { group = 79, number = 45, magic_level = 5, charges = 2 }
+script = "runes/firebomb.lua"
 
 [[spell]]
 number = 18
@@ -215,6 +240,7 @@ mana = 720
 soul_points = 4
 flags = ["aggressive"]
 rune = { group = 79, number = 53, magic_level = 6, charges = 3 }
+script = "runes/explosion.lua"
 
 [[spell]]
 number = 19
@@ -224,6 +250,7 @@ level = 18
 mana = 80
 soul_points = 0
 flags = ["aggressive", "factor_min_100"]
+script = "spells/fire_wave.lua"
 
 [[spell]]
 number = 20
@@ -232,6 +259,7 @@ words = "exiva para"
 level = 8
 mana = 20
 soul_points = 0
+script = "spells/find_person.lua"
 
 [[spell]]
 number = 21
@@ -242,6 +270,7 @@ mana = 880
 soul_points = 5
 flags = ["aggressive"]
 rune = { group = 79, number = 8, magic_level = 15, charges = 1 }
+script = "runes/sudden_death.lua"
 
 [[spell]]
 number = 22
@@ -251,6 +280,7 @@ level = 23
 mana = 100
 soul_points = 0
 flags = ["aggressive"]
+script = "spells/energy_beam.lua"
 
 [[spell]]
 number = 23
@@ -260,6 +290,7 @@ level = 29
 mana = 200
 soul_points = 0
 flags = ["aggressive"]
+script = "spells/great_energy_beam.lua"
 
 [[spell]]
 number = 24
@@ -269,6 +300,7 @@ level = 60
 mana = 1200
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/ultimate_explosion.lua"
 
 [[spell]]
 number = 25
@@ -279,6 +311,7 @@ mana = 240
 soul_points = 1
 flags = ["aggressive"]
 rune = { group = 79, number = 41, magic_level = 1, charges = 3 }
+script = "runes/fire_field.lua"
 
 [[spell]]
 number = 26
@@ -289,6 +322,7 @@ mana = 200
 soul_points = 1
 flags = ["aggressive"]
 rune = { group = 79, number = 25, magic_level = 0, charges = 3 }
+script = "runes/poison_field.lua"
 
 [[spell]]
 number = 27
@@ -299,6 +333,7 @@ mana = 320
 soul_points = 2
 flags = ["aggressive"]
 rune = { group = 79, number = 17, magic_level = 3, charges = 3 }
+script = "runes/energy_field.lua"
 
 [[spell]]
 number = 28
@@ -309,6 +344,7 @@ mana = 780
 soul_points = 4
 flags = ["aggressive"]
 rune = { group = 79, number = 43, magic_level = 6, charges = 4 }
+script = "runes/fire_wall.lua"
 
 [[spell]]
 number = 29
@@ -317,6 +353,7 @@ words = "exana pox"
 level = 10
 mana = 30
 soul_points = 0
+script = "spells/antidote.lua"
 
 [[spell]]
 number = 30
@@ -326,6 +363,7 @@ level = 17
 mana = 120
 soul_points = 2
 rune = { group = 79, number = 1, magic_level = 3, charges = 3 }
+script = "runes/destroy_field.lua"
 
 [[spell]]
 number = 31
@@ -335,6 +373,7 @@ level = 15
 mana = 200
 soul_points = 1
 rune = { group = 79, number = 6, magic_level = 0, charges = 1 }
+script = "runes/antidote_rune.lua"
 
 [[spell]]
 number = 32
@@ -345,6 +384,7 @@ mana = 640
 soul_points = 3
 flags = ["aggressive"]
 rune = { group = 79, number = 29, magic_level = 5, charges = 4 }
+script = "runes/poison_wall.lua"
 
 [[spell]]
 number = 33
@@ -355,6 +395,7 @@ mana = 1000
 soul_points = 5
 flags = ["aggressive"]
 rune = { group = 79, number = 19, magic_level = 9, charges = 4 }
+script = "runes/energy_wall.lua"
 
 [[spell]]
 number = 38
@@ -363,6 +404,7 @@ words = "utevo res ina para"
 level = 23
 mana = 100
 soul_points = 0
+script = "spells/creature_illusion.lua"
 
 [[spell]]
 number = 39
@@ -372,6 +414,7 @@ level = 20
 mana = 100
 soul_points = 0
 flags = ["premium"]
+script = "spells/strong_haste.lua"
 
 [[spell]]
 number = 42
@@ -380,6 +423,7 @@ words = "exevo pan"
 level = 14
 mana = 120
 soul_points = 1
+script = "spells/food.lua"
 
 [[spell]]
 number = 44
@@ -388,6 +432,7 @@ words = "utamo vita"
 level = 14
 mana = 50
 soul_points = 0
+script = "spells/magic_shield.lua"
 
 [[spell]]
 number = 45
@@ -396,6 +441,7 @@ words = "utana vid"
 level = 35
 mana = 440
 soul_points = 0
+script = "spells/invisible.lua"
 
 [[spell]]
 number = 48
@@ -404,6 +450,7 @@ words = "exevo con pox"
 level = 16
 mana = 130
 soul_points = 2
+script = "spells/poisoned_arrow.lua"
 
 [[spell]]
 number = 49
@@ -412,6 +459,7 @@ words = "exevo con flam"
 level = 25
 mana = 290
 soul_points = 3
+script = "spells/explosive_arrow.lua"
 
 [[spell]]
 number = 50
@@ -422,6 +470,7 @@ mana = 600
 soul_points = 3
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 48, magic_level = 7, charges = 2 }
+script = "runes/soulfire.lua"
 
 [[spell]]
 number = 51
@@ -430,6 +479,7 @@ words = "exevo con"
 level = 13
 mana = 100
 soul_points = 1
+script = "spells/conjure_arrow.lua"
 
 [[spell]]
 number = 54
@@ -440,6 +490,7 @@ mana = 1400
 soul_points = 3
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 18, magic_level = 18, charges = 1 }
+script = "runes/paralyze.lua"
 
 [[spell]]
 number = 55
@@ -450,6 +501,7 @@ mana = 880
 soul_points = 5
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 2, magic_level = 10, charges = 2 }
+script = "runes/energybomb.lua"
 
 [[spell]]
 number = 56
@@ -459,6 +511,7 @@ level = 50
 mana = 600
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/poison_storm.lua"
 
 [[spell]]
 number = 75
@@ -468,6 +521,7 @@ level = 26
 mana = 140
 soul_points = 0
 flags = ["premium"]
+script = "spells/ultimate_light.lua"
 
 [[spell]]
 number = 76
@@ -477,6 +531,7 @@ level = 9
 mana = 20
 soul_points = 0
 flags = ["premium"]
+script = "spells/magic_rope.lua"
 
 [[spell]]
 number = 77
@@ -487,6 +542,7 @@ mana = 400
 soul_points = 2
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 32, magic_level = 4, charges = 1 }
+script = "runes/envenom.lua"
 
 [[spell]]
 number = 78
@@ -497,6 +553,7 @@ mana = 200
 soul_points = 3
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 50, magic_level = 4, charges = 3 }
+script = "runes/desintegrate.lua"
 
 [[spell]]
 number = 79
@@ -506,6 +563,7 @@ level = 17
 mana = 140
 soul_points = 2
 flags = ["premium"]
+script = "spells/conjure_bolt.lua"
 
 [[spell]]
 number = 80
@@ -515,6 +573,7 @@ level = 35
 mana = 0
 soul_points = 0
 flags = ["aggressive", "premium", "factor_max_100"]
+script = "spells/berserk.lua"
 
 [[spell]]
 number = 81
@@ -524,6 +583,7 @@ level = 12
 mana = 50
 soul_points = 0
 flags = ["premium"]
+script = "spells/levitate.lua"
 
 [[spell]]
 number = 82
@@ -533,6 +593,7 @@ level = 36
 mana = 150
 soul_points = 0
 flags = ["premium", "factor_min_100"]
+script = "spells/mass_healing.lua"
 
 [[spell]]
 number = 83
@@ -543,6 +604,7 @@ mana = 600
 soul_points = 5
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 56, magic_level = 4, charges = 1 }
+script = "runes/animate_dead.lua"
 
 [[spell]]
 number = 84
@@ -552,6 +614,7 @@ level = 18
 mana = 70
 soul_points = 0
 flags = ["premium", "factor_min_100"]
+script = "spells/heal_friend.lua"
 
 [[spell]]
 number = 85
@@ -561,6 +624,7 @@ level = 30
 mana = 500
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/undead_legion.lua"
 
 [[spell]]
 number = 86
@@ -571,6 +635,7 @@ mana = 750
 soul_points = 5
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 33, magic_level = 9, charges = 3 }
+script = "runes/magic_wall.lua"
 
 [[spell]]
 number = 87
@@ -580,6 +645,7 @@ level = 11
 mana = 20
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/force_strike.lua"
 
 [[spell]]
 number = 88
@@ -589,6 +655,7 @@ level = 12
 mana = 20
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/energy_strike.lua"
 
 [[spell]]
 number = 89
@@ -598,6 +665,7 @@ level = 12
 mana = 20
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/flame_strike.lua"
 
 [[spell]]
 number = 90
@@ -607,6 +675,7 @@ level = 26
 mana = 200
 soul_points = 0
 flags = ["premium"]
+script = "spells/cancel_invisibility.lua"
 
 [[spell]]
 number = 91
@@ -617,6 +686,7 @@ mana = 520
 soul_points = 2
 flags = ["aggressive", "premium"]
 rune = { group = 79, number = 26, magic_level = 4, charges = 2 }
+script = "runes/poisonbomb.lua"
 
 [[spell]]
 number = 92
@@ -626,6 +696,7 @@ level = 41
 mana = 80
 soul_points = 0
 flags = ["premium"]
+script = "spells/enchant_staff.lua"
 
 [[spell]]
 number = 93
@@ -635,6 +706,7 @@ level = 20
 mana = 30
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/challenge.lua"
 
 [[spell]]
 number = 94
@@ -644,6 +716,7 @@ level = 27
 mana = 220
 soul_points = 0
 flags = ["aggressive", "premium"]
+script = "spells/wild_growth.lua"
 
 [[spell]]
 number = 95
@@ -653,3 +726,4 @@ level = 59
 mana = 800
 soul_points = 3
 flags = ["premium"]
+script = "spells/power_bolt.lua"
