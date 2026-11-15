@@ -204,4 +204,7 @@ settings.
 
 MIT, see [LICENSE](LICENSE). Tibia and its files belong to CipSoft GmbH and are
 not covered by it. `extern/tomlplusplus` is toml++ by Mark Gillard, under its own
-MIT licence (`extern/tomlplusplus/LICENSE`).
+MIT licence (`extern/tomlplusplus/LICENSE`). `extern/luajit` is LuaJIT by Mike
+Pall, under its MIT licence (`extern/luajit/COPYRIGHT`), and `extern/sol2` is
+sol2 by Rapptz, ThePhD and contributors, under its MIT licence
+(`extern/sol2/LICENSE.txt`).

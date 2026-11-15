@@ -15,6 +15,7 @@ enable_testing()
 
 add_subdirectory(extern/tomlplusplus)
 add_subdirectory(extern/luajit)
+add_subdirectory(extern/sol2)
 add_subdirectory(keygen)
 add_subdirectory(querymanager)
 add_subdirectory(loginserver)
