@@ -1,7 +1,7 @@
 // test_common.hh: what the round-trip tests of the circles and the spells
 // share: CHECK, files, running a load in a child process, comparing two dumps
 // of "field\tvalue" lines field by field, and checking the scripts that
-// spells.toml and commands.toml name.
+// spells.toml, commands.toml and items.toml name.
 
 #ifndef PATELLA_CONVERT_TEST_COMMON_HH
 #define PATELLA_CONVERT_TEST_COMMON_HH
@@ -179,12 +179,13 @@ static inline fs::path TemporaryFolder(const char *Name) {
 	return fs::canonical(Pattern);
 }
 
-// Checks every script that the spells.toml or commands.toml text Toml, the
-// file TomlFile, names (each line "script = \"<name>\""): that it is a file
-// in the scripts folder next to TomlFile and that its text defines the
-// handler of its folder as a global function at the start of a line,
-// "function onCastSpell(" for spells/ and runes/ and "function onSay(" for
-// commands/ (not "local function"). Returns the number of scripts checked.
+// Checks every script that the spells.toml, commands.toml or items.toml text
+// Toml, the file TomlFile, names (each line "script = \"<name>\""): that it
+// is a file in the scripts folder next to TomlFile and that its text defines
+// the handler of its folder as a global function at the start of a line,
+// "function onCastSpell(" for spells/ and runes/, "function onSay(" for
+// commands/ and "function onUse(" for items/ (not "local function"). Returns
+// the number of scripts checked.
 static inline int CheckScriptFiles(const fs::path &TomlFile, const std::string &Toml) {
 	static const struct {
 		const char *Folder;
@@ -193,6 +194,7 @@ static inline int CheckScriptFiles(const fs::path &TomlFile, const std::string &
 		{"spells/", "function onCastSpell("},
 		{"runes/", "function onCastSpell("},
 		{"commands/", "function onSay("},
+		{"items/", "function onUse("},
 	};
 	const std::string Key = "\nscript = \"";
 	fs::path Scripts = TomlFile.parent_path() / "scripts";
@@ -209,7 +211,7 @@ static inline int CheckScriptFiles(const fs::path &TomlFile, const std::string &
 		}
 		fs::path File = Scripts / Name;
 		if (Handler == nullptr) {
-			fprintf(stderr, "%s: script %s is in none of spells/, runes/ and commands/\n", TomlFile.c_str(),
+			fprintf(stderr, "%s: script %s is in none of spells/, runes/, commands/ and items/\n", TomlFile.c_str(),
 					Name.c_str());
 			Failures++;
 		} else if (!fs::is_regular_file(File)) {

@@ -16,6 +16,7 @@
 #include <cstring>
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include "script.hh"
 #include "config.hh"
@@ -59,13 +60,16 @@ bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2);
 // InitTriggers loads it.
 static int TriggerLibrary = -1;
 
+// The rules' filters, by rule number (TTriggerRule::Number; entry 0 unused):
+// the library's getRuleFilter, the type obj1 must have for the rule to hold,
+// 0 for a rule without one (and for a rule with a script). Set at start.
+static std::vector<int> RuleFilters;
+
 vector<TDelayedMail> DelayedMail(0, 10, 10);
 int DelayedMails;
 
-// ChangeObject, LoadDepotBox, SaveDepotBox, SendMail, UseContainer, UseChest,
-// UseLiquidContainer, UseFood, UseTextObject, UseAnnouncer, UseKeyDoor,
-// UseNameDoor, UseLevelDoor, UseQuestDoor, UseWeapon, UseChangeObject,
-// UseObject, UseObjects, MovementEvent, SeparationEvent and CollisionEvent
+// ChangeObject, LoadDepotBox, SaveDepotBox, SendMail, UseContainer, UseObject,
+// UseObjects, MovementEvent, SeparationEvent and CollisionEvent
 // throw RESULT; InitTriggers throws const char * (LoadTriggers', LoadScript's,
 // RequireHandler's and its own for the trigger library's errors). None has an
 // exception specification (C++17 has no dynamic ones), so an exception of
@@ -554,6 +558,19 @@ void TextEffect(char *Text, int x, int y, int z, int Radius) {
 // that gives true. The objects are Items, nil for NONE, made once per event
 // (TScriptEvent).
 //
+// A rule with a filter T (getRuleFilter) begins with the condition
+// is_type(obj1, T), and evaluateRule's first step is then Item.getId(obj1),
+// that is Obj1.getObjectType().getTypeID(), compared with T; when they differ
+// it gives false and does nothing else. HandleEvent makes that same call
+// itself (one AccessObject, as getId made it, at the same point of the loop)
+// and passes over the rule without calling Lua when the type is not T; for
+// an object that no longer exists both give the type of the hash table's
+// entry 0, without a log. For NONE, where AccessObject logs, it calls
+// evaluateRule as before. The call is made per rule, not once per event:
+// getId made it per rule, and AccessObject swaps obj1's sector in when it
+// finds it swapped out (as when a condition of an earlier rule swapped in
+// another sector, which swapped obj1's out).
+//
 // Exceptions: CheckCondition caught nothing, so an exception of a condition
 // left HandleEvent at once, without RecursionDepth--; ExecuteAction caught
 // RESULT (logged "ExecuteAction: Exception <code> (action ...)" and went on
@@ -583,6 +600,11 @@ bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 				Call.run(Script, "onRun");
 			}
 		} else {
+			size_t Number = static_cast<size_t>(Rule.Number);
+			int Filter = Number < RuleFilters.size() ? RuleFilters[Number] : 0;
+			if (Filter != 0 && Obj1 != NONE && Obj1.getObjectType().getTypeID() != Filter) {
+				continue;
+			}
 			fulfilled = Call.check(TriggerLibrary, "evaluateRule", Rule.Number);
 		}
 
@@ -632,524 +654,6 @@ void UseContainer(uint32_t CreatureID, Object Con, unsigned char Window) {
 
 	pl->SetOpenContainer(Window, Con);
 	SendContainer(pl->GetConnection(), Window);
-}
-
-void UseChest(uint32_t CreatureID, Object Chest) {
-	if (!Chest.exists()) {
-		error("UseChest: Given object does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Chest.getFlag(CHEST)) {
-		error("UseChest: Given object is not a treasure chest.\n");
-		throw ERROR;
-	}
-
-	int x, y, z;
-	GetObjectCoordinates(Chest, x, y, z);
-	int Number = Chest.getAttribute(CHESTQUESTNUMBER);
-	if (!in(Number, 1, MAX_QUESTS - 1)) {
-		error("UseChest: Invalid number %d on treasure chest at position [%d,%d,%d].\n", Number, x, y, z);
-		throw ERROR;
-	}
-
-	if (CountObjectsInContainer(Chest) != 1) {
-		error("UseChest: Treasure chest at position [%d,%d,%d] does not hold exactly one object.\n", x, y, z);
-		throw ERROR;
-	}
-
-	Object Treasure = GetFirstContainerObject(Chest);
-	if (Treasure.getFlag(UNMOVE) || !Treasure.getFlag(TAKE)) {
-		// Quirk: no coordinates are passed for the three %d.
-		error("UseChest: Treasure at position [%d,%d,%d] cannot be taken.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseChest: Player %d does not exist.\n", CreatureID);
-		throw ERROR;
-	}
-
-	if (pl->GetQuestValue(Number) != 0) {
-		print(3, "Treasure chest is already known.\n");
-		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "The %s is empty.", Chest.getObjectType().getName(-1));
-		return;
-	}
-
-	if (!CheckRight(CreatureID, UNLIMITED_CAPACITY)) {
-		int Weight = GetCompleteWeight(Treasure);
-		if (Weight + GetInventoryWeight(CreatureID) > pl->Skills[SKILL_CARRYSTRENGTH]->Get() * 100 || CheckRight(CreatureID, ZERO_CAPACITY)) {
-			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "You have found %s. Weighing %d.%02d oz %s too heavy.",
-					GetName(Treasure), Weight / 100, Weight % 100,
-					(Treasure.getFlag(CUMULATIVE) && Treasure.getAttribute(AMOUNT) > 1) ? "they are" : "it is");
-			return;
-		}
-	}
-
-	Treasure = Copy(Treasure.getContainer(), Treasure);
-	bool first = true;
-	int pos = 0;
-	bool invert = Treasure.getFlag(MOVEMENTEVENT);
-again:
-	pos++;
-	try {
-		Object Obj = GetBodyObject(CreatureID, pos);
-		if (first != invert && Obj == NONE) {
-			Move(CreatureID, Treasure, GetBodyContainer(CreatureID, pos), -1, true, NONE);
-		} else if (first == invert && Obj != NONE && Obj.getFlag(CONTAINER)) {
-			Move(CreatureID, Treasure, Obj, -1, true, NONE);
-		} else {
-			throw NOROOM;
-		}
-	} catch (RESULT r) {
-		if (r == TOOHEAVY) {
-			error("UseChest: Treasure at position [%d,%d,%d] is too heavy after all.\n", x, y, z);
-		}
-
-		if (pos < LAST_BODY_POSITION) {
-			goto again;
-		}
-
-		if (first) {
-			first = false;
-			pos = 0;
-			goto again;
-		}
-
-		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "You have found %s, but you have no room to take %s.\n",
-				GetName(Treasure), (Treasure.getFlag(CUMULATIVE) && Treasure.getAttribute(AMOUNT) > 1) ? "them" : "it");
-		Delete(Treasure, -1);
-		return;
-	}
-
-	SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "You have found %s.\n", GetName(Treasure));
-	pl->SetQuestValue(Number, 1);
-}
-
-void UseLiquidContainer(uint32_t CreatureID, Object Obj, Object Dest) {
-	if (!Obj.exists()) {
-		error("UseLiquidContainer: Given object Obj does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Dest.exists()) {
-		error("UseLiquidContainer: Given object Dest does not exist (Obj %d).\n", Obj.getObjectType().getTypeID());
-		throw ERROR;
-	}
-
-	if (!Obj.getFlag(LIQUIDCONTAINER)) {
-		error("UseLiquidContainer: Given object is not a liquid container.\n");
-		throw ERROR;
-	}
-
-	if (Dest.getFlag(LIQUIDSOURCE) && Obj.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE) {
-		Change(Obj, CONTAINERLIQUIDTYPE, Dest.getAttribute(SOURCELIQUIDTYPE));
-		return;
-	}
-
-	if (Dest.getFlag(LIQUIDCONTAINER) && Obj.getAttribute(CONTAINERLIQUIDTYPE) != LIQUID_NONE && Dest.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE) {
-		Change(Dest, CONTAINERLIQUIDTYPE, Obj.getAttribute(CONTAINERLIQUIDTYPE));
-		Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-		return;
-	}
-
-	if (!Dest.isCreature()) {
-		Object Help = GetFirstContainerObject(Dest.getContainer());
-		while (Help != NONE) {
-			if (Help.isCreature() && Help.getCreatureID() == CreatureID) {
-				Dest = Help;
-				break;
-			}
-			Help++;
-		}
-	}
-
-	if (Dest.isCreature() && Dest.getCreatureID() == CreatureID) {
-		TPlayer *pl = GetPlayer(CreatureID);
-		if (pl == nullptr) {
-			error("UseLiquidContainer: Player %d does not exist.\n", CreatureID);
-			throw ERROR;
-		}
-
-		char *Sound;
-		switch (Obj.getAttribute(CONTAINERLIQUIDTYPE)) {
-			case LIQUID_NONE:
-				return;
-			case LIQUID_WINE:
-			case LIQUID_BEER:
-				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-				Sound = "Aah...";
-				if (pl->Skills[SKILL_DRUNKEN]->TimerValue() < 5) {
-					pl->SetTimer(SKILL_DRUNKEN, pl->Skills[SKILL_DRUNKEN]->TimerValue() + 1, 120, 120, -1);
-				}
-				break;
-			case LIQUID_SLIME:
-				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-				Sound = "Urgh!";
-				pl->Damage(nullptr, 200, DAMAGE_POISON_CONDITION);
-				break;
-			case LIQUID_URINE:
-				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-				Sound = "Urgh!";
-				break;
-			case LIQUID_MANAFLUID:
-			case LIQUID_LIFEFLUID:
-				DrinkPotion(CreatureID, Obj);
-				Sound = "Aaaah...";
-				break;
-			case LIQUID_LEMONADE:
-				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-				Sound = "Mmmh.";
-				break;
-			default:
-				Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-				Sound = "Gulp.";
-				break;
-		}
-		Talk(CreatureID, TALK_SAY, nullptr, Sound, false);
-		return;
-	}
-
-	if (Obj.getAttribute(CONTAINERLIQUIDTYPE) == LIQUID_NONE) {
-		throw NOTUSABLE;
-	}
-
-	int x, y, z;
-	GetObjectCoordinates(Dest, x, y, z);
-	if (!CoordinateLayable(x, y, z)) {
-		throw NOROOM;
-	}
-
-	int LiquidType = Obj.getAttribute(CONTAINERLIQUIDTYPE);
-	Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
-	CreatePool(GetMapContainer(Dest), GetSpecialObject(BLOOD_POOL), LiquidType);
-}
-
-void UseFood(uint32_t CreatureID, Object Obj) {
-	if (!Obj.exists()) {
-		error("UseFood: Given object does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Obj.getFlag(FOOD)) {
-		error("UseFood: Given object is not food.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseFood: Creature %d does not exist.\n", CreatureID);
-		throw ERROR;
-	}
-
-	TSkill *sk = pl->Skills[SKILL_EATING];
-	if (sk->TimerValue() > sk->GetMax() - (int)Obj.getAttribute(NUTRITION) * 12) {
-		throw FEDUP;
-	}
-
-	pl->SetTimer(SKILL_EATING, sk->TimerValue() + Obj.getAttribute(NUTRITION) * 12, 0, 0, -1);
-	Delete(Obj, 1);
-}
-
-void UseTextObject(uint32_t CreatureID, Object Obj) {
-	if (!Obj.exists()) {
-		error("UseTextObject: Given object does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Obj.getFlag(TEXT)) {
-		error("UseTextObject: Given object is not a document.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseTextObject: Creature %d does not exist.\n", CreatureID);
-		throw ERROR;
-	}
-
-	SendEditText(pl->GetConnection(), Obj);
-}
-
-void UseAnnouncer(uint32_t CreatureID, Object Obj) {
-	if (!Obj.exists()) {
-		error("UseAnnouncer: Given object does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Obj.getFlag(INFORMATION)) {
-		error("UseAnnouncer: Given object gives no information.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseAnnouncer: Creature %d does not exist.\n", CreatureID);
-		throw ERROR;
-	}
-
-	int Year, Cycle, Day, Hour, Minute;
-	char Help[200];
-	int Blessings = 0;
-	switch (Obj.getAttribute(INFORMATIONTYPE)) {
-		case INFORMATION_DATE:
-			GetDate(Year, Cycle, Day);
-			GetTime(Hour, Minute);
-			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "It is the %dth day of the %dth cycle in the year %d. The time is %d:%.2d.",
-					Day, Cycle, Year, Hour, Minute);
-			break;
-		case INFORMATION_TIME:
-			GetTime(Hour, Minute);
-			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "The time is %d:%.2d.", Hour, Minute);
-			break;
-		case INFORMATION_BLESSINGS:
-			strcpy(Help, "Received blessings:");
-			if (pl->GetQuestValue(FIRST_BLESSING_QUEST) != 0) {
-				strcat(Help, "\nWisdom of Solitude");
-				Blessings++;
-			}
-			if (pl->GetQuestValue(FIRST_BLESSING_QUEST + 1) != 0) {
-				strcat(Help, "\nSpark of the Phoenix");
-				Blessings++;
-			}
-			if (pl->GetQuestValue(FIRST_BLESSING_QUEST + 2) != 0) {
-				strcat(Help, "\nFire of the Suns");
-				Blessings++;
-			}
-			if (pl->GetQuestValue(FIRST_BLESSING_QUEST + 3) != 0) {
-				strcat(Help, "\nSpiritual Shielding");
-				Blessings++;
-			}
-			if (pl->GetQuestValue(LAST_BLESSING_QUEST) != 0) {
-				strcat(Help, "\nEmbrace of Tibia");
-				Blessings++;
-			}
-			if (Blessings == 0) {
-				strcpy(Help, "No blessings received.");
-			}
-			SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s", Help);
-			break;
-		case INFORMATION_SPELLBOOK:
-			SendEditText(pl->GetConnection(), Obj);
-			break;
-		default:
-			error("UseAnnouncer: Invalid information type %d.\n", Obj.getAttribute(INFORMATIONTYPE));
-			break;
-	}
-}
-
-void UseKeyDoor(uint32_t, Object Key, Object Door) {
-	if (!Key.exists()) {
-		error("UseKeyDoor: Given object Key does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Door.exists()) {
-		error("UseKeyDoor: Given object Door does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Key.getFlag(KEY)) {
-		error("UseKeyDoor: Given object is not a key.\n");
-		throw ERROR;
-	}
-
-	if (!Door.getFlag(KEYDOOR)) {
-		throw NOTUSABLE;
-	}
-
-	if (Door.getAttribute(KEYHOLENUMBER) == 0 || Key.getAttribute(KEYNUMBER) == 0
-			|| Door.getAttribute(KEYHOLENUMBER) != Key.getAttribute(KEYNUMBER)) {
-		throw NOKEYMATCH;
-	}
-
-	ObjectType Target = Door.getAttribute(KEYDOORTARGET);
-	if (Target == 0) {
-		error("UseKeyDoor: Target door for door %d not specified.\n", Door.getObjectType().getTypeID());
-		throw ERROR;
-	}
-
-	if (Target.getFlag(UNPASS)) {
-		ClearField(Door, NONE);
-	}
-
-	Change(Door, Target, 0);
-}
-
-void UseNameDoor(uint32_t CreatureID, Object Door) {
-	if (!Door.exists()) {
-		error("UseNameDoor: Given object Door does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Door.getFlag(NAMEDOOR)) {
-		error("UseNameDoor: Given object Door is not a labeled door.\n");
-		throw ERROR;
-	}
-
-	if (!Door.getFlag(TEXT)) {
-		error("UseNameDoor: Given object Door has no text.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseNameDoor: Player does not exist.\n");
-		throw ERROR;
-	}
-
-	int x, y, z;
-	GetObjectCoordinates(Door, x, y, z);
-	unsigned short HouseID = GetHouseID(x, y, z);
-	if (HouseID == 0) {
-		error("UseNameDoor: Coordinate [%d,%d,%d] belongs to no house.\n", x, y, z);
-		throw ERROR;
-	}
-
-	if (!IsOwner(HouseID, pl) && !CheckRight(pl->ID, OPEN_NAMEDOORS) && !MayOpenDoor(Door, pl)) {
-		throw NOTACCESSIBLE;
-	}
-
-	ObjectType Target = Door.getAttribute(NAMEDOORTARGET);
-	if (Target == 0) {
-		error("UseNameDoor: Target door for door %d not specified.\n", Door.getObjectType().getTypeID());
-		throw ERROR;
-	}
-
-	if (Target.getFlag(UNPASS)) {
-		ClearField(Door, NONE);
-	}
-
-	Change(Door, Target, 0);
-}
-
-void UseLevelDoor(uint32_t CreatureID, Object Door) {
-	if (!Door.exists() || !Door.getFlag(LEVELDOOR) || !Door.getContainer().isMapContainer()) {
-		error("UseLevelDoor: Given object Door is not a level door.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseLevelDoor: Player does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Door.getFlag(UNPASS)) {
-		throw NOTUSABLE;
-	}
-
-	if (pl->Skills[SKILL_LEVEL]->Get() < (int)Door.getAttribute(DOORLEVEL)) {
-		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s.", GetInfo(Door));
-		return;
-	}
-
-	ObjectType Target = Door.getAttribute(LEVELDOORTARGET);
-	if (Target == 0 || Target.getFlag(UNPASS)) {
-		error("UseLevelDoor: Target door for door %d not specified or not passable.\n", Door.getObjectType().getTypeID());
-		throw ERROR;
-	}
-
-	Change(Door, Target, 0);
-	Move(0, pl->GetCreatureObject(), Door.getContainer(), -1, false, NONE);
-}
-
-void UseQuestDoor(uint32_t CreatureID, Object Door) {
-	if (!Door.exists() || !Door.getFlag(QUESTDOOR) || !Door.getContainer().isMapContainer()) {
-		error("UseQuestDoor: Given object Door is not a quest door.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseQuestDoor: Player does not exist.\n");
-		throw ERROR;
-	}
-
-	if (!Door.getFlag(UNPASS)) {
-		throw NOTUSABLE;
-	}
-
-	if (pl->GetQuestValue(Door.getAttribute(DOORQUESTNUMBER)) != (int)Door.getAttribute(DOORQUESTVALUE)) {
-		SendMessage(pl->GetConnection(), TALK_INFO_MESSAGE, "%s.", GetInfo(Door));
-		return;
-	}
-
-	ObjectType Target = Door.getAttribute(QUESTDOORTARGET);
-	if (Target == 0 || Target.getFlag(UNPASS)) {
-		error("UseQuestDoor: Target door for door %d not specified or not passable.\n", Door.getObjectType().getTypeID());
-		throw ERROR;
-	}
-
-	Change(Door, Target, 0);
-	Move(0, pl->GetCreatureObject(), Door.getContainer(), -1, false, NONE);
-}
-
-void UseWeapon(uint32_t CreatureID, Object Weapon, Object Target) {
-	if (!Weapon.exists() || !Weapon.getFlag(WEAPON) || !in(Weapon.getAttribute(WEAPONTYPE), WEAPON_SWORD, WEAPON_AXE)) {
-		error("UseWeapon: Given weapon does not exist or is not a weapon.\n");
-		throw ERROR;
-	}
-
-	if (!Target.exists() || !Target.getFlag(DESTROY)) {
-		error("UseWeapon: Given target does not exist or is not destructible.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseWeapon: Player %d does not exist.\n", CreatureID);
-		throw ERROR;
-	}
-
-	if (!Target.getContainer().isMapContainer()) {
-		throw NOTACCESSIBLE;
-	}
-
-	GraphicalEffect(Target, EFFECT_POFF);
-	if (random(1, 3) != 1) {
-		return;
-	}
-
-	ObjectType Dest = Target.getAttribute(DESTROYTARGET);
-	if (Target.getFlag(CONTAINER)) {
-		Empty(Target, (Dest == 0 || !Dest.getFlag(CONTAINER)) ? 0 : (int)Dest.getAttribute(CAPACITY));
-	}
-
-	Change(Target, Dest, 0);
-}
-
-void UseChangeObject(uint32_t CreatureID, Object Obj) {
-	if (!Obj.exists() || !Obj.getFlag(CHANGEUSE)) {
-		error("UseChangeObject: Object does not exist or is not a CHANGEUSE object.\n");
-		throw ERROR;
-	}
-
-	TPlayer *pl = GetPlayer(CreatureID);
-	if (pl == nullptr) {
-		error("UseChangeObject: Player %d does not exist.\n", CreatureID);
-		throw ERROR;
-	}
-
-	ObjectType NewType = Obj.getAttribute(CHANGETARGET);
-	if (!Obj.getFlag(UNPASS) && NewType != 0 && NewType.getFlag(UNPASS)) {
-		ClearField(Obj, Obj);
-	} else if (!Obj.getFlag(UNLAY) && NewType != 0 && NewType.getFlag(UNLAY)) {
-		int x, y, z;
-		GetObjectCoordinates(Obj, x, y, z);
-		if (CoordinateLayable(x + 1, y, z)) {
-			MoveAllObjects(Obj.getNextObject(), GetMapContainer(x + 1, y, z), NONE, true);
-		} else if (CoordinateLayable(x, y + 1, z)) {
-			MoveAllObjects(Obj.getNextObject(), GetMapContainer(x, y + 1, z), NONE, true);
-		} else if (CoordinateLayable(x - 1, y, z)) {
-			MoveAllObjects(Obj.getNextObject(), GetMapContainer(x - 1, y, z), NONE, true);
-		} else if (CoordinateLayable(x, y - 1, z)) {
-			MoveAllObjects(Obj.getNextObject(), GetMapContainer(x, y - 1, z), NONE, true);
-		}
-	}
-
-	Change(Obj, NewType, 0);
 }
 
 void UseObject(uint32_t CreatureID, Object Obj) {
@@ -1477,7 +981,8 @@ static void RunPreparation(TScriptCall &Call, const std::string &Where) {
 
 // Loads the trigger library and hands it every rule's conditions and actions
 // in the order of triggers.toml (prepareCondition, prepareAction); loads the
-// scripts the rules name and checks their handlers. Throws a const char * for
+// scripts the rules name and checks their handlers; then asks the library for
+// every rule's filter (getRuleFilter, RuleFilters). Throws a const char * for
 // what fails, with the place of the entry in triggers.toml where there is
 // one.
 static void PrepareTriggerRules() {
@@ -1485,6 +990,7 @@ static void PrepareTriggerRules() {
 	RequireHandler(TriggerLibrary, "prepareCondition", nullptr);
 	RequireHandler(TriggerLibrary, "prepareAction", nullptr);
 	RequireHandler(TriggerLibrary, "evaluateRule", nullptr);
+	RequireHandler(TriggerLibrary, "getRuleFilter", nullptr);
 
 	for (size_t k = 0; k < TriggerRules.size(); k++) {
 		const TTriggerRuleEntry &Entry = TriggerRules[k];
@@ -1517,6 +1023,33 @@ static void PrepareTriggerRules() {
 			AddTriggerParameters(Call, Signature, Action.Parameters);
 			RunPreparation(Call, TriggerActionPlaces[static_cast<size_t>(i)]);
 		}
+	}
+
+	RuleFilters.assign(TriggerRules.size() + 1, 0);
+	for (size_t k = 0; k < TriggerRules.size(); k++) {
+		const TTriggerRuleEntry &Entry = TriggerRules[k];
+		TTriggerRule &Rule = TriggerDatabases[Entry.Event].Rules(Entry.Rule);
+		if (Rule.Script >= 0) {
+			continue;
+		}
+
+		std::string Where = "lib/triggers.lua: getRuleFilter of rule " + std::to_string(Rule.Number);
+		TScriptCall Call(TriggerLibrary, "getRuleFilter");
+		Call.addNumber(Rule.Number);
+		int Filter;
+		try {
+			Filter = Call.runNumber();
+		} catch (RESULT r) {
+			const char *Message = Call.failure();
+			if (Message != nullptr) {
+				ThrowTriggerError(Where, Message);
+			}
+			ThrowTriggerError(Where, "the trigger library raised result " + std::to_string(static_cast<int>(r)));
+		}
+		if (Filter < 0) {
+			ThrowTriggerError(Where, "gave " + std::to_string(Filter) + ", not a type or 0");
+		}
+		RuleFilters[static_cast<size_t>(Rule.Number)] = Filter;
 	}
 }
 

@@ -2,15 +2,20 @@
 // game ends up with from an objects.srv, through the old reader
 // (ReadObjectsSrv), and from the items.toml patella-convert makes of it,
 // through the game's LoadItems, must be the same, field by field; LoadItems
-// must refuse what is wrong with the file and line.
+// must refuse what is wrong with the file and line. Each items.toml must end
+// with the list [[use]] of the built-in uses of objects, which LoadItems
+// reads in the order of the game's code (flags, scripts, places), and every
+// change of one of its entries must show.
 //
 //   convert_test_items
 //     With made-up files in a temporary folder.
 //   convert_test_items --original OBJECTS_SRV ITEMS_TOML
 //     With the original objects.srv and the committed items.toml: ITEMS_TOML
 //     must be exactly what patella-convert makes of OBJECTS_SRV, and give the
-//     same table. Prints the load times of both. Exit code 77 (skipped) when
-//     OBJECTS_SRV is not there.
+//     same table and list [[use]]; each script of the list must be a file in
+//     the scripts folder next to ITEMS_TOML that defines onUse. Prints the
+//     load times of both. Exit code 77 (skipped) when OBJECTS_SRV is not
+//     there.
 //
 // Every load runs in a child process of its own, so that each starts from the
 // table as the game starts with it. The table is compared twice: once as it
@@ -42,33 +47,10 @@
 #include "tomlfile.hh"
 #include "tomlwrite.hh"
 
-namespace fs = std::filesystem;
-
-static int Failures = 0;
-
-#define CHECK(Condition) \
-	do { \
-		if (!(Condition)) { \
-			fprintf(stderr, "%s:%d: CHECK failed: %s\n", __FILE__, __LINE__, #Condition); \
-			Failures++; \
-		} \
-	} while (0)
+#include "test_common.hh"
 
 static const unsigned char POISON = 0xA5;
 static const int ALL_TYPES = 65536;
-
-static void WriteFile(const fs::path &Path, const std::string &Text) {
-	fs::create_directories(Path.parent_path());
-	std::ofstream Out(Path, std::ios::binary);
-	Out << Text;
-}
-
-static std::string ReadFile(const fs::path &Path) {
-	std::ifstream In(Path, std::ios::binary);
-	std::stringstream Text;
-	Text << In.rdbuf();
-	return Text.str();
-}
 
 static std::string Printable(const std::string &Text) {
 	std::string Out;
@@ -80,57 +62,6 @@ static std::string Printable(const std::string &Text) {
 			snprintf(Code, sizeof(Code), "\\x%02X", c);
 			Out += Code;
 		}
-	}
-	return Out;
-}
-
-// Runs Work in a child process and returns what it returned there, or
-// "error: <text>" for a const char * it threw, or "crashed" for a child that
-// did not end normally.
-static std::string InChild(const std::function<std::string()> &Work) {
-	fflush(stdout);
-	fflush(stderr);
-	int Pipe[2];
-	if (pipe(Pipe) != 0) {
-		perror("pipe");
-		exit(1);
-	}
-	pid_t Child = fork();
-	if (Child < 0) {
-		perror("fork");
-		exit(1);
-	}
-	if (Child == 0) {
-		close(Pipe[0]);
-		std::string Out;
-		try {
-			Out = Work();
-		} catch (const char *Error) {
-			Out = std::string("error: ") + Error + "\n";
-		}
-		size_t Written = 0;
-		while (Written < Out.size()) {
-			ssize_t n = write(Pipe[1], Out.data() + Written, Out.size() - Written);
-			if (n <= 0) {
-				_exit(1);
-			}
-			Written += static_cast<size_t>(n);
-		}
-		close(Pipe[1]);
-		_exit(0);
-	}
-	close(Pipe[1]);
-	std::string Out;
-	char Buffer[65536];
-	ssize_t n;
-	while ((n = read(Pipe[0], Buffer, sizeof(Buffer))) > 0) {
-		Out.append(Buffer, static_cast<size_t>(n));
-	}
-	close(Pipe[0]);
-	int Status = 0;
-	waitpid(Child, &Status, 0);
-	if (!WIFEXITED(Status) || WEXITSTATUS(Status) != 0) {
-		return "crashed";
 	}
 	return Out;
 }
@@ -219,21 +150,6 @@ static std::string Snapshot(const std::function<void()> &Load) {
 	return Range + Table;
 }
 
-static std::map<std::string, std::string> Fields(const std::string &Dump) {
-	std::map<std::string, std::string> Result;
-	std::istringstream In(Dump);
-	std::string Line;
-	while (std::getline(In, Line)) {
-		size_t Tab = Line.find('\t');
-		if (Tab == std::string::npos) {
-			Result["(line)"] += Line + " ";
-		} else {
-			Result[Line.substr(0, Tab)] = Line.substr(Tab + 1);
-		}
-	}
-	return Result;
-}
-
 // Prints the fields that differ; returns whether none do. Fields gives the
 // number of fields compared.
 static bool Same(const std::string &Expected, const std::string &Actual, const char *What, size_t *Compared = nullptr) {
@@ -277,6 +193,193 @@ static std::string Convert(const fs::path &File) {
 	});
 }
 
+// The list [[use]] that patella-convert must write, the built-in uses of
+// objects in the order in which the game's code tried them (Use of
+// operate.cc before the uses became scripts): the flag and the script of
+// each entry. Stated here on its own, so that a change of the writer's list
+// shows.
+static const struct {
+	const char *Flag;
+	const char *Script;
+} ExpectedUses[] = {
+	{"container", "items/container.lua"},
+	{"chest", "items/chest.lua"},
+	{"liquid_container", "items/liquid_container.lua"},
+	{"food", "items/food.lua"},
+	{"write", "items/text_object.lua"},
+	{"write_once", "items/text_object.lua"},
+	{"information", "items/announcer.lua"},
+	{"rune", "items/rune.lua"},
+	{"key", "items/key_door.lua"},
+	{"name_door", "items/name_door.lua"},
+	{"level_door", "items/level_door.lua"},
+	{"quest_door", "items/quest_door.lua"},
+	{"weapon", "items/weapon.lua"},
+	{"change_use", "items/change_use.lua"},
+	{"use_event", "items/use_event.lua"},
+	{"text", "items/readable_text.lua"},
+};
+static const int EXPECTED_USES = static_cast<int>(sizeof(ExpectedUses) / sizeof(ExpectedUses[0]));
+
+// The list [[use]] as the last LoadItems read it, as "field\tvalue" lines:
+// the number of entries, and each entry's flag, script, place and script
+// number.
+static std::string DumpUses() {
+	std::string Out = "uses\t" + std::to_string(UseEntries.size()) + "\n";
+	for (size_t i = 0; i < UseEntries.size(); i++) {
+		std::string Prefix = "use " + std::to_string(i) + " ";
+		Out += Prefix + "flag\t" + FlagKeys[UseEntries[i].Flag] + "\n";
+		Out += Prefix + "script\t" + UseEntries[i].Script + "\n";
+		Out += Prefix + "place\t" + UseEntries[i].Where + "\n";
+		Out += Prefix + "script number\t" + std::to_string(UseEntries[i].ScriptNumber) + "\n";
+	}
+	return Out;
+}
+
+// What LoadItems reads of File's list [[use]], in a child (DumpUses, or the
+// error).
+static std::string LoadUses(const fs::path &File) {
+	return InChild([&]() {
+		LoadItems(File.c_str());
+		return DumpUses();
+	});
+}
+
+// The lines of a DumpUses dump that say what the list does: the number of
+// entries and their flags and scripts, in order (not their places).
+static std::string UseOrder(const std::string &Dump) {
+	std::istringstream In(Dump);
+	std::string Line, Out;
+	while (std::getline(In, Line)) {
+		size_t Tab = Line.find('\t');
+		std::string Field = Line.substr(0, Tab);
+		if (Field == "uses" || (Field.size() > 5 && Field.compare(Field.size() - 5, 5, " flag") == 0)
+				|| (Field.size() > 7 && Field.compare(Field.size() - 7, 7, " script") == 0)) {
+			Out += Line + "\n";
+		}
+	}
+	return Out;
+}
+
+// The dump DumpUses must give for the items.toml text Text, the file File:
+// ExpectedUses, each entry in the place of its script key, the line of the
+// n-th "script = " after the first [[use]], column 1.
+static std::string ExpectedUseDump(const fs::path &File, const std::string &Text) {
+	std::string Out = "uses\t" + std::to_string(EXPECTED_USES) + "\n";
+	size_t At = Text.find("\n[[use]]\n");
+	for (int i = 0; i < EXPECTED_USES; i++) {
+		std::string Prefix = "use " + std::to_string(i) + " ";
+		Out += Prefix + "flag\t" + ExpectedUses[i].Flag + "\n";
+		Out += Prefix + "script\t" + ExpectedUses[i].Script + "\n";
+		size_t Script = At == std::string::npos ? std::string::npos : Text.find("\nscript = ", At);
+		long Line = Script == std::string::npos ? 0
+				: std::count(Text.begin(), Text.begin() + static_cast<long>(Script) + 1, '\n') + 1;
+		Out += Prefix + "place\t" + File.string() + ":" + std::to_string(Line) + ":1\n";
+		Out += Prefix + "script number\t-1\n";
+		At = Script == std::string::npos ? std::string::npos : Script + 1;
+	}
+	return Out;
+}
+
+// Checks that File, whose text is Text, ends with the list [[use]], after its
+// [[item]] tables, and that LoadItems reads it as ExpectedUses, each entry in
+// its place.
+static void CheckUses(const fs::path &File, const std::string &Text, const char *What) {
+	size_t FirstUse = Text.find("\n[[use]]\n");
+	size_t LastItem = Text.rfind("\n[[item]]\n");
+	if (FirstUse == std::string::npos || (LastItem != std::string::npos && LastItem > FirstUse)) {
+		fprintf(stderr, "%s: the list [[use]] is not at the end of the file\n", What);
+		Failures++;
+	}
+	std::string Actual = LoadUses(File);
+	if (IsError(Actual)) {
+		fprintf(stderr, "%s: loading the list [[use]]: %s\n", What, Actual.c_str());
+		Failures++;
+		return;
+	}
+	Same(ExpectedUseDump(File, Text), Actual, What, "the list", "items.toml");
+}
+
+// Every change of one entry of the list [[use]] of Text (its flag changed,
+// unknown or left out, its script changed or left out, the entry left out,
+// given twice or swapped with the next) must give another list or an error.
+// Returns the number of changes made.
+static int TestUseMutations(const fs::path &Folder, const std::string &Text) {
+	size_t FirstUse = Text.find("\n[[use]]\n");
+	if (FirstUse == std::string::npos) {
+		fprintf(stderr, "no list [[use]] to change\n");
+		Failures++;
+		return 0;
+	}
+	std::string Head = Text.substr(0, FirstUse);
+	std::vector<std::string> Blocks;
+	for (size_t At = FirstUse; At != std::string::npos;) {
+		size_t Next = Text.find("\n[[use]]\n", At + 1);
+		Blocks.push_back(Text.substr(At, Next == std::string::npos ? std::string::npos : Next - At));
+		At = Next;
+	}
+
+	fs::path File = Folder / "mutated-uses.toml";
+	WriteFile(File, Text);
+	std::string Expected = UseOrder(LoadUses(File));
+	int Changes = 0;
+	auto Try = [&](size_t Entry, const char *What, const std::vector<std::string> &Changed) {
+		std::string Mutated = Head;
+		for (const std::string &Block : Changed) {
+			Mutated += Block;
+		}
+		Changes++;
+		WriteFile(File, Mutated);
+		std::string Actual = LoadUses(File);
+		if (Mutated == Text || (!IsError(Actual) && UseOrder(Actual) == Expected)) {
+			fprintf(stderr, "mutation not caught: use entry %d: %s\n", static_cast<int>(Entry), What);
+			Failures++;
+		}
+	};
+	for (size_t i = 0; i < Blocks.size(); i++) {
+		const std::string &Block = Blocks[i];
+		size_t Flag = Block.find("\nflag = \"");
+		size_t Script = Block.find("\nscript = \"");
+		if (Flag == std::string::npos || Script == std::string::npos) {
+			fprintf(stderr, "use entry %d has no flag or script line\n", static_cast<int>(i));
+			Failures++;
+			continue;
+		}
+		size_t FlagStart = Flag + 9;
+		std::string FlagKey = Block.substr(FlagStart, Block.find('"', FlagStart) - FlagStart);
+		int FlagNumber = 0;
+		while (FlagNumber < FLAGS && FlagKey != FlagKeys[FlagNumber]) {
+			FlagNumber++;
+		}
+		std::string OtherFlag = FlagKeys[(FlagNumber + 1) % FLAGS];
+		size_t ScriptEnd = Block.find('"', Script + 11);
+
+		auto With = [&](const std::string &Changed) {
+			std::vector<std::string> Result = Blocks;
+			Result[i] = Changed;
+			return Result;
+		};
+		std::string Changed = Block;
+		Try(i, "flag changed", With(Changed.replace(FlagStart, FlagKey.size(), OtherFlag)));
+		Changed = Block;
+		Try(i, "flag unknown", With(Changed.insert(FlagStart, "x")));
+		Changed = Block;
+		Try(i, "flag left out", With(Changed.erase(Flag, Block.find('\n', Flag + 1) - Flag)));
+		Changed = Block;
+		Try(i, "script changed", With(Changed.insert(ScriptEnd - 4, "x")));
+		Changed = Block;
+		Try(i, "script left out", With(Changed.erase(Script, Block.find('\n', Script + 1) - Script)));
+		Try(i, "left out", With(""));
+		Try(i, "given twice", With(Block + Block));
+		if (i + 1 < Blocks.size()) {
+			std::vector<std::string> Swapped = Blocks;
+			std::swap(Swapped[i], Swapped[i + 1]);
+			Try(i, "swapped with the next", Swapped);
+		}
+	}
+	return Changes;
+}
+
 // Converts an objects.srv text, loads both and compares them. Returns the
 // items.toml text.
 static std::string RoundTrip(const fs::path &Folder, const char *Name, const std::string &ObjectsSrv) {
@@ -290,6 +393,7 @@ static std::string RoundTrip(const fs::path &Folder, const char *Name, const std
 		return Text;
 	}
 	WriteFile(Converted, Text);
+	CheckUses(Converted, Text, Name);
 	std::string Expected = Snapshot(OldLoader(Original));
 	std::string Actual = Snapshot(NewLoader(Converted));
 	if (Expected.find("error: ") != std::string::npos || Actual.find("error: ") != std::string::npos) {
@@ -412,6 +516,17 @@ static void TestRoundTrips(const fs::path &Folder) {
 	CHECK(Toml.find("id = 122\nname = \"empty lists\"\n\n") != std::string::npos);
 	// The types in order of their numbers.
 	CHECK(Toml.find("id = 122\n") < Toml.find("id = 4000\n") && Toml.find("id = 4000\n") < Toml.find("id = 5500\n"));
+	// The list [[use]], its entries as the writer writes them, and the
+	// header that explains it.
+	CHECK(Toml.find("\n\n[[use]]\nflag = \"container\"\nscript = \"items/container.lua\"\n\n[[use]]\nflag = \"chest\"\n")
+			!= std::string::npos);
+	const std::string LastUse = "\n\n[[use]]\nflag = \"text\"\nscript = \"items/readable_text.lua\"\n";
+	CHECK(Toml.size() > LastUse.size() && Toml.compare(Toml.size() - LastUse.size(), LastUse.size(), LastUse) == 0);
+	CHECK(Toml.find("# Each [[use]], at the end of the file,") != std::string::npos
+			&& Toml.find("# Each [[use]]") < Toml.find("\n[[item]]\n"));
+	// Each change of an entry of the list is caught.
+	int Changes = TestUseMutations(Folder, Toml);
+	CHECK(Changes == EXPECTED_USES * 8 - 1);
 
 	// Each flag and attribute key round trips on its own, too.
 	for (int Flag = 0; Flag < FLAGS; Flag++) {
@@ -504,6 +619,49 @@ static void TestErrors(const fs::path &Folder) {
 			"professions: \"elder_druid\" is unknown");
 	Expect(Item + "name =\n", 3, "");
 
+	// The list [[use]]: the entry's place for a missing key, the key's for
+	// the rest.
+	const std::string Use = "[[use]]\nflag = \"food\"\n";
+	Expect("use = 1\n", 1, "use must be an array");
+	Expect("use = [1]\n", 1, "an entry of use must be a table");
+	Expect(Item + "[[use]]\nscript = \"items/food.lua\"\n", 3, "an entry of use needs flag");
+	Expect(Item + Use, 3, "an entry of use needs script");
+	Expect(Use + "script = \"items/food.lua\"\nscirpt = \"items/food.lua\"\n", 4, "unknown key \"scirpt\" in [[use]]");
+	Expect("[[use]]\nflag = 21\nscript = \"items/food.lua\"\n", 2, "flag must be a string");
+	Expect("[[use]]\nflag = \"bnak\"\nscript = \"items/food.lua\"\n", 2, "unknown flag \"bnak\"");
+	Expect("[[use]]\nflag = \"Food\"\nscript = \"items/food.lua\"\n", 2, "unknown flag \"Food\"");
+	Expect("[[use]]\nscript = \"items/food.lua\"\nflag = \"\"\n", 3, "unknown flag \"\"");
+	Expect(Use + "script = 1\n", 3, "script must be a string");
+	Expect(Use + "script = [\"items/food.lua\"]\n", 3, "script must be a string");
+	const std::string BadScripts[] = {
+		"", "food.lua", "items/food", "items/food.LUA", "items/Food.lua", "items/.lua", "items/x/.lua", "items//food.lua",
+		"items/../food.lua", "items/./food.lua", "items/fo od.lua", "scripts/items/food.lua", "spells/food.lua",
+		"/items/food.lua", "items\\\\food.lua", "items/" + std::string(247, 'a') + ".lua",
+	};
+	for (const std::string &Script : BadScripts) {
+		Expect(Use + "script = \"" + Script + "\"\n", 3, "must be a script name \"items/<name>.lua\"");
+	}
+	Expect(Item + "[[use]]\nflag = \"food\"\nscript = \"items/food.lua\"\n" + Use + "script = \"items/Food.lua\"\n", 8,
+			"script \"items/Food.lua\" must be a script name");
+
+	// What a list [[use]] may hold: the longest script name, a script in a
+	// folder below items/, a flag and a script given twice; the entries in
+	// the order of the file, each in the place of its script key.
+	const std::string Longest = "items/" + std::string(246, 'a') + ".lua";
+	std::string Uses = InChild([&]() {
+		WriteFile(File, Use + "script = \"" + Longest + "\"\n" + Item + "[[use]]\n  script = \"items/sub/x-y_1.0.lua\"\n"
+				"flag = \"bank\"\n" + Use + "script = \"items/food.lua\"\n");
+		LoadItems(File.c_str());
+		return DumpUses();
+	});
+	CHECK(Uses == "uses\t3\nuse 0 flag\tfood\nuse 0 script\t" + Longest + "\nuse 0 place\t" + Name + ":3:1\n"
+			"use 0 script number\t-1\nuse 1 flag\tbank\nuse 1 script\titems/sub/x-y_1.0.lua\nuse 1 place\t" + Name
+			+ ":7:3\nuse 1 script number\t-1\nuse 2 flag\tfood\nuse 2 script\titems/food.lua\nuse 2 place\t" + Name
+			+ ":11:1\nuse 2 script number\t-1\n");
+	// A file without [[use]] has none.
+	WriteFile(Folder / "no-uses.toml", Item);
+	CHECK(LoadUses(Folder / "no-uses.toml") == "uses\t0\n");
+
 	// What loads: no file content, the longest name, both ways of writing a
 	// 32-bit number, a flag given twice.
 	CHECK(Load("") == "");
@@ -590,6 +748,16 @@ static int Original(const char *ObjectsSrv, const char *Items) {
 				"%d fields compared\n", ObjectsSrv, Items, Values["range"].c_str(), Types, Specials,
 				Values["entries left alone"].c_str(), static_cast<int>(Compared));
 	}
+
+	std::string Committed = ReadFile(Items);
+	CheckUses(Items, Committed, "original");
+	int Files = CheckScriptFiles(Items, Committed);
+	CHECK(Files == EXPECTED_USES);
+	printf("%d scripts that %s names in its list [[use]], each a file with its handler\n", Files, Items);
+	fs::path Folder = TemporaryFolder("convert-test-items-original");
+	int Changes = TestUseMutations(Folder, Committed);
+	fs::remove_all(Folder);
+	printf("%d changes of single entries of the list [[use]] of %s, each caught\n", Changes, Items);
 
 	double Old = LoadTime(OldLoader(ObjectsSrv), 5);
 	double New = LoadTime(NewLoader(Items), 5);

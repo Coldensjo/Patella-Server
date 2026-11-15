@@ -24,8 +24,9 @@
 //
 // A binding's parameters are numbers (integral or floating types, bool),
 // strings (const char *, std::string), the objects below (TScriptCreature,
-// TScriptPlayer, TScriptItem, TScriptThing, TScriptVocation), a Position
-// (TScriptPosition) or sol::optional of those ("|nil"); Guarded refuses any
+// TScriptPlayer, TScriptItem, TScriptThing, TScriptVocation,
+// TScriptItemType), a Position (TScriptPosition) or sol::optional of those
+// ("|nil"); Guarded refuses any
 // other parameter type at compile
 // time. A script can so pass only numbers, booleans, strings, nil and the
 // objects; any other value where an object is expected (a table, a shared
@@ -84,13 +85,15 @@ void SetScriptConstant(const char *Name, int Value);
 [[noreturn]] void RaiseError(lua_State *L, const char *Text);
 
 // The objects (scripting.hh, "Objects"): a userdata holding a creature ID, an
-// object handle or, for a Vocation, its player's creature ID.
+// object handle, for a Vocation its player's creature ID, or for an ItemType
+// an object type's number (an int, kept as its uint32_t bits).
 enum TScriptObjectKind {
 	SCRIPT_NO_OBJECT,
 	SCRIPT_CREATURE,
 	SCRIPT_PLAYER,
 	SCRIPT_ITEM,
 	SCRIPT_VOCATION,
+	SCRIPT_ITEMTYPE,
 };
 
 // The kind of the value at Index: SCRIPT_NO_OBJECT for anything that is not
@@ -109,6 +112,13 @@ void PushScriptObject(lua_State *L, TScriptObjectKind Kind, uint32_t Value);
 // otherwise.
 void PushScriptCreature(lua_State *L, uint32_t ID);
 
+// Sets the function ItemType(id) makes an ItemType's type number with: the
+// script's id goes in, the number the object holds comes out. It runs inside
+// a function Lua called, so it must not throw (error() and print() are
+// fine). nullptr (the default, and after ExitScripting) keeps id as it is.
+// RegisterItemAPI sets ObjectType(id).getTypeID().
+void SetItemTypeConstructor(int (*Constructor)(int));
+
 // A Position (scripting.hh, "Position"): a userdata holding three ints, not
 // one of the objects above (ScriptObjectKind gives SCRIPT_NO_OBJECT for it).
 // Whether the value at Index is a Position (calls no metamethod); its
@@ -120,7 +130,8 @@ void PushScriptPosition(lua_State *L, int x, int y, int z);
 // The parameter and result types of the objects. TScriptCreature takes a
 // Creature or a Player; TScriptPlayer only a Player; TScriptItem only an
 // Item; TScriptThing an Item, a Creature or a Player (for the C++ functions
-// that take an Object); TScriptVocation a Vocation.
+// that take an Object); TScriptVocation a Vocation; TScriptItemType an
+// ItemType.
 struct TScriptCreature {
 	uint32_t ID;
 };
@@ -140,6 +151,10 @@ struct TScriptThing {
 
 struct TScriptVocation {
 	uint32_t PlayerID;
+};
+
+struct TScriptItemType {
+	int TypeID;
 };
 
 // A Position as a parameter or result.
@@ -203,6 +218,18 @@ struct TScriptObjectType<TScriptVocation> {
 	static TScriptVocation make(TScriptObjectKind, uint32_t Value) { return TScriptVocation{Value}; }
 	static void push(lua_State *L, const TScriptVocation &Value) {
 		PushScriptObject(L, SCRIPT_VOCATION, Value.PlayerID);
+	}
+};
+
+template<>
+struct TScriptObjectType<TScriptItemType> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_ITEMTYPE; }
+	static const char *expected() { return "ItemType expected"; }
+	static TScriptItemType make(TScriptObjectKind, uint32_t Value) {
+		return TScriptItemType{static_cast<int>(Value)};
+	}
+	static void push(lua_State *L, const TScriptItemType &Value) {
+		PushScriptObject(L, SCRIPT_ITEMTYPE, static_cast<uint32_t>(Value.TypeID));
 	}
 };
 
@@ -275,6 +302,7 @@ SCRIPT_OBJECT_TYPE(TScriptPlayer)
 SCRIPT_OBJECT_TYPE(TScriptItem)
 SCRIPT_OBJECT_TYPE(TScriptThing)
 SCRIPT_OBJECT_TYPE(TScriptVocation)
+SCRIPT_OBJECT_TYPE(TScriptItemType)
 
 #undef SCRIPT_OBJECT_TYPE
 
@@ -318,7 +346,8 @@ struct TScriptArgument : std::integral_constant<bool, std::is_arithmetic<T>::val
 		|| std::is_same<T, const char *>::value || std::is_same<T, std::string>::value
 		|| std::is_same<T, TScriptCreature>::value || std::is_same<T, TScriptPlayer>::value
 		|| std::is_same<T, TScriptItem>::value || std::is_same<T, TScriptThing>::value
-		|| std::is_same<T, TScriptVocation>::value || std::is_same<T, TScriptPosition>::value> {};
+		|| std::is_same<T, TScriptVocation>::value || std::is_same<T, TScriptItemType>::value
+		|| std::is_same<T, TScriptPosition>::value> {};
 template<typename T>
 struct TScriptArgument<sol::optional<T>> : TScriptArgument<std::decay_t<T>> {};
 
@@ -352,5 +381,6 @@ auto Guarded(R (*Function)(A...)) {
 // InitScripting, in this order (scripting.hh lists the functions).
 void RegisterMagicAPI();
 void RegisterTriggerAPI();
+void RegisterItemAPI();
 
 #endif

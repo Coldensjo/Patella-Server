@@ -197,7 +197,6 @@ int GetSpellLevel(int SpellNr);
 int CheckForSpell(uint32_t CreatureID, char *Text);
 void DeleteRune(Object Obj);
 void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest);
-void DrinkPotion(uint32_t CreatureID, Object Obj);
 void InitMagic();
 
 #endif

@@ -31,7 +31,7 @@ import scenarios  # noqa: E402
 # gamemasters with some of the rights the commands check (trace_check.py
 # GM_RIGHTS); h is the caster of the scenarios spells and runes, with the
 # rights to cast every spell and make and use every rune (trace_check.py
-# CASTER_RIGHTS).
+# CASTER_RIGHTS); i opens name doors (trace_check.py DOOR_RIGHTS).
 ACCOUNTS = {
 	"a": (900001, "testa", "Testa Alpha"),
 	"b": (900002, "testb", "Testb Beta"),
@@ -41,6 +41,7 @@ ACCOUNTS = {
 	"f": (900006, "testf", "Testf Zeta"),
 	"g": (900007, "testg", "Testg Eta"),
 	"h": (900008, "testh", "Testh Theta"),
+	"i": (900009, "testi", "Testi Iota"),
 }
 
 

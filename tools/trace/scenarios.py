@@ -1044,3 +1044,343 @@ def triggers_busy(ctx):
 		who[key].logout()
 		s(1)
 	s(3)
+
+
+# The scenario items: every built-in use of an object (src/operate.cc Use(),
+# the chain of uses an object's flags pick: container, chest, liquid
+# container, food, writable text, announcer, rune, key door, name door, level
+# door, quest door, weapon on a destroyable object, change-use object,
+# use-event object, readable text). The caster h (Get Item, Change Data, Move
+# to coordinates, no damage taken) does most of it; the gamemaster e (Set
+# Quest Value, Get Experience, Move to coordinates, takes damage) the quest
+# and level doors, a chest too heavy for it and the slime, first, so that it
+# can log out during h's part: each poison damage blocks the logout for 60
+# seconds (h cures e with an Antidote rune). The door opener i opens a house
+# door. The client's Use (0x82) is refused for a type with multi_use (liquid
+# containers, keys, weapons, runes, fishing rods), Use With (0x83) for a type
+# without it. Change Data (aleta para) sets the liquid of the one object in
+# h's hands, or the number of a key. A use takes the top object of a field
+# (CheckTopUseObject, CheckTopMultiuseObject): a normal object lying on a door
+# covers it, a border lying on water covers the water. The weapon use takes
+# the weapon types sword to axe, a club too. The map is the runtime one (the
+# game's map/, not origmap/): the house door is open there. The clocks and
+# calendars (information types time and date) are left out: their texts
+# follow the wall clock and differ between two runs. The drawbridge comes
+# first, before the monsters around it have wandered onto it.
+BOX = 2469                          # a container with destroy_target (wooden trash)
+WOODEN_TRASH = 3135
+SWORD = 3264
+HAM = 3582                          # nutrition 30
+LETTER = 3505                       # write
+WRITE_ONCE_PARCHMENT = 2833         # write_once
+SPELLBOOK = 3059                    # information spellbook
+CEREMONIAL_MASK = 3395              # information blessings
+TEXT_BOOK = 2821                    # the book in quest chest 18, text with font size 1
+UH_RUNE = 3160
+ANTIDOTE_RUNE = 3153
+VIAL = 2874
+BUCKET = 2873
+SILVER_KEY = 2969
+LIT_TORCH = 2921
+SIGN = 2014                         # text with font size 5 (read by looking)
+STONE_FLOOR = 436
+DRAWBRIDGE = 1771
+SHALLOW_WATER = 4600
+FLAG = 2020                         # unlay
+CHEST_LOOK = 2472                   # what the quest chests 2546 look like (disguise)
+LOCKED_DOOR = 1628                  # key door; use: a use rule shows its description
+CLOSED_DOOR = 1629                  # key door, change_use: opens
+OPEN_DOOR = 1630                    # key door, change_use: closes
+QUEST_DOOR = 1644
+LEVEL_DOOR = 1648
+NAME_DOOR = 1638
+OPEN_NAME_DOOR = 1639
+LIQUID = {"wine": 2, "beer": 3, "slime": 6, "urine": 8, "mana fluid": 10, "life fluid": 11, "lemonade": 12}
+# A sign north of the temple and the field south of it.
+SIGN_FIELD = (32100, 32203, 7)
+SIGN_STAND = (32100, 32204, 7)
+# A locked door in the cave north of the temple (keyhole number 4600), the
+# field west of it, and the floor north of that.
+KEY_DOOR = (32109, 32172, 8)
+KEY_DOOR_STAND = (32108, 32172, 8)
+KEY_DOOR_FLOOR = (32108, 32171, 8)
+KEY_NUMBER = 4600
+# The drawbridge east of Rookgaard: h stands west of quest chest 18 (a book
+# with a text), north of shallow water with nothing on it, south of a pool on
+# the bridge, south-west of a flag (unlay); the bag two fields north-east
+# takes the junk.
+BRIDGE_STAND = (32170, 32197, 7)
+CHEST_18 = (32171, 32197, 7)
+BRIDGE_WATER = (32170, 32198, 7)
+BRIDGE_POOL = (32170, 32196, 7)
+BRIDGE_FLAG = (32171, 32196, 7)
+BRIDGE_JUNK = (32172, 32196, 7)
+# A quest door (quest 244, value 1) and the field north of it; behind it
+# quest chest 247, a letterbag of 500 oz.
+QUEST_DOOR_FIELD = (32567, 32023, 6)
+QUEST_DOOR_STAND = (32567, 32022, 6)
+CHEST_247 = (32567, 32024, 6)
+QUEST_DOOR_QUEST = "244 1"
+# A gate of expertise for level 20 and the field south of it, and two fields
+# west of that for h and what it lays down for e.
+LEVEL_DOOR_FIELD = (32673, 32100, 8)
+LEVEL_DOOR_STAND = (32673, 32101, 8)
+LEVEL_DOOR_H = (32671, 32101, 8)
+LEVEL_DOOR_VIAL = (32672, 32101, 8)
+LEVEL_DOOR_MASK = (32672, 32102, 8)
+# A house door of Thais, open in the runtime map (the field inside belongs to
+# an owned house; the door's list does not name the test characters), the
+# field east of it for i and north-east of it for h.
+NAME_DOOR_FIELD = (32283, 32252, 7)
+NAME_DOOR_STAND = (32284, 32252, 7)
+NAME_DOOR_H = (32284, 32251, 7)
+
+
+@scenario()
+def items(ctx):
+	"""Every built-in use of an object. Containers: the bag opened and
+	closed, a box on the floor opened. Chests: quest chest 18 (a book, then
+	empty), quest chest 247 too heavy for e at level 1, then (level 30) into
+	e's free ammo slot, then empty. Liquid containers: an empty vial used on
+	h (nothing) and on the floor (NOTUSABLE), filled at shallow water, poured
+	onto an unlay field (NOROOM), into an empty bucket, the bucket onto the
+	floor (a new pool), water, wine, beer, mana fluid, life fluid, urine,
+	lemonade and slime drunk (h takes no damage; e drinks slime from the
+	floor and is poisoned). Food: ham until FEDUP. Writable texts: a letter,
+	a write-once parchment. Announcers: a spellbook, a ceremonial mask (no
+	blessings, then two, for e from the floor). Readable texts: the book of
+	chest 18, a sign (font size 5: NOTUSABLE). Runes: Antidote on e,
+	Ultimate Healing on h. Key door: the locked door (its use rule), a key
+	without number and one with another number (NOKEYMATCH), the right one
+	(opens), on the floor (NOTUSABLE), on the open door (locks). Change-use:
+	a torch in the bag lit and put out, the open door closed with h in it (h
+	pushed off) and opened. Name door: by h (NOTACCESSIBLE), by i (closes,
+	opens). Quest and level doors: by e without the quest value or level
+	(the door's description), with them (open, e moves in), left (the
+	separation rules close them). Weapons: a club and a sword on the box
+	(sword to axe: a puff, the box destroyed one time in three, its content
+	spilled), the sword on the bag (no destroy: NOTUSABLE). Use rules: the
+	locked door, a fishing rod on shallow water."""
+	s = Steps(ctx)
+	ctx.at(0)
+	h = ctx.login("h")
+	s(2)
+
+	def note(c, what):
+		c.note("=== " + what)
+
+	def say(c, text, what, k=1):
+		note(c, what)
+		c.say(text)
+		s(k)
+
+	def get(tid, what, count=None):
+		"""Get Item; returns where the object went (Get Item puts it into the
+		first free body position that takes it: a hand, or the head for the
+		ceremonial mask)."""
+		m = h.mark()
+		say(h, "alevo %d" % tid if count is None else "alevo %d %d" % (tid, count), "Get Item: " + what)
+		rec = h.wait_text(r"^SetInventory slot=\d+ %d\(" % tid, m)
+		ctx.check(rec is not None, "items: Get Item %d not seen in the inventory" % tid)
+		return (INV, int(rec["text"].split()[1].split("=")[1]), 0) if rec else HAND
+
+	def use(c, p, tid, what, k=1, rnum=0, window=0):
+		note(c, "use: " + what)
+		c.use(p, tid, rnum, window)
+		s(k)
+
+	def use_with(c, p, tid, p2, tid2, what, k=2, rnum=0):
+		note(c, "use with: " + what)
+		c.use_with(p, tid, rnum, p2, tid2, 0)
+		s(k)
+
+	def move(c, p, tid, dest, what, k=1, rnum=0, count=1):
+		note(c, what)
+		c.move(p, tid, rnum, dest, count)
+		s(k)
+
+	def drink(c, p, tid, what):
+		use_with(c, p, tid, c.pos, CREATURE, what)
+
+	def walk(c, d, what, k=2):
+		note(c, what)
+		c.walk(d)
+		s(k)
+
+	def goto(c, p, what):
+		note(c, "Move to %d,%d,%d: %s" % (p + (what,)))
+		c.say("alani %d,%d,%d" % p)
+		s(1)
+
+	def ping(c):
+		# The game logs out a client it has received nothing from for 90
+		# rounds (connections.cc, three times PINGTIME).
+		note(c, "a ping, so that the game keeps the idle connection")
+		c.ping()
+		s(1)
+
+	# free_hands opens the bag (window 0, it stays open) and puts the club
+	# and then the torch into it, in front of what a new character has in it.
+	free_hands(s, h)
+
+	# The drawbridge east of Rookgaard.
+	goto(h, BRIDGE_STAND, "west of quest chest 18")
+	use(h, CHEST_18, CHEST_LOOK, "chest: quest chest 18, a book into the free hand", 2)
+	use(h, HAND, TEXT_BOOK, "readable text: the book of the chest, font size 1, with its text")
+	use(h, CHEST_18, CHEST_LOOK, "chest: quest chest 18 again: empty", 2)
+	move(h, HAND, TEXT_BOOK, BRIDGE_JUNK, "the book onto the bag two fields north-east")
+	vial = get(VIAL, "an empty vial")
+	drink(h, vial, VIAL, "liquid container: the empty vial on h: nothing happens")
+	use_with(h, vial, VIAL, BRIDGE_POOL, DRAWBRIDGE, "liquid container: the empty vial on the floor: NOTUSABLE")
+	use_with(h, vial, VIAL, BRIDGE_WATER, SHALLOW_WATER, "liquid container: the vial filled at shallow water")
+	use_with(h, vial, VIAL, BRIDGE_FLAG, FLAG, "liquid container: water onto the flag's field (unlay): NOROOM")
+	bucket = get(BUCKET, "an empty bucket, into the left hand")
+	use_with(h, vial, VIAL, bucket, BUCKET, "liquid container: the water of the vial into the empty bucket")
+	use_with(h, bucket, BUCKET, BRIDGE_POOL, DRAWBRIDGE, "liquid container: the bucket onto the floor: a pool of water "
+		"instead of the old one")
+	use_with(h, vial, VIAL, BRIDGE_WATER, SHALLOW_WATER, "liquid container: the vial filled again")
+	drink(h, vial, VIAL, "liquid container: h drinks water (Gulp.)")
+	move(h, bucket, BUCKET, BRIDGE_JUNK, "the bucket onto the bag")
+	for liquid, what in (("wine", "Aah..., drunk"), ("beer", "Aah..., more drunk"), ("mana fluid", "Aaaah..., mana"),
+			("life fluid", "Aaaah..., hit points"), ("urine", "Urgh!"), ("lemonade", "Mmmh."),
+			("slime", "Urgh!, no damage to h")):
+		say(h, "aleta %d" % LIQUID[liquid], "Change Data: the vial holds %s" % liquid)
+		drink(h, vial, VIAL, "liquid container: h drinks %s (%s)" % (liquid, what))
+	rod = get(FISHING_ROD, "a fishing rod, into the left hand")
+	use_with(h, rod, FISHING_ROD, BRIDGE_WATER, SHALLOW_WATER, "use rule (multi-use): the fishing rod on shallow "
+		"water")
+	move(h, rod, FISHING_ROD, BRIDGE_JUNK, "the fishing rod onto the bag")
+	move(h, vial, VIAL, BRIDGE_JUNK, "the vial onto the bag")
+
+	# e: the quest door and chest 247 at level 1, the level door. The game
+	# logs out a client it has received nothing from for 90 rounds and pings
+	# it after 30 and 60 (connections.cc); e pings and logs out before that.
+	e = ctx.login("e")
+	s(2)
+	goto(e, QUEST_DOOR_STAND, "e north of a quest door")
+	use(e, QUEST_DOOR_FIELD, QUEST_DOOR, "quest door without the quest value: its description", 2)
+	say(e, "aleta cogni %s" % QUEST_DOOR_QUEST, "Set Quest Value: the door's quest value")
+	use(e, QUEST_DOOR_FIELD, QUEST_DOOR, "quest door with the quest value: it opens, e moves into it", 2)
+	use(e, CHEST_247, CHEST_LOOK, "chest: quest chest 247, a letterbag of 500 oz: too heavy for e", 2)
+	walk(e, "n", "e out of the door: the separation rule closes it")
+	goto(e, LEVEL_DOOR_STAND, "e south of a gate of expertise for level 20")
+	use(e, LEVEL_DOOR_FIELD, LEVEL_DOOR, "level door below its level: its description", 2)
+	say(e, "alevo cogni 400000", "Get Experience: e to level 30", 2)
+	use(e, LEVEL_DOOR_FIELD, LEVEL_DOOR, "level door with the level: it opens, e moves into it", 2)
+	walk(e, "s", "e out of the gate: the separation rule closes it")
+
+	# h lays down a vial of slime and a ceremonial mask for e, and cures e of the slime's poison.
+	goto(h, LEVEL_DOOR_H, "h two fields west of e")
+	p = get(VIAL, "a vial")
+	say(h, "aleta %d" % LIQUID["slime"], "Change Data: the vial holds slime")
+	move(h, p, VIAL, LEVEL_DOOR_VIAL, "the vial of slime onto the field west of e")
+	p = get(CEREMONIAL_MASK, "a ceremonial mask")
+	move(h, p, CEREMONIAL_MASK, LEVEL_DOOR_MASK, "the mask onto the field south-west of e")
+	drink(e, LEVEL_DOOR_VIAL, VIAL, "liquid container: e drinks slime from the floor (Urgh!, poisoned)")
+	p = get(BLANK_RUNE, "a blank rune")
+	say(h, "adana pox", "adana pox: an Antidote rune", 2)
+	use_with(h, p, ANTIDOTE_RUNE, e.pos, CREATURE, "rune: the Antidote rune on e, the poison cured", 3)
+	use(e, LEVEL_DOOR_MASK, CEREMONIAL_MASK, "announcer: the mask on the floor, no blessings received")
+	say(e, "aleta cogni 101 1", "Set Quest Value: the first blessing")
+	say(e, "aleta cogni 105 1", "Set Quest Value: the last blessing")
+	use(e, LEVEL_DOOR_MASK, CEREMONIAL_MASK, "announcer: the mask, two blessings received")
+
+	# e: chest 247 again, at level 30.
+	goto(e, QUEST_DOOR_STAND, "e north of the quest door again")
+	use(e, QUEST_DOOR_FIELD, QUEST_DOOR, "quest door: it opens, e moves into it", 2)
+	use(e, CHEST_247, CHEST_LOOK, "chest: quest chest 247, the letterbag into e's free ammo slot", 2)
+	use(e, CHEST_247, CHEST_LOOK, "chest: quest chest 247 again: empty", 2)
+	walk(e, "n", "e out of the door: the separation rule closes it")
+
+	# In the temple of Rookgaard: a junk field west of h, the box east of it.
+	goto(h, TEMPLE, "back to the temple")
+	junk = offset(h.pos, -1, 0)
+	box = offset(h.pos, 1, 0)
+	use(h, (INV, 64, 0), TORCH, "change-use: the torch in the bag is lit")
+	use(h, (INV, 64, 0), LIT_TORCH, "change-use: the lit torch in the bag is put out")
+	p = get(BOX, "a box")
+	move(h, p, BOX, box, "the box onto the field east of h")
+	use(h, box, BOX, "container: the box on the floor opens in window 1", window=1)
+	move(h, (INV, 64, 0), TORCH, (INV, 65, 0), "the torch out of the bag into the box, for the box to spill")
+	wrecked = []
+
+	def hit(p, tid, what, rnum=0):
+		# Until the box is wrecked; the rounds stay the same after that.
+		if wrecked:
+			note(h, "the box is wrecked: no more hits")
+			s(2)
+			return
+		m = h.mark()
+		use_with(h, p, tid, box, BOX, "weapon: %s on the box: a puff, the box wrecked one time in three (wooden "
+			"trash, the torch spilled)" % what, rnum=rnum)
+		if h.wait_for(lambda r: r["text"].startswith("ChangeField [%d,%d,%d] " % box) and "%d(" % WOODEN_TRASH
+				in r["text"], m, 0):
+			wrecked.append(True)
+
+	hit((INV, 64, 0), CLUB, "the club (weapon types sword to axe take a club too)")
+	use(h, (INV, SLOT_BACKPACK, 0), BAG, "container: the open bag closes")
+	sword = get(SWORD, "a sword")
+	use_with(h, sword, SWORD, (INV, SLOT_BACKPACK, 0), BAG, "the sword on the bag (no destroy_target): no use, "
+		"NOTUSABLE")
+	for n in range(10):
+		if n == 6:
+			ping(e)
+		hit(sword, SWORD, "the sword (%d)" % (n + 1))
+	ctx.check(wrecked, "items: the box was not wrecked in 11 hits")
+	move(h, sword, SWORD, junk, "the sword onto the field west of h")
+	p = get(HAM, "five hams", 5)
+	for n in range(5):
+		use(h, p, HAM, "food: a ham (%d), until FEDUP (You are full.)" % (n + 1))
+	move(h, p, HAM, junk, "the hams left onto the field west of h", count=5)
+	for tid, what, use_what in (
+			(LETTER, "a letter", "writable text: the letter, an edit window"),
+			(WRITE_ONCE_PARCHMENT, "a write-once parchment", "writable text: the write-once parchment, an edit window"),
+			(SPELLBOOK, "a spellbook", "announcer: the spellbook, the spells in a text window"),
+			(CEREMONIAL_MASK, "a ceremonial mask", "announcer: the ceremonial mask, no blessings received")):
+		p = get(tid, what)
+		use(h, p, tid, use_what)
+		if p[1] in (SLOT_RIGHT, SLOT_LEFT):
+			move(h, p, tid, junk, "%s onto the field west of h" % what)
+		if tid == WRITE_ONCE_PARCHMENT:
+			# The last poison damage (DamageStimulus) blocked the logout for 60
+			# rounds; it came before the cure.
+			note(e, "logout: more than 60 rounds after the last poison damage")
+			e.logout()
+			s(1)
+	p = get(BLANK_RUNE, "a blank rune")
+	say(h, "adura vita", "adura vita: an Ultimate Healing rune", 2)
+	use_with(h, p, UH_RUNE, h.pos, CREATURE, "rune: the Ultimate Healing rune on h", 3)
+
+	goto(h, SIGN_STAND, "south of a sign")
+	use(h, SIGN_FIELD, SIGN, "the sign (font size 5, read by looking): NOTUSABLE")
+
+	# The locked door in the cave north of the temple.
+	goto(h, KEY_DOOR_STAND, "west of a locked door with keyhole number %d" % KEY_NUMBER)
+	use(h, KEY_DOOR, LOCKED_DOOR, "use rule: the locked door shows its description")
+	key = get(SILVER_KEY, "a key without number")
+	use_with(h, key, SILVER_KEY, KEY_DOOR, LOCKED_DOOR, "key door: a key without number: NOKEYMATCH")
+	say(h, "aleta %d" % (KEY_NUMBER + 1), "Change Data: key number %d" % (KEY_NUMBER + 1))
+	use_with(h, key, SILVER_KEY, KEY_DOOR, LOCKED_DOOR, "key door: another key number: NOKEYMATCH")
+	say(h, "aleta %d" % KEY_NUMBER, "Change Data: key number %d" % KEY_NUMBER)
+	use_with(h, key, SILVER_KEY, KEY_DOOR, LOCKED_DOOR, "key door: the matching key opens the door")
+	use_with(h, key, SILVER_KEY, KEY_DOOR_FLOOR, STONE_FLOOR, "the key on the floor (no key door): NOTUSABLE")
+	goto(h, KEY_DOOR, "h into the open door (h, drunk, could stagger if it walked)")
+	use(h, KEY_DOOR, OPEN_DOOR, "change-use: the open door h stands in closes, h is pushed off", 2)
+	use(h, KEY_DOOR, CLOSED_DOOR, "change-use: the closed (unlocked) door opens", 2)
+	use_with(h, key, SILVER_KEY, KEY_DOOR, OPEN_DOOR, "key door: the matching key locks the open door")
+	move(h, key, SILVER_KEY, h.pos, "the key onto h's own field")
+
+	# A house door of Thais, open.
+	goto(h, NAME_DOOR_H, "h north-east of a house door")
+	use(h, NAME_DOOR_FIELD, OPEN_NAME_DOOR, "name door: h is no owner, may not open name doors and is not on the "
+		"door's list: NOTACCESSIBLE", 2)
+	i = ctx.login("i")
+	s(2)
+	goto(i, NAME_DOOR_STAND, "i east of the house door")
+	use(i, NAME_DOOR_FIELD, OPEN_NAME_DOOR, "name door: i may open name doors, it closes", 2)
+	use(i, NAME_DOOR_FIELD, NAME_DOOR, "name door: i opens it again", 2)
+
+	i.logout()
+	s(2)
+	h.logout()
+	s(3)

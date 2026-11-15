@@ -1,7 +1,8 @@
 // objects.cc: the object types: their table (ObjectTypes), loaded from
 // items.toml (data/items.toml in the repository, converted from the original
 // objects.srv by tools/convert), the names of their flags and attributes, the
-// special objects (GetSpecialObject), and the conversion of an old group and
+// special objects (GetSpecialObject), the list of built-in uses of objects
+// (UseEntries, the [[use]] of items.toml), and the conversion of an old group and
 // number to a type number, loaded from conversion.toml (data/conversion.toml
 // in the repository, converted from the original conversion.lst by
 // tools/convert).
@@ -668,14 +669,100 @@ static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
 	}
 }
 
+std::vector<TUseEntry> UseEntries;
+
+// The longest script name of a [[use]]: the longest LoadScript takes.
+const int MAX_USE_SCRIPT_LENGTH = 256;
+
+// Whether Name is the script name of a [[use]]: "items/<name>.lua" and a
+// script name as scripting.hh defines it (only a-z, 0-9, '_', '-', '/' and
+// '.'; no part empty, "." or ".."; a file name that is more than ".lua"; at
+// most MAX_USE_SCRIPT_LENGTH characters).
+static bool ValidUseScript(const std::string &Name) {
+	const std::string Prefix = "items/";
+	const std::string Ending = ".lua";
+	if (Name.size() > static_cast<size_t>(MAX_USE_SCRIPT_LENGTH) || Name.size() <= Prefix.size() + Ending.size()
+			|| Name.compare(0, Prefix.size(), Prefix) != 0
+			|| Name.compare(Name.size() - Ending.size(), Ending.size(), Ending) != 0) {
+		return false;
+	}
+	size_t PartStart = 0;
+	for (size_t i = 0; i <= Name.size(); i++) {
+		char c = i < Name.size() ? Name[i] : 0;
+		if (c == '/' || c == 0) {
+			std::string Part = Name.substr(PartStart, i - PartStart);
+			if (Part.empty() || Part == "." || Part == ".." || (c == 0 && Part == Ending)) {
+				return false;
+			}
+			PartStart = i + 1;
+		} else if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// One [[use]] of items.toml: flag, a flag as [[item]] names them, and
+// script, the script that handles the use; both needed, no other keys.
+// Appended to UseEntries.
+static void ReadUse(const toml::node &Node) {
+	if (!Node.is_table()) {
+		TomlError(Node.source(), "an entry of use must be a table");
+	}
+
+	const toml::table &Entry = *Node.as_table();
+	TomlCheckKeys(Entry, "[[use]]", {"flag", "script"});
+
+	auto FlagFound = Entry.find("flag");
+	if (FlagFound == Entry.end()) {
+		TomlError(Node.source(), "an entry of use needs flag");
+	}
+	if (!FlagFound->second.is_string()) {
+		TomlError(FlagFound->second.source(), "flag must be a string");
+	}
+	const std::string &FlagKey = FlagFound->second.as_string()->get();
+	int Flag = GetFlagByKey(FlagKey);
+	if (Flag == -1) {
+		TomlError(FlagFound->second.source(), "unknown flag \"%s\"", FlagKey.c_str());
+	}
+
+	auto ScriptFound = Entry.find("script");
+	if (ScriptFound == Entry.end()) {
+		TomlError(Node.source(), "an entry of use needs script");
+	}
+	// The errors and Where name the key's place, as for the scripts of
+	// spells.toml.
+	const toml::source_region &Where = ScriptFound->first.source();
+	if (!ScriptFound->second.is_string()) {
+		TomlError(Where, "script must be a string");
+	}
+	const std::string &Name = ScriptFound->second.as_string()->get();
+	if (!ValidUseScript(Name)) {
+		TomlError(Where, "script \"%s\" must be a script name \"items/<name>.lua\" (a-z, 0-9, _, -, / and ., "
+				"no part . or .., at most %d characters)", Name.c_str(), MAX_USE_SCRIPT_LENGTH);
+	}
+
+	char Position[4096 + 64];
+	snprintf(Position, sizeof(Position), "%s:%u:%u", Where.path != nullptr ? Where.path->c_str() : "(unknown file)",
+			Where.begin.line, Where.begin.column);
+	UseEntries.push_back(TUseEntry{static_cast<FLAG>(Flag), Name, Position, -1});
+}
+
 void LoadItems(const char *FileName) {
 	toml::table Items = TomlParseFile(FileName);
-	TomlCheckKeys(Items, "the top level", {"item"});
+	TomlCheckKeys(Items, "the top level", {"item", "use"});
 
 	std::vector<bool> Defined(MAX_TYPEID + 1, false);
 	if (const toml::array *Entries = TomlGetArray(Items, "item")) {
 		for (const toml::node &Node : *Entries) {
 			ReadItem(Node, Defined);
+		}
+	}
+
+	UseEntries.clear();
+	if (const toml::array *Entries = TomlGetArray(Items, "use")) {
+		for (const toml::node &Node : *Entries) {
+			ReadUse(Node);
 		}
 	}
 }

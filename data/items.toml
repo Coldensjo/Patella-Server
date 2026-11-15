@@ -21,6 +21,19 @@
 #                one type), which the game asks for by it (money, depot
 #                chests, blood, magic fields, ...).
 #
+# Each [[use]], at the end of the file, is one of the built-in uses of
+# objects, and their order matters: for an object a player uses, the game
+# tries the entries in order and runs the script of the first whose flag the
+# object has. The script's global function onUse(player, item, target,
+# window) gives true when it handled the use, false to go on with the next
+# entry whose flag the object has. When no entry handles the use, the player
+# gets "You cannot use this object."
+#   flag    A flag name of the list below.
+#   script  The script that handles the use, "items/<name>.lua", a file in
+#           the scripts folder (data/scripts/ in the repository).
+# The list is the game's (it had it in its code); patella-convert writes it
+# as fixed data, the same for every objects.srv.
+#
 # The flags:
 #   bank, clip, bottom, top, container, chest, cumulative, use_event,
 #   change_use, force_use, multi_use, dist_use, movement_event, collision_event,
@@ -28577,3 +28590,67 @@ id = 5090
 name = "a treasure map"
 flags = ["text", "take"]
 attributes = { font_size = 1, weight = 830 }
+
+[[use]]
+flag = "container"
+script = "items/container.lua"
+
+[[use]]
+flag = "chest"
+script = "items/chest.lua"
+
+[[use]]
+flag = "liquid_container"
+script = "items/liquid_container.lua"
+
+[[use]]
+flag = "food"
+script = "items/food.lua"
+
+[[use]]
+flag = "write"
+script = "items/text_object.lua"
+
+[[use]]
+flag = "write_once"
+script = "items/text_object.lua"
+
+[[use]]
+flag = "information"
+script = "items/announcer.lua"
+
+[[use]]
+flag = "rune"
+script = "items/rune.lua"
+
+[[use]]
+flag = "key"
+script = "items/key_door.lua"
+
+[[use]]
+flag = "name_door"
+script = "items/name_door.lua"
+
+[[use]]
+flag = "level_door"
+script = "items/level_door.lua"
+
+[[use]]
+flag = "quest_door"
+script = "items/quest_door.lua"
+
+[[use]]
+flag = "weapon"
+script = "items/weapon.lua"
+
+[[use]]
+flag = "change_use"
+script = "items/change_use.lua"
+
+[[use]]
+flag = "use_event"
+script = "items/use_event.lua"
+
+[[use]]
+flag = "text"
+script = "items/readable_text.lua"
