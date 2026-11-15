@@ -2,7 +2,9 @@
 // ends up with from a moveuse.dat, through the old reader (ReadMoveUseDat), and
 // from the triggers.toml patella-convert makes of it, through the game's
 // LoadTriggerRules, must be the same, entry by entry; LoadTriggerRules must
-// refuse what is wrong with the file and line.
+// refuse what is wrong with the file and line, and read back what the trigger
+// library gets (the rules' numbers in the file, the places of the entries)
+// and the rules that name a script.
 //
 //   convert_test_triggers
 //     With made-up files in a temporary folder.
@@ -507,6 +509,21 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[[rule]]\nsection = [\"\xe2\x82\xac\"]\n", 2, "a section name must be a Latin-1 string");
 	Expect("[[rule]]\nnote = 1\n", 2, "note must be a Latin-1 string");
 	Expect("[[rule]]\nevent = \"use\"\nconditions = [\n", 3, "encountered end-of-file");
+	const char *BadScript = "script must be a script name \"triggers/<name>.lua\"";
+	Expect("[[rule]]\nevent = \"use\"\nscript = 1\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"lever.lua\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"spells/lever.lua\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers/lever\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers/.lua\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers/Lever.lua\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers/../lever.lua\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers//lever.lua\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers/" + std::string(250, 'a') + ".lua\"\n", 3, BadScript);
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers/lever.lua\"\nconditions = [{ name = \"random\", args = [1] }]\n",
+			4, "a rule with script has no conditions");
+	Expect("[[rule]]\nevent = \"use\"\nscript = \"triggers/lever.lua\"\nactions = [{ name = \"nop\" }]\n", 4,
+			"a rule with script has no actions");
+	Expect("[[rule]]\nscript = \"triggers/lever.lua\"\n", 1, "a rule needs event");
 	Expect(C("{ name = \"random\", args = [1] }") + "\n" + C("{ name = \"random\", args = [x] }"), 13, "");
 
 	// What loads: no rules; nop with args = []; every name the header lists.
@@ -517,6 +534,8 @@ static void TestErrors(const fs::path &Folder) {
 	CHECK(Load(C("{ name = \"is_position\", args = [\"obj1\", [24576, 40959, 15]] }")) == "");
 	CHECK(Load(A("{ name = \"move_rel\", args = [\"user\", \"obj1\", [-8192, 8191, -8]] }")) == "");
 	CHECK(Load(C("{ name = \"has_text\", args = [\"obj1\", \"" + std::string(3998, 'x') + "\"] }")) == "");
+	CHECK(Load("[[rule]]\nevent = \"use\"\nscript = \"triggers/lever.lua\"\n") == "");
+	CHECK(Load("[[rule]]\nevent = \"use\"\nscript = \"triggers/a/b-c_1.2.lua\"\n") == "");
 
 	std::string Missing = InChild([&]() {
 		LoadTriggerRules((Folder / "missing.toml").c_str());
@@ -525,10 +544,81 @@ static void TestErrors(const fs::path &Folder) {
 	CHECK(IsError(Missing) && Missing.find((Folder / "missing.toml").string()) != std::string::npos);
 }
 
+// What a load reads back for the trigger library: two rules of conditions and
+// actions around a rule with a script, of two events. Their numbers in the
+// file, the order list, the scripts with their places, the empty entry ranges
+// of the script rule and the places of the conditions and actions.
+static void TestReadBack(const fs::path &Folder) {
+	fs::path File = Folder / "readback" / "triggers.toml";
+	WriteFile(File,
+			"[[rule]]\n"                                                         // 1
+			"event = \"use\"\n"
+			"conditions = [\n"
+			"\t{ name = \"is_type\", args = [\"obj1\", 100] },\n"                // 4
+			"\t  { name = \"random\", args = [50], negate = true },\n"           // 5
+			"]\n"
+			"actions = [{ name = \"nop\" }]\n"                                    // 7
+			"\n"
+			"[[rule]]\n"                                                         // 9
+			"event = \"collision\"\n"
+			"script = \"triggers/lever.lua\"\n"                                   // 11
+			"\n"
+			"[[rule]]\n"                                                         // 13
+			"event = \"use\"\n"
+			"conditions = [{ name = \"is_creature\", args = [\"user\"] }]\n"      // 15
+			"actions = [\n"
+			"\t{ name = \"effect\", args = [\"obj1\", 3] },\n"                    // 17
+			"\t{ name = \"delete\", args = [\"obj1\"] },\n"                       // 18
+			"]\n");
+	std::string Out = InChild([&]() {
+		NumberOfTriggerConditions = 0;
+		NumberOfTriggerActions = 0;
+		LoadTriggerRules(File.c_str());
+		std::string Text;
+		Text += "rules " + std::to_string(TriggerRules.size()) + "\n";
+		for (size_t k = 0; k < TriggerRules.size(); k++) {
+			const TTriggerRuleEntry &Entry = TriggerRules[k];
+			const TTriggerRule &Rule = TriggerDatabases[Entry.Event].Rules(Entry.Rule);
+			Text += "rule " + std::to_string(k + 1) + " event " + std::to_string(Entry.Event) + " #"
+					+ std::to_string(Entry.Rule) + " number " + std::to_string(Rule.Number) + " script "
+					+ std::to_string(Rule.Script) + " conditions " + std::to_string(Rule.FirstCondition) + "-"
+					+ std::to_string(Rule.LastCondition) + " actions " + std::to_string(Rule.FirstAction) + "-"
+					+ std::to_string(Rule.LastAction) + "\n";
+		}
+		for (const TTriggerScript &Script : TriggerScripts) {
+			Text += "script " + Script.Name + " " + Script.Where + " " + std::to_string(Script.Number) + "\n";
+		}
+		for (int i = 1; i <= NumberOfTriggerConditions; i++) {
+			Text += "condition " + std::to_string(i) + " " + TriggerConditionPlaces[static_cast<size_t>(i)] + "\n";
+		}
+		for (int i = 1; i <= NumberOfTriggerActions; i++) {
+			Text += "action " + std::to_string(i) + " " + TriggerActionPlaces[static_cast<size_t>(i)] + "\n";
+		}
+		return Text;
+	});
+	std::string F = File.string();
+	std::string Expected =
+			"rules 3\n"
+			"rule 1 event 0 #1 number 1 script -1 conditions 1-2 actions 1-1\n"
+			"rule 2 event 3 #1 number 2 script 0 conditions 3-2 actions 2-1\n"
+			"rule 3 event 0 #2 number 3 script -1 conditions 3-3 actions 2-3\n"
+			"script triggers/lever.lua " + F + ":11:10 -1\n"
+			"condition 1 " + F + ":4:2\n"
+			"condition 2 " + F + ":5:4\n"
+			"condition 3 " + F + ":15:15\n"
+			"action 1 " + F + ":7:12\n"
+			"action 2 " + F + ":17:2\n"
+			"action 3 " + F + ":18:2\n";
+	if (Out != Expected) {
+		fprintf(stderr, "read back:\n%s\nexpected:\n%s\n", Out.c_str(), Expected.c_str());
+		Failures++;
+	}
+}
+
 // The rules as the game uses them, as one text: for each event its rules in
 // order, each with its conditions (modifier, type, the parameters it uses,
-// texts as their text) and actions. Two loads that give the same text behave
-// the same. Deletes the texts afterwards.
+// texts as their text) and actions, or its script. Two loads that give the
+// same text behave the same. Deletes the texts afterwards.
 static std::string RulesInUse() {
 	std::string Out;
 	std::vector<uint32_t> Texts;
@@ -547,6 +637,9 @@ static std::string RulesInUse() {
 		for (int r = 1; r <= Database.NumberOfRules; r++) {
 			const TTriggerRule &Rule = Database.Rules(r);
 			Out += "rule " + std::to_string(Event) + "\n";
+			if (Rule.Script >= 0) {
+				Out += "script " + TriggerScripts[static_cast<size_t>(Rule.Script)].Name + "\n";
+			}
 			for (int i = Rule.FirstCondition; i <= Rule.LastCondition; i++) {
 				const TTriggerCondition &C = TriggerConditions(i);
 				Out += "c " + std::to_string(static_cast<int>(C.Modifier)) + " "
@@ -608,8 +701,9 @@ static std::string NextKey(const std::string &Value, const TTriggerKey *Keys, in
 // one up, a name to the next one of its kind, a text lengthened); negate and
 // ignore_result added or taken away; each condition and action left out
 // (where there are two or more); each rule left out; each rule swapped with
-// the next rule of the same event when the two differ. Returns the number of
-// changes made.
+// the next rule of the same event when the two differ; a script added to each
+// rule (which a rule with conditions and actions cannot have). Returns the
+// number of changes made.
 static int TestMutations(toml::table &File, const std::string &Expected) {
 	int Changes = 0;
 	std::string Where;
@@ -735,6 +829,10 @@ static int TestMutations(toml::table &File, const std::string &Expected) {
 			}
 		}
 
+		Rule.insert_or_assign("script", "triggers/added.lua");
+		Try("script added");
+		Rule.erase("script");
+
 		LeaveOut(Rules, r, "the rule");
 		// Putting the rule back made a new node of it.
 		toml::table &Back = *Rules.get(r)->as_table();
@@ -835,6 +933,7 @@ int main(int argc, char **argv) {
 		TestRoundTrips(Folder);
 		TestRefusals(Folder);
 		TestErrors(Folder);
+		TestReadBack(Folder);
 	} catch (const char *Error) {
 		fprintf(stderr, "unexpected error: %s\n", Error);
 		Failures++;
