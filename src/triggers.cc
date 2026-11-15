@@ -1,16 +1,20 @@
-// triggers.cc: what the trigger rules do. LoadTriggers (triggersdata.cc) reads
-// triggers.toml into one rule database per event type (use, multi-use,
-// movement, collision and separation); HandleEvent runs the actions of the
-// first rule whose conditions hold. Also here: the object functions those
-// actions use, depot boxes, mail (a stamped letter or parcel goes into the
-// addressee's open depot at once, otherwise into DelayedMail until SendMails
-// adds it to the depot in the player's data), and the built-in uses of objects
-// (the Use* functions).
+// triggers.cc: the events that run the trigger rules. LoadTriggers
+// (triggersdata.cc) reads triggers.toml into one rule database per event type
+// (use, multi-use, movement, collision and separation); InitTriggers hands
+// each rule's conditions and actions to the trigger library
+// (data/scripts/lib/triggers.lua, scripting.hh "Trigger rules") and loads the
+// rules' own scripts; HandleEvent tries the rules of an event in order and
+// stops at the first that holds, whose actions the library has run. Also
+// here: the object functions those actions use, depot boxes, mail (a stamped
+// letter or parcel goes into the addressee's open depot at once, otherwise
+// into DelayedMail until SendMails adds it to the depot in the player's
+// data), and the built-in uses of objects (the Use* functions).
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <unistd.h>
 
 #include "script.hh"
@@ -36,6 +40,7 @@
 #include "sending.hh"
 #include "strings.hh"
 #include "writer.hh"
+#include "scripting.hh"
 #include "triggers.hh"
 #include "triggersdata.hh"
 
@@ -46,11 +51,13 @@ struct TDelayedMail {
 	int PacketSize;
 };
 
-// Functions with external linkage that triggers.hh does not declare: they take
-// an enum of triggersdata.hh, which triggers.hh does not include.
-bool CheckCondition(EventType, TTriggerCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp);
-void ExecuteAction(EventType Event, TTriggerAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp);
+// A function with external linkage that triggers.hh does not declare: it
+// takes an enum of triggersdata.hh, which triggers.hh does not include.
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2);
+
+// The trigger library (LoadScript's number of "lib/triggers.lua"), -1 until
+// InitTriggers loads it.
+static int TriggerLibrary = -1;
 
 vector<TDelayedMail> DelayedMail(0, 10, 10);
 int DelayedMails;
@@ -59,231 +66,10 @@ int DelayedMails;
 // UseLiquidContainer, UseFood, UseTextObject, UseAnnouncer, UseKeyDoor,
 // UseNameDoor, UseLevelDoor, UseQuestDoor, UseWeapon, UseChangeObject,
 // UseObject, UseObjects, MovementEvent, SeparationEvent and CollisionEvent
-// throw RESULT; InitTriggers throws const char * (LoadTriggers'). None has an
+// throw RESULT; InitTriggers throws const char * (LoadTriggers', LoadScript's,
+// RequireHandler's and its own for the trigger library's errors). None has an
 // exception specification (C++17 has no dynamic ones), so an exception of
 // another type passes to the caller.
-
-Object GetEventObject(int Number, Object User, Object Obj1, Object Obj2, Object Temp) {
-	switch (Number) {
-		case EVENTOBJECT_NULL:
-			return NONE;
-		case EVENTOBJECT_OBJ1:
-			return Obj1;
-		case EVENTOBJECT_OBJ2:
-			return Obj2;
-		case EVENTOBJECT_USER:
-			return User;
-		case EVENTOBJECT_TEMP:
-			return Temp;
-		default:
-			error("GetEventObject: Unknown number %d.\n", Number);
-			return NONE;
-	}
-}
-
-bool Compare(int Value1, int Operator, int Value2) {
-	switch (Operator) {
-		case '<':
-			return Value1 < Value2;
-		case '>':
-			return Value1 > Value2;
-		case '=':
-			return Value1 == Value2;
-		case 'N':
-			return Value1 != Value2;
-		case 'L':
-			return Value1 <= Value2;
-		case 'G':
-			return Value1 >= Value2;
-		default:
-			error("Compare: Invalid operator %d.\n", Operator);
-			return false;
-	}
-}
-
-bool CheckCondition(EventType, TTriggerCondition &Condition, Object User, Object Obj1, Object Obj2, Object &Temp) {
-	Object Obj;
-	int x1, y1, z1;
-	int x2, y2, z2;
-	TCreature *cr;
-	bool fulfilled = false;
-
-	switch (Condition.Condition) {
-		case CONDITION_ISPOSITION:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			UnpackAbsoluteCoordinate(Condition.Parameters[1], x1, y1, z1);
-			GetObjectCoordinates(Obj, x2, y2, z2);
-			fulfilled = x1 == x2 && y1 == y2 && z1 == z2;
-			break;
-		case CONDITION_ISTYPE:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			fulfilled = Obj.getObjectType().getTypeID() == Condition.Parameters[1];
-			break;
-		case CONDITION_ISCREATURE:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			fulfilled = Obj.isCreature();
-			break;
-		case CONDITION_ISPLAYER:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->Type == PLAYER;
-			}
-			break;
-		case CONDITION_HASFLAG:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			fulfilled = Obj.getFlag((FLAG)Condition.Parameters[1]);
-			break;
-		case CONDITION_HASTYPEATTRIBUTE:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			fulfilled = Compare(Obj.getAttribute((TYPEATTRIBUTE)Condition.Parameters[1]), Condition.Parameters[2], Condition.Parameters[3]);
-			break;
-		case CONDITION_HASINSTANCEATTRIBUTE:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			fulfilled = Compare(Obj.getAttribute((INSTANCEATTRIBUTE)Condition.Parameters[1]), Condition.Parameters[2], Condition.Parameters[3]);
-			break;
-		case CONDITION_HASTEXT: {
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			// Separate statements fix the call order: the parameter's string
-			// first. Both calls can log.
-			char *Text = GetDynamicString(Condition.Parameters[1]);
-			fulfilled = strcmp(GetDynamicString(Obj.getAttribute(TEXTSTRING)), Text) == 0;
-			break;
-		}
-		case CONDITION_ISPEACEFUL:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->IsPeaceful();
-			}
-			break;
-		case CONDITION_MAYLOGOUT:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->Type == PLAYER && cr->LogoutPossible() == LOGOUT_POSSIBLE;
-			}
-			break;
-		case CONDITION_HASPROFESSION:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->Type == PLAYER && ((TPlayer *)cr)->GetEffectiveProfession() == Condition.Parameters[1];
-			}
-			break;
-		case CONDITION_HASLEVEL:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && Compare(cr->Skills[SKILL_LEVEL]->Get(), Condition.Parameters[1], Condition.Parameters[2]);
-			}
-			break;
-		case CONDITION_HASRIGHT:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->Type == PLAYER && CheckRight(cr->ID, (RIGHT)Condition.Parameters[1]);
-			}
-			break;
-		case CONDITION_HASQUESTVALUE:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->Type == PLAYER
-						&& Compare(((TPlayer *)cr)->GetQuestValue(Condition.Parameters[1]), Condition.Parameters[2], Condition.Parameters[3]);
-			}
-			break;
-		case CONDITION_TESTSKILL:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				if (in(Condition.Parameters[1], 0, MAX_SKILLS - 1)) {
-					fulfilled = cr != nullptr && cr->Skills[Condition.Parameters[1]]->Probe(Condition.Parameters[2], Condition.Parameters[3], true);
-				} else {
-					error("CheckCondition (TestSkill): Invalid skill number %d.\n", Condition.Parameters[1]);
-				}
-			}
-			break;
-		case CONDITION_COUNTOBJECTS:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			fulfilled = Compare(CountObjectsInContainer(GetMapContainer(Obj)), Condition.Parameters[1], Condition.Parameters[2]);
-			break;
-		case CONDITION_COUNTOBJECTSONMAP:
-			UnpackAbsoluteCoordinate(Condition.Parameters[0], x1, y1, z1);
-			fulfilled = Compare(CountObjectsInContainer(GetMapContainer(x1, y1, z1)), Condition.Parameters[1], Condition.Parameters[2]);
-			break;
-		case CONDITION_ISOBJECTTHERE:
-			UnpackAbsoluteCoordinate(Condition.Parameters[0], x1, y1, z1);
-			Temp = GetFirstSpecObject(x1, y1, z1, ObjectType(Condition.Parameters[1]));
-			fulfilled = Temp != NONE;
-			break;
-		case CONDITION_ISCREATURETHERE:
-			UnpackAbsoluteCoordinate(Condition.Parameters[0], x1, y1, z1);
-			Temp = GetFirstSpecObject(x1, y1, z1, ObjectType(TYPEID_CREATURE));
-			fulfilled = Temp != NONE;
-			break;
-		case CONDITION_ISPLAYERTHERE:
-			UnpackAbsoluteCoordinate(Condition.Parameters[0], x1, y1, z1);
-			Temp = GetFirstSpecObject(x1, y1, z1, ObjectType(TYPEID_CREATURE));
-			if (Temp != NONE) {
-				cr = GetCreature(Temp);
-				fulfilled = cr != nullptr && cr->Type == PLAYER;
-			}
-			break;
-		case CONDITION_ISOBJECTININVENTORY:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				// The type is built before getCreatureID() is called.
-				ObjectType Type(Condition.Parameters[1]);
-				Temp = GetInventoryObject(Obj.getCreatureID(), Type, Condition.Parameters[2]);
-				fulfilled = Temp != NONE;
-			}
-			break;
-		case CONDITION_ISPROTECTIONZONE:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			GetObjectCoordinates(Obj, x1, y1, z1);
-			fulfilled = IsProtectionZone(x1, y1, z1);
-			break;
-		case CONDITION_ISHOUSE:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			GetObjectCoordinates(Obj, x1, y1, z1);
-			fulfilled = IsHouse(x1, y1, z1);
-			break;
-		case CONDITION_ISHOUSEOWNER:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			GetObjectCoordinates(Obj, x1, y1, z1);
-			Obj = GetEventObject(Condition.Parameters[1], User, Obj1, Obj2, Temp);
-			if (Obj.isCreature()) {
-				cr = GetCreature(Obj);
-				fulfilled = cr != nullptr && cr->Type == PLAYER && IsOwner(GetHouseID(x1, y1, z1), (TPlayer *)cr);
-			}
-			break;
-		case CONDITION_ISDRESSED:
-			Obj = GetEventObject(Condition.Parameters[0], User, Obj1, Obj2, Temp);
-			if (Obj.getFlag(CLOTHES)) {
-				fulfilled = (uint32_t)GetObjectBodyPosition(Obj) == Obj.getAttribute(BODYPOSITION);
-			} else {
-				error("CheckCondition (IsDressed): Object is not a piece of clothing.\n");
-			}
-			break;
-		case CONDITION_RANDOM:
-			fulfilled = random(1, 100) <= Condition.Parameters[0];
-			break;
-		default:
-			error("CheckCondition: Unknown condition %d.\n", Condition.Condition);
-			return false;
-	}
-
-	if (Condition.Modifier == MODIFIER_NORMAL) {
-		return fulfilled;
-	} else if (Condition.Modifier == MODIFIER_INVERT) {
-		return !fulfilled;
-	} else if (Condition.Modifier == MODIFIER_TRUE) {
-		return true;
-	} else {
-		return false;
-	}
-}
 
 Object CreateObject(Object Con, ObjectType Type, uint32_t Value) {
 again:
@@ -759,345 +545,24 @@ void TextEffect(char *Text, int x, int y, int z, int Radius) {
 	}
 }
 
-void ExecuteAction(EventType Event, TTriggerAction &Action, Object User, Object Obj1, Object Obj2, Object &Temp) {
-	Object Obj, Con;
-	int x, y, z, dx, dy, dz;
-	TCreature *cr, *cr2;
-	char Text[256], *Text2;
-
-	try {
-		switch (Action.Action) {
-			case ACTION_CREATEONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Temp = CreateObject(GetMapContainer(x, y, z), ObjectType(Action.Parameters[1]), Action.Parameters[2]);
-				break;
-			case ACTION_CREATE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				Temp = CreateObject(Obj.getContainer(), ObjectType(Action.Parameters[1]), Action.Parameters[2]);
-				break;
-			case ACTION_MONSTERONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				CreateMonster(Action.Parameters[1], x, y, z, 0, 0, true);
-				break;
-			case ACTION_MONSTER:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				GetObjectCoordinates(Obj, x, y, z);
-				CreateMonster(Action.Parameters[1], x, y, z, 0, 0, true);
-				break;
-			case ACTION_EFFECTONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				GraphicalEffect(GetMapContainer(x, y, z), Action.Parameters[1]);
-				break;
-			case ACTION_EFFECT:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				GraphicalEffect(GetMapContainer(Obj), Action.Parameters[1]);
-				break;
-			case ACTION_TEXTONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				TextEffect(GetDynamicString(Action.Parameters[1]), x, y, z, Action.Parameters[2]);
-				break;
-			case ACTION_TEXT:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				GetObjectCoordinates(Obj, x, y, z);
-				TextEffect(GetDynamicString(Action.Parameters[1]), x, y, z, Action.Parameters[2]);
-				break;
-			case ACTION_CHANGEONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Temp = GetFirstSpecObject(x, y, z, ObjectType(Action.Parameters[1]));
-				if (Temp == NONE) {
-					error("ExecuteAction (CHANGEONMAP): No object %d at [%d,%d,%d].\n", Action.Parameters[1], x, y, z);
-					return;
-				}
-				ChangeObject(Temp, ObjectType(Action.Parameters[2]), Action.Parameters[3]);
-				break;
-			case ACTION_CHANGE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				ChangeObject(Obj, ObjectType(Action.Parameters[1]), Action.Parameters[2]);
-				break;
-			case ACTION_CHANGEREL:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				GetObjectCoordinates(Obj, x, y, z);
-				UnpackRelativeCoordinate(Action.Parameters[1], dx, dy, dz);
-				x += dx;
-				y += dy;
-				z += dz;
-				Temp = GetFirstSpecObject(x, y, z, ObjectType(Action.Parameters[2]));
-				if (Temp == NONE) {
-					error("ExecuteAction (CHANGEREL): No object %d at [%d,%d,%d].\n", Action.Parameters[2], x, y, z);
-					return;
-				}
-				ChangeObject(Temp, ObjectType(Action.Parameters[3]), Action.Parameters[4]);
-				break;
-			case ACTION_SETATTRIBUTE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				Change(Obj, (INSTANCEATTRIBUTE)Action.Parameters[1], Action.Parameters[2]);
-				break;
-			case ACTION_CHANGEATTRIBUTE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				x = Obj.getAttribute((INSTANCEATTRIBUTE)Action.Parameters[1]) + Action.Parameters[2];
-				if (x <= 0) {
-					x = Obj.getAttribute((INSTANCEATTRIBUTE)Action.Parameters[1]) != 0;
-				}
-				Change(Obj, (INSTANCEATTRIBUTE)Action.Parameters[1], x);
-				break;
-			case ACTION_SETQUESTVALUE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					error("ExecuteAction (SETQUESTVALUE): Object is not a creature but type %ld.\n", (long)Obj.getObjectType().getTypeID());
-					return;
-				}
-				cr = GetCreature(Obj);
-				if (cr == nullptr || cr->Type != PLAYER) {
-					error("ExecuteAction (SETQUESTVALUE): Creature does not exist or is not a player.\n");
-					return;
-				}
-				((TPlayer *)cr)->SetQuestValue(Action.Parameters[1], Action.Parameters[2]);
-				break;
-			case ACTION_DAMAGE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				cr2 = nullptr;
-				if (Obj != NONE) {
-					if (Obj.isCreature()) {
-						cr2 = GetCreature(Obj);
-					}
-					if (Obj.getFlag(MAGICFIELD) && Obj.getAttribute(RESPONSIBLE) != 0) {
-						// CronInfo() runs before the type attribute is read.
-						uint32_t Remaining = CronInfo(Obj, false);
-						if (Remaining + 5 > Obj.getAttribute(TOTALEXPIRETIME)) {
-							cr2 = GetCreature(Obj.getAttribute(RESPONSIBLE));
-						}
-					}
-				}
-				Obj = GetEventObject(Action.Parameters[1], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					error("ExecuteAction (DAMAGE): Object is not a creature but type %d.\n", Obj.getObjectType().getTypeID());
-					return;
-				}
-				cr = GetCreature(Obj);
-				if (cr == nullptr) {
-					error("ExecuteAction (DAMAGE): Creature does not exist.\n");
-					return;
-				}
-				cr->Damage(cr2, Action.Parameters[3], Action.Parameters[2]);
-				break;
-			case ACTION_SETSTART:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					throw ERROR;
-				}
-				cr = GetCreature(Obj);
-				if (cr == nullptr || cr->Type != PLAYER) {
-					throw ERROR;
-				}
-				Log("game", "Setting new start position for %s.\n", cr->Name);
-				UnpackAbsoluteCoordinate(Action.Parameters[1], cr->startx, cr->starty, cr->startz);
-				((TPlayer *)cr)->SaveData();
-				break;
-			case ACTION_WRITENAME:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					throw ERROR;
-				}
-				cr = GetCreature(Obj);
-				if (cr == nullptr) {
-					throw ERROR;
-				}
-				memset(Text, 0, sizeof(Text));
-				Text2 = GetDynamicString(Action.Parameters[1]);
-				for (int pos = 0; pos < (int)strlen(Text2); pos++) {
-					if (Text2[pos] == '%' && Text2[pos + 1] == 'N') {
-						strcat(Text, cr->Name);
-						pos++;
-					} else {
-						Text[strlen(Text)] = Text2[pos];
-					}
-					if (Text[200] != 0) {
-						throw ERROR;
-					}
-				}
-				Obj = GetEventObject(Action.Parameters[2], User, Obj1, Obj2, Temp);
-				if (Obj == NONE || !Obj.getFlag(TEXT)) {
-					throw ERROR;
-				}
-				DeleteDynamicString(Obj.getAttribute(TEXTSTRING));
-				Change(Obj, TEXTSTRING, AddDynamicString(Text));
-				Change(Obj, EDITOR, 0);
-				break;
-			case ACTION_WRITETEXT:
-				Obj = GetEventObject(Action.Parameters[1], User, Obj1, Obj2, Temp);
-				if (Obj == NONE || !Obj.getFlag(TEXT)) {
-					throw ERROR;
-				}
-				DeleteDynamicString(Obj.getAttribute(TEXTSTRING));
-				Change(Obj, TEXTSTRING, AddDynamicString(GetDynamicString(Action.Parameters[0])));
-				Change(Obj, EDITOR, 0);
-				break;
-			case ACTION_LOGOUT:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					throw ERROR;
-				}
-				cr = GetCreature(Obj);
-				if (cr == nullptr) {
-					throw ERROR;
-				}
-				cr->StartLogout(true, true);
-				break;
-			case ACTION_MOVEALLONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Obj = GetFirstObject(x, y, z);
-				UnpackAbsoluteCoordinate(Action.Parameters[1], x, y, z);
-				Con = GetMapContainer(x, y, z);
-				MoveAllObjects(Obj, Con, NONE, false);
-				break;
-			case ACTION_MOVEALL:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				Obj = GetFirstContainerObject(Obj.getContainer());
-				UnpackAbsoluteCoordinate(Action.Parameters[1], x, y, z);
-				Con = GetMapContainer(x, y, z);
-				MoveAllObjects(Obj, Con, Obj, false);
-				break;
-			case ACTION_MOVEALLREL:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				Obj = GetFirstContainerObject(Obj.getContainer());
-				GetObjectCoordinates(Obj, x, y, z);
-				UnpackRelativeCoordinate(Action.Parameters[1], dx, dy, dz);
-				Con = GetMapContainer(x + dx, y + dy, z + dz);
-				MoveAllObjects(Obj, Con, Obj, false);
-				break;
-			case ACTION_MOVETOPONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Obj = GetFirstSpecObject(x, y, z, ObjectType(Action.Parameters[1]));
-				if (Obj == NONE) {
-					error("ExecuteAction (MOVETOPONMAP): No object %d at [%d,%d,%d].\n", Action.Parameters[1], x, y, z);
-					return;
-				}
-				UnpackAbsoluteCoordinate(Action.Parameters[2], x, y, z);
-				Con = GetMapContainer(x, y, z);
-				MoveAllObjects(Obj.getNextObject(), Con, NONE, true);
-				break;
-			case ACTION_MOVETOP:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				UnpackAbsoluteCoordinate(Action.Parameters[1], x, y, z);
-				Con = GetMapContainer(x, y, z);
-				MoveAllObjects(Obj.getNextObject(), Con, NONE, true);
-				break;
-			case ACTION_MOVETOPREL:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				GetObjectCoordinates(Obj, x, y, z);
-				UnpackRelativeCoordinate(Action.Parameters[1], dx, dy, dz);
-				Con = GetMapContainer(x + dx, y + dy, z + dz);
-				MoveAllObjects(Obj.getNextObject(), Con, NONE, true);
-				break;
-			case ACTION_MOVE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				UnpackAbsoluteCoordinate(Action.Parameters[1], x, y, z);
-				Con = GetMapContainer(x, y, z);
-				MoveOneObject(Obj, Con);
-				break;
-			case ACTION_MOVEREL:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				GetObjectCoordinates(GetEventObject(Action.Parameters[1], User, Obj1, Obj2, Temp), x, y, z);
-				UnpackRelativeCoordinate(Action.Parameters[2], dx, dy, dz);
-				Con = GetMapContainer(x + dx, y + dy, z + dz);
-				MoveOneObject(Obj, Con);
-				break;
-			case ACTION_RETRIEVE:
-				GetObjectCoordinates(GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp), x, y, z);
-				UnpackRelativeCoordinate(Action.Parameters[1], dx, dy, dz);
-				Obj = GetTopObject(x + dx, y + dy, z + dz, false);
-				if (Obj == NONE || Obj.getFlag(UNMOVE)) {
-					return;
-				}
-				UnpackRelativeCoordinate(Action.Parameters[2], dx, dy, dz);
-				Con = GetMapContainer(x + dx, y + dy, z + dz);
-				MoveOneObject(Obj, Con);
-				break;
-			case ACTION_DELETEALLONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Obj = GetFirstObject(x, y, z);
-				DeleteAllObjects(Obj, Obj, false);
-				break;
-			case ACTION_DELETETOPONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Obj = GetFirstSpecObject(x, y, z, ObjectType(Action.Parameters[1]));
-				if (Obj == NONE) {
-					throw ERROR;
-				}
-				DeleteAllObjects(Obj.getNextObject(), Obj, true);
-				break;
-			case ACTION_DELETEONMAP:
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Obj = GetFirstSpecObject(x, y, z, ObjectType(Action.Parameters[1]));
-				if (Obj == NONE) {
-					error("ExecuteAction (DELETEONMAP): No object %d at [%d,%d,%d].\n", Action.Parameters[1], x, y, z);
-					return;
-				}
-				Delete(Obj, (Event == EVENT_USE || Event == EVENT_MULTIUSE) ? 1 : -1);
-				break;
-			case ACTION_DELETE:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				if (Obj == NONE) {
-					throw ERROR;
-				}
-				Delete(Obj, (Event == EVENT_USE || Event == EVENT_MULTIUSE) ? 1 : -1);
-				break;
-			case ACTION_DELETEININVENTORY:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					throw ERROR;
-				}
-				DeleteAtCreature(Obj.getCreatureID(), ObjectType(Action.Parameters[1]), 1, Action.Parameters[2]);
-				break;
-			case ACTION_DESCRIPTION:
-				Obj = GetEventObject(Action.Parameters[1], User, Obj1, Obj2, Temp);
-				if (Obj.isCreature()) {
-					cr = GetCreature(Obj);
-					if (cr != nullptr && cr->Type == PLAYER) {
-						Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-						SendMessage(cr->GetConnection(), TALK_INFO_MESSAGE, "%s.", GetInfo(Obj));
-					}
-				}
-				break;
-			case ACTION_LOADDEPOT:
-				Obj = GetEventObject(Action.Parameters[2], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					throw ERROR;
-				}
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Con = GetFirstSpecObject(x, y, z, ObjectType(Action.Parameters[1]));
-				if (Con == NONE) {
-					throw ERROR;
-				}
-				LoadDepotBox(Obj.getCreatureID(), Action.Parameters[3], Con);
-				break;
-			case ACTION_SAVEDEPOT:
-				Obj = GetEventObject(Action.Parameters[2], User, Obj1, Obj2, Temp);
-				if (!Obj.isCreature()) {
-					throw ERROR;
-				}
-				UnpackAbsoluteCoordinate(Action.Parameters[0], x, y, z);
-				Con = GetFirstSpecObject(x, y, z, ObjectType(Action.Parameters[1]));
-				if (Con == NONE) {
-					throw ERROR;
-				}
-				SaveDepotBox(Obj.getCreatureID(), Action.Parameters[3], Con);
-				break;
-			case ACTION_SENDMAIL:
-				Obj = GetEventObject(Action.Parameters[0], User, Obj1, Obj2, Temp);
-				SendMail(Obj);
-				break;
-			case ACTION_NOP:
-				break;
-			default:
-				error("ExecuteAction: Unknown action %d.\n", Action.Action);
-				break;
-		}
-	} catch (RESULT r) {
-		error("ExecuteAction: Exception %d (action %d).\n", r, Action.Action);
-	}
-}
-
+// HandleEvent: the rules of the event in the order of triggers.toml; the
+// first that holds ends the search and gives true. A rule of conditions and
+// actions is checked by the library's evaluateRule(rule, event, user, obj1,
+// obj2), which also runs the actions when the conditions hold (as the loops
+// over CheckCondition and ExecuteAction did); a rule with a script by its
+// onCheck(event, user, obj1, obj2), and onRun with the same arguments when
+// that gives true. The objects are Items, nil for NONE, made once per event
+// (TScriptEvent).
+//
+// Exceptions: CheckCondition caught nothing, so an exception of a condition
+// left HandleEvent at once, without RecursionDepth--; ExecuteAction caught
+// RESULT (logged "ExecuteAction: Exception <code> (action ...)" and went on
+// with the next action) and nothing else, so any other exception left
+// HandleEvent the same way. The library catches an action's result code as
+// ExecuteAction did; whatever escapes evaluateRule, onCheck or onRun (a
+// condition's result code, or ERROR for any other Lua error, logged by
+// TScriptEvent) leaves HandleEvent in the same way as before, also without
+// RecursionDepth--.
 bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 	static int RecursionDepth = 0;
 	if (RecursionDepth > 10) {
@@ -1107,23 +572,21 @@ bool HandleEvent(EventType Event, Object User, Object Obj1, Object Obj2) {
 
 	RecursionDepth++;
 	TTriggerDatabase &DB = TriggerDatabases[Event];
+	TScriptEvent Call(EventKeys[Event], User.getObjectID(), Obj1.getObjectID(), Obj2.getObjectID());
 	for (int rule = 1; rule <= DB.NumberOfRules; rule++) {
 		TTriggerRule &Rule = DB.Rules(rule);
-		bool fulfilled = true;
-		Object Temp = NONE;
-		for (int condition = Rule.FirstCondition; condition <= Rule.LastCondition; condition++) {
-			TTriggerCondition &Condition = TriggerConditions(condition);
-			if (!CheckCondition(Event, Condition, User, Obj1, Obj2, Temp)) {
-				fulfilled = false;
-				break;
+		bool fulfilled;
+		if (Rule.Script >= 0) {
+			int Script = TriggerScripts[static_cast<size_t>(Rule.Script)].Number;
+			fulfilled = Call.check(Script, "onCheck", 0);
+			if (fulfilled) {
+				Call.run(Script, "onRun");
 			}
+		} else {
+			fulfilled = Call.check(TriggerLibrary, "evaluateRule", Rule.Number);
 		}
 
 		if (fulfilled) {
-			for (int action = Rule.FirstAction; action <= Rule.LastAction; action++) {
-				TTriggerAction &Action = TriggerActions(action);
-				ExecuteAction(Event, Action, User, Obj1, Obj2, Temp);
-			}
 			RecursionDepth--;
 			return true;
 		}
@@ -1934,10 +1397,134 @@ void CollisionEvent(Object Obj, Object Dest) {
 	}
 }
 
+// The text of the start errors PrepareTriggerRules throws, which lives on
+// after the throw.
+static std::string TriggerError;
+
+// Throws "<Where>: <What>" as a const char * (a start error, as the TOML
+// loaders' errors).
+[[noreturn]] static void ThrowTriggerError(const std::string &Where, const std::string &What) {
+	TriggerError = Where + ": " + What;
+	throw TriggerError.c_str();
+}
+
+// Adds the parameters of a condition or action of Signature to Call,
+// converted by their kind (scripting.hh, "Trigger rules"): an object as its
+// name, a coordinate or vector as a Position, a text as its dynamic string's
+// number, a comparison as its text, anything else as its number.
+static void AddTriggerParameters(TScriptCall &Call, const TTriggerSignature &Signature, const int *Parameters) {
+	for (int i = 0; i < Signature.NumberOfParameters; i++) {
+		int Value = Parameters[i];
+		int x, y, z;
+		switch (Signature.Parameters[i]) {
+			case PARAMETER_OBJECT:
+				if (Value < 0 || Value >= NUMBER_OF_EVENTOBJECTS) {
+					throw "an object the trigger rules do not know";
+				}
+				Call.addString(EventObjectKeys[Value]);
+				break;
+			case PARAMETER_COORDINATE:
+				UnpackAbsoluteCoordinate(static_cast<uint32_t>(Value), x, y, z);
+				Call.addPosition(x, y, z);
+				break;
+			case PARAMETER_VECTOR:
+				UnpackRelativeCoordinate(static_cast<uint32_t>(Value), x, y, z);
+				Call.addPosition(x, y, z);
+				break;
+			case PARAMETER_TEXT:
+				Call.addNumber(static_cast<uint32_t>(Value));
+				break;
+			case PARAMETER_COMPARISON: {
+				const char *Name = nullptr;
+				for (const TTriggerKey &Key : ComparisonKeys) {
+					if (Key.Value == Value) {
+						Name = Key.Key;
+					}
+				}
+				if (Name == nullptr) {
+					throw "a comparison the trigger rules do not know";
+				}
+				Call.addString(Name);
+				break;
+			}
+			case PARAMETER_TYPE:
+			case PARAMETER_FLAG:
+			case PARAMETER_TYPEATTRIBUTE:
+			case PARAMETER_INSTANCEATTRIBUTE:
+			case PARAMETER_RIGHT:
+			case PARAMETER_SKILL:
+			case PARAMETER_NUMBER:
+				Call.addNumber(Value);
+				break;
+		}
+	}
+}
+
+// Runs a prepareCondition or prepareAction call; a failure is the start error
+// "<Where>: <what>": Lua's message for a Lua error (logged by TScriptCall
+// before, with the traceback), the result code for one the library raised.
+static void RunPreparation(TScriptCall &Call, const std::string &Where) {
+	try {
+		Call.run();
+	} catch (RESULT r) {
+		const char *Message = Call.failure();
+		if (Message != nullptr) {
+			ThrowTriggerError(Where, Message);
+		}
+		ThrowTriggerError(Where, "the trigger library raised result " + std::to_string(static_cast<int>(r)));
+	}
+}
+
+// Loads the trigger library and hands it every rule's conditions and actions
+// in the order of triggers.toml (prepareCondition, prepareAction); loads the
+// scripts the rules name and checks their handlers. Throws a const char * for
+// what fails, with the place of the entry in triggers.toml where there is
+// one.
+static void PrepareTriggerRules() {
+	TriggerLibrary = LoadScript("lib/triggers.lua", nullptr);
+	RequireHandler(TriggerLibrary, "prepareCondition", nullptr);
+	RequireHandler(TriggerLibrary, "prepareAction", nullptr);
+	RequireHandler(TriggerLibrary, "evaluateRule", nullptr);
+
+	for (size_t k = 0; k < TriggerRules.size(); k++) {
+		const TTriggerRuleEntry &Entry = TriggerRules[k];
+		TTriggerRule &Rule = TriggerDatabases[Entry.Event].Rules(Entry.Rule);
+		if (Rule.Script >= 0) {
+			TTriggerScript &Script = TriggerScripts[static_cast<size_t>(Rule.Script)];
+			Script.Number = LoadScript(Script.Name.c_str(), Script.Where.c_str());
+			RequireHandler(Script.Number, "onCheck", Script.Where.c_str());
+			RequireHandler(Script.Number, "onRun", Script.Where.c_str());
+			continue;
+		}
+
+		for (int i = Rule.FirstCondition; i <= Rule.LastCondition; i++) {
+			TTriggerCondition &Condition = TriggerConditions(i);
+			const TTriggerSignature &Signature = ConditionSignatures[Condition.Condition];
+			TScriptCall Call(TriggerLibrary, "prepareCondition");
+			Call.addNumber(Rule.Number);
+			Call.addString(Signature.Key);
+			Call.addBoolean(Condition.Modifier == MODIFIER_INVERT);
+			Call.addBoolean(Condition.Modifier == MODIFIER_TRUE);
+			AddTriggerParameters(Call, Signature, Condition.Parameters);
+			RunPreparation(Call, TriggerConditionPlaces[static_cast<size_t>(i)]);
+		}
+		for (int i = Rule.FirstAction; i <= Rule.LastAction; i++) {
+			TTriggerAction &Action = TriggerActions(i);
+			const TTriggerSignature &Signature = ActionSignatures[Action.Action];
+			TScriptCall Call(TriggerLibrary, "prepareAction");
+			Call.addNumber(Rule.Number);
+			Call.addString(Signature.Key);
+			AddTriggerParameters(Call, Signature, Action.Parameters);
+			RunPreparation(Call, TriggerActionPlaces[static_cast<size_t>(i)]);
+		}
+	}
+}
+
 void InitTriggers() {
 	NumberOfTriggerConditions = 0;
 	NumberOfTriggerActions = 0;
 	LoadTriggers();
+	PrepareTriggerRules();
 	DelayedMails = 0;
 }
 

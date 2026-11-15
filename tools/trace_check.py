@@ -45,6 +45,13 @@ What it does, in WSL Ubuntu-24.04:
      in any other thread. A connection thread calls rand() when a client connects (the seed of the connection's
      packet padding), at a moment that depends on the threads' timing; with the one sequence of the C library, a
      login during a creature's move gives the creatures other numbers in one run than in the other.
+     The game's CPU time over the scenario is measured on the way, for information (a change that should cost less
+     or no more CPU, e.g. a rule engine moved elsewhere): utime + stime of the game process (all its threads), read
+     from /proc/<pid>/stat as soon as the console shows the scenario's base round (the first line of
+     run_scenario.py's output names it), and printed by gdb (info proc stat, after the line @@CPU AT STOP@@) while
+     the game stands at the breakpoint of the stop round, before SIGQUIT; the shutdown is not counted. The two runs
+     go one after the other on the same machine, so the numbers show noise of a few per cent; it is reported per
+     run and at the end, and does not decide the exit code.
   4. Compares the two traces with tools/trace/compare_traces.py. What follows the wall clock and not the rounds may
      differ and is reported apart: the world light (message 0x82), the "New record: N players are logged in."
      broadcast (it follows the player list, made when the real minute is a multiple of 5) and dates in texts. The
@@ -496,6 +503,39 @@ def build_rand_shim(folder):
 	return library
 
 
+# What the gdb script prints before the game's /proc stat (gdb's info proc stat) at the stop round.
+CPU_STOP_MARK = "@@CPU AT STOP@@"
+
+
+def game_cpu(pid):
+	"""The CPU time the game process has used so far, utime + stime of /proc/<pid>/stat (all its threads), in
+	seconds; None if it cannot be read."""
+	try:
+		with open("/proc/%d/stat" % pid) as f:
+			fields = f.read().rsplit(")", 1)[1].split()
+	except (OSError, IndexError):
+		return None
+	# After the name: state is field 3, utime field 14 and stime field 15.
+	return (int(fields[11]) + int(fields[12])) / os.sysconf("SC_CLK_TCK")
+
+
+def game_cpu_at_stop(console):
+	"""utime + stime of the game in seconds as gdb printed them (info proc stat) when the game stood at the stop
+	round, before SIGQUIT; None if the console has no such lines."""
+	with open(console, "rb") as f:
+		f.seek(max(0, os.path.getsize(console) - 4 * 1048576))
+		tail = f.read().decode("utf-8", "replace")
+	at = tail.rfind(CPU_STOP_MARK)
+	if at < 0:
+		return None
+	times = {}
+	for name, value in re.findall(r"(?m)^(utime|stime): (\d+)$", tail[at:]):
+		times.setdefault(name, int(value))
+	if len(times) != 2:
+		return None
+	return (times["utime"] + times["stime"]) / os.sysconf("SC_CLK_TCK")
+
+
 def gdb_script(seed_value, stop_round, rand_shim):
 	"""The gdb commands of compare.sh's SCENARIO and STOPROUND mode (breakpoint 2 is the one of the stop round), the
 	game run with rand_shim (build_rand_shim) preloaded."""
@@ -514,6 +554,9 @@ def gdb_script(seed_value, stop_round, rand_shim):
 		"commands",
 		"silent",
 		"delete 2",
+		# The game's CPU time at the stop round, while it is stopped here (game_cpu_at_stop).
+		'printf "%s\\n"' % CPU_STOP_MARK,
+		"info proc stat",
 		"signal SIGQUIT",
 		"end",
 		"break SetRoundNr",
@@ -596,7 +639,7 @@ def run(side, build, data, options, key, root):
 	shutil.rmtree(out, ignore_errors=True)
 	os.makedirs(out)
 	binaries = os.path.join(build, "bin")
-	result = {"ok": False, "boot": None, "scenario": None, "exit": None, "saved": None}
+	result = {"ok": False, "boot": None, "scenario": None, "exit": None, "saved": None, "cpu": None}
 	qm = gdb = client = None
 	game_pid = None
 	try:
@@ -662,6 +705,18 @@ def run(side, build, data, options, key, root):
 				options["scenario"], "--out", os.path.join(out, "client"), "--objects", objects, "--console", console,
 				"--port", str(options["port"]), "--rsa-key", key_file],
 				stdin=subprocess.DEVNULL, stdout=f, stderr=subprocess.STDOUT, start_new_session=True)
+		# The game's CPU time when the scenario starts: at the first look after the console shows the scenario's
+		# base round (run_scenario.py prints it first).
+		clock = tclient.RoundClock(console)
+		base = cpu_start = None
+		while client.poll() is None:
+			if base is None:
+				with open(os.path.join(out, "client.log"), encoding="utf-8", errors="replace") as f:
+					found = re.search(r"base round (\d+)", f.read())
+				base = int(found.group(1)) if found else None
+			if base is not None and cpu_start is None and clock.now() >= base:
+				cpu_start = game_cpu(game_pid)
+			time.sleep(0.02)
 		status = client.wait()
 		with open(os.path.join(out, "client.log"), encoding="utf-8", errors="replace") as f:
 			lines = f.read().splitlines()
@@ -675,6 +730,14 @@ def run(side, build, data, options, key, root):
 			return result
 		result["exit"] = game_exit(console)
 		log("  %s: the game %s" % (side, result["exit"]))
+		cpu_stop = game_cpu_at_stop(console)
+		if cpu_start is not None and cpu_stop is not None:
+			result["cpu"] = cpu_stop - cpu_start
+			log("  %s: game CPU over the scenario (round %d to the stop round %d): %.2f s" % (side, base,
+				options["stop_round"], result["cpu"]))
+		else:
+			log("  %s: game CPU over the scenario: not measured (%s)" % (side, "no reading at the start round"
+				if cpu_start is None else "gdb printed no CPU time at the stop round"))
 		result["ok"] = status in (0, 3) and result["exit"] == "exited normally"
 		if result["exit"] == "exited normally":
 			result["saved"] = saved_characters(binaries, game, db, characters, out)
@@ -784,6 +847,9 @@ def trace(arguments, data):
 		log("trace_check: allowed differences (they follow the wall clock, not the rounds):")
 		for line in allowed:
 			log("  " + line)
+		log("trace_check: game CPU over the scenario (for information): %s" % ", ".join("%s %s" % (side,
+			"%.2f s" % results[side]["cpu"] if results[side]["cpu"] is not None else "not measured")
+			for side in ("old", "new")))
 		log("trace_check: query manager requests (for information): %s" % ("identical" if not qm_diff else
 			"%d lines differ, see %s" % (len(qm_diff), os.path.join(root, "diff-qm.txt"))))
 		saved = [results[side]["saved"] for side in ("old", "new")]

@@ -122,7 +122,12 @@ doors, fishing, teleporters, ...), from `triggers.toml` in its data folder.
 with `patella-convert triggers items.toml moveuse.dat triggers.toml` (the object
 types come from `items.toml`); copy it into the installation's data folder. The
 comments at its top explain the fields. The order of the rules matters: for each
-event the game runs the first rule whose conditions hold.
+event the game runs the first rule whose conditions hold. The names in the
+conditions and actions are the functions of the trigger library,
+`data/scripts/lib/triggers.lua` and `lib/triggers_actions.lua`, which the game
+hands each rule at start; a rule may instead name a script of its own,
+`script = "triggers/<name>.lua"`, whose `onCheck` and `onRun` take the place of
+its conditions and actions.
 
 ## Houses
 

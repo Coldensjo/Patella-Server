@@ -449,6 +449,7 @@ void InitAll(const char *ConfigFile) {
 		snprintf(ScriptFolder, sizeof(ScriptFolder), "%s/scripts", DATAPATH);
 		InitScripting(ScriptFolder);
 		RegisterMagicAPI();
+		RegisterTriggerAPI();
 		InitObjects();
 		InitMap();
 		InitTriggers();

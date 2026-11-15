@@ -741,3 +741,306 @@ def runes(ctx):
 	s(2)
 	b.logout()
 	s(3)
+
+
+# The scenarios triggers and triggers_busy: the trigger rules of triggers.toml
+# (src/triggers.cc HandleEvent). The game tries the rules of an event in their
+# order and runs the actions of the first one whose conditions all hold; an
+# event where none holds makes a use NOTUSABLE ("You cannot use this object.")
+# and changes nothing otherwise. The caster h (Get Item by type number, Move
+# to coordinates, no damage taken) sets them off; the gamemasters c, d and e
+# (Teleport to Friend, e also Move to coordinates) join in where a second
+# character is needed. Get Item puts an object into the first free hand (the
+# right one, HAND, then the left one, LEFT), one with the movement_event flag
+# into the bag (CreateAtCreature). Positions are of the original map: the
+# temple of Rookgaard and the cave under it, the stairs of a house north of
+# it, the rope spot of the scenario spells, the bridge to the west of the
+# town, and the depot of Thais.
+LEFT = (INV, SLOT_LEFT, 0)
+SLOT_RING = 9
+RING = (INV, SLOT_RING, 0)
+BAG_FIRST = (INV, 64, 0)            # the first object in the bag (window 0)
+TEMPLE = (32097, 32219, 7)
+PANDA_TEDDY = 5080                  # use: says "Hug me ^^"
+CLOSED_TRAP = 3481                  # use: becomes a trap (outside a protection zone)
+TRAP = 3482                         # moved or stepped on: closes again
+STEALTH_RING = 3049                 # put on: becomes 3086, taken off: 3049 again
+STEALTH_RING_WORN = 3086
+KNIFE = 3469                        # on a pumpkin: a pumpkinhead
+PUMPKIN = 3594
+PUMPKINHEAD = 2977                  # on a candlestick: a lit pumpkinhead
+LIT_PUMPKINHEAD = 2978
+CANDLESTICK = 2917
+FISHING_ROD = 3483                  # on water: a splash
+ROPE = 3003                         # on a rope spot: up; on a sewer grate: pulls up what lies below
+BLUEBERRY_BUSH = 3699
+DRAW_WELL = 1930
+SEWER_GRATE = 435
+LADDER = 1948
+LEVER = 2772
+LEVER_PULLED = 2773
+WATER = 622
+ROPE_SPOT_GROUND = 386
+# The bush north of the temple and where h stands to use it.
+BUSH = (32100, 32210, 7)
+BUSH_STAND = (32100, 32211, 7)
+# A draw well that no rule names (the rules of draw wells name their places).
+WELL = (32093, 32202, 7)
+WELL_STAND = (32093, 32203, 7)
+# The sewer grate north of the temple; the cave below it has a ladder (on the
+# field under the grate), a lever pair that lays a drawbridge over the water
+# (Use/Levers/Rookgaard) and water fields.
+GRATE = (32097, 32205, 7)
+GRATE_STAND = (32097, 32206, 7)
+CAVE_LADDER = (32097, 32205, 8)
+CAVE_LEVER = (32098, 32204, 8)
+CAVE_WATER = (32098, 32207, 8)      # water with a dirt floor border on it
+CAVE_POOL = (32098, 32208, 8)       # water and nothing else
+CAVE_WATER_EDGE = (32099, 32206, 8)  # water with a dirt floor border: three objects with a thrown one
+# The rope spot (Use/Special Rights, MultiUse/Roping) and the hole above it
+# (Collision/Teleporters Relative).
+ROPE_SPOT_FIELD = (32104, 32170, 9)
+ROPE_SPOT_STAND = (32104, 32171, 9)
+# Stairs down (437) and up (1947) of a house north of the temple.
+STAIRS_BELOW = (32096, 32191, 8)    # south of the stairs up at 32096,32190,8
+# The bridge west of the town (Collision/Rookgaard Bridge): the wooden floor at
+# x 32057 sends a player without a premium account back east to x 32060.
+BRIDGE_NORTH = (32058, 32192, 7)
+BRIDGE_SOUTH = (32058, 32193, 7)
+# The depot of Thais, ground floor (Collision and Separation/Depots/Depot
+# Thais): a player on a depot tile (431, 430 while stepped on) gets the locker
+# north or south of it filled with the depot; leaving it saves it. Dustbins
+# delete what is thrown into them (Collision/Dustbins).
+DEPOT_STAND = (32352, 32227, 7)     # south of the depot tile 32352,32226
+DEPOT_TILE = (32352, 32226, 7)
+DEPOT_DUSTBIN = (32350, 32229, 7)
+
+
+@scenario()
+def triggers(ctx):
+	"""The trigger rules of triggers.toml, each event type with its actions
+	run and some where no rule holds. use: a panda teddy, a closed trap in
+	the hand and on the floor, a blueberry bush, a draw well (no rule), a
+	sewer grate, a lever pair and a ladder in the cave under the temple, a
+	rope spot (no rule: the right special_moveuse is missing); multi_use: a
+	knife on a pumpkin and on the pumpkinhead (no rule), the pumpkinhead on
+	a candlestick, a fishing rod on water, a rope on a sewer grate and on a
+	rope spot; movement: a trap thrown, a stealth ring put on, taken off and
+	put into a hand (no rule); collision: a trap and a hole stepped on,
+	stairs down and up, a fishing rod thrown into water (and an object onto
+	water with a border, no rule), the bridge west of the town by e (no
+	premium account) and h, a depot tile, a dustbin, an object thrown onto a
+	depot tile (no rule); separation: leaving the depot tile, the object
+	taken off it (no rule)."""
+	s = Steps(ctx)
+	ctx.at(0)
+	h = ctx.login("h")
+	s(2)
+	free_hands(s, h)
+	s(1)
+	junk = offset(TEMPLE, -1, 0)
+	trap_field = offset(TEMPLE, 0, 1)
+
+	def get(tid, what):
+		h.note("=== Get Item: %s" % what)
+		h.say("alevo %d" % tid)
+		s(1)
+
+	def use(p, tid, what, k=2):
+		h.note("=== use: " + what)
+		h.use(p, tid, 0)
+		s(k)
+
+	def use_with(p, tid, p2, tid2, what, k=2):
+		h.note("=== multi_use: " + what)
+		h.use_with(p, tid, 0, p2, tid2, 0)
+		s(k)
+
+	def move(p, tid, dest, what, k=2):
+		h.note("=== " + what)
+		h.move(p, tid, 0, dest, 1)
+		s(k)
+
+	def walk(c, d, what, k=3):
+		c.note("=== " + what)
+		c.walk(d)
+		s(k)
+
+	# In the temple of Rookgaard (no protection zone).
+	get(PANDA_TEDDY, "a panda teddy")
+	use(HAND, PANDA_TEDDY, "the panda teddy says Hug me (Use/Fun)")
+	move(HAND, PANDA_TEDDY, junk, "the panda teddy onto the field west of h", 1)
+	get(CLOSED_TRAP, "a closed trap")
+	use(HAND, CLOSED_TRAP, "the closed trap in the hand: not in a protection zone, it becomes a trap (Use/Fun)")
+	move(HAND, TRAP, trap_field, "movement: the trap thrown south of h closes with an effect (Movement)")
+	use(trap_field, CLOSED_TRAP, "the closed trap on the floor becomes a trap again (Use/Fun)")
+	walk(h, "s", "collision: h steps onto the trap, which closes (Collision/Trap Damage)")
+	walk(h, "n", "back to the temple's middle")
+
+	get(STEALTH_RING, "a stealth ring (movement_event: into the bag)")
+	move(BAG_FIRST, STEALTH_RING, RING, "movement: the stealth ring put on becomes the worn one (Movement/Magic Rings)")
+	move(RING, STEALTH_RING_WORN, BAG_FIRST, "movement: the worn stealth ring into the bag becomes the plain one again "
+		"(Movement/Magic Rings)")
+	move(BAG_FIRST, STEALTH_RING, HAND, "movement: the stealth ring into the hand, not worn: no rule holds")
+	move(HAND, STEALTH_RING, junk, "the stealth ring onto the field west of h", 1)
+
+	get(KNIFE, "a knife")
+	get(PUMPKIN, "a pumpkin, into the left hand")
+	use_with(HAND, KNIFE, LEFT, PUMPKIN, "the knife on the pumpkin carves a pumpkinhead (MultiUse/Fun)")
+	use_with(HAND, KNIFE, LEFT, PUMPKINHEAD, "the knife on the pumpkinhead: no rule holds, NOTUSABLE")
+	move(HAND, KNIFE, junk, "the knife onto the field west of h", 1)
+	get(CANDLESTICK, "a candlestick")
+	use_with(LEFT, PUMPKINHEAD, HAND, CANDLESTICK, "the pumpkinhead on the candlestick: a lit pumpkinhead, the "
+		"candlestick gone (MultiUse/Fun)")
+	move(LEFT, LIT_PUMPKINHEAD, junk, "the lit pumpkinhead onto the field west of h", 1)
+
+	# North of the temple.
+	teleport(s, h, BUSH_STAND, "south of a blueberry bush")
+	use(BUSH, BLUEBERRY_BUSH, "the blueberry bush: picked, three blueberries (Use/Fun)")
+	teleport(s, h, WELL_STAND, "south of a draw well")
+	use(WELL, DRAW_WELL, "the draw well: the rules of draw wells name other places, no rule holds, NOTUSABLE")
+	teleport(s, h, GRATE_STAND, "south of the sewer grate")
+	use(GRATE, SEWER_GRATE, "the sewer grate: h climbs down into the cave (Use/Teleporters)")
+
+	# In the cave under the temple, h on the ladder's field.
+	use(CAVE_LEVER, LEVER, "the lever: both levers pulled, a drawbridge over the water (Use/Levers/Rookgaard)")
+	use(CAVE_LEVER, LEVER_PULLED, "the lever back: the drawbridge is water again (Use/Levers/Rookgaard)")
+	get(FISHING_ROD, "a fishing rod")
+	use_with(HAND, FISHING_ROD, CAVE_WATER, WATER, "the fishing rod on the water: a splash (MultiUse/Fishing)")
+	move(HAND, FISHING_ROD, CAVE_POOL, "collision: the fishing rod thrown into the water is gone with a splash "
+		"(Collision/Liquid Deletions)")
+	get(PUMPKIN, "a pumpkin")
+	move(HAND, PUMPKIN, CAVE_WATER_EDGE, "collision: the pumpkin thrown onto water with a border on it (three "
+		"objects): no rule holds, it stays")
+	get(KNIFE, "a knife")
+	move(HAND, KNIFE, CAVE_LADDER, "the knife onto h's own field, for the rope later", 1)
+	use(CAVE_LADDER, LADDER, "the ladder: h climbs up next to the sewer grate (Use/Teleporters)")
+	get(ROPE, "a rope")
+	use_with(HAND, ROPE, GRATE, SEWER_GRATE, "the rope on the sewer grate pulls up the knife from below "
+		"(MultiUse/Roping)")
+
+	# The rope spot of the scenario spells.
+	teleport(s, h, ROPE_SPOT_STAND, "south of a rope spot")
+	use(ROPE_SPOT_FIELD, ROPE_SPOT_GROUND, "the rope spot itself: the rule wants the right special_moveuse, no rule "
+		"holds, NOTUSABLE")
+	use_with(HAND, ROPE, ROPE_SPOT_FIELD, ROPE_SPOT_GROUND, "the rope on the rope spot: h climbs up (MultiUse/Roping)")
+	walk(h, "n", "collision: h steps into the hole and falls onto the rope spot (Collision/Teleporters Relative)")
+
+	# Stairs of a house north of the temple.
+	teleport(s, h, STAIRS_BELOW, "south of stairs up")
+	walk(h, "n", "collision: h steps onto the stairs up (Collision/Teleporters Relative)")
+	walk(h, "s", "collision: h steps onto the stairs down (Collision/Teleporters Relative)")
+
+	# The bridge west of the town; e logs in now that the temple is free.
+	e = ctx.login("e")
+	s(2)
+	teleport(s, e, BRIDGE_NORTH, "e onto the bridge")
+	walk(e, "w", "collision: e, level 1 without a premium account, on the wooden floor at the bridge's end is sent back "
+		"east (Collision/Rookgaard Bridge)")
+	teleport(s, h, BRIDGE_SOUTH, "h onto the bridge")
+	walk(h, "w", "collision: h, with the right premium_account, on the wooden floor at the bridge's end: the rule "
+		"that lets it pass (nop) (Collision/Rookgaard Bridge)")
+
+	# The depot of Thais.
+	teleport(s, h, DEPOT_STAND, "south of a depot tile in Thais")
+	move(HAND, ROPE, DEPOT_DUSTBIN, "collision: the rope thrown into a dustbin is gone (Collision/Dustbins)")
+	walk(h, "n", "collision: h steps onto the depot tile, the locker gets the depot (Collision/Depots/Depot Thais)")
+	walk(h, "s", "separation: h leaves the depot tile, the depot is saved (Separation/Depots/Depot Thais)")
+	get(PANDA_TEDDY, "a panda teddy")
+	move(HAND, PANDA_TEDDY, DEPOT_TILE, "collision: the panda teddy thrown onto the depot tile: no player, no rule "
+		"holds")
+	move(DEPOT_TILE, PANDA_TEDDY, HAND, "separation: the panda teddy taken off the depot tile: no rule holds")
+	move(HAND, PANDA_TEDDY, DEPOT_DUSTBIN, "collision: the panda teddy thrown into the dustbin is gone "
+		"(Collision/Dustbins)")
+
+	e.logout()
+	s(2)
+	h.logout()
+	s(3)
+
+
+# The scenario triggers_busy: four characters step on and off a depot tile
+# each, every one of them a step per round for BUSY_ROUNDS rounds, each step a
+# collision (the locker gets the depot) or a separation (the depot is saved)
+# whose rule the game finds after the rules before it. Each is alone in the
+# depot of another town (out of sight of the others), so that steps in the
+# same round cannot reach a client in another order in the other run. h and e
+# go there by Move to coordinates, c and d by Teleport to Friend to h (who
+# waits in their depot first) and a walk to their field.
+BUSY_ROUNDS = 150
+# Each walker: the field it waits on, the direction of its depot tile from
+# there, and for c and d the field h waits on for them and the free field
+# next to their own that they walk to first (the fields between are free).
+BUSY_WALKERS = [
+	("h", (32352, 32227, 7), "n", None, None),                                   # Thais
+	("e", (32926, 32080, 7), "s", None, None),                                   # Venore
+	("c", (32336, 31783, 8), "s", (32335, 31781, 8), (32336, 31782, 8)),         # Carlin
+	("d", (33215, 32464, 8), "s", (33214, 32462, 8), (33215, 32463, 8)),         # Darashia
+]
+BACK = {"n": "s", "s": "n"}
+STEP = {(0, -1): "n", (1, -1): "ne", (1, 0): "e", (1, 1): "se", (0, 1): "s", (-1, 1): "sw", (-1, 0): "w",
+	(-1, -1): "nw"}
+
+
+def path(src, dst):
+	"""The steps from src to dst, diagonal while both coordinates differ, no
+	obstacles considered."""
+	x, y = src[0], src[1]
+	steps = []
+	while (x, y) != (dst[0], dst[1]):
+		dx = (dst[0] > x) - (dst[0] < x)
+		dy = (dst[1] > y) - (dst[1] < y)
+		steps.append(STEP[(dx, dy)])
+		x += dx
+		y += dy
+	return steps
+
+
+@scenario()
+def triggers_busy(ctx):
+	"""Many collision and separation events in a short time, for the CPU
+	time of HandleEvent: h, e, c and d, each alone in a depot (Thais,
+	Venore, Carlin, Darashia), step on and off a depot tile, every one a
+	step per round for BUSY_ROUNDS rounds; each step runs a rule with
+	actions (the depot loaded into a locker, or saved)."""
+	s = Steps(ctx)
+	ctx.at(0)
+	who = {}
+	for key in ("h", "e", "c", "d"):
+		who[key] = ctx.login(key)
+		s(2)
+	h = who["h"]
+	for key, _, _, meet, _ in BUSY_WALKERS:
+		if meet is None:
+			continue
+		teleport(s, h, meet, "h waits for %s in its depot" % key)
+		who[key].note("=== Teleport to Friend: next to h")
+		who[key].say('alani sio "Testh Theta"')
+		s(2)
+	for key, stand, d, meet, _ in BUSY_WALKERS:
+		if meet is None:
+			teleport(s, who[key], stand, "%s next to a depot tile" % key)
+	for key, stand, d, meet, near in BUSY_WALKERS:
+		if meet is None:
+			continue
+		c = who[key]
+		p = c.pos
+		ctx.check(p is not None and p[2] == meet[2] and max(abs(p[0] - meet[0]), abs(p[1] - meet[1])) == 1,
+			"triggers_busy: %s is not next to where h waited: %s" % (key, p))
+		steps = path(p, near) + path(near, stand) if p else []
+		c.note("=== %s walks to the field next to its depot tile" % key)
+		c.autowalk(steps)
+		s(len(steps) + 3)
+	for key, stand, _, _, _ in BUSY_WALKERS:
+		ctx.check(who[key].pos == stand, "triggers_busy: %s is at %s, not at %s" % (key, who[key].pos, stand))
+		who[key].note("=== %d rounds: a step onto the depot tile (collision) and back (separation), one a round"
+			% BUSY_ROUNDS)
+	for i in range(BUSY_ROUNDS):
+		for key, _, d, _, _ in BUSY_WALKERS:
+			who[key].walk(d if i % 2 == 0 else BACK[d])
+		s(1)
+	s(2)
+	for key in ("h", "e", "c", "d"):
+		who[key].logout()
+		s(1)
+	s(3)
