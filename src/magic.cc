@@ -3134,8 +3134,8 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 	// The command's script does what it does; one without a script does
 	// nothing.
 	if (SayScript[SpellNr] >= 0) {
-		TScriptCall Call(SayScript[SpellNr], "on_say");
-		Call.addNumber(CreatureID);
+		TScriptCall Call(SayScript[SpellNr], "onSay");
+		Call.addPlayer(CreatureID);
 		Call.addNumber(SpellNr);
 		AddWords(Call, SpellStr, LastWord);
 		Call.run();
@@ -3156,8 +3156,8 @@ void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], 
 	// The command's script does what it does; one without a script does
 	// nothing.
 	if (SayScript[SpellNr] >= 0) {
-		TScriptCall Call(SayScript[SpellNr], "on_say");
-		Call.addNumber(CreatureID);
+		TScriptCall Call(SayScript[SpellNr], "onSay");
+		Call.addPlayer(CreatureID);
 		Call.addNumber(SpellNr);
 		AddWords(Call, SpellStr, LastWord);
 		Call.run();
@@ -3189,8 +3189,9 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int Last
 	// The spell's script does what it does; one without a script does
 	// nothing.
 	if (CastScript[SpellNr] >= 0) {
-		TScriptCall Call(CastScript[SpellNr], "on_cast");
-		Call.addNumber(CreatureID);
+		// Only players speak spells (CheckForSpell).
+		TScriptCall Call(CastScript[SpellNr], "onCastSpell");
+		Call.addPlayer(CreatureID);
 		Call.addNumber(SpellNr);
 		Call.addNumber(SpellList[SpellNr].Mana);
 		Call.addNumber(SpellList[SpellNr].SoulPoints);
@@ -3603,13 +3604,13 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 		// The rune's script does what it does; a rune spell without a script
 		// is an error.
 		if (UseScript[SpellNr] >= 0) {
-			TScriptCall Call(UseScript[SpellNr], "on_use");
-			Call.addNumber(pl->ID);
+			TScriptCall Call(UseScript[SpellNr], "onCastSpell");
+			Call.addPlayer(pl->ID);
 			Call.addNumber(SpellNr);
 			Call.addNumber(SpellList[SpellNr].Mana);
 			Call.addNumber(SpellList[SpellNr].SoulPoints);
-			Call.addNumber(Dest.getObjectID());
-			Call.addNumber(dest != nullptr ? dest->ID : 0u);
+			Call.addItem(Dest.getObjectID());
+			Call.addCreature(dest != nullptr ? dest->ID : 0u);
 			Call.run();
 		} else {
 			error("UseMagicItem: Spell %d not implemented yet.\n", SpellNr);
@@ -3668,9 +3669,9 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 }
 
 // Loads the script of every spell and command that has one (magicdata's
-// GetSpellScript) and checks its handler: on_cast for the classes ex and ut,
-// on_use for ad, on_say for al and om. Throws a const char * as LoadScript
-// and RequireHandler do.
+// GetSpellScript) and checks its handler: onCastSpell for the classes ex, ut
+// and ad, onSay for al and om. Throws a const char * as LoadScript and
+// RequireHandler do.
 static void LoadSpellScripts() {
 	for (int i = 0; i < MAX_SPELLS; i++) {
 		CastScript[i] = -1;
@@ -3689,16 +3690,16 @@ static void LoadSpellScripts() {
 		switch (SpellList[i].Syllable[0]) {
 			case SYLLABLE_EX:
 			case SYLLABLE_UT:
-				RequireHandler(Script, "on_cast", Where);
+				RequireHandler(Script, "onCastSpell", Where);
 				CastScript[i] = Script;
 				break;
 			case SYLLABLE_AD:
-				RequireHandler(Script, "on_use", Where);
+				RequireHandler(Script, "onCastSpell", Where);
 				UseScript[i] = Script;
 				break;
 			case SYLLABLE_AL:
 			case SYLLABLE_OM:
-				RequireHandler(Script, "on_say", Where);
+				RequireHandler(Script, "onSay", Where);
 				SayScript[i] = Script;
 				break;
 			default:

@@ -1,21 +1,26 @@
 // scripting_magic.cc: the API of the spells', runes' and commands' scripts
 // (scripting.hh, "Spells, runes and commands"): the spell functions of
-// magic.cc in the table magic, the commands' functions in command, the few
-// reads the cases of the old switches made (game.to_int, creature.object,
-// creature.skill, creature.effective_profession, object.new_type) and the
-// constant tables effect, animation, damage, field, ammo, skill and
-// profession. RegisterMagicAPI binds them; InitAll calls it after
+// magic.cc in the table Magic, the commands' functions in Command, the few
+// reads the cases of the old switches made (Game.toInt, the methods
+// creature:getSkillValue, player:getLevel, player:getVocation with
+// vocation:getId and vocation:getBaseId, ItemType.fromOldNumber) and the
+// constants (CONST_ME_, CONST_ANI_, COMBAT_, FIELD_, CONJURE_, SKILL_,
+// VOCATION_). RegisterMagicAPI binds them; InitAll calls it after
 // InitScripting.
 //
 // What every binding here does alike:
-//  - actor and target are creature IDs, resolved with GetCreature on every
-//    call; 0 or a creature that is gone gives nullptr. Where the C++ function
-//    checks for nullptr itself (it logs and throws ERROR), the binding passes
-//    nullptr on, so the result is the same ("nullptr: passed on" below).
-//    Where it would dereference nullptr, the binding logs "<lua name>:
-//    Creature does not exist." and throws ERROR ("nullptr: checked").
-//  - obj is an object handle (Object::getObjectID); the binding passes
-//    Object(obj) on, and the C++ function checks it with exists() as before.
+//  - actor and target are Creature objects (a Player is one), whose IDs are
+//    resolved with GetCreature on every call; a creature that is gone gives
+//    nullptr, and so does nil for a target that may be nil ("|nil"). Where
+//    the C++ function checks for nullptr itself (it logs and throws ERROR),
+//    the binding passes nullptr on, so the result is the same ("nullptr:
+//    passed on" below). Where it would dereference nullptr, the binding logs
+//    "<Lua name>: Creature does not exist." and throws ERROR ("nullptr:
+//    checked").
+//  - obj is an Item object, whose handle the binding passes on as Object(obj)
+//    (the C++ function checks it with exists() as before), or a Creature
+//    object, whose object the binding passes on (GetCreatureObject; a
+//    creature that is gone is "nullptr: checked").
 //  - A string passed on as a char * is a copy (TWord): at most 511
 //    characters and the zero, as CheckForSpell's SpellStr holds a word (at
 //    most 509 characters), so a function that changes its parameter
@@ -96,6 +101,33 @@ static TCreature *ExistingCreature(uint32_t ID, const char *Name) {
 	return cr;
 }
 
+// The creature a target that may be nil names: nullptr for nil or a creature
+// that is gone.
+static TCreature *OptionalCreature(const sol::optional<TScriptCreature> &Target) {
+	return Target.has_value() ? GetCreature(Target->ID) : nullptr;
+}
+
+// The object an obj argument names: an Item's object, or a Creature's
+// (GetCreatureObject; a creature that is gone logs "<Name>: Creature does
+// not exist." and throws ERROR).
+static Object ThingObject(const TScriptThing &Thing, const char *Name) {
+	if (Thing.IsCreature) {
+		return ExistingCreature(Thing.Value, Name)->GetCreatureObject();
+	}
+	return Object(Thing.Value);
+}
+
+// The player a Player or a Vocation names, for its methods: "nullptr:
+// checked"; a creature that is no player has none of them (binding's check,
+// which throws NotPlayer).
+static TPlayer *ExistingPlayer(uint32_t ID, const char *Name, const char *NotPlayer) {
+	TCreature *cr = ExistingCreature(ID, Name);
+	if (cr->Type != PLAYER) {
+		throw NotPlayer;
+	}
+	return static_cast<TPlayer *>(cr);
+}
+
 // Throws (a const char *) for a radius the circle loops of the shapes cannot
 // take: Radius must be below Limit (MAX_CIRCLES for the loops "i <= Radius",
 // MAX_CIRCLES + 1 for MassCreateField's "i < Radius"). A negative radius
@@ -107,469 +139,489 @@ static void CheckRadius(int Radius, int Limit, const char *Message) {
 }
 
 // ---------------------------------------------------------------------------
-// magic
+// Magic
 
-// magic.compute_damage(actor, spell, damage, variation) -> int:
+// Magic.computeDamage(actor, spell, damage, variation) -> int:
 // ComputeDamage(cr, SpellNr, Damage, Variation): Damage varied by
 // random(-Variation, Variation), then scaled for a player by level and magic
 // level. nullptr: passed on (ComputeDamage gives the varied damage then).
 // spell must be 0 to MAX_SPELLS - 1 (binding's check). Throws nothing else.
-static int MagicComputeDamage(uint32_t Actor, int SpellNr, int Damage, int Variation) {
+static int MagicComputeDamage(TScriptCreature Actor, int SpellNr, int Damage, int Variation) {
 	if (SpellNr < 0 || SpellNr >= MAX_SPELLS) {
-		throw "magic.compute_damage: spell number out of range";
+		throw "Magic.computeDamage: spell number out of range";
 	}
-	return ComputeDamage(GetCreature(Actor), SpellNr, Damage, Variation);
+	return ComputeDamage(GetCreature(Actor.ID), SpellNr, Damage, Variation);
 }
 
-// magic.heal(actor, mana, soul, amount): Heal(cr, Mana, SoulPoints, Healing).
+// Magic.heal(actor, mana, soul, amount): Heal(cr, Mana, SoulPoints, Healing).
 // nullptr: passed on. Throws what Heal throws.
-static void MagicHeal(uint32_t Actor, int Mana, int SoulPoints, int Healing) {
-	Heal(GetCreature(Actor), Mana, SoulPoints, Healing);
+static void MagicHeal(TScriptCreature Actor, int Mana, int SoulPoints, int Healing) {
+	Heal(GetCreature(Actor.ID), Mana, SoulPoints, Healing);
 }
 
-// magic.mass_heal(actor, obj, mana, soul, amount, radius): MassHeal(cr,
+// Magic.massHeal(actor, obj, mana, soul, amount, radius): MassHeal(cr,
 // Target, Mana, SoulPoints, Healing, Radius). nullptr: passed on. radius at
 // most MAX_CIRCLES - 1 (binding's check). Throws what MassHeal throws.
-static void MagicMassHeal(uint32_t Actor, uint32_t Target, int Mana, int SoulPoints, int Healing, int Radius) {
-	CheckRadius(Radius, MAX_CIRCLES, "magic.mass_heal: radius beyond the circles");
-	MassHeal(GetCreature(Actor), Object(Target), Mana, SoulPoints, Healing, Radius);
+static void MagicMassHeal(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints, int Healing,
+		int Radius) {
+	CheckRadius(Radius, MAX_CIRCLES, "Magic.massHeal: radius beyond the circles");
+	Object Obj = ThingObject(Target, "Magic.massHeal");
+	MassHeal(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Healing, Radius);
 }
 
-// magic.heal_friend(actor, name, mana, soul, amount): HealFriend(cr, Name,
+// Magic.healFriend(actor, name, mana, soul, amount): HealFriend(cr, Name,
 // Mana, SoulPoints, Healing), name copied. nullptr: passed on. Throws what
 // HealFriend throws.
-static void MagicHealFriend(uint32_t Actor, std::string Name, int Mana, int SoulPoints, int Healing) {
+static void MagicHealFriend(TScriptCreature Actor, std::string Name, int Mana, int SoulPoints, int Healing) {
 	TWord Word(Name);
-	HealFriend(GetCreature(Actor), Word.Text, Mana, SoulPoints, Healing);
+	HealFriend(GetCreature(Actor.ID), Word.Text, Mana, SoulPoints, Healing);
 }
 
-// magic.combat(actor, obj, mana, soul, damage, effect, animation,
-// damage_type): Combat(cr, Target, Mana, SoulPoints, Damage, EffectNr,
-// AnimationNr, DmgType), damage_type converted to unsigned short as the C++
+// Magic.combat(actor, obj, mana, soul, damage, effect, animation,
+// damageType): Combat(cr, Target, Mana, SoulPoints, Damage, EffectNr,
+// AnimationNr, DmgType), damageType converted to unsigned short as the C++
 // call converted its int constant. nullptr: passed on (Combat checks the
 // target first, as before). Throws what Combat throws.
-static void MagicCombat(uint32_t Actor, uint32_t Target, int Mana, int SoulPoints, int Damage, int EffectNr,
-		int AnimationNr, int DmgType) {
-	Combat(GetCreature(Actor), Object(Target), Mana, SoulPoints, Damage, EffectNr, AnimationNr,
+static void MagicCombat(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints, int Damage,
+		int EffectNr, int AnimationNr, int DmgType) {
+	Object Obj = ThingObject(Target, "Magic.combat");
+	Combat(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Damage, EffectNr, AnimationNr,
 			static_cast<unsigned short>(DmgType));
 }
 
-// magic.mass_combat(actor, obj, mana, soul, damage, effect, radius,
-// damage_type, animation): MassCombat(cr, Target, Mana, SoulPoints, Damage,
+// Magic.massCombat(actor, obj, mana, soul, damage, effect, radius,
+// damageType, animation): MassCombat(cr, Target, Mana, SoulPoints, Damage,
 // EffectNr, Radius, DmgType, Animation). nullptr: passed on. radius at most
 // MAX_CIRCLES - 1 (binding's check). Throws what MassCombat throws.
-static void MagicMassCombat(uint32_t Actor, uint32_t Target, int Mana, int SoulPoints, int Damage, int EffectNr,
-		int Radius, int DmgType, int Animation) {
-	CheckRadius(Radius, MAX_CIRCLES, "magic.mass_combat: radius beyond the circles");
-	MassCombat(GetCreature(Actor), Object(Target), Mana, SoulPoints, Damage, EffectNr, Radius,
+static void MagicMassCombat(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints, int Damage,
+		int EffectNr, int Radius, int DmgType, int Animation) {
+	CheckRadius(Radius, MAX_CIRCLES, "Magic.massCombat: radius beyond the circles");
+	Object Obj = ThingObject(Target, "Magic.massCombat");
+	MassCombat(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Damage, EffectNr, Radius,
 			static_cast<unsigned short>(DmgType), Animation);
 }
 
-// magic.angle_combat(actor, mana, soul, damage, effect, radius, angle,
-// damage_type): AngleCombat(cr, Mana, SoulPoints, Damage, EffectNr, Radius,
+// Magic.angleCombat(actor, mana, soul, damage, effect, radius, angle,
+// damageType): AngleCombat(cr, Mana, SoulPoints, Damage, EffectNr, Radius,
 // Angle, DmgType). nullptr: passed on. Throws what AngleCombat throws.
-static void MagicAngleCombat(uint32_t Actor, int Mana, int SoulPoints, int Damage, int EffectNr, int Radius,
-		int Angle, int DmgType) {
-	AngleCombat(GetCreature(Actor), Mana, SoulPoints, Damage, EffectNr, Radius, Angle,
+static void MagicAngleCombat(TScriptCreature Actor, int Mana, int SoulPoints, int Damage, int EffectNr,
+		int Radius, int Angle, int DmgType) {
+	AngleCombat(GetCreature(Actor.ID), Mana, SoulPoints, Damage, EffectNr, Radius, Angle,
 			static_cast<unsigned short>(DmgType));
 }
 
-// magic.kill_all_monsters(actor, effect, radius): KillAllMonsters(cr,
+// Magic.killAllMonsters(actor, effect, radius): KillAllMonsters(cr,
 // EffectNr, Radius). nullptr: passed on. radius at most MAX_CIRCLES - 1
 // (binding's check). Throws what KillAllMonsters throws.
-static void MagicKillAllMonsters(uint32_t Actor, int EffectNr, int Radius) {
-	CheckRadius(Radius, MAX_CIRCLES, "magic.kill_all_monsters: radius beyond the circles");
-	KillAllMonsters(GetCreature(Actor), EffectNr, Radius);
+static void MagicKillAllMonsters(TScriptCreature Actor, int EffectNr, int Radius) {
+	CheckRadius(Radius, MAX_CIRCLES, "Magic.killAllMonsters: radius beyond the circles");
+	KillAllMonsters(GetCreature(Actor.ID), EffectNr, Radius);
 }
 
-// magic.create_field(actor, mana, soul, field_type): CreateField(cr, Mana,
+// Magic.createField(actor, mana, soul, fieldType): CreateField(cr, Mana,
 // SoulPoints, Type), on the field the creature faces. nullptr: passed on.
 // Throws what CreateField throws.
-static void MagicCreateField(uint32_t Actor, int Mana, int SoulPoints, int Type) {
-	CreateField(GetCreature(Actor), Mana, SoulPoints, Type);
+static void MagicCreateField(TScriptCreature Actor, int Mana, int SoulPoints, int Type) {
+	CreateField(GetCreature(Actor.ID), Mana, SoulPoints, Type);
 }
 
-// magic.create_field_on(actor, obj, mana, soul, field_type): CreateField(cr,
+// Magic.createFieldOn(actor, obj, mana, soul, fieldType): CreateField(cr,
 // Obj, Mana, SoulPoints, Type). nullptr: passed on. Throws what CreateField
 // throws.
-static void MagicCreateFieldOn(uint32_t Actor, uint32_t Obj, int Mana, int SoulPoints, int Type) {
-	CreateField(GetCreature(Actor), Object(Obj), Mana, SoulPoints, Type);
+static void MagicCreateFieldOn(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints, int Type) {
+	Object Obj = ThingObject(Target, "Magic.createFieldOn");
+	CreateField(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Type);
 }
 
-// magic.mass_create_field(actor, obj, mana, soul, field_type, radius):
+// Magic.massCreateField(actor, obj, mana, soul, fieldType, radius):
 // MassCreateField(cr, Obj, Mana, SoulPoints, Type, Radius). nullptr: passed
 // on. radius at most MAX_CIRCLES (its loop is "i < Radius"; binding's check).
 // Throws what MassCreateField throws.
-static void MagicMassCreateField(uint32_t Actor, uint32_t Obj, int Mana, int SoulPoints, int Type, int Radius) {
-	CheckRadius(Radius, MAX_CIRCLES + 1, "magic.mass_create_field: radius beyond the circles");
-	MassCreateField(GetCreature(Actor), Object(Obj), Mana, SoulPoints, Type, Radius);
+static void MagicMassCreateField(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints, int Type,
+		int Radius) {
+	CheckRadius(Radius, MAX_CIRCLES + 1, "Magic.massCreateField: radius beyond the circles");
+	Object Obj = ThingObject(Target, "Magic.massCreateField");
+	MassCreateField(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Type, Radius);
 }
 
-// magic.create_field_wall(actor, obj, mana, soul, field_type, extension):
+// Magic.createFieldWall(actor, obj, mana, soul, fieldType, extension):
 // CreateFieldWall(cr, Obj, Mana, SoulPoints, Type, Extension). nullptr:
 // passed on. Throws what CreateFieldWall throws.
-static void MagicCreateFieldWall(uint32_t Actor, uint32_t Obj, int Mana, int SoulPoints, int Type, int Extension) {
-	CreateFieldWall(GetCreature(Actor), Object(Obj), Mana, SoulPoints, Type, Extension);
+static void MagicCreateFieldWall(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints, int Type,
+		int Extension) {
+	Object Obj = ThingObject(Target, "Magic.createFieldWall");
+	CreateFieldWall(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Type, Extension);
 }
 
-// magic.delete_field(actor, obj, mana, soul): DeleteField(cr, Obj, Mana,
+// Magic.deleteField(actor, obj, mana, soul): DeleteField(cr, Obj, Mana,
 // SoulPoints). nullptr: passed on. Throws what DeleteField throws.
-static void MagicDeleteField(uint32_t Actor, uint32_t Obj, int Mana, int SoulPoints) {
-	DeleteField(GetCreature(Actor), Object(Obj), Mana, SoulPoints);
+static void MagicDeleteField(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints) {
+	Object Obj = ThingObject(Target, "Magic.deleteField");
+	DeleteField(GetCreature(Actor.ID), Obj, Mana, SoulPoints);
 }
 
-// magic.cleanup_field(actor): CleanupField(cr), the gamemaster's cleanup of
+// Magic.cleanupField(actor): CleanupField(cr), the gamemaster's cleanup of
 // the field in front. nullptr: passed on. Throws what CleanupField throws.
-static void MagicCleanupField(uint32_t Actor) {
-	CleanupField(GetCreature(Actor));
+static void MagicCleanupField(TScriptCreature Actor) {
+	CleanupField(GetCreature(Actor.ID));
 }
 
-// magic.cleanup_field_on(actor, obj, mana, soul): CleanupField(cr, Obj, Mana,
+// Magic.cleanupFieldOn(actor, obj, mana, soul): CleanupField(cr, Obj, Mana,
 // SoulPoints). nullptr: passed on. Throws what CleanupField throws.
-static void MagicCleanupFieldOn(uint32_t Actor, uint32_t Obj, int Mana, int SoulPoints) {
-	CleanupField(GetCreature(Actor), Object(Obj), Mana, SoulPoints);
+static void MagicCleanupFieldOn(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints) {
+	Object Obj = ThingObject(Target, "Magic.cleanupFieldOn");
+	CleanupField(GetCreature(Actor.ID), Obj, Mana, SoulPoints);
 }
 
-// magic.magic_rope(actor, mana, soul): MagicRope(cr, Mana, SoulPoints).
+// Magic.magicRope(actor, mana, soul): MagicRope(cr, Mana, SoulPoints).
 // nullptr: passed on. Throws what MagicRope throws.
-static void MagicMagicRope(uint32_t Actor, int Mana, int SoulPoints) {
-	MagicRope(GetCreature(Actor), Mana, SoulPoints);
+static void MagicMagicRope(TScriptCreature Actor, int Mana, int SoulPoints) {
+	MagicRope(GetCreature(Actor.ID), Mana, SoulPoints);
 }
 
-// magic.magic_climbing(actor, mana, soul, direction): MagicClimbing(cr, Mana,
+// Magic.magicClimbing(actor, mana, soul, direction): MagicClimbing(cr, Mana,
 // SoulPoints, Direction), direction copied. nullptr: passed on. Throws what
 // MagicClimbing throws.
-static void MagicMagicClimbing(uint32_t Actor, int Mana, int SoulPoints, std::string Direction) {
+static void MagicMagicClimbing(TScriptCreature Actor, int Mana, int SoulPoints, std::string Direction) {
 	TWord Word(Direction);
-	MagicClimbing(GetCreature(Actor), Mana, SoulPoints, Word.Text);
+	MagicClimbing(GetCreature(Actor.ID), Mana, SoulPoints, Word.Text);
 }
 
-// magic.magic_climbing_free(actor, direction): MagicClimbing(cr, Direction),
+// Magic.magicClimbingFree(actor, direction): MagicClimbing(cr, Direction),
 // the gamemaster's levitation, direction copied. nullptr: passed on. Throws
 // what MagicClimbing throws.
-static void MagicMagicClimbingFree(uint32_t Actor, std::string Direction) {
+static void MagicMagicClimbingFree(TScriptCreature Actor, std::string Direction) {
 	TWord Word(Direction);
-	MagicClimbing(GetCreature(Actor), Word.Text);
+	MagicClimbing(GetCreature(Actor.ID), Word.Text);
 }
 
-// magic.create_food(actor, mana, soul): CreateFood(cr, Mana, SoulPoints).
+// Magic.createFood(actor, mana, soul): CreateFood(cr, Mana, SoulPoints).
 // nullptr: passed on. Throws what CreateFood throws.
-static void MagicCreateFood(uint32_t Actor, int Mana, int SoulPoints) {
-	CreateFood(GetCreature(Actor), Mana, SoulPoints);
+static void MagicCreateFood(TScriptCreature Actor, int Mana, int SoulPoints) {
+	CreateFood(GetCreature(Actor.ID), Mana, SoulPoints);
 }
 
-// magic.create_arrows(actor, mana, soul, ammo, amount): CreateArrows(cr,
-// Mana, SoulPoints, Ammo, Amount), ammo one of the table ammo. nullptr:
-// passed on. Throws what CreateArrows throws.
-static void MagicCreateArrows(uint32_t Actor, int Mana, int SoulPoints, int Ammo, int Amount) {
-	CreateArrows(GetCreature(Actor), Mana, SoulPoints, Ammo, Amount);
+// Magic.createArrows(actor, mana, soul, ammo, amount): CreateArrows(cr,
+// Mana, SoulPoints, Ammo, Amount), ammo one of the CONJURE_ constants.
+// nullptr: passed on. Throws what CreateArrows throws.
+static void MagicCreateArrows(TScriptCreature Actor, int Mana, int SoulPoints, int Ammo, int Amount) {
+	CreateArrows(GetCreature(Actor.ID), Mana, SoulPoints, Ammo, Amount);
 }
 
-// magic.summon_creature(actor, mana, race_name, god): SummonCreature(cr,
-// Mana, RaceName, God), race_name copied. nullptr: passed on. Throws what
+// Magic.summonCreature(actor, mana, raceName, god): SummonCreature(cr, Mana,
+// RaceName, God), raceName copied. nullptr: passed on. Throws what
 // SummonCreature throws.
-static void MagicSummonCreature(uint32_t Actor, int Mana, std::string RaceName, bool God) {
+static void MagicSummonCreature(TScriptCreature Actor, int Mana, std::string RaceName, bool God) {
 	TWord Word(RaceName);
-	SummonCreature(GetCreature(Actor), Mana, Word.Text, God);
+	SummonCreature(GetCreature(Actor.ID), Mana, Word.Text, God);
 }
 
-// magic.raise_dead(actor, obj, mana, soul): RaiseDead(cr, Obj, Mana,
+// Magic.raiseDead(actor, obj, mana, soul): RaiseDead(cr, Obj, Mana,
 // SoulPoints). nullptr: passed on. Throws what RaiseDead throws.
-static void MagicRaiseDead(uint32_t Actor, uint32_t Obj, int Mana, int SoulPoints) {
-	RaiseDead(GetCreature(Actor), Object(Obj), Mana, SoulPoints);
+static void MagicRaiseDead(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints) {
+	Object Obj = ThingObject(Target, "Magic.raiseDead");
+	RaiseDead(GetCreature(Actor.ID), Obj, Mana, SoulPoints);
 }
 
-// magic.mass_raise_dead(actor, obj, mana, soul, radius): MassRaiseDead(cr,
+// Magic.massRaiseDead(actor, obj, mana, soul, radius): MassRaiseDead(cr,
 // Target, Mana, SoulPoints, Radius). nullptr: passed on. radius at most
 // MAX_CIRCLES - 1 (binding's check). Throws what MassRaiseDead throws.
-static void MagicMassRaiseDead(uint32_t Actor, uint32_t Target, int Mana, int SoulPoints, int Radius) {
-	CheckRadius(Radius, MAX_CIRCLES, "magic.mass_raise_dead: radius beyond the circles");
-	MassRaiseDead(GetCreature(Actor), Object(Target), Mana, SoulPoints, Radius);
+static void MagicMassRaiseDead(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints, int Radius) {
+	CheckRadius(Radius, MAX_CIRCLES, "Magic.massRaiseDead: radius beyond the circles");
+	Object Obj = ThingObject(Target, "Magic.massRaiseDead");
+	MassRaiseDead(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Radius);
 }
 
-// magic.magic_go_strength(actor, target, mana, soul, percent, duration):
+// Magic.magicGoStrength(actor, target|nil, mana, soul, percent, duration):
 // MagicGoStrength(cr, dest, Mana, SoulPoints, percent, duration). nullptr:
 // passed on, for both (MagicGoStrength checks the target first, as before).
 // Throws what MagicGoStrength throws.
-static void MagicMagicGoStrength(uint32_t Actor, uint32_t Target, int Mana, int SoulPoints, int Percent,
-		int Duration) {
-	TCreature *cr = GetCreature(Actor);
-	TCreature *dest = GetCreature(Target);
+static void MagicMagicGoStrength(TScriptCreature Actor, sol::optional<TScriptCreature> Target, int Mana,
+		int SoulPoints, int Percent, int Duration) {
+	TCreature *cr = GetCreature(Actor.ID);
+	TCreature *dest = OptionalCreature(Target);
 	MagicGoStrength(cr, dest, Mana, SoulPoints, Percent, Duration);
 }
 
-// magic.shielding(actor, mana, soul, duration): Shielding(cr, Mana,
+// Magic.shielding(actor, mana, soul, duration): Shielding(cr, Mana,
 // SoulPoints, Duration). nullptr: passed on. Throws what Shielding throws.
-static void MagicShielding(uint32_t Actor, int Mana, int SoulPoints, int Duration) {
-	Shielding(GetCreature(Actor), Mana, SoulPoints, Duration);
+static void MagicShielding(TScriptCreature Actor, int Mana, int SoulPoints, int Duration) {
+	Shielding(GetCreature(Actor.ID), Mana, SoulPoints, Duration);
 }
 
-// magic.negate_poison(actor, mana, soul, target): NegatePoison(cr, Mana,
+// Magic.negatePoison(actor, mana, soul, target|nil): NegatePoison(cr, Mana,
 // SoulPoints, dest). nullptr: passed on, for both. Throws what NegatePoison
 // throws.
-static void MagicNegatePoison(uint32_t Actor, int Mana, int SoulPoints, uint32_t Target) {
-	TCreature *cr = GetCreature(Actor);
-	TCreature *dest = GetCreature(Target);
+static void MagicNegatePoison(TScriptCreature Actor, int Mana, int SoulPoints,
+		sol::optional<TScriptCreature> Target) {
+	TCreature *cr = GetCreature(Actor.ID);
+	TCreature *dest = OptionalCreature(Target);
 	NegatePoison(cr, Mana, SoulPoints, dest);
 }
 
-// magic.enlight(actor, mana, soul, radius, duration): Enlight(cr, Mana,
+// Magic.enlight(actor, mana, soul, radius, duration): Enlight(cr, Mana,
 // SoulPoints, Radius, Duration). nullptr: passed on. radius must not be 0
 // (Enlight divides by it; binding's check). Throws what Enlight throws.
-static void MagicEnlight(uint32_t Actor, int Mana, int SoulPoints, int Radius, int Duration) {
+static void MagicEnlight(TScriptCreature Actor, int Mana, int SoulPoints, int Radius, int Duration) {
 	if (Radius == 0) {
-		throw "magic.enlight: radius 0";
+		throw "Magic.enlight: radius 0";
 	}
-	Enlight(GetCreature(Actor), Mana, SoulPoints, Radius, Duration);
+	Enlight(GetCreature(Actor.ID), Mana, SoulPoints, Radius, Duration);
 }
 
-// magic.invisibility(actor, mana, soul, duration): Invisibility(cr, Mana,
+// Magic.invisibility(actor, mana, soul, duration): Invisibility(cr, Mana,
 // SoulPoints, Duration). nullptr: passed on. Throws what Invisibility throws.
-static void MagicInvisibility(uint32_t Actor, int Mana, int SoulPoints, int Duration) {
-	Invisibility(GetCreature(Actor), Mana, SoulPoints, Duration);
+static void MagicInvisibility(TScriptCreature Actor, int Mana, int SoulPoints, int Duration) {
+	Invisibility(GetCreature(Actor.ID), Mana, SoulPoints, Duration);
 }
 
-// magic.cancel_invisibility(actor, obj, mana, soul, radius):
+// Magic.cancelInvisibility(actor, obj, mana, soul, radius):
 // CancelInvisibility(cr, Target, Mana, SoulPoints, Radius). nullptr: passed
 // on. radius at most MAX_CIRCLES - 1 (binding's check). Throws what
 // CancelInvisibility throws.
-static void MagicCancelInvisibility(uint32_t Actor, uint32_t Target, int Mana, int SoulPoints, int Radius) {
-	CheckRadius(Radius, MAX_CIRCLES, "magic.cancel_invisibility: radius beyond the circles");
-	CancelInvisibility(GetCreature(Actor), Object(Target), Mana, SoulPoints, Radius);
+static void MagicCancelInvisibility(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints,
+		int Radius) {
+	CheckRadius(Radius, MAX_CIRCLES, "Magic.cancelInvisibility: radius beyond the circles");
+	Object Obj = ThingObject(Target, "Magic.cancelInvisibility");
+	CancelInvisibility(GetCreature(Actor.ID), Obj, Mana, SoulPoints, Radius);
 }
 
-// magic.creature_illusion(actor, mana, soul, race_name, duration):
-// CreatureIllusion(cr, Mana, SoulPoints, RaceName, Duration), race_name
+// Magic.creatureIllusion(actor, mana, soul, raceName, duration):
+// CreatureIllusion(cr, Mana, SoulPoints, RaceName, Duration), raceName
 // copied. nullptr: passed on. Throws what CreatureIllusion throws.
-static void MagicCreatureIllusion(uint32_t Actor, int Mana, int SoulPoints, std::string RaceName, int Duration) {
+static void MagicCreatureIllusion(TScriptCreature Actor, int Mana, int SoulPoints, std::string RaceName,
+		int Duration) {
 	TWord Word(RaceName);
-	CreatureIllusion(GetCreature(Actor), Mana, SoulPoints, Word.Text, Duration);
+	CreatureIllusion(GetCreature(Actor.ID), Mana, SoulPoints, Word.Text, Duration);
 }
 
-// magic.object_illusion(actor, mana, soul, obj, duration): ObjectIllusion(cr,
+// Magic.objectIllusion(actor, mana, soul, obj, duration): ObjectIllusion(cr,
 // Mana, SoulPoints, Obj, Duration). nullptr: passed on. Throws what
 // ObjectIllusion throws.
-static void MagicObjectIllusion(uint32_t Actor, int Mana, int SoulPoints, uint32_t Obj, int Duration) {
-	ObjectIllusion(GetCreature(Actor), Mana, SoulPoints, Object(Obj), Duration);
+static void MagicObjectIllusion(TScriptCreature Actor, int Mana, int SoulPoints, TScriptThing Target,
+		int Duration) {
+	Object Obj = ThingObject(Target, "Magic.objectIllusion");
+	ObjectIllusion(GetCreature(Actor.ID), Mana, SoulPoints, Obj, Duration);
 }
 
-// magic.enchant_object(actor, mana, soul, origin_type, target_type):
+// Magic.enchantObject(actor, mana, soul, originType, targetType):
 // EnchantObject(cr, Mana, SoulPoints, Origin, Target), the object types made
 // from their IDs (ObjectType(TypeID), which logs an ID that is no type and
-// takes 0 then; object.new_type gives IDs that are types or 0). nullptr:
-// passed on. Throws what EnchantObject throws.
-static void MagicEnchantObject(uint32_t Actor, int Mana, int SoulPoints, int Origin, int Target) {
-	EnchantObject(GetCreature(Actor), Mana, SoulPoints, ObjectType(Origin), ObjectType(Target));
+// takes 0 then; ItemType.fromOldNumber gives IDs that are types or 0).
+// nullptr: passed on. Throws what EnchantObject throws.
+static void MagicEnchantObject(TScriptCreature Actor, int Mana, int SoulPoints, int Origin, int Target) {
+	EnchantObject(GetCreature(Actor.ID), Mana, SoulPoints, ObjectType(Origin), ObjectType(Target));
 }
 
-// magic.convince(actor, target): Convince(master, slave). nullptr: checked,
-// for both (Convince dereferences both; the actor is checked first). Throws
-// what Convince throws.
-static void MagicConvince(uint32_t Actor, uint32_t Target) {
-	TCreature *Master = ExistingCreature(Actor, "magic.convince");
-	TCreature *Slave = ExistingCreature(Target, "magic.convince");
+// Magic.convince(actor, target|nil): Convince(master, slave). nullptr:
+// checked, for both (Convince dereferences both; the actor is checked
+// first). Throws what Convince throws.
+static void MagicConvince(TScriptCreature Actor, sol::optional<TScriptCreature> Target) {
+	TCreature *Master = ExistingCreature(Actor.ID, "Magic.convince");
+	TCreature *Slave = ExistingCreature(Target.has_value() ? Target->ID : 0, "Magic.convince");
 	Convince(Master, Slave);
 }
 
-// magic.challenge(actor, mana, soul, radius): Challenge(cr, Mana, SoulPoints,
+// Magic.challenge(actor, mana, soul, radius): Challenge(cr, Mana, SoulPoints,
 // Radius). nullptr: passed on (Challenge dereferences nothing before
 // SpendManaAndSoulPoints, which logs and throws ERROR for it). radius at most
 // MAX_CIRCLES - 1 (binding's check). Throws what Challenge throws.
-static void MagicChallenge(uint32_t Actor, int Mana, int SoulPoints, int Radius) {
-	CheckRadius(Radius, MAX_CIRCLES, "magic.challenge: radius beyond the circles");
-	Challenge(GetCreature(Actor), Mana, SoulPoints, Radius);
+static void MagicChallenge(TScriptCreature Actor, int Mana, int SoulPoints, int Radius) {
+	CheckRadius(Radius, MAX_CIRCLES, "Magic.challenge: radius beyond the circles");
+	Challenge(GetCreature(Actor.ID), Mana, SoulPoints, Radius);
 }
 
-// magic.find_person(actor, mana, soul, name): FindPerson(cr, Mana,
+// Magic.findPerson(actor, mana, soul, name): FindPerson(cr, Mana,
 // SoulPoints, Name), name copied. nullptr: passed on. Throws what FindPerson
 // throws.
-static void MagicFindPerson(uint32_t Actor, int Mana, int SoulPoints, std::string Name) {
+static void MagicFindPerson(TScriptCreature Actor, int Mana, int SoulPoints, std::string Name) {
 	TWord Word(Name);
-	FindPerson(GetCreature(Actor), Mana, SoulPoints, Word.Text);
+	FindPerson(GetCreature(Actor.ID), Mana, SoulPoints, Word.Text);
 }
 
 // ---------------------------------------------------------------------------
-// command: every function checks for nullptr itself (it logs and throws
+// Command: every function checks for nullptr itself (it logs and throws
 // ERROR), so each binding passes it on; the strings are copied (TWord). Each
 // throws what its C++ function throws.
 
-// command.create_thing(actor, p1, p2|nil): CreateThing(cr, Param1, Param2).
-static void CommandCreateThing(uint32_t Actor, std::string Param1, sol::optional<std::string> Param2) {
+// Command.createThing(actor, p1, p2|nil): CreateThing(cr, Param1, Param2).
+static void CommandCreateThing(TScriptCreature Actor, std::string Param1, sol::optional<std::string> Param2) {
 	TWord Word1(Param1);
 	TOptionalWord Word2(Param2);
-	CreateThing(GetCreature(Actor), Word1.Text, Word2.get());
+	CreateThing(GetCreature(Actor.ID), Word1.Text, Word2.get());
 }
 
-// command.teleport(actor, p): Teleport(cr, Param).
-static void CommandTeleport(uint32_t Actor, std::string Param) {
+// Command.teleport(actor, p): Teleport(cr, Param).
+static void CommandTeleport(TScriptCreature Actor, std::string Param) {
 	TWord Word(Param);
-	Teleport(GetCreature(Actor), Word.Text);
+	Teleport(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.create_knowledge(actor, p1, p2|nil): CreateKnowledge(cr, Param1,
+// Command.createKnowledge(actor, p1, p2|nil): CreateKnowledge(cr, Param1,
 // Param2).
-static void CommandCreateKnowledge(uint32_t Actor, std::string Param1, sol::optional<std::string> Param2) {
+static void CommandCreateKnowledge(TScriptCreature Actor, std::string Param1, sol::optional<std::string> Param2) {
 	TWord Word1(Param1);
 	TOptionalWord Word2(Param2);
-	CreateKnowledge(GetCreature(Actor), Word1.Text, Word2.get());
+	CreateKnowledge(GetCreature(Actor.ID), Word1.Text, Word2.get());
 }
 
-// command.change_data(actor, p): ChangeData(cr, Param).
-static void CommandChangeData(uint32_t Actor, std::string Param) {
+// Command.changeData(actor, p): ChangeData(cr, Param).
+static void CommandChangeData(TScriptCreature Actor, std::string Param) {
 	TWord Word(Param);
-	ChangeData(GetCreature(Actor), Word.Text);
+	ChangeData(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.teleport_to_creature(actor, name): TeleportToCreature(cr, Name).
-static void CommandTeleportToCreature(uint32_t Actor, std::string Name) {
+// Command.teleportToCreature(actor, name): TeleportToCreature(cr, Name).
+static void CommandTeleportToCreature(TScriptCreature Actor, std::string Name) {
 	TWord Word(Name);
-	TeleportToCreature(GetCreature(Actor), Word.Text);
+	TeleportToCreature(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.teleport_player_to_me(actor, name): TeleportPlayerToMe(cr, Name).
-static void CommandTeleportPlayerToMe(uint32_t Actor, std::string Name) {
+// Command.teleportPlayerToMe(actor, name): TeleportPlayerToMe(cr, Name).
+static void CommandTeleportPlayerToMe(TScriptCreature Actor, std::string Name) {
 	TWord Word(Name);
-	TeleportPlayerToMe(GetCreature(Actor), Word.Text);
+	TeleportPlayerToMe(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.get_position(actor): GetPosition(cr).
-static void CommandGetPosition(uint32_t Actor) {
-	GetPosition(GetCreature(Actor));
+// Command.showPosition(actor): GetPosition(cr), which tells the caster its
+// position.
+static void CommandShowPosition(TScriptCreature Actor) {
+	GetPosition(GetCreature(Actor.ID));
 }
 
-// command.create_money(actor, p): CreateMoney(cr, Param).
-static void CommandCreateMoney(uint32_t Actor, std::string Param) {
+// Command.createMoney(actor, p): CreateMoney(cr, Param).
+static void CommandCreateMoney(TScriptCreature Actor, std::string Param) {
 	TWord Word(Param);
-	CreateMoney(GetCreature(Actor), Word.Text);
+	CreateMoney(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.change_profession(actor, p): ChangeProfession(cr, Param).
-static void CommandChangeProfession(uint32_t Actor, std::string Param) {
+// Command.changeProfession(actor, p): ChangeProfession(cr, Param).
+static void CommandChangeProfession(TScriptCreature Actor, std::string Param) {
 	TWord Word(Param);
-	ChangeProfession(GetCreature(Actor), Word.Text);
+	ChangeProfession(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.edit_guests(actor): EditGuests(cr).
-static void CommandEditGuests(uint32_t Actor) {
-	EditGuests(GetCreature(Actor));
+// Command.editGuests(actor): EditGuests(cr).
+static void CommandEditGuests(TScriptCreature Actor) {
+	EditGuests(GetCreature(Actor.ID));
 }
 
-// command.edit_subowners(actor): EditSubowners(cr).
-static void CommandEditSubowners(uint32_t Actor) {
-	EditSubowners(GetCreature(Actor));
+// Command.editSubowners(actor): EditSubowners(cr).
+static void CommandEditSubowners(TScriptCreature Actor) {
+	EditSubowners(GetCreature(Actor.ID));
 }
 
-// command.kick_guest(actor, name): KickGuest(cr, Name).
-static void CommandKickGuest(uint32_t Actor, std::string Name) {
+// Command.kickGuest(actor, name): KickGuest(cr, Name).
+static void CommandKickGuest(TScriptCreature Actor, std::string Name) {
 	TWord Word(Name);
-	KickGuest(GetCreature(Actor), Word.Text);
+	KickGuest(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.edit_name_door(actor): EditNameDoor(cr).
-static void CommandEditNameDoor(uint32_t Actor) {
-	EditNameDoor(GetCreature(Actor));
+// Command.editNameDoor(actor): EditNameDoor(cr).
+static void CommandEditNameDoor(TScriptCreature Actor) {
+	EditNameDoor(GetCreature(Actor.ID));
 }
 
-// command.get_quest_value(actor, p): GetQuestValue(cr, Param).
-static void CommandGetQuestValue(uint32_t Actor, std::string Param) {
+// Command.getQuestValue(actor, p): GetQuestValue(cr, Param).
+static void CommandGetQuestValue(TScriptCreature Actor, std::string Param) {
 	TWord Word(Param);
-	GetQuestValue(GetCreature(Actor), Word.Text);
+	GetQuestValue(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.set_quest_value(actor, p1, p2): SetQuestValue(cr, Param1, Param2).
-static void CommandSetQuestValue(uint32_t Actor, std::string Param1, std::string Param2) {
+// Command.setQuestValue(actor, p1, p2): SetQuestValue(cr, Param1, Param2).
+static void CommandSetQuestValue(TScriptCreature Actor, std::string Param1, std::string Param2) {
 	TWord Word1(Param1);
 	TWord Word2(Param2);
-	SetQuestValue(GetCreature(Actor), Word1.Text, Word2.Text);
+	SetQuestValue(GetCreature(Actor.ID), Word1.Text, Word2.Text);
 }
 
-// command.clear_quest_values(actor): ClearQuestValues(cr).
-static void CommandClearQuestValues(uint32_t Actor) {
-	ClearQuestValues(GetCreature(Actor));
+// Command.clearQuestValues(actor): ClearQuestValues(cr).
+static void CommandClearQuestValues(TScriptCreature Actor) {
+	ClearQuestValues(GetCreature(Actor.ID));
 }
 
-// command.start_monsterraid(actor, name): StartMonsterraid(cr, RaidName),
+// Command.startMonsterraid(actor, name): StartMonsterraid(cr, RaidName),
 // which lowers the copy. The const char * of a raid that fails to load is
 // caught inside StartMonsterraid, as before.
-static void CommandStartMonsterraid(uint32_t Actor, std::string RaidName) {
+static void CommandStartMonsterraid(TScriptCreature Actor, std::string RaidName) {
 	TWord Word(RaidName);
-	StartMonsterraid(GetCreature(Actor), Word.Text);
+	StartMonsterraid(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.home_teleport(actor, name): HomeTeleport(cr, Name).
-static void CommandHomeTeleport(uint32_t Actor, std::string Name) {
+// Command.homeTeleport(actor, name): HomeTeleport(cr, Name).
+static void CommandHomeTeleport(TScriptCreature Actor, std::string Name) {
 	TWord Word(Name);
-	HomeTeleport(GetCreature(Actor), Word.Text);
+	HomeTeleport(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.banish_account(actor, name, n, reason): BanishAccount(cr, Name, n,
+// Command.banishAccount(actor, name, n, reason): BanishAccount(cr, Name, n,
 // Reason).
-static void CommandBanishAccount(uint32_t Actor, std::string Name, int Number, std::string Reason) {
+static void CommandBanishAccount(TScriptCreature Actor, std::string Name, int Number, std::string Reason) {
 	TWord NameWord(Name);
 	TWord ReasonWord(Reason);
-	BanishAccount(GetCreature(Actor), NameWord.Text, Number, ReasonWord.Text);
+	BanishAccount(GetCreature(Actor.ID), NameWord.Text, Number, ReasonWord.Text);
 }
 
-// command.delete_account(actor, name, reason): DeleteAccount(cr, Name,
+// Command.deleteAccount(actor, name, reason): DeleteAccount(cr, Name,
 // Reason).
-static void CommandDeleteAccount(uint32_t Actor, std::string Name, std::string Reason) {
+static void CommandDeleteAccount(TScriptCreature Actor, std::string Name, std::string Reason) {
 	TWord NameWord(Name);
 	TWord ReasonWord(Reason);
-	DeleteAccount(GetCreature(Actor), NameWord.Text, ReasonWord.Text);
+	DeleteAccount(GetCreature(Actor.ID), NameWord.Text, ReasonWord.Text);
 }
 
-// command.set_name_rule(actor, name): SetNameRule(cr, Name).
-static void CommandSetNameRule(uint32_t Actor, std::string Name) {
+// Command.setNameRule(actor, name): SetNameRule(cr, Name).
+static void CommandSetNameRule(TScriptCreature Actor, std::string Name) {
 	TWord Word(Name);
-	SetNameRule(GetCreature(Actor), Word.Text);
+	SetNameRule(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.notation(actor, name, comment): Notation(cr, Name, Comment).
-static void CommandNotation(uint32_t Actor, std::string Name, std::string Comment) {
+// Command.notation(actor, name, comment): Notation(cr, Name, Comment).
+static void CommandNotation(TScriptCreature Actor, std::string Name, std::string Comment) {
 	TWord NameWord(Name);
 	TWord CommentWord(Comment);
-	Notation(GetCreature(Actor), NameWord.Text, CommentWord.Text);
+	Notation(GetCreature(Actor.ID), NameWord.Text, CommentWord.Text);
 }
 
-// command.name_lock(actor, name): NameLock(cr, Name).
-static void CommandNameLock(uint32_t Actor, std::string Name) {
+// Command.nameLock(actor, name): NameLock(cr, Name).
+static void CommandNameLock(TScriptCreature Actor, std::string Name) {
 	TWord Word(Name);
-	NameLock(GetCreature(Actor), Word.Text);
+	NameLock(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.kick_player(actor, name): KickPlayer(cr, Name).
-static void CommandKickPlayer(uint32_t Actor, std::string Name) {
+// Command.kickPlayer(actor, name): KickPlayer(cr, Name).
+static void CommandKickPlayer(TScriptCreature Actor, std::string Name) {
 	TWord Word(Name);
-	KickPlayer(GetCreature(Actor), Word.Text);
+	KickPlayer(GetCreature(Actor.ID), Word.Text);
 }
 
-// command.delete_character(actor, name, reason): DeleteCharacter(cr, Name,
+// Command.deleteCharacter(actor, name, reason): DeleteCharacter(cr, Name,
 // Reason).
-static void CommandDeleteCharacter(uint32_t Actor, std::string Name, std::string Reason) {
+static void CommandDeleteCharacter(TScriptCreature Actor, std::string Name, std::string Reason) {
 	TWord NameWord(Name);
 	TWord ReasonWord(Reason);
-	DeleteCharacter(GetCreature(Actor), NameWord.Text, ReasonWord.Text);
+	DeleteCharacter(GetCreature(Actor.ID), NameWord.Text, ReasonWord.Text);
 }
 
-// command.ip_banishment(actor, name, reason): IPBanishment(cr, Name, Reason).
-static void CommandIPBanishment(uint32_t Actor, std::string Name, std::string Reason) {
+// Command.ipBanishment(actor, name, reason): IPBanishment(cr, Name, Reason).
+static void CommandIPBanishment(TScriptCreature Actor, std::string Name, std::string Reason) {
 	TWord NameWord(Name);
 	TWord ReasonWord(Reason);
-	IPBanishment(GetCreature(Actor), NameWord.Text, ReasonWord.Text);
+	IPBanishment(GetCreature(Actor.ID), NameWord.Text, ReasonWord.Text);
 }
 
-// command.banish_character(actor, name, n, reason): BanishCharacter(cr, Name,
+// Command.banishCharacter(actor, name, n, reason): BanishCharacter(cr, Name,
 // n, Reason).
-static void CommandBanishCharacter(uint32_t Actor, std::string Name, int Number, std::string Reason) {
+static void CommandBanishCharacter(TScriptCreature Actor, std::string Name, int Number, std::string Reason) {
 	TWord NameWord(Name);
 	TWord ReasonWord(Reason);
-	BanishCharacter(GetCreature(Actor), NameWord.Text, Number, ReasonWord.Text);
+	BanishCharacter(GetCreature(Actor.ID), NameWord.Text, Number, ReasonWord.Text);
 }
 
 // ---------------------------------------------------------------------------
-// game, creature, object
+// Game, the classes' methods, ItemType
 
-// game.to_int(text) -> int: (int)std::clamp(strtol(Text, nullptr, 10),
+// Game.toInt(text) -> int: (int)std::clamp(strtol(Text, nullptr, 10),
 // (long)INT32_MIN, (long)INT32_MAX) of the copy, as AccountRightSpell read
 // the numbers of the words. Throws nothing.
 static int GameToInt(std::string Text) {
@@ -578,216 +630,260 @@ static int GameToInt(std::string Text) {
 			static_cast<long>(INT32_MAX)));
 }
 
-// creature.object(id) -> the handle of the creature's object
-// (GetCreatureObject().getObjectID()). nullptr: checked.
-static uint32_t CreatureObject(uint32_t ID) {
-	return ExistingCreature(ID, "creature.object")->GetCreatureObject().getObjectID();
-}
-
-// creature.skill(id, skill) -> Skills[skill]->Get(), the skill's value.
-// nullptr: checked. skill must be 0 to MAX_SKILLS - 1 and exist for the
-// creature (binding's check).
-static int CreatureSkill(uint32_t ID, int SkillNr) {
-	TCreature *cr = ExistingCreature(ID, "creature.skill");
+// creature:getSkillValue(skill) -> Skills[skill]->Get(), the skill's value
+// with its temporary changes. nullptr: checked. skill must be 0 to
+// MAX_SKILLS - 1 and exist for the creature (binding's check).
+static int CreatureGetSkillValue(TScriptCreature Self, int SkillNr) {
+	TCreature *cr = ExistingCreature(Self.ID, "Creature.getSkillValue");
 	if (SkillNr < 0 || SkillNr >= MAX_SKILLS || cr->Skills[SkillNr] == nullptr) {
-		throw "creature.skill: no such skill";
+		throw "Creature.getSkillValue: no such skill";
 	}
 	return cr->Skills[SkillNr]->Get();
 }
 
-// creature.effective_profession(id) -> GetEffectiveProfession(), the
-// profession (PROFESSION_*), a function of TPlayer. nullptr: checked. A
-// creature that is no player has none (binding's check; the rune case asked
-// it of the player who used the rune).
-static int CreatureEffectiveProfession(uint32_t ID) {
-	TCreature *cr = ExistingCreature(ID, "creature.effective_profession");
-	if (cr->Type != PLAYER) {
-		throw "creature.effective_profession: the creature is not a player";
+// player:getLevel() -> Skills[SKILL_LEVEL]->Get(). nullptr: checked.
+static int PlayerGetLevel(TScriptPlayer Self) {
+	TCreature *cr = ExistingCreature(Self.ID, "Player.getLevel");
+	if (cr->Skills[SKILL_LEVEL] == nullptr) {
+		throw "Player.getLevel: no such skill";
 	}
-	return static_cast<TPlayer *>(cr)->GetEffectiveProfession();
+	return cr->Skills[SKILL_LEVEL]->Get();
 }
 
-// object.new_type(group, number) -> GetNewObjectType(Group,
+// player:getVocation() -> the player's Vocation (an object holding the
+// player's ID; its methods resolve it again). nullptr: checked; a creature
+// that is no player has none (binding's check).
+static TScriptVocation PlayerGetVocation(TScriptPlayer Self) {
+	ExistingPlayer(Self.ID, "Player.getVocation", "Player.getVocation: the creature is not a player");
+	return TScriptVocation{Self.ID};
+}
+
+// vocation:getId() -> GetRealProfession(), the profession with its promotion
+// (VOCATION_ constants; VOCATION_PROMOTION + VOCATION_KNIGHT for an elite
+// knight). nullptr: checked; no player: binding's check.
+static int VocationGetId(TScriptVocation Self) {
+	return ExistingPlayer(Self.PlayerID, "Vocation.getId", "Vocation.getId: the creature is not a player")
+			->GetRealProfession();
+}
+
+// vocation:getBaseId() -> GetEffectiveProfession(), the profession without
+// its promotion. nullptr: checked; no player: binding's check.
+static int VocationGetBaseId(TScriptVocation Self) {
+	return ExistingPlayer(Self.PlayerID, "Vocation.getBaseId",
+			"Vocation.getBaseId: the creature is not a player")->GetEffectiveProfession();
+}
+
+// ItemType.fromOldNumber(group, number) -> GetNewObjectType(Group,
 // Number).getTypeID(), the type's ID (0 for a group and number without a
 // type, which GetNewObjectType logs). group and number must be 0 to 255
 // (binding's check).
-static int ObjectNewType(int Group, int Number) {
+static int ItemTypeFromOldNumber(int Group, int Number) {
 	if (Group < 0 || Group > 255 || Number < 0 || Number > 255) {
-		throw "object.new_type: group and number must be 0 to 255";
+		throw "ItemType.fromOldNumber: group and number must be 0 to 255";
 	}
 	return GetNewObjectType(static_cast<unsigned char>(Group), static_cast<unsigned char>(Number)).getTypeID();
 }
 
-// Sets the constant Prefix##Name of a table as Name.
-#define CONSTANT(Table, Prefix, Name) Table.set(#Name, Prefix##Name)
+// A constant of the scripts: its name and its value.
+struct TScriptConstant {
+	const char *Name;
+	int Value;
+};
+
+// The constants, TFS's names with 7.72's values. The effects and
+// projectiles without a constant of operate.hh (which names only the ones the
+// code uses) have the client's numbers: effects 1 to 25, projectiles 0 to 15.
+static const TScriptConstant Constants[] = {
+	{"CONST_ME_NONE", 0},
+	{"CONST_ME_DRAWBLOOD", EFFECT_BLOOD_HIT},
+	{"CONST_ME_LOSEENERGY", EFFECT_MANA_HIT},
+	{"CONST_ME_POFF", EFFECT_POFF},
+	{"CONST_ME_BLOCKHIT", EFFECT_BLOCK_HIT},
+	{"CONST_ME_EXPLOSIONAREA", EFFECT_EXPLOSION_AREA},
+	{"CONST_ME_EXPLOSIONHIT", EFFECT_EXPLOSION},
+	{"CONST_ME_FIREAREA", EFFECT_FIRE_AREA},
+	{"CONST_ME_YELLOW_RINGS", 8},
+	{"CONST_ME_GREEN_RINGS", EFFECT_POISON},
+	{"CONST_ME_HITAREA", EFFECT_HIT_AREA},
+	{"CONST_ME_TELEPORT", EFFECT_TELEPORT},
+	{"CONST_ME_ENERGYHIT", EFFECT_ENERGY_HIT},
+	{"CONST_ME_MAGIC_BLUE", EFFECT_MAGIC_BLUE},
+	{"CONST_ME_MAGIC_RED", EFFECT_MAGIC_RED},
+	{"CONST_ME_MAGIC_GREEN", EFFECT_MAGIC_GREEN},
+	{"CONST_ME_HITBYFIRE", EFFECT_FIRE_HIT},
+	{"CONST_ME_HITBYPOISON", EFFECT_POISON_HIT},
+	{"CONST_ME_MORTAREA", EFFECT_DEATH},
+	{"CONST_ME_SOUND_GREEN", 19},
+	{"CONST_ME_SOUND_RED", 20},
+	{"CONST_ME_POISONAREA", 21},
+	{"CONST_ME_SOUND_YELLOW", 22},
+	{"CONST_ME_SOUND_PURPLE", 23},
+	{"CONST_ME_SOUND_BLUE", 24},
+	{"CONST_ME_SOUND_WHITE", 25},
+
+	{"CONST_ANI_NONE", ANIMATION_NONE},
+	{"CONST_ANI_SPEAR", 1},
+	{"CONST_ANI_BOLT", 2},
+	{"CONST_ANI_ARROW", 3},
+	{"CONST_ANI_FIRE", ANIMATION_FIRE},
+	{"CONST_ANI_ENERGY", ANIMATION_ENERGY},
+	{"CONST_ANI_POISONARROW", 6},
+	{"CONST_ANI_BURSTARROW", 7},
+	{"CONST_ANI_THROWINGSTAR", 8},
+	{"CONST_ANI_THROWINGKNIFE", 9},
+	{"CONST_ANI_SMALLSTONE", 10},
+	{"CONST_ANI_DEATH", ANIMATION_DEATH},
+	{"CONST_ANI_LARGEROCK", 12},
+	{"CONST_ANI_SNOWBALL", 13},
+	{"CONST_ANI_POWERBOLT", 14},
+	{"CONST_ANI_POISON", 15},
+
+	// The damage types of cr.hh; 7.72 calls the earth damage of later
+	// versions poison, so it has both names.
+	{"COMBAT_PHYSICALDAMAGE", DAMAGE_PHYSICAL},
+	{"COMBAT_POISONDAMAGE", DAMAGE_POISON},
+	{"COMBAT_EARTHDAMAGE", DAMAGE_POISON},
+	{"COMBAT_FIREDAMAGE", DAMAGE_FIRE},
+	{"COMBAT_ENERGYDAMAGE", DAMAGE_ENERGY},
+	{"COMBAT_POISONCONDITION", DAMAGE_POISON_CONDITION},
+	{"COMBAT_FIRECONDITION", DAMAGE_FIRE_CONDITION},
+	{"COMBAT_ENERGYCONDITION", DAMAGE_ENERGY_CONDITION},
+	{"COMBAT_LIFEDRAIN", DAMAGE_LIFEDRAIN},
+	{"COMBAT_MANADRAIN", DAMAGE_MANADRAIN},
+
+	// The fields CreateField makes (info.hh).
+	{"FIELD_FIRE", FIELD_FIRE},
+	{"FIELD_POISON", FIELD_POISON},
+	{"FIELD_ENERGY", FIELD_ENERGY},
+	{"FIELD_MAGICWALL", FIELD_MAGICWALL},
+	{"FIELD_RUSHWOOD", FIELD_RUSHWOOD},
+
+	// The ammunition CreateArrows conjures (magic.hh).
+	{"CONJURE_ARROW", CONJURE_ARROW},
+	{"CONJURE_POISONED_ARROW", CONJURE_POISONED_ARROW},
+	{"CONJURE_EXPLOSIVE_ARROW", CONJURE_EXPLOSIVE_ARROW},
+	{"CONJURE_BOLT", CONJURE_BOLT},
+	{"CONJURE_POWER_BOLT", CONJURE_POWER_BOLT},
+
+	// The skills of crskill.hh: TFS's names for the ones TFS has.
+	{"SKILL_LEVEL", SKILL_LEVEL},
+	{"SKILL_MAGLEVEL", SKILL_MAGICLEVEL},
+	{"SKILL_HITPOINTS", SKILL_HITPOINTS},
+	{"SKILL_MANA", SKILL_MANA},
+	{"SKILL_GOSTRENGTH", SKILL_GOSTRENGTH},
+	{"SKILL_CARRYSTRENGTH", SKILL_CARRYSTRENGTH},
+	{"SKILL_SHIELD", SKILL_SHIELDING},
+	{"SKILL_DISTANCE", SKILL_DISTANCEFIGHTING},
+	{"SKILL_SWORD", SKILL_SWORDFIGHTING},
+	{"SKILL_CLUB", SKILL_CLUBFIGHTING},
+	{"SKILL_AXE", SKILL_AXEFIGHTING},
+	{"SKILL_FIST", SKILL_FISTFIGHTING},
+	{"SKILL_MAGICDEFENSE", SKILL_MAGICDEFENSE},
+	{"SKILL_FISHING", SKILL_FISHING},
+	{"SKILL_EATING", SKILL_EATING},
+	{"SKILL_SHINING", SKILL_SHINING},
+	{"SKILL_ILLUSION", SKILL_ILLUSION},
+	{"SKILL_POISON", SKILL_POISON},
+	{"SKILL_BURNING", SKILL_BURNING},
+	{"SKILL_ENERGY", SKILL_ENERGY},
+	{"SKILL_DRUNKEN", SKILL_DRUNKEN},
+	{"SKILL_MANASHIELD", SKILL_MANASHIELD},
+	{"SKILL_SOULPOINTS", SKILL_SOULPOINTS},
+
+	// The professions of cr.hh (vocation:getId, vocation:getBaseId).
+	{"VOCATION_NONE", PROFESSION_NONE},
+	{"VOCATION_KNIGHT", PROFESSION_KNIGHT},
+	{"VOCATION_PALADIN", PROFESSION_PALADIN},
+	{"VOCATION_SORCERER", PROFESSION_SORCERER},
+	{"VOCATION_DRUID", PROFESSION_DRUID},
+	{"VOCATION_PROMOTION", PROFESSION_PROMOTION},
+};
 
 void RegisterMagicAPI() {
-	sol::table Magic = ScriptAPITable("magic");
-	Magic.set_function("compute_damage", Guarded(&MagicComputeDamage));
+	sol::table Magic = ScriptAPITable("Magic");
+	Magic.set_function("computeDamage", Guarded(&MagicComputeDamage));
 	Magic.set_function("heal", Guarded(&MagicHeal));
-	Magic.set_function("mass_heal", Guarded(&MagicMassHeal));
-	Magic.set_function("heal_friend", Guarded(&MagicHealFriend));
+	Magic.set_function("massHeal", Guarded(&MagicMassHeal));
+	Magic.set_function("healFriend", Guarded(&MagicHealFriend));
 	Magic.set_function("combat", Guarded(&MagicCombat));
-	Magic.set_function("mass_combat", Guarded(&MagicMassCombat));
-	Magic.set_function("angle_combat", Guarded(&MagicAngleCombat));
-	Magic.set_function("kill_all_monsters", Guarded(&MagicKillAllMonsters));
-	Magic.set_function("create_field", Guarded(&MagicCreateField));
-	Magic.set_function("create_field_on", Guarded(&MagicCreateFieldOn));
-	Magic.set_function("mass_create_field", Guarded(&MagicMassCreateField));
-	Magic.set_function("create_field_wall", Guarded(&MagicCreateFieldWall));
-	Magic.set_function("delete_field", Guarded(&MagicDeleteField));
-	Magic.set_function("cleanup_field", Guarded(&MagicCleanupField));
-	Magic.set_function("cleanup_field_on", Guarded(&MagicCleanupFieldOn));
-	Magic.set_function("magic_rope", Guarded(&MagicMagicRope));
-	Magic.set_function("magic_climbing", Guarded(&MagicMagicClimbing));
-	Magic.set_function("magic_climbing_free", Guarded(&MagicMagicClimbingFree));
-	Magic.set_function("create_food", Guarded(&MagicCreateFood));
-	Magic.set_function("create_arrows", Guarded(&MagicCreateArrows));
-	Magic.set_function("summon_creature", Guarded(&MagicSummonCreature));
-	Magic.set_function("raise_dead", Guarded(&MagicRaiseDead));
-	Magic.set_function("mass_raise_dead", Guarded(&MagicMassRaiseDead));
-	Magic.set_function("magic_go_strength", Guarded(&MagicMagicGoStrength));
+	Magic.set_function("massCombat", Guarded(&MagicMassCombat));
+	Magic.set_function("angleCombat", Guarded(&MagicAngleCombat));
+	Magic.set_function("killAllMonsters", Guarded(&MagicKillAllMonsters));
+	Magic.set_function("createField", Guarded(&MagicCreateField));
+	Magic.set_function("createFieldOn", Guarded(&MagicCreateFieldOn));
+	Magic.set_function("massCreateField", Guarded(&MagicMassCreateField));
+	Magic.set_function("createFieldWall", Guarded(&MagicCreateFieldWall));
+	Magic.set_function("deleteField", Guarded(&MagicDeleteField));
+	Magic.set_function("cleanupField", Guarded(&MagicCleanupField));
+	Magic.set_function("cleanupFieldOn", Guarded(&MagicCleanupFieldOn));
+	Magic.set_function("magicRope", Guarded(&MagicMagicRope));
+	Magic.set_function("magicClimbing", Guarded(&MagicMagicClimbing));
+	Magic.set_function("magicClimbingFree", Guarded(&MagicMagicClimbingFree));
+	Magic.set_function("createFood", Guarded(&MagicCreateFood));
+	Magic.set_function("createArrows", Guarded(&MagicCreateArrows));
+	Magic.set_function("summonCreature", Guarded(&MagicSummonCreature));
+	Magic.set_function("raiseDead", Guarded(&MagicRaiseDead));
+	Magic.set_function("massRaiseDead", Guarded(&MagicMassRaiseDead));
+	Magic.set_function("magicGoStrength", Guarded(&MagicMagicGoStrength));
 	Magic.set_function("shielding", Guarded(&MagicShielding));
-	Magic.set_function("negate_poison", Guarded(&MagicNegatePoison));
+	Magic.set_function("negatePoison", Guarded(&MagicNegatePoison));
 	Magic.set_function("enlight", Guarded(&MagicEnlight));
 	Magic.set_function("invisibility", Guarded(&MagicInvisibility));
-	Magic.set_function("cancel_invisibility", Guarded(&MagicCancelInvisibility));
-	Magic.set_function("creature_illusion", Guarded(&MagicCreatureIllusion));
-	Magic.set_function("object_illusion", Guarded(&MagicObjectIllusion));
-	Magic.set_function("enchant_object", Guarded(&MagicEnchantObject));
+	Magic.set_function("cancelInvisibility", Guarded(&MagicCancelInvisibility));
+	Magic.set_function("creatureIllusion", Guarded(&MagicCreatureIllusion));
+	Magic.set_function("objectIllusion", Guarded(&MagicObjectIllusion));
+	Magic.set_function("enchantObject", Guarded(&MagicEnchantObject));
 	Magic.set_function("convince", Guarded(&MagicConvince));
 	Magic.set_function("challenge", Guarded(&MagicChallenge));
-	Magic.set_function("find_person", Guarded(&MagicFindPerson));
+	Magic.set_function("findPerson", Guarded(&MagicFindPerson));
 
-	sol::table Command = ScriptAPITable("command");
-	Command.set_function("create_thing", Guarded(&CommandCreateThing));
+	sol::table Command = ScriptAPITable("Command");
+	Command.set_function("createThing", Guarded(&CommandCreateThing));
 	Command.set_function("teleport", Guarded(&CommandTeleport));
-	Command.set_function("create_knowledge", Guarded(&CommandCreateKnowledge));
-	Command.set_function("change_data", Guarded(&CommandChangeData));
-	Command.set_function("teleport_to_creature", Guarded(&CommandTeleportToCreature));
-	Command.set_function("teleport_player_to_me", Guarded(&CommandTeleportPlayerToMe));
-	Command.set_function("get_position", Guarded(&CommandGetPosition));
-	Command.set_function("create_money", Guarded(&CommandCreateMoney));
-	Command.set_function("change_profession", Guarded(&CommandChangeProfession));
-	Command.set_function("edit_guests", Guarded(&CommandEditGuests));
-	Command.set_function("edit_subowners", Guarded(&CommandEditSubowners));
-	Command.set_function("kick_guest", Guarded(&CommandKickGuest));
-	Command.set_function("edit_name_door", Guarded(&CommandEditNameDoor));
-	Command.set_function("get_quest_value", Guarded(&CommandGetQuestValue));
-	Command.set_function("set_quest_value", Guarded(&CommandSetQuestValue));
-	Command.set_function("clear_quest_values", Guarded(&CommandClearQuestValues));
-	Command.set_function("start_monsterraid", Guarded(&CommandStartMonsterraid));
-	Command.set_function("home_teleport", Guarded(&CommandHomeTeleport));
-	Command.set_function("banish_account", Guarded(&CommandBanishAccount));
-	Command.set_function("delete_account", Guarded(&CommandDeleteAccount));
-	Command.set_function("set_name_rule", Guarded(&CommandSetNameRule));
+	Command.set_function("createKnowledge", Guarded(&CommandCreateKnowledge));
+	Command.set_function("changeData", Guarded(&CommandChangeData));
+	Command.set_function("teleportToCreature", Guarded(&CommandTeleportToCreature));
+	Command.set_function("teleportPlayerToMe", Guarded(&CommandTeleportPlayerToMe));
+	Command.set_function("showPosition", Guarded(&CommandShowPosition));
+	Command.set_function("createMoney", Guarded(&CommandCreateMoney));
+	Command.set_function("changeProfession", Guarded(&CommandChangeProfession));
+	Command.set_function("editGuests", Guarded(&CommandEditGuests));
+	Command.set_function("editSubowners", Guarded(&CommandEditSubowners));
+	Command.set_function("kickGuest", Guarded(&CommandKickGuest));
+	Command.set_function("editNameDoor", Guarded(&CommandEditNameDoor));
+	Command.set_function("getQuestValue", Guarded(&CommandGetQuestValue));
+	Command.set_function("setQuestValue", Guarded(&CommandSetQuestValue));
+	Command.set_function("clearQuestValues", Guarded(&CommandClearQuestValues));
+	Command.set_function("startMonsterraid", Guarded(&CommandStartMonsterraid));
+	Command.set_function("homeTeleport", Guarded(&CommandHomeTeleport));
+	Command.set_function("banishAccount", Guarded(&CommandBanishAccount));
+	Command.set_function("deleteAccount", Guarded(&CommandDeleteAccount));
+	Command.set_function("setNameRule", Guarded(&CommandSetNameRule));
 	Command.set_function("notation", Guarded(&CommandNotation));
-	Command.set_function("name_lock", Guarded(&CommandNameLock));
-	Command.set_function("kick_player", Guarded(&CommandKickPlayer));
-	Command.set_function("delete_character", Guarded(&CommandDeleteCharacter));
-	Command.set_function("ip_banishment", Guarded(&CommandIPBanishment));
-	Command.set_function("banish_character", Guarded(&CommandBanishCharacter));
+	Command.set_function("nameLock", Guarded(&CommandNameLock));
+	Command.set_function("kickPlayer", Guarded(&CommandKickPlayer));
+	Command.set_function("deleteCharacter", Guarded(&CommandDeleteCharacter));
+	Command.set_function("ipBanishment", Guarded(&CommandIPBanishment));
+	Command.set_function("banishCharacter", Guarded(&CommandBanishCharacter));
 
-	sol::table Game = ScriptAPITable("game");
-	Game.set_function("to_int", Guarded(&GameToInt));
+	sol::table Game = ScriptAPITable("Game");
+	Game.set_function("toInt", Guarded(&GameToInt));
 
-	sol::table Creature = ScriptAPITable("creature");
-	Creature.set_function("object", Guarded(&CreatureObject));
-	Creature.set_function("skill", Guarded(&CreatureSkill));
-	Creature.set_function("effective_profession", Guarded(&CreatureEffectiveProfession));
+	sol::table Creature = ScriptAPITable("Creature");
+	Creature.set_function("getSkillValue", Guarded(&CreatureGetSkillValue));
 
-	sol::table ObjectAPI = ScriptAPITable("object");
-	ObjectAPI.set_function("new_type", Guarded(&ObjectNewType));
+	sol::table Player = ScriptAPITable("Player");
+	Player.set_function("getLevel", Guarded(&PlayerGetLevel));
+	Player.set_function("getVocation", Guarded(&PlayerGetVocation));
 
-	// The constants, all names of operate.hh's EFFECT_ and ANIMATION_, cr.hh's
-	// DAMAGE_ and PROFESSION_, info.hh's FIELD_, crskill.hh's SKILL_ and
-	// magic.hh's CONJURE_ (as ammo), without the prefix.
-	sol::table Effect = ScriptAPITable("effect");
-	CONSTANT(Effect, EFFECT_, BLOOD_HIT);
-	CONSTANT(Effect, EFFECT_, MANA_HIT);
-	CONSTANT(Effect, EFFECT_, POFF);
-	CONSTANT(Effect, EFFECT_, BLOCK_HIT);
-	CONSTANT(Effect, EFFECT_, EXPLOSION_AREA);
-	CONSTANT(Effect, EFFECT_, EXPLOSION);
-	CONSTANT(Effect, EFFECT_, FIRE_AREA);
-	CONSTANT(Effect, EFFECT_, POISON);
-	CONSTANT(Effect, EFFECT_, HIT_AREA);
-	CONSTANT(Effect, EFFECT_, TELEPORT);
-	CONSTANT(Effect, EFFECT_, ENERGY_HIT);
-	CONSTANT(Effect, EFFECT_, MAGIC_BLUE);
-	CONSTANT(Effect, EFFECT_, MAGIC_RED);
-	CONSTANT(Effect, EFFECT_, MAGIC_GREEN);
-	CONSTANT(Effect, EFFECT_, FIRE_HIT);
-	CONSTANT(Effect, EFFECT_, POISON_HIT);
-	CONSTANT(Effect, EFFECT_, DEATH);
+	sol::table Vocation = ScriptAPITable("Vocation");
+	Vocation.set_function("getId", Guarded(&VocationGetId));
+	Vocation.set_function("getBaseId", Guarded(&VocationGetBaseId));
 
-	sol::table Animation = ScriptAPITable("animation");
-	CONSTANT(Animation, ANIMATION_, NONE);
-	CONSTANT(Animation, ANIMATION_, FIRE);
-	CONSTANT(Animation, ANIMATION_, ENERGY);
-	CONSTANT(Animation, ANIMATION_, DEATH);
+	sol::table ItemType = ScriptAPITable("ItemType");
+	ItemType.set_function("fromOldNumber", Guarded(&ItemTypeFromOldNumber));
 
-	sol::table Damage = ScriptAPITable("damage");
-	CONSTANT(Damage, DAMAGE_, PHYSICAL);
-	CONSTANT(Damage, DAMAGE_, POISON);
-	CONSTANT(Damage, DAMAGE_, FIRE);
-	CONSTANT(Damage, DAMAGE_, ENERGY);
-	CONSTANT(Damage, DAMAGE_, POISON_CONDITION);
-	CONSTANT(Damage, DAMAGE_, FIRE_CONDITION);
-	CONSTANT(Damage, DAMAGE_, ENERGY_CONDITION);
-	CONSTANT(Damage, DAMAGE_, LIFEDRAIN);
-	CONSTANT(Damage, DAMAGE_, MANADRAIN);
-
-	sol::table Field = ScriptAPITable("field");
-	CONSTANT(Field, FIELD_, FIRE);
-	CONSTANT(Field, FIELD_, POISON);
-	CONSTANT(Field, FIELD_, ENERGY);
-	CONSTANT(Field, FIELD_, MAGICWALL);
-	CONSTANT(Field, FIELD_, RUSHWOOD);
-
-	sol::table Ammo = ScriptAPITable("ammo");
-	CONSTANT(Ammo, CONJURE_, ARROW);
-	CONSTANT(Ammo, CONJURE_, POISONED_ARROW);
-	CONSTANT(Ammo, CONJURE_, EXPLOSIVE_ARROW);
-	CONSTANT(Ammo, CONJURE_, BOLT);
-	CONSTANT(Ammo, CONJURE_, POWER_BOLT);
-
-	sol::table Skill = ScriptAPITable("skill");
-	CONSTANT(Skill, SKILL_, LEVEL);
-	CONSTANT(Skill, SKILL_, MAGICLEVEL);
-	CONSTANT(Skill, SKILL_, HITPOINTS);
-	CONSTANT(Skill, SKILL_, MANA);
-	CONSTANT(Skill, SKILL_, GOSTRENGTH);
-	CONSTANT(Skill, SKILL_, CARRYSTRENGTH);
-	CONSTANT(Skill, SKILL_, SHIELDING);
-	CONSTANT(Skill, SKILL_, DISTANCEFIGHTING);
-	CONSTANT(Skill, SKILL_, SWORDFIGHTING);
-	CONSTANT(Skill, SKILL_, CLUBFIGHTING);
-	CONSTANT(Skill, SKILL_, AXEFIGHTING);
-	CONSTANT(Skill, SKILL_, FISTFIGHTING);
-	CONSTANT(Skill, SKILL_, MAGICDEFENSE);
-	CONSTANT(Skill, SKILL_, FISHING);
-	CONSTANT(Skill, SKILL_, EATING);
-	CONSTANT(Skill, SKILL_, SHINING);
-	CONSTANT(Skill, SKILL_, ILLUSION);
-	CONSTANT(Skill, SKILL_, POISON);
-	CONSTANT(Skill, SKILL_, BURNING);
-	CONSTANT(Skill, SKILL_, ENERGY);
-	CONSTANT(Skill, SKILL_, DRUNKEN);
-	CONSTANT(Skill, SKILL_, MANASHIELD);
-	CONSTANT(Skill, SKILL_, SOULPOINTS);
-
-	sol::table Profession = ScriptAPITable("profession");
-	CONSTANT(Profession, PROFESSION_, NONE);
-	CONSTANT(Profession, PROFESSION_, KNIGHT);
-	CONSTANT(Profession, PROFESSION_, PALADIN);
-	CONSTANT(Profession, PROFESSION_, SORCERER);
-	CONSTANT(Profession, PROFESSION_, DRUID);
-	CONSTANT(Profession, PROFESSION_, PROMOTION);
-	CONSTANT(Profession, PROFESSION_, ELITE_KNIGHT);
-	CONSTANT(Profession, PROFESSION_, ROYAL_PALADIN);
-	CONSTANT(Profession, PROFESSION_, MASTER_SORCERER);
-	CONSTANT(Profession, PROFESSION_, ELDER_DRUID);
+	for (const TScriptConstant &Constant : Constants) {
+		SetScriptConstant(Constant.Name, Constant.Value);
+	}
 }
-
-#undef CONSTANT

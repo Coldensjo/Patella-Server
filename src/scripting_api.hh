@@ -1,12 +1,20 @@
 // scripting_api.hh: what the units that bind C++ functions for the scripts
 // use (scripting.hh has the engine as the game code sees it). Includes sol2.
 //
-// A binding is registered in an API table (game, creature, object, map,
-// player, ...) under a snake_case name, wrapped with Guarded so that a RESULT
+// Names follow TFS (The Forgotten Server) in its style: tables and classes
+// PascalCase (Game, Magic, Creature, Player), functions and methods
+// camelCase (Magic.massCombat, player:getLevel), constants UPPER_CASE
+// globals (CONST_ME_FIREAREA, RETURNVALUE_NOTENOUGHROOM). A TFS name is used
+// only where it means the same; the values are 7.72's; what 7.72 lacks has no
+// name; what TFS lacks gets an own name in that style. The reference is the
+// mapping note (Patella-Gameserver, notes/lua/tfs-name-mapping.md).
+//
+// A binding is registered in an API table (Game, Magic, ...) or a class's
+// method table (Creature, Player, ...), wrapped with Guarded so that a RESULT
 // the C++ function throws becomes a Lua error that carries the code (rule 5
 // of scripting.hh), never a C++ exception crossing Lua frames:
 //
-//	// Heal(CreatureID, Amount): heals the creature; throws what Heal throws.
+//	// Heal(cr, Mana, SoulPoints, Amount): heals the creature; throws what Heal throws.
 //	API.set_function("heal", Guarded(&HealBinding));
 //
 // Every binding has a comment that says what it does, its arguments, what it
@@ -15,11 +23,14 @@
 // It never keeps a sol object beyond the call.
 //
 // A binding's parameters are numbers (integral or floating types, bool),
-// strings (const char *, std::string) or sol::optional of those, so a script
-// can pass only numbers, booleans, strings and nil; Guarded refuses any other
-// parameter type at compile time. Tables and userdata never reach a binding:
-// the shared tables are userdata proxies, and sol would accept one where it
-// expects a table.
+// strings (const char *, std::string), the objects below (TScriptCreature,
+// TScriptPlayer, TScriptItem, TScriptThing, TScriptVocation) or sol::optional
+// of those ("|nil"); Guarded refuses any other parameter type at compile
+// time. A script can so pass only numbers, booleans, strings, nil and the
+// objects; any other value where an object is expected (a table, a shared
+// table's proxy, a result error) is a Lua argument error. Tables never reach
+// a binding: the shared tables are userdata proxies, and sol would accept one
+// where it expects a table.
 //
 // Include it after the game headers that declare RESULT (info.hh, which needs
 // objects.hh and map.hh before it), as the game's units include info.hh.
@@ -27,6 +38,7 @@
 #ifndef PATELLA_SCRIPTING_API_HH
 #define PATELLA_SCRIPTING_API_HH
 
+#include <cstdint>
 #include <exception>
 #include <string>
 #include <type_traits>
@@ -42,14 +54,22 @@ sol::state &ScriptState();
 // An API table of the shared globals: the table behind Name's read-only
 // proxy, made empty and strict (reading a field it lacks is a Lua error
 // "unknown name '<Name>.<field>'"; writing one from a script is the error
-// "<Name>.<field> is read-only") when it is not there yet. Registration
-// functions add their bindings to the returned table. Throws a const char *
-// when Name is a shared global that is not an API table (a library such as
-// "string", or a function).
+// "<Name>.<field> is read-only") when it is not there yet. The classes'
+// method tables (Creature, Player, Item, Vocation) are API tables too, made
+// by InitScripting. Registration functions add their bindings to the
+// returned table. Throws a const char * when Name is a shared global that is
+// not an API table (a library such as "string", a function, a constant), or
+// a name the sandbox removed.
 sol::table ScriptAPITable(const char *Name);
 
+// Sets the shared global Name to the constant Value: scripts read it, and
+// writing it, also as a global of a script's own, is the Lua error "<Name> is
+// read-only". Throws a const char * when the shared global Name exists
+// already or is a name the sandbox removed.
+void SetScriptConstant(const char *Name, int Value);
+
 // Raises the result code Code as a Lua error value that carries it
-// (game.result_of gives it back, TScriptCall throws it as RESULT). Must be
+// (Game.getResultOf gives it back, TScriptCall throws it as RESULT). Must be
 // called directly by a function Lua called (through sol), outside any C++
 // catch block: it does not return (lua_error). LuaJIT on x64 unwinds the C++
 // frames as an exception would, so the destructors of objects alive there
@@ -62,6 +82,186 @@ sol::table ScriptAPITable(const char *Name);
 // ERROR. The same conditions as RaiseResult; Text is copied first.
 [[noreturn]] void RaiseError(lua_State *L, const char *Text);
 
+// The objects (scripting.hh, "Objects"): a userdata holding a creature ID, an
+// object handle or, for a Vocation, its player's creature ID.
+enum TScriptObjectKind {
+	SCRIPT_NO_OBJECT,
+	SCRIPT_CREATURE,
+	SCRIPT_PLAYER,
+	SCRIPT_ITEM,
+	SCRIPT_VOCATION,
+};
+
+// The kind of the value at Index: SCRIPT_NO_OBJECT for anything that is not
+// one of the objects. Calls no metamethod.
+TScriptObjectKind ScriptObjectKind(lua_State *L, int Index);
+
+// The ID or handle the object at Index holds (0 for a value that is not an
+// object).
+uint32_t ScriptObjectValue(lua_State *L, int Index);
+
+// Pushes a new object of the kind Kind (not SCRIPT_NO_OBJECT) holding Value.
+void PushScriptObject(lua_State *L, TScriptObjectKind Kind, uint32_t Value);
+
+// Pushes the creature ID as an object: nil for 0, a Player for a player's ID
+// (below FIRST_NONPLAYER_CREATURE_ID, as IsCreaturePlayer says), a Creature
+// otherwise.
+void PushScriptCreature(lua_State *L, uint32_t ID);
+
+// The parameter and result types of the objects. TScriptCreature takes a
+// Creature or a Player; TScriptPlayer only a Player; TScriptItem only an
+// Item; TScriptThing an Item, a Creature or a Player (for the C++ functions
+// that take an Object); TScriptVocation a Vocation.
+struct TScriptCreature {
+	uint32_t ID;
+};
+
+struct TScriptPlayer {
+	uint32_t ID;
+};
+
+struct TScriptItem {
+	uint32_t Handle;
+};
+
+struct TScriptThing {
+	bool IsCreature;
+	uint32_t Value;  // the creature ID, or the object handle
+};
+
+struct TScriptVocation {
+	uint32_t PlayerID;
+};
+
+// How each object type is checked, read and pushed (sol's customization
+// points below use it).
+template<typename T>
+struct TScriptObjectType;
+
+template<>
+struct TScriptObjectType<TScriptCreature> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER; }
+	static const char *expected() { return "Creature expected"; }
+	static TScriptCreature make(TScriptObjectKind, uint32_t Value) { return TScriptCreature{Value}; }
+	static void push(lua_State *L, const TScriptCreature &Value) { PushScriptCreature(L, Value.ID); }
+};
+
+template<>
+struct TScriptObjectType<TScriptPlayer> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_PLAYER; }
+	static const char *expected() { return "Player expected"; }
+	static TScriptPlayer make(TScriptObjectKind, uint32_t Value) { return TScriptPlayer{Value}; }
+	static void push(lua_State *L, const TScriptPlayer &Value) { PushScriptObject(L, SCRIPT_PLAYER, Value.ID); }
+};
+
+template<>
+struct TScriptObjectType<TScriptItem> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_ITEM; }
+	static const char *expected() { return "Item expected"; }
+	static TScriptItem make(TScriptObjectKind, uint32_t Value) { return TScriptItem{Value}; }
+	static void push(lua_State *L, const TScriptItem &Value) { PushScriptObject(L, SCRIPT_ITEM, Value.Handle); }
+};
+
+template<>
+struct TScriptObjectType<TScriptThing> {
+	static bool accepts(TScriptObjectKind Kind) {
+		return Kind == SCRIPT_ITEM || Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER;
+	}
+	static const char *expected() { return "Item or Creature expected"; }
+	static TScriptThing make(TScriptObjectKind Kind, uint32_t Value) {
+		return TScriptThing{Kind != SCRIPT_ITEM, Value};
+	}
+	static void push(lua_State *L, const TScriptThing &Value) {
+		if (Value.IsCreature) {
+			PushScriptCreature(L, Value.Value);
+		} else {
+			PushScriptObject(L, SCRIPT_ITEM, Value.Value);
+		}
+	}
+};
+
+template<>
+struct TScriptObjectType<TScriptVocation> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_VOCATION; }
+	static const char *expected() { return "Vocation expected"; }
+	static TScriptVocation make(TScriptObjectKind, uint32_t Value) { return TScriptVocation{Value}; }
+	static void push(lua_State *L, const TScriptVocation &Value) {
+		PushScriptObject(L, SCRIPT_VOCATION, Value.PlayerID);
+	}
+};
+
+// sol's check of an object parameter: the kind must be one T accepts;
+// otherwise the handler raises sol's argument error.
+template<typename T, typename Handler>
+bool CheckScriptObject(lua_State *L, int Index, Handler &&handler, sol::stack::record &tracking) {
+	tracking.use(1);
+	if (TScriptObjectType<T>::accepts(ScriptObjectKind(L, Index))) {
+		return true;
+	}
+	handler(L, Index, sol::type::userdata, sol::type_of(L, Index), TScriptObjectType<T>::expected());
+	return false;
+}
+
+template<typename T>
+T GetScriptObject(lua_State *L, int Index, sol::stack::record &tracking) {
+	tracking.use(1);
+	return TScriptObjectType<T>::make(ScriptObjectKind(L, Index), ScriptObjectValue(L, Index));
+}
+
+// sol's check of an object parameter that may be nil (sol::optional): nil or
+// no value passes (counted as sol counts them), an object as above; any other
+// value is an argument error. (sol's own check of an optional takes any value
+// and gives nullopt for one of the wrong type.)
+template<typename T, typename Handler>
+bool CheckOptionalScriptObject(lua_State *L, int Index, Handler &&handler, sol::stack::record &tracking) {
+	if (lua_isnoneornil(L, Index)) {
+		tracking.use(lua_isnone(L, Index) ? 0 : 1);
+		return true;
+	}
+	return CheckScriptObject<T>(L, Index, std::forward<Handler>(handler), tracking);
+}
+
+template<typename T>
+sol::optional<T> GetOptionalScriptObject(lua_State *L, int Index, sol::stack::record &tracking) {
+	if (lua_isnoneornil(L, Index)) {
+		tracking.use(lua_isnone(L, Index) ? 0 : 1);
+		return sol::nullopt;
+	}
+	return GetScriptObject<T>(L, Index, tracking);
+}
+
+// sol's customization points (found by argument-dependent lookup), for T and
+// sol::optional<T>.
+#define SCRIPT_OBJECT_TYPE(T) \
+	template<typename Handler> \
+	bool sol_lua_check(sol::types<T>, lua_State *L, int Index, Handler &&handler, sol::stack::record &tracking) { \
+		return CheckScriptObject<T>(L, Index, std::forward<Handler>(handler), tracking); \
+	} \
+	inline T sol_lua_get(sol::types<T>, lua_State *L, int Index, sol::stack::record &tracking) { \
+		return GetScriptObject<T>(L, Index, tracking); \
+	} \
+	inline int sol_lua_push(sol::types<T>, lua_State *L, const T &Value) { \
+		TScriptObjectType<T>::push(L, Value); \
+		return 1; \
+	} \
+	template<typename Handler> \
+	bool sol_lua_check(sol::types<sol::optional<T>>, lua_State *L, int Index, Handler &&handler, \
+			sol::stack::record &tracking) { \
+		return CheckOptionalScriptObject<T>(L, Index, std::forward<Handler>(handler), tracking); \
+	} \
+	inline sol::optional<T> sol_lua_get(sol::types<sol::optional<T>>, lua_State *L, int Index, \
+			sol::stack::record &tracking) { \
+		return GetOptionalScriptObject<T>(L, Index, tracking); \
+	}
+
+SCRIPT_OBJECT_TYPE(TScriptCreature)
+SCRIPT_OBJECT_TYPE(TScriptPlayer)
+SCRIPT_OBJECT_TYPE(TScriptItem)
+SCRIPT_OBJECT_TYPE(TScriptThing)
+SCRIPT_OBJECT_TYPE(TScriptVocation)
+
+#undef SCRIPT_OBJECT_TYPE
+
 // Guarded(f): a function for sol's set_function that calls f with the same
 // arguments and gives its result. A RESULT f throws is caught and raised with
 // RaiseResult after the catch block has ended. A const char * or a
@@ -73,14 +273,17 @@ sol::table ScriptAPITable(const char *Name);
 // Whether a binding may take a parameter of type T (see the top).
 template<typename T>
 struct TScriptArgument : std::integral_constant<bool, std::is_arithmetic<T>::value
-		|| std::is_same<T, const char *>::value || std::is_same<T, std::string>::value> {};
+		|| std::is_same<T, const char *>::value || std::is_same<T, std::string>::value
+		|| std::is_same<T, TScriptCreature>::value || std::is_same<T, TScriptPlayer>::value
+		|| std::is_same<T, TScriptItem>::value || std::is_same<T, TScriptThing>::value
+		|| std::is_same<T, TScriptVocation>::value> {};
 template<typename T>
 struct TScriptArgument<sol::optional<T>> : TScriptArgument<std::decay_t<T>> {};
 
 template<typename R, typename... A>
 auto Guarded(R (*Function)(A...)) {
 	static_assert((TScriptArgument<std::decay_t<A>>::value && ...),
-			"a binding takes only numbers, bool, strings and sol::optional of those");
+			"a binding takes only numbers, bool, strings, the script objects and sol::optional of those");
 	return [Function](sol::this_state State, A... Arguments) -> R {
 		int Code = 0;
 		bool Text = false;
