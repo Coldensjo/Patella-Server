@@ -17,23 +17,24 @@ What it does, in WSL Ubuntu-24.04:
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
      relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/commands.toml,
      data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml and data/conversion.toml
-     go into the copy's data folder ([paths] data), and the files they were converted from, objects.srv, circles.dat,
-     moveuse.dat, houseareas.dat, houses.dat, map.dat with the mem.dat it includes, and conversion.lst, are removed
-     (spells.toml and commands.toml replace the spell table and the commands' rights in the code). A tree without them
-     (faithful) gets the copy's .tibia with its paths pointed at the copy, and keeps those files. The scenario's clients
-     read the object types from the file the copy has. Either config gets a scratch SHM key (--shm, default 17011) and
-     scratch query manager ports (--qm-port, default 17173, and the three after it for the other entries). Then it seeds
-     a scratch database with the build's querymanager-seed (game port --port, default 17171), adds the test accounts
-     with a new character each (900001 'Testa Alpha', male, and 900002 'Testb Beta', female; and the gamemasters 900003
-     to 900007, 'Testc Gamma' to 'Testg Eta', male, each with some of the rights the commands check, GM_RIGHTS; none may
-     have a player file or player data) and starts the build's query manager. A build whose query manager keeps the
-     player data (its database has the table player_data) gets them from the player files with the seed, which imports
-     them; the copy's usr/ is then removed, so the run also shows that its game no longer reads or writes player files.
-     The game runs with HOME set to the copy, so it reads the copy's config.toml (or .tibia). The copy gets the check's
-     RSA key (repro_check's key header) as a key file in PKCS#1 PEM, mode 0600, at the path the copy's config.toml names
-     with rsa_key (key.pem in the copy without one, and for a .tibia): a tree that reads its key at run time uses it,
-     one that builds the key in has the same key built in. The scenario's clients encrypt their logins with that file's
-     modulus.
+     go into the copy's data folder ([paths] data), as does data/scripts/ (the Lua scripts, as a whole folder), and the
+     files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat, houses.dat, map.dat with the
+     mem.dat it includes, and conversion.lst, are removed (spells.toml and commands.toml replace the spell table and the
+     commands' rights in the code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the
+     copy, and keeps those files. The scenario's clients read the object types from the file the copy has. Either config
+     gets a scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the
+     three after it for the other entries). Then it seeds a scratch database with the build's querymanager-seed (game
+     port --port, default 17171), adds the test accounts with a new character each (900001 'Testa Alpha', male, and
+     900002 'Testb Beta', female; and the gamemasters 900003 to 900007, 'Testc Gamma' to 'Testg Eta', male, each with
+     some of the rights the commands check, GM_RIGHTS; and the caster 900008 'Testh Theta', male, with the rights to
+     cast every spell and make and use every rune, CASTER_RIGHTS; none may have a player file or player data) and
+     starts the build's query manager. A build whose query manager keeps the player data (its database has the table
+     player_data) gets them from the player files with the seed, which imports them; the copy's usr/ is then removed,
+     so the run also shows that its game no longer reads or writes player files. The game runs with HOME set to the
+     copy, so it reads the copy's config.toml (or .tibia). The copy gets the check's RSA key (repro_check's key
+     header) as a key file in PKCS#1 PEM, mode 0600, at the path the copy's config.toml names with rsa_key (key.pem in
+     the copy without one, and for a .tibia): a tree that reads its key at run time uses it, one that builds the key
+     in has the same key built in. The scenario's clients encrypt their logins with that file's modulus.
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
@@ -100,6 +101,14 @@ def gm_rights(bit):
 	return [right for number, right in enumerate(GM_RIGHTS, 1) if number & (1 << bit)]
 
 
+# The rights of the caster 'Testh Theta' (scenarios spells and runes): every spell regardless of level, spellbook,
+# mana, soul points and premium account, aggressive spells everywhere, no damage taken (the monsters it fights and the
+# fields it makes would kill a level 1 character), and the commands it sets itself up with: Get Item (blank runes, a
+# staff), Summon Wild Creature and Kill All Creatures (targets, corpses), Move to coordinates, and Change Profession
+# (a druid for Paralyze).
+CASTER_RIGHTS = ["ALL_SPELLS", "UNLIMITED_MANA", "PREMIUM_ACCOUNT", "ATTACK_EVERYWHERE", "INVULNERABLE",
+	"CREATE_OBJECTS", "CREATE_MONSTERS", "TELEPORT_TO_COORDINATE", "CHANGE_PROFESSION"]
+
 # Account, password, sex, character name and rights.
 TEST_ACCOUNTS = [
 	(900001, "testa", 1, "Testa Alpha", []),
@@ -109,6 +118,7 @@ TEST_ACCOUNTS = [
 	(900005, "teste", 1, "Teste Epsilon", gm_rights(2)),
 	(900006, "testf", 1, "Testf Zeta", gm_rights(3)),
 	(900007, "testg", 1, "Testg Eta", gm_rights(4)),
+	(900008, "testh", 1, "Testh Theta", CASTER_RIGHTS),
 ]
 BOOT_SECONDS = 300
 STOP_SECONDS = 600
@@ -349,10 +359,18 @@ def lay_out(game, data, options):
 				layout += ", no %s" % original
 			if name == "items.toml":
 				objects = os.path.join(folder, name)
+		if os.path.isdir(os.path.join(data, "scripts")):
+			folder = data_folder(game)
+			if os.path.exists(os.path.join(folder, "scripts")):
+				shutil.rmtree(os.path.join(folder, "scripts"))
+			shutil.copytree(os.path.join(data, "scripts"), os.path.join(folder, "scripts"))
+			layout += "; scripts/ from the tree's data/"
 		return world, layout, objects
 	for name, _ in DATA_FILES:
 		if data and os.path.isfile(os.path.join(data, name)):
 			raise CheckError("data/%s without data/config.toml: the copy's data folder is unknown" % name)
+	if data and os.path.isdir(os.path.join(data, "scripts")):
+		raise CheckError("data/scripts without data/config.toml: the copy's data folder is unknown")
 	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"]), ".tibia", objects
 
 
@@ -385,7 +403,7 @@ def stored_player_data(db, character):
 def seed(binary, db, game, world, port, log_file):
 	"""Seeds the database from the copy and adds the test accounts, as compare.sh does. The output (it names player
 	files) goes to log_file only; the lines with the counts of the player files and player data are logged. Returns
-	the IDs of the two new characters."""
+	the IDs of the new characters, one per test account."""
 	with open(log_file, "w") as f:
 		if subprocess.run([binary, "--db", db, "--game-root", game, "--port", str(port)], stdout=f,
 				stderr=subprocess.STDOUT, check=False).returncode != 0:

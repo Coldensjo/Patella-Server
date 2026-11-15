@@ -14,19 +14,19 @@
 #
 # The play copy is a runtime copy of the original installation (PLAY_INSTALL, a tar
 # or a folder) in PLAY_ROOT, laid out for this tree: data/config.toml becomes its
-# config.toml (with QM_PORT and SHM_KEY set), the other data/*.toml files go into
-# its data folder ([paths] data), and data/origmap.zip fills its origmap folder
-# when the installation has none (map/ then starts as a copy of it). The rest
-# (monsters, NPCs, owners.dat, monster.db) comes from the installation. The RSA
-# key is the copy's key.pem (the file rsa_key in its config.toml names, key.pem
-# by default), which the game and the login server (--key) both read; a copy
-# without one gets PLAY_KEY, or else a new key from the build's rsakeygen. Its
-# player files are imported into the database (PLAY_RUN/querymanager.sqlite) by
-# querymanager-seed when the database is made; the game itself never reads them.
-# Copy and database are made on first use and kept, so characters keep their
-# progress; only the data/*.toml files are brought up to date with this tree's
-# on every start, since its game reads them as the tree has them. The
-# installation and the repository are not touched.
+# config.toml (with QM_PORT and SHM_KEY set), the other data/*.toml files and the
+# Lua scripts (data/scripts/) go into its data folder ([paths] data), and
+# data/origmap.zip fills its origmap folder when the installation has none (map/
+# then starts as a copy of it). The rest (monsters, NPCs, owners.dat, monster.db)
+# comes from the installation. The RSA key is the copy's key.pem (the file rsa_key
+# in its config.toml names, key.pem by default), which the game and the login server
+# (--key) both read; a copy without one gets PLAY_KEY, or else a new key from the
+# build's rsakeygen. Its player files are imported into the database
+# (PLAY_RUN/querymanager.sqlite) by querymanager-seed when the database is made; the
+# game itself never reads them. Copy and database are made on first use and kept, so
+# characters keep their progress; only the data/*.toml files and data/scripts/ are
+# brought up to date with this tree's on every start, since its game reads them as
+# the tree has them. The installation and the repository are not touched.
 #
 # Environment (defaults in brackets):
 #   PLAY_BUILD      the build directory [$HOME/build/patella-server]
@@ -203,6 +203,14 @@ setup() {
 		[ -e "$data/$(basename "$name")" ] && echo "updating $(basename "$name") in $data from this tree's data/"
 		cp "$name" "$data/" || die "cannot copy $name"
 	done
+	# The Lua scripts: the copy's scripts folder is this tree's data/scripts.
+	if [ -d "$REPO/data/scripts" ]; then
+		if ! diff -rq "$REPO/data/scripts" "$data/scripts" >/dev/null 2>&1; then
+			[ -e "$data/scripts" ] && echo "updating scripts/ in $data from this tree's data/"
+			rm -rf "$data/scripts" && cp -a "$REPO/data/scripts" "$data/scripts" \
+				|| die "cannot copy $REPO/data/scripts"
+		fi
+	fi
 	make_key
 	if [ ! -f "$DB" ]; then
 		echo "seeding $DB (game on 127.0.0.1:$GAME_PORT)"
