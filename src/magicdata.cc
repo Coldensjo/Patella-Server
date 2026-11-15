@@ -3,9 +3,10 @@
 // repository, written by tools/convert from the table the game had in its
 // code) and, for the commands, from commands.toml (data/commands.toml, written
 // by tools/convert from that table and the rights the code checked); the
-// rights of the commands, from commands.toml; and the circles, loaded from
-// circles.toml (data/circles.toml, converted from the original circles.dat by
-// tools/convert).
+// rights of the commands, from commands.toml; the scripts the entries of
+// spells.toml and commands.toml name (their key script), which magic.cc loads;
+// and the circles, loaded from circles.toml (data/circles.toml, converted from
+// the original circles.dat by tools/convert).
 
 #include "tomlfile.hh"
 
@@ -75,6 +76,14 @@ char SpellSyllable[MAX_SYLLABLES][6] = {
 TSpellList SpellList[MAX_SPELLS];
 int CommandRight[MAX_SPELLS][MAX_COMMAND_RIGHTS];
 TCircle Circle[MAX_CIRCLES];
+
+// The script of each spell and command (the key script) and where the key is,
+// "<file>:<line>:<column>"; both empty for none.
+static std::string SpellScript[MAX_SPELLS];
+static std::string SpellScriptPosition[MAX_SPELLS];
+
+// The longest script name the key script may give.
+const int MAX_SCRIPT_NAME_LENGTH = 255;
 
 // The names of the rights, by their number (RIGHT in info.hh).
 const char *const RightNames[NUMBER_OF_RIGHTS] = {
@@ -244,6 +253,72 @@ static void ReadWords(const toml::table &Entry, unsigned char *Syllable, bool Co
 	}
 }
 
+// Whether Name is a script name as the scripting engine takes it (LoadScript):
+// only a-z, 0-9, '_', '-', '/' and '.'; parts between single '/' that are
+// neither empty nor "." nor ".."; a file name that is more than the ending
+// ".lua"; at most MAX_SCRIPT_NAME_LENGTH characters.
+static bool ValidScriptName(const std::string &Name) {
+	size_t Length = Name.size();
+	if (Length > static_cast<size_t>(MAX_SCRIPT_NAME_LENGTH) || Length < 4
+			|| Name.compare(Length - 4, 4, ".lua") != 0) {
+		return false;
+	}
+
+	size_t PartStart = 0;
+	for (size_t i = 0; i <= Length; i++) {
+		char c = i < Length ? Name[i] : 0;
+		if (c == '/' || i == Length) {
+			size_t PartLength = i - PartStart;
+			if (PartLength == 0 || Name.compare(PartStart, PartLength, ".") == 0
+					|| Name.compare(PartStart, PartLength, "..") == 0) {
+				return false;
+			}
+			if (i == Length && PartLength <= 4) {
+				// The file name is only ".lua".
+				return false;
+			}
+			PartStart = i + 1;
+		} else if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Reads the key script of the entry of SpellNr, a script name below Folder
+// ("spells/", "runes/" or "commands/"); What names the entry's kind in the
+// error text. No key: the entry has no script.
+static void ReadScript(const toml::table &Entry, int SpellNr, const char *Folder, const char *What) {
+	SpellScript[SpellNr].clear();
+	SpellScriptPosition[SpellNr].clear();
+	auto Found = Entry.find("script");
+	if (Found == Entry.end()) {
+		return;
+	}
+	// The errors and Where name the key's place.
+	const toml::source_region &Where = Found->first.source();
+	const toml::node &Node = Found->second;
+	if (!Node.is_string()) {
+		TomlError(Where, "script must be a string");
+	}
+
+	const std::string &Name = Node.as_string()->get();
+	if (!ValidScriptName(Name)) {
+		TomlError(Where, "script \"%s\" is not a script name (a-z, 0-9, _, -, / and ., no part . or .., "
+				"ending in .lua, at most %d characters)", Name.c_str(), MAX_SCRIPT_NAME_LENGTH);
+	}
+	size_t FolderLength = strlen(Folder);
+	if (Name.compare(0, FolderLength, Folder) != 0) {
+		TomlError(Where, "the script of %s must be in %s", What, Folder);
+	}
+
+	char Position[4096 + 64];
+	snprintf(Position, sizeof(Position), "%s:%u:%u", Where.path != nullptr ? Where.path->c_str() : "(unknown file)",
+			Where.begin.line, Where.begin.column);
+	SpellScript[SpellNr] = Name;
+	SpellScriptPosition[SpellNr] = Position;
+}
+
 // Reads an integer of Min..Max under Key into Value, which stays 0 when there
 // is none.
 template<typename T>
@@ -261,7 +336,8 @@ static void ReadSpell(const toml::node &Node, bool *Defined) {
 	}
 
 	const toml::table &Entry = *Node.as_table();
-	TomlCheckKeys(Entry, "[[spell]]", {"number", "name", "words", "level", "mana", "soul_points", "flags", "rune"});
+	TomlCheckKeys(Entry, "[[spell]]",
+			{"number", "name", "words", "level", "mana", "soul_points", "flags", "rune", "script"});
 	for (const char *Key : {"number", "name", "words"}) {
 		if (!Entry.contains(Key)) {
 			TomlError(Node.source(), "an entry of spell needs %s", Key);
@@ -288,6 +364,12 @@ static void ReadSpell(const toml::node &Node, bool *Defined) {
 				&& memcmp(SpellList[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
 			TomlError(Entry.get("words")->source(), "these words are already the ones of spell %d", Other);
 		}
+	}
+
+	if (Spell.Syllable[0] == SYLLABLE_AD) {
+		ReadScript(Entry, SpellNr, "runes/", "a rune spell (class ad)");
+	} else {
+		ReadScript(Entry, SpellNr, "spells/", "a spell of the class ex or ut");
 	}
 
 	ReadNumber(Entry, "level", Spell.Level, 0, USHRT_MAX);
@@ -330,6 +412,10 @@ static void ReadSpell(const toml::node &Node, bool *Defined) {
 void LoadSpells(const char *FileName) {
 	for (int i = 1; i < MAX_SPELLS; i++) {
 		memset(&SpellList[i], 0, sizeof(TSpellList));
+	}
+	for (int i = 0; i < MAX_SPELLS; i++) {
+		SpellScript[i].clear();
+		SpellScriptPosition[i].clear();
 	}
 
 	toml::table Spells = TomlParseFile(FileName);
@@ -377,6 +463,20 @@ TCommandRightChecks GetCommandRightChecks(int SpellNr) {
 		default:
 			return {0, {}};
 	}
+}
+
+const char *GetSpellScript(int SpellNr) {
+	if (SpellNr < 0 || SpellNr >= MAX_SPELLS || SpellScript[SpellNr].empty()) {
+		return nullptr;
+	}
+	return SpellScript[SpellNr].c_str();
+}
+
+const char *GetSpellScriptPosition(int SpellNr) {
+	if (SpellNr < 0 || SpellNr >= MAX_SPELLS || SpellScript[SpellNr].empty()) {
+		return nullptr;
+	}
+	return SpellScriptPosition[SpellNr].c_str();
 }
 
 int GetRightByName(const char *Name) {
@@ -455,7 +555,7 @@ static void ReadCommand(const toml::node &Node, bool *Defined) {
 	}
 
 	const toml::table &Entry = *Node.as_table();
-	TomlCheckKeys(Entry, "[[command]]", {"number", "name", "words", "right"});
+	TomlCheckKeys(Entry, "[[command]]", {"number", "name", "words", "right", "script"});
 	for (const char *Key : {"number", "name", "words"}) {
 		if (!Entry.contains(Key)) {
 			TomlError(Node.source(), "an entry of command needs %s", Key);
@@ -489,6 +589,7 @@ static void ReadCommand(const toml::node &Node, bool *Defined) {
 	}
 
 	ReadCommandRights(Entry, SpellNr);
+	ReadScript(Entry, SpellNr, "commands/", "a command");
 }
 
 void LoadCommands(const char *FileName) {

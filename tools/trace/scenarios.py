@@ -4,8 +4,11 @@ test client in. tools/trace_check.py runs them (run_scenario.py --list).
 
 The test characters are new (no player file): they start in the Rookgaard
 temple, a at [32097,32219,7] and b next to it at [32098,32219,7]. The temple
-is a protection zone; the NPC Cipfried walks around in it.
+is no protection zone (its sectors do not flag it); the NPC Cipfried walks
+around in it.
 """
+
+import re
 
 SCENARIOS = {}
 
@@ -376,4 +379,365 @@ def commands(ctx):
 	for key in keys:
 		who[key].logout()
 		s(1)
+	s(3)
+
+
+# The scenarios spells and runes: the caster h ('Testh Theta', trace_check.py
+# CASTER_RIGHTS: every spell, unlimited mana, premium, attacks everywhere, no
+# damage taken, Get Item, monsters, Move to coordinates, Change Profession)
+# casts every spell of the classes ex and ut, and makes and uses every rune
+# (class ad). An attack spell keeps the caster from casting for 2 seconds, the
+# other spells for 1 second (SpendManaAndSoulPoints and its callers), so a cast
+# follows the one before by 3 rounds after an attack, by 2 otherwise; a
+# refused cast (thrown before the mana is spent) sets no delay. One action of
+# h per round: a second one in the same round could cancel the first, which
+# the game may not have done yet (TCreature::ToDoAdd).
+CREATURE = 99                       # the type of a creature on a field
+HAND = (INV, SLOT_RIGHT, 0)
+BLANK_RUNE = 3147
+STAFF = 3289
+# Open grass west of the temple, at least 3 fields free around it, no roof,
+# no house, no protection zone: the attack spells, fields and walls.
+CASTER_SPOT = (32070, 32213, 7)
+# Under a free sky with a walkable floor 6 to the north: Levitate up there and
+# down again (facing south); then Wild Growth on the path to the east (on the
+# open grass sheep may stand in the way).
+LEVITATE_SPOT = (32085, 32216, 7)
+# A rope spot in a cave under the town: Magic Rope leads up to 32104,32171,8.
+ROPE_SPOT = (32104, 32170, 9)
+NOBODY = '"Nobody Here At All"'
+ADD_FIELD = re.compile(r"AddField \[(\d+),(\d+),(\d+)\] (\d+)\(")
+
+
+def free_hands(s, c):
+	"""Puts the club and the torch into the bag, so that both hands are free
+	(a staff takes both, a blank rune from Get Item lands in the right one)."""
+	c.note("=== club and torch into the bag: both hands free")
+	c.use((INV, SLOT_BACKPACK, 0), BAG, 0, 0)
+	s(1)
+	c.move((INV, SLOT_RIGHT, 0), CLUB, 0, (INV, 64, 0), 1)
+	s(1)
+	c.move((INV, SLOT_LEFT, 0), TORCH, 0, (INV, 64, 0), 1)
+	s(1)
+
+
+def teleport(s, c, p, what):
+	c.note("=== Move to %d,%d,%d: %s" % (p + (what,)))
+	c.say("alani %d,%d,%d" % p)
+	s(2)
+
+
+def offset(p, dx, dy):
+	return (p[0] + dx, p[1] + dy, p[2])
+
+
+@scenario()
+def spells(ctx):
+	"""The caster h casts each spell of the classes ex and ut (spells.toml)
+	where it does something: the healing, light, haste, illusion, food,
+	arrow, shield and invisibility spells, Find Person and Heal Friend on b,
+	Mass Healing and Enchant Staff in the temple; Levitate up and down,
+	Wild Growth next to it, Magic Rope at a rope spot; the attack spells,
+	Challenge, Summon Creature and Undead Legion (on corpses) on open grass
+	(a sheep pasture). Refusals: MAGICITEM (no staff), PLAYERNOTONLINE,
+	NOTACCESSIBLE (no rope spot, a roof), CREATURENOTEXISTING, EXHAUSTED,
+	and SPELLUNKNOWN for b."""
+	s = Steps(ctx)
+	ctx.at(0)
+	h = ctx.login("h")
+	s(2)
+	b = ctx.login("b")
+	s(2)
+	free_hands(s, h)
+	s(1)
+
+	def cast(text, what, k=2, c=h):
+		c.note("=== " + what)
+		c.say(text)
+		s(k)
+
+	cast("exeta vis", "Enchant Staff without a staff in a hand: MAGICITEM")
+	cast("alevo %d" % STAFF, "Get Item: a staff, into the free hands")
+	cast("exeta vis", "Enchant Staff: the staff becomes an enchanted staff")
+	cast("exura", "Light Healing")
+	cast("exura gran", "Intense Healing")
+	cast("exura vita", "Ultimate Healing")
+	cast("utani hur", "Haste")
+	cast("utevo lux", "Light")
+	cast("utevo gran lux", "Great Light")
+	cast('exiva "Testb Beta"', "Find Person: b is standing next to h")
+	cast("exiva %s" % NOBODY, "Find Person, nobody of that name: PLAYERNOTONLINE")
+	cast('exura sio "Testb Beta"', "Heal Friend: b")
+	cast("exura sio %s" % NOBODY, "Heal Friend, nobody of that name: PLAYERNOTONLINE")
+	cast("exana pox", "Antidote")
+	cast("utevo res ina rat", "Creature Illusion: a rat")
+	cast("utevo res ina nosuchcreature", "Creature Illusion, unknown race: CREATURENOTEXISTING")
+	cast("utani gran hur", "Strong Haste")
+	cast("exevo pan", "Food")
+	cast("utamo vita", "Magic Shield")
+	cast("utana vid", "Invisible")
+	cast("exevo con pox", "Poisoned Arrow")
+	cast("exevo con flam", "Explosive Arrow")
+	cast("exevo con", "Conjure Arrow")
+	cast("exevo con mort", "Conjure Bolt")
+	cast("exevo con vis", "Power Bolt")
+	cast("utevo vis lux", "Ultimate Light")
+	cast("exura gran mas res", "Mass Healing: h and b")
+	cast("exana ina", "Cancel Invisibility (not on the caster's own field)")
+	cast("exani tera", "Magic Rope without a rope spot: NOTACCESSIBLE")
+	cast("exani hur up", "Levitate up under the temple roof: NOTACCESSIBLE")
+	cast("exura vita", "Ultimate Healing said by b, who knows no spell: SPELLUNKNOWN", c=b)
+
+	teleport(s, h, LEVITATE_SPOT, "under a free sky, a floor 6 to the north")
+	h.turn("n")
+	s(1)
+	cast("exani hur up", "Levitate up, to the north")
+	h.turn("s")
+	s(1)
+	cast("exani hur down", "Levitate down, to the south")
+	h.turn("e")
+	s(1)
+	cast("exevo grav vita", "Wild Growth: rush wood on the path to the east", 3)
+	teleport(s, h, ROPE_SPOT, "a rope spot")
+	cast("exani tera", "Magic Rope: up through the hole")
+
+	teleport(s, h, CASTER_SPOT, "open grass for the attack spells")
+	h.turn("n")
+	s(1)
+	cast("exevo mort hur", "Energy Wave", 3)
+	cast("exevo flam hur", "Fire Wave", 1)
+	cast("exevo vis lux", "Energy Beam a round after Fire Wave: EXHAUSTED", 3)
+	cast("exevo vis lux", "Energy Beam", 3)
+	cast("exevo gran vis lux", "Great Energy Beam", 3)
+	cast("exevo gran mas vis", "Ultimate Explosion", 3)
+	cast("exevo gran mas pox", "Poison Storm", 3)
+	cast("exori", "Berserk", 3)
+	cast("exori mort", "Force Strike")
+	cast("exori vis", "Energy Strike")
+	cast("exori flam", "Flame Strike")
+	cast("exeta res", "Challenge")
+	cast("utevo res nosuchcreature", "Summon Creature, unknown race: CREATURENOTEXISTING")
+	cast("utevo res rat", "Summon Creature: a rat for h", 3)
+	cast("alevo res rat", "Summon Wild Creature: a rat", 1)
+	cast("alito mas res", "Kill All Creatures: corpses next to h", 1)
+	cast("exana mas mort", "Undead Legion: skeletons of the corpses", 3)
+
+	h.logout()
+	s(2)
+	b.logout()
+	s(3)
+
+
+@scenario()
+def runes(ctx):
+	"""The caster h makes each rune of spells.toml (class ad) of a blank rune
+	in its right hand (Get Item) and uses it on a fitting target: b (in the
+	temple), itself, a wild elephant, a pig, empty fields, a field with a
+	field on it, the bag, the field with the leftover runes, a corpse.
+	Refusals: NOCREATURE (a healing rune and a missile on an empty field),
+	NOROOM (a field rune on the bag), EXHAUSTED, NOTMOVABLE (Chameleon on
+	the ground), OUTOFRANGE (Desintegrate two fields away), NOTUSABLE
+	(Paralyze by a caster who is no druid, Animate Dead without a corpse);
+	h becomes a druid (Change Profession) for Paralyze."""
+	s = Steps(ctx)
+	ctx.at(0)
+	h = ctx.login("h")
+	s(2)
+	b = ctx.login("b")
+	s(2)
+	free_hands(s, h)
+	s(1)
+	junk = None
+
+	def make(words, what):
+		h.note("=== %s: Get Item, a blank rune into the right hand" % what)
+		h.say("alevo %d" % BLANK_RUNE)
+		s(1)
+		h.note("=== %s: %s makes the rune" % (what, words))
+		h.say(words)
+		s(2)
+
+	def on_field(rune, p, what, k=3):
+		h.note("=== " + what)
+		tid = h.type_at(p)
+		ctx.check(tid is not None, "runes: nothing known of the field %s" % (p,))
+		h.use_with(HAND, rune, 0, p, tid or 0, 0)
+		s(k)
+
+	def on_self(rune, what, k=3):
+		h.note("=== " + what)
+		h.use_with(HAND, rune, 0, h.pos, CREATURE, 0)
+		s(k)
+
+	def on_creature(rune, cid, what, k=3):
+		h.note("=== " + what)
+		ctx.check(cid is not None, "runes: no creature for %s" % what)
+		h.use_on_creature(HAND, rune, 0, cid or 0)
+		s(k)
+
+	def drop(rune):
+		# What is left of the rune goes onto the field west of h, which
+		# Desintegrate clears later.
+		h.note("=== the rest of the rune onto the field west of h")
+		h.move(HAND, rune, 0, junk, 1)
+		s(1)
+
+	def summon(race):
+		m = h.mark()
+		h.note("=== Summon Wild Creature: %s, a target" % race)
+		h.say("alevo res %s" % race)
+		s(1)
+		cid = h.wait_creature(race, m, 3)
+		ctx.check(cid is not None, "runes: the %s was not seen" % race)
+		return cid
+
+	# In the temple, next to b.
+	make("adura gran", "Intense Healing Rune")
+	on_field(3152, offset(h.pos, 0, 1), "Intense Healing Rune on an empty field: NOCREATURE", 2)
+	h.note("=== Intense Healing Rune on b")
+	h.use_with(HAND, 3152, 0, b.pos, CREATURE, 0)
+	s(2)
+
+	teleport(s, h, CASTER_SPOT, "open grass for the runes")
+	c = CASTER_SPOT
+	junk = offset(c, -1, 0)
+	elephant = summon("elephant")
+
+	make("adura vita", "Ultimate Healing Rune")
+	on_self(3160, "Ultimate Healing Rune on h")
+
+	make("adori", "Light Magic Missile")
+	on_field(3174, offset(c, 3, 0), "Light Magic Missile on an empty field: NOCREATURE", 2)
+	on_creature(3174, elephant, "Light Magic Missile on the elephant", 1)
+	on_creature(3174, elephant, "Light Magic Missile again a round later: EXHAUSTED", 1)
+	drop(3174)
+
+	make("adori gran", "Heavy Magic Missile")
+	on_creature(3198, elephant, "Heavy Magic Missile on the elephant", 1)
+	drop(3198)
+
+	make("adori flam", "Fireball")
+	on_field(3189, offset(c, 3, -2), "Fireball on a field", 1)
+	drop(3189)
+
+	make("adori gran flam", "Great Fireball")
+	on_field(3191, offset(c, -3, -3), "Great Fireball on a field", 1)
+	drop(3191)
+
+	make("adevo mas hur", "Explosion")
+	on_field(3200, offset(c, 2, 3), "Explosion on a field", 1)
+	drop(3200)
+
+	make("adori vita vis", "Sudden Death")
+	on_creature(3155, elephant, "Sudden Death on the elephant")
+
+	make("adevo res flam", "Soulfire")
+	on_creature(3195, elephant, "Soulfire on the elephant", 1)
+	drop(3195)
+
+	make("adevo res pox", "Envenom")
+	on_creature(3179, elephant, "Envenom on the elephant")
+
+	make("adevo grav flam", "Fire Field")
+	h.note("=== Fire Field on the bag (not on the map): NOROOM")
+	h.use_with(HAND, 3188, 0, (INV, SLOT_BACKPACK, 0), BAG, 0)
+	s(2)
+	fire = offset(c, 2, -2)
+	on_field(3188, fire, "Fire Field on an empty field", 1)
+	drop(3188)
+
+	make("adevo grav pox", "Poison Field")
+	on_field(3172, offset(c, -2, 2), "Poison Field on an empty field", 1)
+	drop(3172)
+
+	make("adevo grav vis", "Energy Field")
+	on_field(3164, offset(c, -2, -2), "Energy Field on an empty field", 1)
+	drop(3164)
+
+	make("adito grav", "Destroy Field")
+	on_field(3148, fire, "Destroy Field on the fire field", 1)
+	drop(3148)
+
+	make("adevo mas grav flam", "Fire Wall")
+	on_field(3190, offset(c, 4, 0), "Fire Wall to the east (north-south)", 1)
+	drop(3190)
+
+	make("adevo mas grav pox", "Poison Wall")
+	on_field(3176, offset(c, -3, 3), "Poison Wall to the south-west (diagonal)", 1)
+	drop(3176)
+
+	make("adevo mas grav vis", "Energy Wall")
+	on_field(3166, offset(c, 0, -4), "Energy Wall to the north (east-west)", 1)
+	drop(3166)
+
+	make("adevo mas flam", "Firebomb")
+	on_field(3192, offset(c, 4, 4), "Firebomb on a field", 1)
+	drop(3192)
+
+	make("adevo mas vis", "Energybomb")
+	on_field(3149, offset(c, 0, 5), "Energybomb on a field", 1)
+	drop(3149)
+
+	make("adevo mas pox", "Poisonbomb")
+	on_field(3173, offset(c, -4, -4), "Poisonbomb on a field", 1)
+	drop(3173)
+
+	make("adevo grav tera", "Magic Wall")
+	on_field(3180, offset(c, 1, -3), "Magic Wall on an empty field", 1)
+	drop(3180)
+
+	make("adevo ina", "Chameleon")
+	on_field(3178, offset(c, 0, 2), "Chameleon on the ground: NOTMOVABLE", 2)
+	h.note("=== Chameleon on the bag: h looks like a bag")
+	h.use_with(HAND, 3178, 0, (INV, SLOT_BACKPACK, 0), BAG, 0)
+	s(2)
+
+	make("adana pox", "Antidote Rune")
+	on_self(3153, "Antidote Rune on h", 2)
+
+	make("adito tera", "Desintegrate")
+	on_field(3197, offset(c, 2, 0), "Desintegrate two fields away: OUTOFRANGE", 2)
+	on_field(3197, junk, "Desintegrate the leftover runes west of h", 1)
+	drop(3197)
+
+	make("adana ani", "Paralyze")
+	on_creature(3165, elephant, "Paralyze by a caster who is no druid: NOTUSABLE", 2)
+	h.note("=== Change Profession: h becomes a druid")
+	h.say("aleta vita druid")
+	s(1)
+	on_creature(3165, elephant, "Paralyze by a druid: the elephant")
+
+	pig = summon("pig")
+	make("adeta sio", "Convince Creature")
+	on_creature(3177, pig, "Convince Creature: the pig follows h")
+
+	make("adana mort", "Animate Dead")
+	m = h.mark()
+	h.note("=== Kill All Creatures: the elephant and the pig next to h leave corpses")
+	h.say("alito mas res")
+	s(1)
+
+	def is_corpse(rec):
+		found = ADD_FIELD.match(rec["text"])
+		return found is not None and ctx.types.has(int(found.group(4)), "corpse")
+
+	rec = h.wait_for(is_corpse, m, 3)
+	ctx.check(rec is not None, "runes: no corpse after Kill All Creatures")
+	if rec is not None:
+		x, y, z, tid = map(int, ADD_FIELD.match(rec["text"]).groups())
+		corpse, corpse_type = (x, y, z), tid
+	else:
+		corpse, corpse_type = offset(c, 1, 1), 0
+	teleport(s, h, corpse, "onto the corpse")
+	empty = offset(h.pos, 1, 0)
+	if empty == corpse:
+		empty = offset(h.pos, -1, 0)
+	on_field(3203, empty, "Animate Dead on a field without a corpse: NOTUSABLE", 2)
+	h.note("=== Animate Dead on the corpse: a skeleton for h")
+	h.use_with(HAND, 3203, 0, corpse, corpse_type, 0)
+	s(3)
+
+	h.logout()
+	s(2)
+	b.logout()
 	s(3)

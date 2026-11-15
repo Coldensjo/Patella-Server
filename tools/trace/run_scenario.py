@@ -29,7 +29,9 @@ import scenarios  # noqa: E402
 # Test accounts, created per run by trace_check.py (querymanager-seed
 # --new-character); the characters have no player file. c to g are
 # gamemasters with some of the rights the commands check (trace_check.py
-# GM_RIGHTS).
+# GM_RIGHTS); h is the caster of the scenarios spells and runes, with the
+# rights to cast every spell and make and use every rune (trace_check.py
+# CASTER_RIGHTS).
 ACCOUNTS = {
 	"a": (900001, "testa", "Testa Alpha"),
 	"b": (900002, "testb", "Testb Beta"),
@@ -38,6 +40,7 @@ ACCOUNTS = {
 	"e": (900005, "teste", "Teste Epsilon"),
 	"f": (900006, "testf", "Testf Zeta"),
 	"g": (900007, "testg", "Testg Eta"),
+	"h": (900008, "testh", "Testh Theta"),
 }
 
 

@@ -2,9 +2,10 @@
 // syllables and finds the spell; the checks a spell passes (spellbook, level,
 // mana, ...); the impacts (TImpact) and the shapes that apply them to fields
 // and creatures, which the monsters' spells use too; the spell functions, from
-// attack and healing spells to the gamemasters' commands; runes, magic items
-// and potions. The spell table, the syllables and the circles are in
-// magicdata.cc.
+// attack and healing spells to the gamemasters' commands, which the spells'
+// scripts call (scripting_magic.cc binds them); the loading of those scripts
+// and their calls; runes, magic items and potions. The spell table, the
+// syllables, the circles and the scripts' names are in magicdata.cc.
 
 #include <algorithm>
 #include <climits>
@@ -37,6 +38,7 @@
 #include <cstring>
 #include <sstream>
 #include "houses.hh"
+#include "scripting.hh"
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckRing,
 // CheckAffectedPlayers, SpendManaAndSoulPoints and every spell function from
@@ -44,17 +46,29 @@
 // exception specification (C++17 has none), so an exception of another type
 // passes to the caller too.
 
-// The ammunition CreateArrows conjures, named after the spells that use them
-// (Conjure Arrow, Poisoned Arrow, Explosive Arrow, Conjure Bolt, Power Bolt).
-const int CONJURE_ARROW = 0;
-const int CONJURE_POISONED_ARROW = 1;
-const int CONJURE_EXPLOSIVE_ARROW = 2;
-const int CONJURE_BOLT = 3;
-const int CONJURE_POWER_BOLT = 4;
-
 // The creatures a player can have summoned or convinced at once
 // (SummonCreature, Convince).
 const int MAX_SUMMONS = 2;
+
+// The scripts of the spells and commands by number, -1 for none
+// (LoadSpellScripts): CastScript for the classes ex and ut (CastSpell),
+// UseScript for ad (UseMagicItem), SayScript for al and om
+// (CharacterRightSpell, AccountRightSpell).
+static int CastScript[MAX_SPELLS];
+static int UseScript[MAX_SPELLS];
+static int SayScript[MAX_SPELLS];
+
+// Adds the words of a spoken spell to a handler call as one array:
+// SpellStr[1] to SpellStr[LastWord], the last entry CheckForSpell set (the
+// empty one that ends them).
+static void AddWords(TScriptCall &Call, char (*SpellStr)[512], int LastWord) {
+	const char *Words[MAX_SPELL_SYLLABLES];
+	int Count = 0;
+	for (int i = 1; i <= LastWord && Count < MAX_SPELL_SYLLABLES; i++) {
+		Words[Count++] = SpellStr[i];
+	}
+	Call.addStringArray(Words, Count);
+}
 
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
@@ -3106,7 +3120,7 @@ void SpellFailed(uint32_t CreatureID) {
 	GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 }
 
-void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
+void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
 		error("CharacterRightSpell: Creature does not exist.\n");
@@ -3117,80 +3131,18 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 		return;
 	}
 
-	switch (SpellNr) {
-		case SPELL_GET_ITEM_COUNT:
-			CreateThing(cr, SpellStr[2], SpellStr[3]);
-			break;
-		case SPELL_GET_ITEM:
-			CreateThing(cr, SpellStr[2], nullptr);
-			break;
-		case SPELL_MOVE:
-			Teleport(cr, SpellStr[2]);
-			break;
-		case SPELL_GET_EXPERIENCE:
-			CreateKnowledge(cr, SpellStr[3], nullptr);
-			break;
-		case SPELL_CHANGE_DATA:
-			ChangeData(cr, SpellStr[2]);
-			break;
-		case SPELL_GET_SKILL_EXPERIENCE:
-			CreateKnowledge(cr, SpellStr[3], SpellStr[4]);
-			break;
-		case SPELL_TELEPORT_TO_FRIEND:
-			TeleportToCreature(cr, SpellStr[3]);
-			break;
-		case SPELL_RETRIEVE_FRIEND:
-			TeleportPlayerToMe(cr, SpellStr[3]);
-			break;
-		case SPELL_SUMMON_WILD_CREATURE:
-			SummonCreature(cr, 0, SpellStr[3], true);
-			break;
-		case SPELL_GET_POSITION:
-			GetPosition(cr);
-			break;
-		case SPELL_CREATE_GOLD:
-			CreateMoney(cr, SpellStr[3]);
-			break;
-		case SPELL_CHANGE_PROFESSION_OR_SEX:
-			ChangeProfession(cr, SpellStr[3]);
-			break;
-		case SPELL_INVITE_GUESTS:
-			EditGuests(cr);
-			break;
-		case SPELL_INVITE_SUBOWNERS:
-			EditSubowners(cr);
-			break;
-		case SPELL_KICK_GUEST:
-			KickGuest(cr, SpellStr[3]);
-			break;
-		case SPELL_EDIT_DOOR:
-			EditNameDoor(cr);
-			break;
-		case SPELL_GET_QUEST_VALUE:
-			GetQuestValue(cr, SpellStr[3]);
-			break;
-		case SPELL_SET_QUEST_VALUE:
-			SetQuestValue(cr, SpellStr[3], SpellStr[4]);
-			break;
-		case SPELL_DESINTEGRATE_SPELL:
-			CleanupField(cr);
-			break;
-		case SPELL_LEVITATE_GAMEMASTER:
-			MagicClimbing(cr, SpellStr[3]);
-			break;
-		case SPELL_CLEAR_QUEST_VALUES:
-			ClearQuestValues(cr);
-			break;
-		case SPELL_KILL_ALL_CREATURES:
-			KillAllMonsters(cr, EFFECT_DEATH, 2);
-			break;
-		case SPELL_START_MONSTERRAID:
-			StartMonsterraid(cr, SpellStr[4]);
-			break;
+	// The command's script does what it does; one without a script does
+	// nothing.
+	if (SayScript[SpellNr] >= 0) {
+		TScriptCall Call(SayScript[SpellNr], "onSay");
+		Call.addPlayer(CreatureID);
+		Call.addNumber(SpellNr);
+		AddWords(Call, SpellStr, LastWord);
+		Call.run();
 	}
 }
 
-void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
+void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
 		error("AccountRightSpell: Creature does not exist.\n");
@@ -3201,41 +3153,18 @@ void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) 
 		return;
 	}
 
-	switch (SpellNr) {
-		case SPELL_BANISH_ACCOUNT:
-			BanishAccount(cr, SpellStr[3], (int)std::clamp(strtol(SpellStr[4], nullptr, 10), (long)INT32_MIN, (long)INT32_MAX), SpellStr[5]);
-			break;
-		case SPELL_TEMPLE_TELEPORT:
-			HomeTeleport(cr, SpellStr[2]);
-			break;
-		case SPELL_DELETE_ACCOUNT:
-			DeleteAccount(cr, SpellStr[4], SpellStr[5]);
-			break;
-		case SPELL_SET_NAMERULE:
-			SetNameRule(cr, SpellStr[2]);
-			break;
-		case SPELL_ENTRY_IN_CRIMINAL_RECORD:
-			Notation(cr, SpellStr[2], SpellStr[3]);
-			break;
-		case SPELL_NAMELOCK:
-			NameLock(cr, SpellStr[3]);
-			break;
-		case SPELL_KICK_PLAYER:
-			KickPlayer(cr, SpellStr[2]);
-			break;
-		case SPELL_DELETE_CHARACTER:
-			DeleteCharacter(cr, SpellStr[4], SpellStr[5]);
-			break;
-		case SPELL_BANISH_IP_ADDRESS:
-			IPBanishment(cr, SpellStr[3], SpellStr[4]);
-			break;
-		case SPELL_BANISH_CHARACTER:
-			BanishCharacter(cr, SpellStr[3], (int)std::clamp(strtol(SpellStr[4], nullptr, 10), (long)INT32_MIN, (long)INT32_MAX), SpellStr[5]);
-			break;
+	// The command's script does what it does; one without a script does
+	// nothing.
+	if (SayScript[SpellNr] >= 0) {
+		TScriptCall Call(SayScript[SpellNr], "onSay");
+		Call.addPlayer(CreatureID);
+		Call.addNumber(SpellNr);
+		AddWords(Call, SpellStr, LastWord);
+		Call.run();
 	}
 }
 
-void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
+void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
 		error("CastSpell: Creature does not exist.\n", CreatureID);
@@ -3257,137 +3186,17 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]) {
 		throw PROTECTIONZONE;
 	}
 
-	int Damage;
-	switch (SpellNr) {
-		case SPELL_LIGHT_HEALING:
-			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 20, 10));
-			break;
-		case SPELL_INTENSE_HEALING:
-			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 40, 20));
-			break;
-		case SPELL_ULTIMATE_HEALING:
-			Heal(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 250, 50));
-			break;
-		case SPELL_HASTE:
-			MagicGoStrength(cr, cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 30, 3);
-			break;
-		case SPELL_SUMMON_CREATURE:
-			SummonCreature(cr, SpellList[SpellNr].Mana, SpellStr[3], false);
-			break;
-		case SPELL_LIGHT:
-			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 6, 500);
-			break;
-		case SPELL_GREAT_LIGHT:
-			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 8, 1000);
-			break;
-		case SPELL_ENERGY_WAVE:
-			Damage = ComputeDamage(cr, SpellNr, 150, 50);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 5, 30, DAMAGE_ENERGY);
-			break;
-		case SPELL_FIRE_WAVE:
-			Damage = ComputeDamage(cr, SpellNr, 30, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 4, 45, DAMAGE_FIRE);
-			break;
-		case SPELL_FIND_PERSON:
-			FindPerson(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[2]);
-			break;
-		case SPELL_ENERGY_BEAM:
-			Damage = ComputeDamage(cr, SpellNr, 60, 20);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 5, 0, DAMAGE_ENERGY);
-			break;
-		case SPELL_GREAT_ENERGY_BEAM:
-			Damage = ComputeDamage(cr, SpellNr, 120, 80);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION, 8, 0, DAMAGE_ENERGY);
-			break;
-		case SPELL_ULTIMATE_EXPLOSION:
-			Damage = ComputeDamage(cr, SpellNr, 250, 50);
-			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_EXPLOSION_AREA, 6, DAMAGE_PHYSICAL, ANIMATION_FIRE);
-			break;
-		case SPELL_ANTIDOTE:
-			NegatePoison(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, cr);
-			break;
-		case SPELL_CREATURE_ILLUSION:
-			CreatureIllusion(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[4], 200);
-			break;
-		case SPELL_STRONG_HASTE:
-			MagicGoStrength(cr, cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 70, 2);
-			break;
-		case SPELL_FOOD:
-			CreateFood(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints);
-			break;
-		case SPELL_MAGIC_SHIELD:
-			Shielding(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 200);
-			break;
-		case SPELL_INVISIBLE:
-			Invisibility(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 200);
-			break;
-		case SPELL_POISONED_ARROW:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POISONED_ARROW, 5);
-			break;
-		case SPELL_EXPLOSIVE_ARROW:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_EXPLOSIVE_ARROW, 3);
-			break;
-		case SPELL_CONJURE_ARROW:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_ARROW, 10);
-			break;
-		case SPELL_POISON_STORM:
-			Damage = ComputeDamage(cr, SpellNr, 200, 50);
-			MassCombat(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_POISON, 8, DAMAGE_POISON_CONDITION, ANIMATION_NONE);
-			break;
-		case SPELL_ULTIMATE_LIGHT:
-			Enlight(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 9, 2000);
-			break;
-		case SPELL_MAGIC_ROPE:
-			MagicRope(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints);
-			break;
-		case SPELL_CONJURE_BOLT:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_BOLT, 5);
-			break;
-		case SPELL_BERSERK:
-			Damage = ComputeDamage(cr, SpellNr, 80, 20);
-			Damage = cr->Skills[SKILL_LEVEL]->Get() * Damage / 25;
-			MassCombat(cr, cr->GetCreatureObject(), cr->Skills[SKILL_LEVEL]->Get() * 4, 0, Damage, EFFECT_HIT_AREA, 2, DAMAGE_PHYSICAL, ANIMATION_NONE);
-			break;
-		case SPELL_LEVITATE:
-			MagicClimbing(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, SpellStr[3]);
-			break;
-		case SPELL_MASS_HEALING:
-			Damage = ComputeDamage(cr, SpellNr, 200, 40);
-			MassHeal(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, 4);
-			break;
-		case SPELL_HEAL_FRIEND:
-			HealFriend(cr, SpellStr[3], SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, ComputeDamage(cr, SpellNr, 120, 40));
-			break;
-		case SPELL_UNDEAD_LEGION:
-			MassRaiseDead(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4);
-			break;
-		case SPELL_FORCE_STRIKE:
-			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_DEATH, 1, 0, DAMAGE_PHYSICAL);
-			break;
-		case SPELL_ENERGY_STRIKE:
-			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_TELEPORT, 1, 0, DAMAGE_ENERGY);
-			break;
-		case SPELL_FLAME_STRIKE:
-			Damage = ComputeDamage(cr, SpellNr, 45, 10);
-			AngleCombat(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, Damage, EFFECT_FIRE_AREA, 1, 0, DAMAGE_FIRE);
-			break;
-		case SPELL_CANCEL_INVISIBILITY:
-			CancelInvisibility(cr, cr->GetCreatureObject(), SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 4);
-			break;
-		case SPELL_ENCHANT_STAFF:
-			EnchantObject(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, GetNewObjectType(90, 25), GetNewObjectType(90, 57));
-			break;
-		case SPELL_CHALLENGE:
-			Challenge(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, 2);
-			break;
-		case SPELL_WILD_GROWTH:
-			CreateField(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, FIELD_RUSHWOOD);
-			break;
-		case SPELL_POWER_BOLT:
-			CreateArrows(cr, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, CONJURE_POWER_BOLT, 1);
-			break;
+	// The spell's script does what it does; one without a script does
+	// nothing.
+	if (CastScript[SpellNr] >= 0) {
+		// Only players speak spells (CheckForSpell).
+		TScriptCall Call(CastScript[SpellNr], "onCastSpell");
+		Call.addPlayer(CreatureID);
+		Call.addNumber(SpellNr);
+		Call.addNumber(SpellList[SpellNr].Mana);
+		Call.addNumber(SpellList[SpellNr].SoulPoints);
+		AddWords(Call, SpellStr, LastWord);
+		Call.run();
 	}
 
 	if (IsAggressiveSpell(SpellNr)) {
@@ -3679,17 +3488,17 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 	try {
 		switch (SpellType) {
 			case SYLLABLE_AL:
-				CharacterRightSpell(CreatureID, SpellNr, SpellStr);
+				CharacterRightSpell(CreatureID, SpellNr, SpellStr, syl);
 				break;
 			case SYLLABLE_AD:
 				RuneSpell(CreatureID, SpellNr);
 				break;
 			case SYLLABLE_EX:
 			case SYLLABLE_UT:
-				CastSpell(CreatureID, SpellNr, SpellStr);
+				CastSpell(CreatureID, SpellNr, SpellStr, syl);
 				break;
 			case SYLLABLE_OM:
-				AccountRightSpell(CreatureID, SpellNr, SpellStr);
+				AccountRightSpell(CreatureID, SpellNr, SpellStr, syl);
 				break;
 			default:
 				error("CheckForSpell: Spell class %d does not exist.\n", SpellType);
@@ -3791,121 +3600,21 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 		throw NOROOM;
 	}
 
-	int Damage;
 	try {
-		switch (SpellNr) {
-			case SPELL_INTENSE_HEALING_RUNE:
-				if (dest == nullptr) {
-					throw NOCREATURE;
-				}
-				Damage = ComputeDamage(pl, SpellNr, 70, 30);
-				Heal(dest, -1, 0, Damage);
-				break;
-			case SPELL_ULTIMATE_HEALING_RUNE:
-				if (dest == nullptr) {
-					throw NOCREATURE;
-				}
-				Damage = ComputeDamage(pl, SpellNr, 250, 0);
-				Heal(dest, -1, 0, Damage);
-				break;
-			case SPELL_LIGHT_MAGIC_MISSILE:
-				Damage = ComputeDamage(pl, SpellNr, 15, 5);
-				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
-				break;
-			case SPELL_HEAVY_MAGIC_MISSILE:
-				Damage = ComputeDamage(pl, SpellNr, 30, 10);
-				Combat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION, ANIMATION_FIRE, DAMAGE_ENERGY);
-				break;
-			case SPELL_CONVINCE_CREATURE:
-				if (dest == nullptr) {
-					throw NOCREATURE;
-				}
-				Convince(pl, dest);
-				break;
-			case SPELL_CHAMELEON:
-				ObjectIllusion(pl, 0, 0, Dest, 200);
-				break;
-			case SPELL_FIREBALL:
-				Damage = ComputeDamage(pl, SpellNr, 20, 5);
-				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 3, DAMAGE_FIRE, ANIMATION_FIRE);
-				break;
-			case SPELL_GREAT_FIREBALL:
-				Damage = ComputeDamage(pl, SpellNr, 50, 15);
-				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_AREA, 4, DAMAGE_FIRE, ANIMATION_FIRE);
-				break;
-			case SPELL_FIREBOMB:
-				MassCreateField(pl, Dest, 0, 0, FIELD_FIRE, 3);
-				break;
-			case SPELL_EXPLOSION:
-				Damage = ComputeDamage(pl, SpellNr, 60, 40);
-				MassCombat(pl, Dest, 0, 0, Damage, EFFECT_EXPLOSION_AREA, 1, DAMAGE_PHYSICAL, ANIMATION_FIRE);
-				break;
-			case SPELL_SUDDEN_DEATH:
-				Damage = ComputeDamage(pl, SpellNr, 150, 20);
-				Combat(pl, Dest, 0, 0, Damage, EFFECT_DEATH, ANIMATION_DEATH, DAMAGE_PHYSICAL);
-				break;
-			case SPELL_FIRE_FIELD:
-				CreateField(pl, Dest, 0, 0, FIELD_FIRE);
-				break;
-			case SPELL_POISON_FIELD:
-				CreateField(pl, Dest, 0, 0, FIELD_POISON);
-				break;
-			case SPELL_ENERGY_FIELD:
-				CreateField(pl, Dest, 0, 0, FIELD_ENERGY);
-				break;
-			case SPELL_FIRE_WALL:
-				CreateFieldWall(pl, Dest, 0, 0, FIELD_FIRE, 2);
-				break;
-			case SPELL_DESTROY_FIELD:
-				DeleteField(pl, Dest, 0, 0);
-				break;
-			case SPELL_ANTIDOTE_RUNE:
-				if (dest == nullptr) {
-					throw NOCREATURE;
-				}
-				NegatePoison(pl, 0, 0, dest);
-				break;
-			case SPELL_POISON_WALL:
-				CreateFieldWall(pl, Dest, 0, 0, FIELD_POISON, 2);
-				break;
-			case SPELL_ENERGY_WALL:
-				CreateFieldWall(pl, Dest, 0, 0, FIELD_ENERGY, 3);
-				break;
-			case SPELL_SOULFIRE:
-				Damage = ComputeDamage(pl, SpellNr, 120, 20);
-				Combat(pl, Dest, 0, 0, Damage, EFFECT_FIRE_HIT, ANIMATION_FIRE, DAMAGE_FIRE_CONDITION);
-				break;
-			case SPELL_PARALYZE:
-				if (dest == nullptr) {
-					throw NOCREATURE;
-				}
-				if (pl->GetEffectiveProfession() != PROFESSION_DRUID) {
-					throw NOTUSABLE;
-				}
-				MagicGoStrength(pl, dest, SpellList[SpellNr].Mana, SpellList[SpellNr].SoulPoints, -101, 1);
-				break;
-			case SPELL_ENERGYBOMB:
-				MassCreateField(pl, Dest, 0, 0, FIELD_ENERGY, 3);
-				break;
-			case SPELL_ENVENOM:
-				Damage = ComputeDamage(pl, SpellNr, 70, 20);
-				Combat(pl, Dest, 0, 0, Damage, EFFECT_POISON_HIT, ANIMATION_ENERGY, DAMAGE_POISON_CONDITION);
-				break;
-			case SPELL_DESINTEGRATE:
-				CleanupField(pl, Dest, 0, 0);
-				break;
-			case SPELL_ANIMATE_DEAD:
-				RaiseDead(pl, Dest, 0, 0);
-				break;
-			case SPELL_MAGIC_WALL:
-				CreateField(pl, Dest, 0, 0, FIELD_MAGICWALL);
-				break;
-			case SPELL_POISONBOMB:
-				MassCreateField(pl, Dest, 0, 0, FIELD_POISON, 3);
-				break;
-			default:
-				error("UseMagicItem: Spell %d not implemented yet.\n", SpellNr);
-				throw ERROR;
+		// The rune's script does what it does; a rune spell without a script
+		// is an error.
+		if (UseScript[SpellNr] >= 0) {
+			TScriptCall Call(UseScript[SpellNr], "onCastSpell");
+			Call.addPlayer(pl->ID);
+			Call.addNumber(SpellNr);
+			Call.addNumber(SpellList[SpellNr].Mana);
+			Call.addNumber(SpellList[SpellNr].SoulPoints);
+			Call.addItem(Dest.getObjectID());
+			Call.addCreature(dest != nullptr ? dest->ID : 0u);
+			Call.run();
+		} else {
+			error("UseMagicItem: Spell %d not implemented yet.\n", SpellNr);
+			throw ERROR;
 		}
 
 		if (Obj.exists()) {
@@ -3959,10 +3668,51 @@ void DrinkPotion(uint32_t CreatureID, Object Obj) {
 	Change(Obj, CONTAINERLIQUIDTYPE, LIQUID_NONE);
 }
 
+// Loads the script of every spell and command that has one (magicdata's
+// GetSpellScript) and checks its handler: onCastSpell for the classes ex, ut
+// and ad, onSay for al and om. Throws a const char * as LoadScript and
+// RequireHandler do.
+static void LoadSpellScripts() {
+	for (int i = 0; i < MAX_SPELLS; i++) {
+		CastScript[i] = -1;
+		UseScript[i] = -1;
+		SayScript[i] = -1;
+	}
+
+	for (int i = 1; i < MAX_SPELLS; i++) {
+		const char *Name = GetSpellScript(i);
+		if (Name == nullptr) {
+			continue;
+		}
+
+		const char *Where = GetSpellScriptPosition(i);
+		int Script = LoadScript(Name, Where);
+		switch (SpellList[i].Syllable[0]) {
+			case SYLLABLE_EX:
+			case SYLLABLE_UT:
+				RequireHandler(Script, "onCastSpell", Where);
+				CastScript[i] = Script;
+				break;
+			case SYLLABLE_AD:
+				RequireHandler(Script, "onCastSpell", Where);
+				UseScript[i] = Script;
+				break;
+			case SYLLABLE_AL:
+			case SYLLABLE_OM:
+				RequireHandler(Script, "onSay", Where);
+				SayScript[i] = Script;
+				break;
+			default:
+				throw "LoadSpellScripts: a script belongs to an entry without a spell class";
+		}
+	}
+}
+
 void InitMagic() {
 	InitCircles();
 	InitSpells();
 	InitCommands();
+	LoadSpellScripts();
 	InitLog("banish");
 }
 
@@ -4013,7 +3763,10 @@ static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool
 
 // EnchantObject through HomeTeleport, CharacterRightSpell, AccountRightSpell,
 // CastSpell, RuneSpell, DeleteRune, UseMagicItem, DrinkPotion and the static
-// CreateField report a failure by throwing a RESULT, and InitMagic by throwing
-// a const char * (from InitCircles, InitSpells and InitCommands). They have no
+// CreateField report a failure by throwing a RESULT (CharacterRightSpell,
+// AccountRightSpell, CastSpell and UseMagicItem also the one a script's
+// handler raises, through TScriptCall), and InitMagic by throwing a const
+// char * (from InitCircles, InitSpells, InitCommands and the loading of the
+// scripts). They have no
 // exception specification (C++17 has none), so an exception of another type
 // passes to the caller too.

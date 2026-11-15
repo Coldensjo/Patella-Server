@@ -2,15 +2,17 @@
 # and om, which gamemasters give by saying their words (and players, those of
 # their houses), written by patella-convert from the spell table the game had
 # in its code and the rights its code checked. The game reads commands.toml in
-# its data folder ([paths] data of config.toml), after spells.toml. What a
-# command does stays in the code; this file says what it is called, what is
-# said to give it and which rights it needs. An unknown key or right, or a
-# value of the wrong type, is an error.
+# its data folder ([paths] data of config.toml), after spells.toml. This file
+# says what a command is called, what is said to give it, which rights it
+# needs and which script does what it does: a Lua file in the scripts folder
+# (data/scripts/ in the repository). An unknown key or right, or a value of
+# the wrong type, is an error.
 #
 # Each [[command]] is one command:
 #   number  The command number, 1 to 255, each at most once and none of a
-#           spell in spells.toml. It ties the command to what it does in the
-#           code.
+#           spell in spells.toml: the game keeps spells and commands in one
+#           table by number. It does not say what the command does; script
+#           does.
 #   name    Its name, at most 30 characters.
 #   words   What is said to give it, written as spells.toml writes words:
 #           the class syllable and the next one as one word, every further
@@ -27,6 +29,9 @@
 #           code checks no right for the house commands and for those that
 #           point to the rule violation dialog (Ctrl+Y): they have none.
 #           Every other command needs it.
+#   script  The script that does what the command does, "commands/<name>.lua"
+#           in the scripts folder, whose global function onSay runs when it is
+#           given. Left out, giving the command does nothing.
 #
 # The rights:
 #   PREMIUM_ACCOUNT, NOTATION, NAMELOCK, STATEMENT_REPORT, BANISHMENT,
@@ -58,17 +63,20 @@ number = 34
 name = "Get Item"
 words = "alevo para para"
 right = "CREATE_OBJECTS"
+script = "commands/get_item_count.lua"
 
 [[command]]
 number = 35
 name = "Get Item"
 words = "alevo para"
 right = "CREATE_OBJECTS"
+script = "commands/get_item.lua"
 
 [[command]]
 number = 37
 name = "Move"
 words = "alani para"
+script = "commands/move.lua"
 [command.right]
 vertical = "TELEPORT_VERTICAL"
 speed = "MODIFY_GOSTRENGTH"
@@ -80,165 +88,195 @@ number = 40
 name = "Get Experience"
 words = "alevo cogni para"
 right = "CHANGE_SKILLS"
+script = "commands/get_experience.lua"
 
 [[command]]
 number = 41
 name = "Change Data"
 words = "aleta para"
 right = "CREATE_OBJECTS"
+script = "commands/change_data.lua"
 
 [[command]]
 number = 46
 name = "Get Skill Experience"
 words = "alevo cogni para para"
 right = "CHANGE_SKILLS"
+script = "commands/get_skill_experience.lua"
 
 [[command]]
 number = 47
 name = "Teleport to Friend"
 words = "alani sio para"
 right = "TELEPORT_TO_CHARACTER"
+script = "commands/teleport_to_friend.lua"
 
 [[command]]
 number = 52
 name = "Retrieve Friend"
 words = "alliber sio para"
 right = "RETRIEVE"
+script = "commands/retrieve_friend.lua"
 
 [[command]]
 number = 53
 name = "Summon Wild Creature"
 words = "alevo res para"
 right = "CREATE_MONSTERS"
+script = "commands/summon_wild_creature.lua"
 
 [[command]]
 number = 57
 name = "Banish Account"
 words = "omana liber para para para"
+script = "commands/banish_account.lua"
 
 [[command]]
 number = 58
 name = "Get Position"
 words = "aliva tera"
 right = "SHOW_COORDINATE"
+script = "commands/get_position.lua"
 
 [[command]]
 number = 60
 name = "Temple Teleport"
 words = "omani para"
 right = "HOME_TELEPORT"
+script = "commands/temple_teleport.lua"
 
 [[command]]
 number = 61
 name = "Delete Account"
 words = "omana gran liber para para"
+script = "commands/delete_account.lua"
 
 [[command]]
 number = 62
 name = "Set Namerule"
 words = "omamo para"
+script = "commands/set_namerule.lua"
 
 [[command]]
 number = 63
 name = "Create Gold"
 words = "alevo vis para"
 right = "CREATE_MONEY"
+script = "commands/create_gold.lua"
 
 [[command]]
 number = 64
 name = "Change Profession or Sex"
 words = "aleta vita para"
 right = "CHANGE_PROFESSION"
+script = "commands/change_profession_or_sex.lua"
 
 [[command]]
 number = 65
 name = "Entry in Criminal Record"
 words = "omisa para para"
+script = "commands/entry_in_criminal_record.lua"
 
 [[command]]
 number = 66
 name = "Namelock"
 words = "omana hora para"
+script = "commands/namelock.lua"
 
 [[command]]
 number = 67
 name = "Kick Player"
 words = "omana para"
 right = "KICK"
+script = "commands/kick_player.lua"
 
 [[command]]
 number = 68
 name = "Delete Character"
 words = "omana gran res para para"
+script = "commands/delete_character.lua"
 
 [[command]]
 number = 69
 name = "Banish IP Address"
 words = "omana vis para para"
+script = "commands/banish_ip_address.lua"
 
 [[command]]
 number = 70
 name = "Banish Character"
 words = "omana res para para para"
+script = "commands/banish_character.lua"
 
 [[command]]
 number = 71
 name = "Invite Guests"
 words = "aleta sio"
+script = "commands/invite_guests.lua"
 
 [[command]]
 number = 72
 name = "Invite Subowners"
 words = "aleta som"
+script = "commands/invite_subowners.lua"
 
 [[command]]
 number = 73
 name = "Kick Guest"
 words = "alana sio para"
+script = "commands/kick_guest.lua"
 
 [[command]]
 number = 74
 name = "Edit Door"
 words = "aleta grav"
+script = "commands/edit_door.lua"
 
 [[command]]
 number = 96
 name = "Get Quest Value"
 words = "aliva cogni para"
 right = "CHANGE_SKILLS"
+script = "commands/get_quest_value.lua"
 
 [[command]]
 number = 97
 name = "Set Quest Value"
 words = "aleta cogni para para"
 right = "CHANGE_SKILLS"
+script = "commands/set_quest_value.lua"
 
 [[command]]
 number = 98
 name = "Desintegrate Spell"
 words = "alito tera"
 right = "CLEANUP_FIELDS"
+script = "commands/desintegrate_spell.lua"
 
 [[command]]
 number = 99
 name = "Levitate Gamemaster"
 words = "alani hur para"
 right = "LEVITATE"
+script = "commands/levitate_gamemaster.lua"
 
 [[command]]
 number = 100
 name = "Clear Quest Values"
 words = "alana cogni"
 right = "CHANGE_SKILLS"
+script = "commands/clear_quest_values.lua"
 
 [[command]]
 number = 101
 name = "Kill All Creatures"
 words = "alito mas res"
 right = "CREATE_MONSTERS"
+script = "commands/kill_all_creatures.lua"
 
 [[command]]
 number = 102
 name = "Start Monsterraid"
 words = "alevo mas res para"
 right = "CREATE_MONSTERS"
+script = "commands/start_monsterraid.lua"

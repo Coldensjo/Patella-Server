@@ -45,6 +45,7 @@ add_executable(game
 	vlong.cc
 	rsakeyfile.cc
 	scripting.cc
+	scripting_magic.cc
 )
 target_include_directories(game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # -Wno-write-strings: many prototypes take `char *` and are called with

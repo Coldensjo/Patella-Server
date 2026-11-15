@@ -74,20 +74,44 @@ installation's data folder. The comments at its top explain the fields. Keep
 
 ## Spells, commands and circles
 
-The game reads its spells (name, words, level, mana, soul points, flags and the
-rune a rune spell makes) from `spells.toml`, the gamemasters' commands (the
-spells of the classes al and om: name, words and the rights each needs) from
-`commands.toml`, and the circles, the area shapes the spells hit, from
-`circles.toml`, all in its data folder. What a spell or command does stays in
-the code, which knows them by their numbers. `data/spells.toml` and
-`data/commands.toml` are the spell table the game had in its code, with the
-rights its code checked for the commands, written with
-`patella-convert spells spells.toml` and
+The game reads its spells (name, words, level, mana, soul points, flags, the
+rune a rune spell makes and the script) from `spells.toml`, the gamemasters'
+commands (the spells of the classes al and om: name, words, the rights each
+needs and the script) from `commands.toml`, and the circles, the area shapes
+the spells hit, from `circles.toml`, all in its data folder. What a spell or
+command does is its script, a Lua file in the scripts folder (see Scripts)
+that its entry names: `spells/<name>.lua` for a spell cast at once (ex, ut)
+and `runes/<name>.lua` for a rune spell (ad), whose global function
+`onCastSpell` runs when the spell is cast or its rune is used;
+`commands/<name>.lua` for a command, whose global function `onSay` runs when
+it is given. The scripts in
+`data/scripts/spells`, `runes` and `commands` are named after the cases of the
+code they replaced (`SPELL_LIGHT_HEALING` is `spells/light_healing.lua`).
+`data/spells.toml` and `data/commands.toml` are the spell table the game had
+in its code, with the rights its code checked for the commands and these
+scripts, written with `patella-convert spells spells.toml` and
 `patella-convert commands commands.toml`; `data/circles.toml` is the original
 installation's `dat/circles.dat` converted with
 `patella-convert circles circles.dat circles.toml`. Copy all three into the
 installation's data folder. The comments at the top of each file explain the
 fields.
+
+## Scripts
+
+The game runs Lua scripts with LuaJIT, from the folder `scripts` in its data
+folder: what the spells, runes and commands do. `data/scripts/` holds them,
+`spells/` for the spells cast at once, `runes/` for the rune spells and
+`commands/` for the commands; copy it into the installation's data folder.
+The game loads the scripts `spells.toml` and `commands.toml` name when it
+starts, and stops with an error that names the file, line and column when one
+does not load. A script's handlers are global functions, `onCastSpell` for
+the spells and runes and `onSay` for the commands, and the script returns
+nothing. The Lua API uses the names and style of The Forgotten Server (TFS):
+camelCase functions and methods, PascalCase tables and classes, upper-case
+constants, with the values of 7.72, so scripts written for TFS need fewer
+changes; the handlers' arguments, the `Magic` and `Command` functions and the
+vocation numbers are Patella's own. `src/scripting.hh` lists the API; the
+rules of the engine, which every script keeps, are in the comment at its top.
 
 ## Trigger rules
 

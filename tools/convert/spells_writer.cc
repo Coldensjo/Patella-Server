@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "magicdata.hh"
+#include "spells_reference.hh"
 #include "tomlwrite.hh"
 
 // The flags as spells.toml names them, in the order it writes them.
@@ -52,15 +53,16 @@ static std::string Header() {
 	Text += "# spells.toml: the spells of the game server, which players and gamemasters\n";
 	Text += "# cast by saying their words, written by patella-convert from the spell table\n";
 	Text += "# the game had in its code. The game reads spells.toml in its data folder\n";
-	Text += "# ([paths] data of config.toml). What a spell does stays in the code; this\n";
-	Text += "# file says what it is called, how it is cast, what it needs and costs. An\n";
-	Text += "# unknown key or flag, or a value of the wrong type, is an error.\n";
+	Text += "# ([paths] data of config.toml). This file says what a spell is called, how it\n";
+	Text += "# is cast, what it needs and costs, and which script does what it does: a Lua\n";
+	Text += "# file in the scripts folder (data/scripts/ in the repository). An unknown key\n";
+	Text += "# or flag, or a value of the wrong type, is an error.\n";
 	Text += "#\n";
 	Text += "# Each [[spell]] is one spell:\n";
 	Text += "#   number       The spell number, 1 to 255, each at most once and none of a\n";
-	Text += "#                command in commands.toml. It ties the spell to what it does\n";
-	Text += "#                in the code, and the player files keep the numbers of the\n";
-	Text += "#                spells a player knows, so a spell keeps its number.\n";
+	Text += "#                command in commands.toml. The player files keep the numbers\n";
+	Text += "#                of the spells a player knows, so a spell keeps its number. It\n";
+	Text += "#                does not say what the spell does; script does.\n";
 	Text += "#   name         The name the spellbook shows, at most 30 characters.\n";
 	Text += "#   words        What is said to cast it, as the spellbook shows it: the\n";
 	Text += "#                class syllable and the next one as one word, every further\n";
@@ -92,6 +94,13 @@ static std::string Header() {
 	Text += "#                level needed to use the rune (its description says it); and\n";
 	Text += "#                charges, the charges the rune is made with. magic_level and\n";
 	Text += "#                charges left out are 0. Left out, the spell makes no rune.\n";
+	Text += "#   script       The script that does what the spell does, its path in the\n";
+	Text += "#                scripts folder: \"spells/<name>.lua\" for a spell cast at once\n";
+	Text += "#                (\"ex\", \"ut\"), \"runes/<name>.lua\" for a rune spell (\"ad\"). Its\n";
+	Text += "#                global function onCastSpell runs when the spell is cast or\n";
+	Text += "#                its rune is used (making the rune is the game's). Left out,\n";
+	Text += "#                casting the spell does nothing beyond its checks, and its\n";
+	Text += "#                rune cannot be used.\n";
 	Text += "#\n";
 	Text += "# The syllables:\n";
 	std::vector<std::string> Words;
@@ -167,6 +176,21 @@ static void CheckSpell(int SpellNr, int KnownFlags) {
 				|| Spell.RuneGr != 0)) {
 		throw "a command (al or om) with a level, mana, soul points, flags or a rune, which commands.toml cannot hold";
 	}
+	if (GetReferenceScriptName(SpellNr) == nullptr) {
+		throw "a spell number without a script name (a SPELL_ constant in spells_reference.hh), which spells.toml "
+				"and commands.toml refuse";
+	}
+}
+
+std::string SpellScript(int SpellNr) {
+	const char *Name = GetReferenceScriptName(SpellNr);
+	if (Name == nullptr) {
+		throw "a spell number without a script name (a SPELL_ constant in spells_reference.hh), which spells.toml "
+				"and commands.toml refuse";
+	}
+	const char *Folder = IsCommand(SpellList[SpellNr]) ? "commands/"
+			: SpellList[SpellNr].Syllable[0] == SYLLABLE_AD ? "runes/" : "spells/";
+	return std::string(Folder) + Name + ".lua";
 }
 
 // Checks the whole table (CheckSpell) and returns the flags with a name.
@@ -213,6 +237,7 @@ std::string SpellsToToml() {
 					+ ", magic_level = " + std::to_string(Spell.RuneLevel) + ", charges = "
 					+ std::to_string(Spell.Amount) + " }\n";
 		}
+		Text += "script = " + TomlQuote(SpellScript(SpellNr)) + "\n";
 	}
 	return Text;
 }
@@ -223,15 +248,17 @@ static std::string CommandsHeader() {
 	Text += "# and om, which gamemasters give by saying their words (and players, those of\n";
 	Text += "# their houses), written by patella-convert from the spell table the game had\n";
 	Text += "# in its code and the rights its code checked. The game reads commands.toml in\n";
-	Text += "# its data folder ([paths] data of config.toml), after spells.toml. What a\n";
-	Text += "# command does stays in the code; this file says what it is called, what is\n";
-	Text += "# said to give it and which rights it needs. An unknown key or right, or a\n";
-	Text += "# value of the wrong type, is an error.\n";
+	Text += "# its data folder ([paths] data of config.toml), after spells.toml. This file\n";
+	Text += "# says what a command is called, what is said to give it, which rights it\n";
+	Text += "# needs and which script does what it does: a Lua file in the scripts folder\n";
+	Text += "# (data/scripts/ in the repository). An unknown key or right, or a value of\n";
+	Text += "# the wrong type, is an error.\n";
 	Text += "#\n";
 	Text += "# Each [[command]] is one command:\n";
 	Text += "#   number  The command number, 1 to 255, each at most once and none of a\n";
-	Text += "#           spell in spells.toml. It ties the command to what it does in the\n";
-	Text += "#           code.\n";
+	Text += "#           spell in spells.toml: the game keeps spells and commands in one\n";
+	Text += "#           table by number. It does not say what the command does; script\n";
+	Text += "#           does.\n";
 	Text += "#   name    Its name, at most 30 characters.\n";
 	Text += "#   words   What is said to give it, written as spells.toml writes words:\n";
 	Text += "#           the class syllable and the next one as one word, every further\n";
@@ -248,6 +275,9 @@ static std::string CommandsHeader() {
 	Text += "#           code checks no right for the house commands and for those that\n";
 	Text += "#           point to the rule violation dialog (Ctrl+Y): they have none.\n";
 	Text += "#           Every other command needs it.\n";
+	Text += "#   script  The script that does what the command does, \"commands/<name>.lua\"\n";
+	Text += "#           in the scripts folder, whose global function onSay runs when it is\n";
+	Text += "#           given. Left out, giving the command does nothing.\n";
 	Text += "#\n";
 	Text += "# The rights:\n";
 	std::vector<std::string> Names(RightNames, RightNames + NUMBER_OF_RIGHTS);
@@ -286,9 +316,14 @@ std::string CommandsToToml() {
 		Text += "name = " + TomlQuote(Spell.Comment) + "\n";
 		Text += "words = " + TomlQuote(SpellWords(Spell.Syllable)) + "\n";
 		TCommandRightChecks Checks = GetCommandRightChecks(SpellNr);
-		if (Checks.Count == 1 && Checks.Names[0][0] == 0) {
+		bool OneRight = Checks.Count == 1 && Checks.Names[0][0] == 0;
+		if (OneRight) {
 			Text += "right = " + TomlQuote(RightNames[CommandRight[SpellNr][COMMAND_RIGHT]]) + "\n";
-		} else if (Checks.Count > 0) {
+		}
+		// The last key of the entry, before a right that is a table of its own
+		// (which takes the keys after it).
+		Text += "script = " + TomlQuote(SpellScript(SpellNr)) + "\n";
+		if (!OneRight && Checks.Count > 0) {
 			Text += "[command.right]\n";
 			for (int i = 0; i < Checks.Count; i++) {
 				Text += std::string(Checks.Names[i]) + " = " + TomlQuote(RightNames[CommandRight[SpellNr][i]]) + "\n";

@@ -12,12 +12,15 @@
 //   convert_test_commands --original SPELLS_TOML COMMANDS_TOML
 //     With the committed files: commands.toml must be exactly what
 //     patella-convert commands writes, and the two must give the same table
-//     and rights as the code did; and every change of one value of
-//     commands.toml must give another table or other rights, or an error.
+//     and rights as the code did; every change of one value of commands.toml
+//     must give another table or other rights, or an error; and every script
+//     commands.toml names must be a file in the scripts folder next to it
+//     with the handler onSay.
 //
 // Every load runs in a child process of its own, on a table and rights filled
 // with a byte pattern first. The whole table is compared, spells 0 to 255, as
-// test_spells.cc compares it, and every right check of every number.
+// test_spells.cc compares it (with the scripts), and every right check of
+// every number.
 
 #include <climits>
 #include <cstdio>
@@ -50,8 +53,21 @@ static std::string Printable(const char *Text) {
 	return Out;
 }
 
+// The script of spell or command SpellNr: of the loaded files (Loaded), else
+// the one spells.toml or commands.toml is written with; "(none)" for none.
+static std::string Script(int SpellNr, bool Loaded) {
+	if (Loaded) {
+		const char *Name = GetSpellScript(SpellNr);
+		return Name == nullptr ? "(none)" : "\"" + std::string(Name) + "\"";
+	}
+	if (SpellNr == 0 || SpellList[SpellNr].Syllable[0] == 0) {
+		return "(none)";
+	}
+	return "\"" + SpellScript(SpellNr) + "\"";
+}
+
 // The table and the rights as "field\tvalue" lines.
-static std::string Dump() {
+static std::string Dump(bool Loaded) {
 	std::string Out;
 	const char *Poisoned;
 	memset(static_cast<void *>(&Poisoned), POISON, sizeof(Poisoned));
@@ -71,6 +87,7 @@ static std::string Dump() {
 		Out += Prefix + "mana\t" + std::to_string(Spell.Mana) + "\n";
 		Out += Prefix + "soul points\t" + std::to_string(Spell.SoulPoints) + "\n";
 		Out += Prefix + "charges\t" + std::to_string(Spell.Amount) + "\n";
+		Out += Prefix + "script\t" + Script(SpellNr, Loaded) + "\n";
 		for (int i = 0; i < MAX_COMMAND_RIGHTS; i++) {
 			Out += Prefix + "right " + std::to_string(i) + "\t" + std::to_string(CommandRight[SpellNr][i]) + "\n";
 		}
@@ -78,12 +95,14 @@ static std::string Dump() {
 	return Out;
 }
 
-static std::string Snapshot(const std::function<void()> &Fill) {
+// The table and rights Fill makes, which loads files (Loaded) or fills them
+// in the code.
+static std::string Snapshot(const std::function<void()> &Fill, bool Loaded = true) {
 	return InChild([&]() {
 		memset(static_cast<void *>(SpellList), POISON, sizeof(SpellList));
 		memset(static_cast<void *>(CommandRight), POISON, sizeof(CommandRight));
 		Fill();
-		return Dump();
+		return Dump(Loaded);
 	});
 }
 
@@ -141,7 +160,7 @@ static std::string RoundTrip(const fs::path &Folder, const char *Name, const std
 	std::string Expected = Snapshot([&]() {
 		Clear();
 		Fill();
-	});
+	}, false);
 	std::string Actual = Snapshot(NewLoader(SpellsFile, CommandsFile));
 	if (IsError(Expected) || IsError(Actual)) {
 		fprintf(stderr, "%s: a load failed:\n%s\n%s\n", Name, Expected.substr(0, 300).c_str(),
@@ -174,9 +193,10 @@ static void SetWords(TSpellList &Spell, std::initializer_list<const char *> Word
 
 static void TestRoundTrips(const fs::path &Folder) {
 	// A spell next to the commands; a command of each class that checks one
-	// right, Move with its four, a command that checks none, one of a number
-	// the code does not know, the most syllables, the first and the last
-	// right, a name with quotes, a backslash and Latin-1.
+	// right, Move with its four (its script before them), two commands that
+	// check none, the most syllables, the first and the last right, a name
+	// with quotes, a backslash and Latin-1; the scripts after the numbers
+	// whatever the commands there are.
 	std::string Toml = RoundTrip(Folder, "made-up", []() {
 		TSpellList *S = &SpellList[1];
 		SetWords(*S, {"ex", "ura"});
@@ -200,23 +220,27 @@ static void TestRoundTrips(const fs::path &Folder) {
 		S = &SpellList[SPELL_INVITE_GUESTS];
 		SetWords(*S, {"al", "eta", "sio"});
 		S->Comment = "Invite Guests";
-		S = &SpellList[255];
+		S = &SpellList[SPELL_EDIT_DOOR];
 		SetWords(*S, {"om", "moe", "ani", "ina", "eta", "amo", "hora", "cogni", "res", "mas"});
 		S->Comment = "123456789012345678901234567890";
 	});
 	CHECK(Toml.find("\n[[command]]\nnumber = 35\nname = \"Get Item\"\nwords = \"alevo para\"\n"
-			"right = \"PREMIUM_ACCOUNT\"\n\n") != std::string::npos);
-	CHECK(Toml.find("words = \"omana para\"\nright = \"NO_STATISTICS\"\n") != std::string::npos);
+			"right = \"PREMIUM_ACCOUNT\"\nscript = \"commands/get_item.lua\"\n\n") != std::string::npos);
+	CHECK(Toml.find("words = \"omana para\"\nright = \"NO_STATISTICS\"\nscript = \"commands/kick_player.lua\"\n")
+			!= std::string::npos);
 	CHECK(Toml.find("name = \"a \\\"quoted\\\" back\\\\slash \xc3\xa4\xc3\xb6\xc3\xbc\xc3\x9f\"\n")
 			!= std::string::npos);
-	CHECK(Toml.find("number = 37\nname = \"Move\"\nwords = \"alani para\"\n[command.right]\n"
-			"vertical = \"TELEPORT_VERTICAL\"\nspeed = \"MODIFY_GOSTRENGTH\"\ncoordinate = \"TELEPORT_TO_COORDINATE\"\n"
-			"mark = \"TELEPORT_TO_MARK\"\n") != std::string::npos);
-	CHECK(Toml.find("number = 71\nname = \"Invite Guests\"\nwords = \"aleta sio\"\n\n") != std::string::npos);
-	CHECK(Toml.find("number = 255\nname = \"123456789012345678901234567890\"\n"
-			"words = \"ommoe ani ina eta amo hora cogni res mas\"\n") != std::string::npos);
+	CHECK(Toml.find("number = 37\nname = \"Move\"\nwords = \"alani para\"\nscript = \"commands/move.lua\"\n"
+			"[command.right]\nvertical = \"TELEPORT_VERTICAL\"\nspeed = \"MODIFY_GOSTRENGTH\"\n"
+			"coordinate = \"TELEPORT_TO_COORDINATE\"\nmark = \"TELEPORT_TO_MARK\"\n") != std::string::npos);
+	CHECK(Toml.find("number = 71\nname = \"Invite Guests\"\nwords = \"aleta sio\"\n"
+			"script = \"commands/invite_guests.lua\"\n\n") != std::string::npos);
+	CHECK(Toml.find("number = 74\nname = \"123456789012345678901234567890\"\n"
+			"words = \"ommoe ani ina eta amo hora cogni res mas\"\nscript = \"commands/edit_door.lua\"\n")
+			!= std::string::npos);
 	CHECK(Toml.find("number = 1\n") == std::string::npos);
 	CHECK(Toml.find("number = 37\n") < Toml.find("number = 71\n"));
+	CHECK(Toml.find("number = 71\n") < Toml.find("number = 74\n"));
 
 	Toml = RoundTrip(Folder, "empty", []() {});
 	CHECK(Toml.find("\n[[command]]\n") == std::string::npos);
@@ -278,6 +302,14 @@ static void TestRefusals() {
 		SetWords(SpellList[1], {"al", "evo", "para"});
 		SpellList[1].Comment = "Twice";
 	}, "two spells with the same words");
+	for (int SpellNr : {36, 200, 255}) {
+		for (const char *Class : {"al", "om"}) {
+			Refused("number without a script name", [SpellNr, Class]() {
+				SetWords(SpellList[SpellNr], {Class, "ura"});
+				SpellList[SpellNr].Comment = "x";
+			}, "a spell number without a script name");
+		}
+	}
 }
 
 static void TestErrors(const fs::path &Folder) {
@@ -365,9 +397,19 @@ static void TestErrors(const fs::path &Folder) {
 			"coordinate = \"TELEPORT_TO_COORDINATE\"\nmark = \"MARK\"\n", 9, "unknown right \"MARK\"");
 	Expect(One + "right =\n", 5, "");
 
+	// The script.
+	Expect(None + "script = 5\n", 5, "script must be a string");
+	Expect(None + "script = \"commands/Invite.lua\"\n", 5, "script \"commands/Invite.lua\" is not a script name");
+	Expect(None + "script = \"commands/../x.lua\"\n", 5, "script \"commands/../x.lua\" is not a script name");
+	Expect(None + "script = \"spells/invite_guests.lua\"\n", 5, "the script of a command must be in commands/");
+	Expect(None + "script = \"commandsx/invite_guests.lua\"\n", 5, "the script of a command must be in commands/");
+	Expect(Move + "script = \"commands/move.lua\"\n" + MoveRights + "script = \"commands/move.lua\"\n", 11,
+			"unknown key \"script\" in right of command 37");
+
 	// What loads: no file content, a command that checks none, one that
 	// checks one, Move as a table of its own and inline, a number the code
-	// does not know, every right by its name.
+	// does not know, a script, Move's before its table of rights, every right
+	// by its name.
 	CHECK(Load("") == "");
 	CHECK(Load(None) == "");
 	CHECK(Load(One + "right = \"CREATE_OBJECTS\"\n") == "");
@@ -375,6 +417,8 @@ static void TestErrors(const fs::path &Folder) {
 	CHECK(Load(Move + "right = { mark = \"KICK\", vertical = \"KICK\", speed = \"KICK\", coordinate = \"KICK\" }\n")
 			== "");
 	CHECK(Load("[[command]]\nnumber = 200\nname = \"x\"\nwords = \"omvis\"\n") == "");
+	CHECK(Load(None + "script = \"commands/invite_guests.lua\"\n") == "");
+	CHECK(Load(Move + "script = \"commands/move.lua\"\n" + MoveRights) == "");
 	for (int Right = 0; Right < NUMBER_OF_RIGHTS; Right++) {
 		std::string Text = One + "right = \"" + RightNames[Right] + "\"\n";
 		std::string Out = InChild([&]() {
@@ -421,7 +465,8 @@ static std::vector<std::string> SplitCommands(const std::string &Toml, std::stri
 // The changes of one value of a [[command]] block: the number one up and to
 // 254, the name and the words changed, the class changed, the last syllable
 // left out, each right changed to the next one and left out, a right added
-// to a command without one, the block left out.
+// to a command without one, the script changed or left out, the block left
+// out.
 static std::vector<std::pair<std::string, std::string>> Mutations(const std::string &Block) {
 	std::vector<std::pair<std::string, std::string>> Result;
 	std::smatch Match;
@@ -464,6 +509,12 @@ static std::vector<std::pair<std::string, std::string>> Mutations(const std::str
 			Added.pop_back();
 		}
 		Result.push_back({"right added", Added + "\nright = \"KICK\"\n"});
+	}
+	size_t Script = Block.find("\nscript = \"");
+	if (Script != std::string::npos) {
+		size_t ScriptEnd = Block.find('"', Script + 11);
+		Result.push_back({"script changed", std::string(Block).insert(ScriptEnd - 4, "x")});
+		Result.push_back({"script left out", std::string(Block).erase(Script, Block.find('\n', Script + 1) - Script)});
 	}
 	Result.push_back({"left out", ""});
 	return Result;
@@ -514,7 +565,7 @@ static int Original(const char *SpellsToml, const char *CommandsToml) {
 		Failures++;
 	}
 
-	std::string Expected = Snapshot(Reference);
+	std::string Expected = Snapshot(Reference, false);
 	std::string Actual = Snapshot(NewLoader(SpellsToml, CommandsToml));
 	if (IsError(Expected) || IsError(Actual)) {
 		fprintf(stderr, "a load failed: %s / %s\n", Expected.substr(0, 200).c_str(), Actual.substr(0, 200).c_str());
@@ -522,18 +573,30 @@ static int Original(const char *SpellsToml, const char *CommandsToml) {
 	}
 	if (Same(Expected, Actual, "original", "the code", "the files")) {
 		std::map<std::string, std::string> Values = Fields(Actual);
-		int Commands = 0, Checks = 0;
+		int Commands = 0, Checks = 0, Scripts = 0;
 		for (int SpellNr = 1; SpellNr < MAX_SPELLS; SpellNr++) {
 			std::string Prefix = "spell " + std::to_string(SpellNr) + " ";
-			Commands += Values[Prefix + "syllable 0"] == std::to_string(SYLLABLE_AL)
+			bool Command = Values[Prefix + "syllable 0"] == std::to_string(SYLLABLE_AL)
 					|| Values[Prefix + "syllable 0"] == std::to_string(SYLLABLE_OM);
+			Commands += Command;
 			for (int i = 0; i < MAX_COMMAND_RIGHTS; i++) {
 				Checks += Values[Prefix + "right " + std::to_string(i)] != std::to_string(NO_RIGHT);
 			}
+			if (Command) {
+				Scripts += Values[Prefix + "script"] != "(none)";
+				if (Values[Prefix + "script"] == "(none)") {
+					fprintf(stderr, "command %d has no script\n", SpellNr);
+					Failures++;
+				}
+			}
 		}
-		printf("the code and %s with %s give the same table and rights: %d commands, %d right checks; %d fields "
-				"compared\n", SpellsToml, CommandsToml, Commands, Checks, static_cast<int>(Values.size()));
+		printf("the code and %s with %s give the same table and rights: %d commands, %d right checks, %d scripts; "
+				"%d fields compared\n", SpellsToml, CommandsToml, Commands, Checks, Scripts,
+				static_cast<int>(Values.size()));
 	}
+
+	int Files = CheckScriptFiles(CommandsToml, Committed);
+	printf("%d scripts that %s names, each a file with its handler\n", Files, CommandsToml);
 
 	fs::path Folder = TemporaryFolder("convert-test-commands-original");
 	int Changes = TestMutations(Folder, SpellsToml, Committed, Expected);

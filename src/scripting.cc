@@ -1,7 +1,9 @@
 // scripting.cc: the Lua engine (scripting.hh, scripting_api.hh). One LuaJIT
 // state with the sandbox of rule 7, strict shared globals and API tables, the
-// core API (game, result), the restricted require, the loaded scripts with
-// their environments, and the calls of their handlers (TScriptCall).
+// core API (Game, print, debugPrint, math.random, the RETURNVALUE_
+// constants), the objects (Creature, Player, Item, Vocation), the read-only
+// constants, the restricted require, the loaded scripts with their
+// environments, and the calls of their handlers (TScriptCall).
 //
 // The functions Lua calls (the core API, the metamethods, require, the message
 // handlers) use only Lua's C API and plain C data: they throw no C++ exception
@@ -34,6 +36,7 @@
 #include "map.hh"
 #include "info.hh"
 #include "utils.hh"
+#include "crmain.hh"
 #include "scripting_api.hh"
 
 // The longest script name LoadScript and require accept.
@@ -46,16 +49,20 @@ static const char *const MODULES = "patella.modules";
 static const char *const REQUIRE_STACK = "patella.require_stack";
 // The real API tables, by name (the shared globals hold their proxies).
 static const char *const API_TABLES = "patella.api_tables";
+// The names of the read-only constants (SetScriptConstant), each true.
+static const char *const CONSTANTS = "patella.constants";
+// The kinds of the objects by their metatables (TScriptObjectKind numbers).
+static const char *const OBJECT_KINDS = "patella.object_kinds";
 // The last error a module raised that the module message handler traced: a
 // table whose [1] is the error value and [2] its text with the traceback
 // (made with room for both, so clearing it never allocates).
 static const char *const TRACED_ERROR = "patella.traced_error";
 
-// A loaded script: its name and the registry reference of the table it
-// returned.
+// A loaded script: its name and the registry reference of its environment,
+// which holds its handlers.
 struct TScript {
 	std::string Name;
-	int Table;
+	int Environment;
 };
 
 static sol::state *State = nullptr;
@@ -68,78 +75,80 @@ static std::string ErrorText;
 // RequireStackDepth of the registry's REQUIRE_STACK.
 static int RequireStackDepth = 0;
 
-// The names of RESULT (info.hh), in the order of their numbers. The checks
-// below fail to compile when an entry is missing, misplaced or out of step
-// with ERROR and LOWLEVEL, the first and last values of RESULT.
+// The scripts' names of RESULT (info.hh), RETURNVALUE_ and TFS's name where
+// it means the same (RETURNVALUE_NOTPOSSIBLE is NOTACCESSIBLE), our own
+// otherwise, in the order of their numbers. The checks below fail to compile
+// when an entry is missing, misplaced or out of step with ERROR and LOWLEVEL,
+// the first and last values of RESULT.
 struct TResultName {
 	RESULT Code;
 	const char *Name;
 };
 
-#define RESULT_NAME(Name) {Name, #Name}
+#define RESULT_NAME(Code, Name) {Code, "RETURNVALUE_" #Name}
 static constexpr TResultName ResultNames[] = {
-	RESULT_NAME(ERROR),
-	RESULT_NAME(NOERROR),
-	RESULT_NAME(NOTACCESSIBLE),
-	RESULT_NAME(NOTMOVABLE),
-	RESULT_NAME(NOTTAKABLE),
-	RESULT_NAME(NOROOM),
-	RESULT_NAME(OUTOFRANGE),
-	RESULT_NAME(OUTOFHOME),
-	RESULT_NAME(CANNOTTHROW),
-	RESULT_NAME(TOOHEAVY),
-	RESULT_NAME(CROSSREFERENCE),
-	RESULT_NAME(CONTAINERFULL),
-	RESULT_NAME(WRONGPOSITION),
-	RESULT_NAME(WRONGPOSITION2),
-	RESULT_NAME(WRONGCLOTHES),
-	RESULT_NAME(HANDSNOTFREE),
-	RESULT_NAME(HANDBLOCKED),
-	RESULT_NAME(ONEWEAPONONLY),
-	RESULT_NAME(NOMATCH),
-	RESULT_NAME(NOTCUMULABLE),
-	RESULT_NAME(TOOMANYPARTS),
-	RESULT_NAME(EMPTYCONTAINER),
-	RESULT_NAME(SPLITOBJECT),
-	RESULT_NAME(NOKEYMATCH),
-	RESULT_NAME(UPSTAIRS),
-	RESULT_NAME(DOWNSTAIRS),
-	RESULT_NAME(CREATURENOTEXISTING),
-	RESULT_NAME(PLAYERNOTEXISTING),
-	RESULT_NAME(PLAYERNOTONLINE),
-	RESULT_NAME(NAMEAMBIGUOUS),
-	RESULT_NAME(NOTUSABLE),
-	RESULT_NAME(FEDUP),
-	RESULT_NAME(DESTROYED),
-	RESULT_NAME(SPELLUNKNOWN),
-	RESULT_NAME(LOWMAGICLEVEL),
-	RESULT_NAME(MAGICITEM),
-	RESULT_NAME(NOTENOUGHMANA),
-	RESULT_NAME(NOSKILL),
-	RESULT_NAME(TARGETLOST),
-	RESULT_NAME(OUTOFAMMO),
-	RESULT_NAME(NOCREATURE),
-	RESULT_NAME(TOOLONG),
-	RESULT_NAME(TARGETOUTOFRANGE),
-	RESULT_NAME(TARGETHIDDEN),
-	RESULT_NAME(ATTACKNOTALLOWED),
-	RESULT_NAME(NOWAY),
-	RESULT_NAME(LOGINERROR),
-	RESULT_NAME(LOGINABORT),
-	RESULT_NAME(PROTECTIONZONE),
-	RESULT_NAME(ENTERPROTECTIONZONE),
-	RESULT_NAME(EXHAUSTED),
-	RESULT_NAME(NOTINVITED),
-	RESULT_NAME(NOPREMIUMACCOUNT),
-	RESULT_NAME(MOVENOTPOSSIBLE),
-	RESULT_NAME(ALREADYTRADING),
-	RESULT_NAME(PARTNERTRADING),
-	RESULT_NAME(TOOMANYOBJECTS),
-	RESULT_NAME(TOOMANYSLAVES),
-	RESULT_NAME(NOTTURNABLE),
-	RESULT_NAME(SECUREMODE),
-	RESULT_NAME(NOTENOUGHSOULPOINTS),
-	RESULT_NAME(LOWLEVEL),
+	RESULT_NAME(ERROR, ERROR),
+	RESULT_NAME(NOERROR, NOERROR),
+	RESULT_NAME(NOTACCESSIBLE, NOTPOSSIBLE),
+	RESULT_NAME(NOTMOVABLE, NOTMOVEABLE),
+	RESULT_NAME(NOTTAKABLE, CANNOTPICKUP),
+	RESULT_NAME(NOROOM, NOTENOUGHROOM),
+	RESULT_NAME(OUTOFRANGE, DESTINATIONOUTOFREACH),
+	RESULT_NAME(OUTOFHOME, OUTOFHOME),
+	RESULT_NAME(CANNOTTHROW, CANNOTTHROW),
+	RESULT_NAME(TOOHEAVY, NOTENOUGHCAPACITY),
+	RESULT_NAME(CROSSREFERENCE, THISISIMPOSSIBLE),
+	RESULT_NAME(CONTAINERFULL, CONTAINERNOTENOUGHROOM),
+	RESULT_NAME(WRONGPOSITION, PUTTHISOBJECTINYOURHAND),
+	RESULT_NAME(WRONGPOSITION2, PUTTHISOBJECTINBOTHHANDS),
+	RESULT_NAME(WRONGCLOTHES, CANNOTBEDRESSED),
+	RESULT_NAME(HANDSNOTFREE, BOTHHANDSNEEDTOBEFREE),
+	RESULT_NAME(HANDBLOCKED, DROPTWOHANDEDITEM),
+	RESULT_NAME(ONEWEAPONONLY, CANONLYUSEONEWEAPON),
+	RESULT_NAME(NOMATCH, NOMATCH),
+	RESULT_NAME(NOTCUMULABLE, NOTCUMULABLE),
+	RESULT_NAME(TOOMANYPARTS, TOOMANYPARTS),
+	RESULT_NAME(EMPTYCONTAINER, EMPTYCONTAINER),
+	RESULT_NAME(SPLITOBJECT, SPLITOBJECT),
+	RESULT_NAME(NOKEYMATCH, NOKEYMATCH),
+	RESULT_NAME(UPSTAIRS, FIRSTGOUPSTAIRS),
+	RESULT_NAME(DOWNSTAIRS, FIRSTGODOWNSTAIRS),
+	RESULT_NAME(CREATURENOTEXISTING, CREATUREDOESNOTEXIST),
+	RESULT_NAME(PLAYERNOTEXISTING, PLAYERNOTEXISTING),
+	RESULT_NAME(PLAYERNOTONLINE, PLAYERWITHTHISNAMEISNOTONLINE),
+	RESULT_NAME(NAMEAMBIGUOUS, NAMEISTOOAMBIGUOUS),
+	RESULT_NAME(NOTUSABLE, CANNOTUSETHISOBJECT),
+	RESULT_NAME(FEDUP, FEDUP),
+	RESULT_NAME(DESTROYED, DESTROYED),
+	RESULT_NAME(SPELLUNKNOWN, YOUNEEDTOLEARNTHISSPELL),
+	RESULT_NAME(LOWMAGICLEVEL, NOTENOUGHMAGICLEVEL),
+	RESULT_NAME(MAGICITEM, YOUNEEDAMAGICITEMTOCASTSPELL),
+	RESULT_NAME(NOTENOUGHMANA, NOTENOUGHMANA),
+	RESULT_NAME(NOSKILL, NOSKILL),
+	RESULT_NAME(TARGETLOST, TARGETLOST),
+	RESULT_NAME(OUTOFAMMO, OUTOFAMMO),
+	RESULT_NAME(NOCREATURE, CANONLYUSETHISRUNEONCREATURES),
+	RESULT_NAME(TOOLONG, TOOLONG),
+	RESULT_NAME(TARGETOUTOFRANGE, TARGETOUTOFRANGE),
+	RESULT_NAME(TARGETHIDDEN, TARGETHIDDEN),
+	RESULT_NAME(ATTACKNOTALLOWED, YOUMAYNOTATTACKTHISPLAYER),
+	RESULT_NAME(NOWAY, THEREISNOWAY),
+	RESULT_NAME(LOGINERROR, LOGINERROR),
+	RESULT_NAME(LOGINABORT, LOGINABORT),
+	RESULT_NAME(PROTECTIONZONE, ACTIONNOTPERMITTEDINPROTECTIONZONE),
+	RESULT_NAME(ENTERPROTECTIONZONE, ENTERPROTECTIONZONE),
+	RESULT_NAME(EXHAUSTED, YOUAREEXHAUSTED),
+	RESULT_NAME(NOTINVITED, NOTINVITED),
+	RESULT_NAME(NOPREMIUMACCOUNT, YOUNEEDPREMIUMACCOUNT),
+	RESULT_NAME(MOVENOTPOSSIBLE, MOVENOTPOSSIBLE),
+	RESULT_NAME(ALREADYTRADING, YOUAREALREADYTRADING),
+	RESULT_NAME(PARTNERTRADING, THISPLAYERISALREADYTRADING),
+	RESULT_NAME(TOOMANYOBJECTS, TOOMANYOBJECTS),
+	RESULT_NAME(TOOMANYSLAVES, TOOMANYSLAVES),
+	RESULT_NAME(NOTTURNABLE, NOTTURNABLE),
+	RESULT_NAME(SECUREMODE, TURNSECUREMODETOATTACKUNMARKEDPLAYERS),
+	RESULT_NAME(NOTENOUGHSOULPOINTS, NOTENOUGHSOUL),
+	RESULT_NAME(LOWLEVEL, NOTENOUGHLEVEL),
 };
 #undef RESULT_NAME
 
@@ -201,7 +210,8 @@ static bool ResultCode(const char *Name, int *Code) {
 	return false;
 }
 
-// The text of a result code as an error value shows it: "result NOROOM", or
+// The text of a result code as an error value shows it: "result
+// RETURNVALUE_NOTENOUGHROOM", or
 // "result <number>" for a number that is not a result code.
 static std::string ResultText(int Code) {
 	const char *Name = ResultName(Code);
@@ -376,7 +386,8 @@ static bool LoadChunk(lua_State *L, const char *Name) {
 }
 
 // Pushes a new script environment: an empty table whose reads fall back to
-// the shared globals (and so are strict).
+// the shared globals (and so are strict) and whose writes of a constant's
+// name are refused (EnvironmentNewIndex).
 static void PushEnvironment(lua_State *L) {
 	lua_newtable(L);
 	lua_getfield(L, LUA_REGISTRYINDEX, ENVIRONMENT_METATABLE);
@@ -451,7 +462,8 @@ static void MakeGlobalReadOnly(lua_State *L, const char *Name) {
 // proxies; newproxy gives userdata with __gc, whose finalizers run (and may
 // call rand()) whenever the collector runs, in another handler;
 // collectgarbage and gcinfo control or read the collector, which is shared.
-static const char *const RemovedGlobals[] = {"dofile", "loadfile", "load", "loadstring", "print", "_G", "getfenv",
+// Lua's print (it writes to stdout) is replaced by the engine's (LuaPrint).
+static const char *const RemovedGlobals[] = {"dofile", "loadfile", "load", "loadstring", "_G", "getfenv",
 		"setfenv", "rawset", "newproxy", "collectgarbage", "gcinfo", LUA_JITLIBNAME};
 
 // The globals of the libraries the sandbox does not open (rule 7).
@@ -695,16 +707,23 @@ static int CheckInt(lua_State *L, int Index) {
 	return static_cast<int>(Value);
 }
 
-// __tostring of a result error: "result <NAME>".
-static int ResultErrorToString(lua_State *L) {
-	int Code;
-	memcpy(&Code, lua_touserdata(L, 1), sizeof(int));
+// Pushes the text of a result code as an error value shows it ("result
+// RETURNVALUE_NOTENOUGHROOM", or "result <number>" for a number that is not
+// one), with Lua's own functions only.
+static void PushResultText(lua_State *L, int Code) {
 	const char *Name = ResultName(Code);
 	if (Name != nullptr) {
 		lua_pushfstring(L, "result %s", Name);
 	} else {
 		lua_pushfstring(L, "result %d", Code);
 	}
+}
+
+// __tostring of a result error: "result RETURNVALUE_<NAME>".
+static int ResultErrorToString(lua_State *L) {
+	int Code;
+	memcpy(&Code, lua_touserdata(L, 1), sizeof(int));
+	PushResultText(L, Code);
 	return 1;
 }
 
@@ -720,54 +739,306 @@ static int ResultErrorIndex(lua_State *L) {
 	return 1;
 }
 
-// game.random(low, high): random(low, high) of utils.cc, low + rand() %
-// (high - low + 1), low for an empty span. Arguments: ints. Returns the int.
-static int GameRandom(lua_State *L) {
-	int Low = CheckInt(L, 1);
-	int High = CheckInt(L, 2);
-	lua_pushinteger(L, random(Low, High));
+// ---------------------------------------------------------------------------
+// The objects: a userdata of one uint32_t (a creature ID, an object handle,
+// or a Vocation's player ID) whose metatable is its class's (no __gc, so it
+// is trivially destructible and the collector runs no code). The metatable
+// reads methods from the class's method table, an API table (so an unknown
+// method is "unknown name '<class>.<method>'"), refuses writes, compares by
+// kind and value (__eq), names the object without an address (__tostring)
+// and is hidden from scripts (__metatable).
+
+// The class names of the kinds (TScriptObjectKind order).
+static const char *const ObjectKindNames[] = {nullptr, "Creature", "Player", "Item", "Vocation"};
+
+// The registry keys of the kinds' metatables.
+static const char *const ObjectMetatables[] = {nullptr, "patella.object.Creature", "patella.object.Player",
+		"patella.object.Item", "patella.object.Vocation"};
+
+TScriptObjectKind ScriptObjectKind(lua_State *L, int Index) {
+	Index = AbsoluteIndex(L, Index);
+	if (lua_type(L, Index) != LUA_TUSERDATA || !lua_getmetatable(L, Index)) {
+		return SCRIPT_NO_OBJECT;
+	}
+	lua_getfield(L, LUA_REGISTRYINDEX, OBJECT_KINDS);
+	lua_insert(L, -2);
+	lua_rawget(L, -2);
+	int Kind = lua_type(L, -1) == LUA_TNUMBER ? static_cast<int>(lua_tointeger(L, -1)) : SCRIPT_NO_OBJECT;
+	lua_pop(L, 2);
+	return static_cast<TScriptObjectKind>(Kind);
+}
+
+uint32_t ScriptObjectValue(lua_State *L, int Index) {
+	if (ScriptObjectKind(L, Index) == SCRIPT_NO_OBJECT) {
+		return 0;
+	}
+	uint32_t Value;
+	memcpy(&Value, lua_touserdata(L, Index), sizeof(Value));
+	return Value;
+}
+
+void PushScriptObject(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
+	assert(Kind > SCRIPT_NO_OBJECT && Kind <= SCRIPT_VOCATION);
+	void *Data = lua_newuserdata(L, sizeof(Value));
+	memcpy(Data, &Value, sizeof(Value));
+	lua_getfield(L, LUA_REGISTRYINDEX, ObjectMetatables[Kind]);
+	lua_setmetatable(L, -2);
+}
+
+void PushScriptCreature(lua_State *L, uint32_t ID) {
+	if (ID == 0) {
+		lua_pushnil(L);
+	} else if (ID < static_cast<uint32_t>(FIRST_NONPLAYER_CREATURE_ID)) {
+		PushScriptObject(L, SCRIPT_PLAYER, ID);
+	} else {
+		PushScriptObject(L, SCRIPT_CREATURE, ID);
+	}
+}
+
+// Pushes the text of an object: "Creature 123", "Player 123", "Item 456",
+// "Vocation of Player 123".
+static void PushObjectText(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
+	char Text[64];
+	if (Kind == SCRIPT_VOCATION) {
+		snprintf(Text, sizeof(Text), "Vocation of Player %u", static_cast<unsigned>(Value));
+	} else {
+		snprintf(Text, sizeof(Text), "%s %u", ObjectKindNames[Kind], static_cast<unsigned>(Value));
+	}
+	lua_pushstring(L, Text);
+}
+
+// __tostring of the objects (rule 4: no address).
+static int ObjectToString(lua_State *L) {
+	PushObjectText(L, ScriptObjectKind(L, 1), ScriptObjectValue(L, 1));
 	return 1;
 }
 
-// game.rand(): rand(), as the C++ code calls it directly. Returns the int.
+// __eq of the objects, one function in every class's metatable (Lua calls
+// __eq only when both operands have the same one): the same kind and value.
+static int ObjectEqual(lua_State *L) {
+	TScriptObjectKind Kind = ScriptObjectKind(L, 1);
+	lua_pushboolean(L, Kind != SCRIPT_NO_OBJECT && Kind == ScriptObjectKind(L, 2)
+			&& ScriptObjectValue(L, 1) == ScriptObjectValue(L, 2));
+	return 1;
+}
+
+// __index of the method table of a class derived from another (Player from
+// Creature): a method it lacks is read from the parent's method table (raw,
+// one level), and one neither has is the Lua error "unknown name
+// '<class>.<field>'". Upvalues: the class's name and the parent's table.
+static int DerivedClassIndex(lua_State *L) {
+	lua_pushvalue(L, 2);
+	lua_rawget(L, lua_upvalueindex(2));
+	if (!lua_isnil(L, -1)) {
+		return 1;
+	}
+	const char *Table = lua_tostring(L, lua_upvalueindex(1));
+	return luaL_error(L, "unknown name '%s.%s'", Table, PushKeyText(L, 2));
+}
+
+// Makes the class of Kind: its method table (the API table of its name,
+// derived from Parent's unless that is SCRIPT_NO_OBJECT; a parent is made
+// first) and its objects' metatable, whose __eq is the function at the
+// stack index Equal.
+static void MakeClass(lua_State *L, TScriptObjectKind Kind, TScriptObjectKind Parent, int Equal) {
+	const char *Name = ObjectKindNames[Kind];
+	PushAPITable(L, Name);
+	if (Parent != SCRIPT_NO_OBJECT) {
+		lua_getmetatable(L, -1);
+		lua_pushstring(L, Name);
+		PushAPITable(L, ObjectKindNames[Parent]);
+		lua_pushcclosure(L, DerivedClassIndex, 2);
+		lua_setfield(L, -2, "__index");
+		lua_pop(L, 1);
+	}
+	luaL_newmetatable(L, ObjectMetatables[Kind]);
+	lua_pushvalue(L, -2);
+	lua_setfield(L, -2, "__index");
+	lua_pushstring(L, Name);
+	lua_pushcclosure(L, ReadOnlyNewIndex, 1);
+	lua_setfield(L, -2, "__newindex");
+	lua_pushvalue(L, Equal);
+	lua_setfield(L, -2, "__eq");
+	lua_pushcfunction(L, ObjectToString);
+	lua_setfield(L, -2, "__tostring");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_getfield(L, LUA_REGISTRYINDEX, OBJECT_KINDS);
+	lua_pushvalue(L, -2);
+	lua_pushinteger(L, Kind);
+	lua_rawset(L, -3);
+	lua_pop(L, 3);
+}
+
+// creature:getId(): the creature ID the object holds, also for a creature
+// that is gone. Argument: a Creature or a Player. Returns the number.
+static int CreatureGetId(lua_State *L) {
+	TScriptObjectKind Kind = ScriptObjectKind(L, 1);
+	if (Kind != SCRIPT_CREATURE && Kind != SCRIPT_PLAYER) {
+		return luaL_typerror(L, 1, "Creature");
+	}
+	lua_pushnumber(L, ScriptObjectValue(L, 1));
+	return 1;
+}
+
+// ---------------------------------------------------------------------------
+// The constants
+
+// Sets the shared global Name to the constant Value and records it in
+// CONSTANTS; false (and nothing set) when the shared global Name exists or is
+// a name the sandbox removed.
+static bool SetConstant(lua_State *L, const char *Name, int Value) {
+	if (SandboxRemovedName(Name)) {
+		return false;
+	}
+	lua_pushstring(L, Name);
+	lua_rawget(L, LUA_GLOBALSINDEX);
+	bool Taken = !lua_isnil(L, -1);
+	lua_pop(L, 1);
+	if (Taken) {
+		return false;
+	}
+	lua_pushstring(L, Name);
+	lua_pushinteger(L, Value);
+	lua_rawset(L, LUA_GLOBALSINDEX);
+	lua_getfield(L, LUA_REGISTRYINDEX, CONSTANTS);
+	lua_pushboolean(L, 1);
+	lua_setfield(L, -2, Name);
+	lua_pop(L, 1);
+	return true;
+}
+
+// __newindex of the script environments: a global a script sets stays in its
+// environment, except a constant's name, which is the Lua error "<name> is
+// read-only", at the line that writes it.
+static int EnvironmentNewIndex(lua_State *L) {
+	if (lua_type(L, 2) == LUA_TSTRING) {
+		lua_getfield(L, LUA_REGISTRYINDEX, CONSTANTS);
+		lua_pushvalue(L, 2);
+		lua_rawget(L, -2);
+		bool Constant = lua_toboolean(L, -1) != 0;
+		lua_pop(L, 2);
+		if (Constant) {
+			return luaL_error(L, "%s is read-only", lua_tostring(L, 2));
+		}
+	}
+	lua_settop(L, 3);
+	lua_rawset(L, 1);
+	return 0;
+}
+
+// ---------------------------------------------------------------------------
+// The core API
+
+// math.random(m, n): random(m, n) of utils.cc, m + rand() % (n - m + 1), m
+// for an empty span; math.random(m): random(1, m). Arguments: ints. Returns
+// the int. No arguments, or more than two, is a Lua error (rule 3).
+static int MathRandom(lua_State *L) {
+	int Count = lua_gettop(L);
+	if (Count == 1) {
+		int High = CheckInt(L, 1);
+		lua_pushinteger(L, random(1, High));
+		return 1;
+	}
+	if (Count == 2) {
+		int Low = CheckInt(L, 1);
+		int High = CheckInt(L, 2);
+		lua_pushinteger(L, random(Low, High));
+		return 1;
+	}
+	return luaL_error(L, "math.random: one or two arguments expected");
+}
+
+// The level print(...) writes with: 2, the level of the game's informational
+// messages (the talk lines, the connection messages).
+const int SCRIPT_PRINT_LEVEL = 2;
+
+// print(...): its arguments as text, separated by tabs and ended by a
+// newline, as Lua's print writes them, given to print(SCRIPT_PRINT_LEVEL,
+// "%s", Text) of utils.cc. Strings and numbers as tostring gives them,
+// booleans, nil, the objects ("Player 123") and result errors ("result
+// RETURNVALUE_..."); a table, a function, a coroutine or any other userdata
+// is a Lua error, so no address is ever printed (rule 4). Calls no
+// metamethod. Returns nothing.
+static int LuaPrint(lua_State *L) {
+	int Count = lua_gettop(L);
+	luaL_checkstack(L, 2 * Count + 2, "print: too many arguments");
+	for (int i = 1; i <= Count; i++) {
+		if (i > 1) {
+			lua_pushliteral(L, "\t");
+		}
+		int Type = lua_type(L, i);
+		int Code;
+		TScriptObjectKind Kind = ScriptObjectKind(L, i);
+		if (Type == LUA_TSTRING || Type == LUA_TNUMBER) {
+			lua_pushvalue(L, i);
+			lua_tostring(L, -1);
+		} else if (Type == LUA_TBOOLEAN) {
+			lua_pushstring(L, lua_toboolean(L, i) ? "true" : "false");
+		} else if (Type == LUA_TNIL) {
+			lua_pushliteral(L, "nil");
+		} else if (Kind != SCRIPT_NO_OBJECT) {
+			PushObjectText(L, Kind, ScriptObjectValue(L, i));
+		} else if (IsResultError(L, i, &Code)) {
+			PushResultText(L, Code);
+		} else {
+			return luaL_error(L, "print: argument %d is a %s, which has no text", i, luaL_typename(L, i));
+		}
+	}
+	lua_pushliteral(L, "\n");
+	lua_concat(L, lua_gettop(L) - Count);
+	print(SCRIPT_PRINT_LEVEL, "%s", lua_tostring(L, -1));
+	return 0;
+}
+
+// debugPrint(text): error("%s", Text) of utils.cc, with each '%' of Text
+// doubled (error() hands the text to Log as its format string). Argument: a
+// string. Returns nothing.
+static int DebugPrint(lua_State *L) {
+	const char *Text = luaL_checkstring(L, 1);
+	error("%s", luaL_gsub(L, Text, "%", "%%"));
+	return 0;
+}
+
+// Game.rand(): rand(), as the C++ code calls it directly. Returns the int.
 static int GameRand(lua_State *L) {
 	lua_pushinteger(L, rand());
 	return 1;
 }
 
-// game.idiv(a, b): a / b of C++ ints, truncated toward zero. Arguments: ints.
+// Game.idiv(a, b): a / b of C++ ints, truncated toward zero. Arguments: ints.
 // Returns the int. b == 0, and INT_MIN / -1 (which C++ cannot compute), are
 // Lua errors.
 static int GameIdiv(lua_State *L) {
 	int a = CheckInt(L, 1);
 	int b = CheckInt(L, 2);
 	if (b == 0) {
-		return luaL_error(L, "game.idiv: division by zero");
+		return luaL_error(L, "Game.idiv: division by zero");
 	}
 	if (a == INT_MIN && b == -1) {
-		return luaL_error(L, "game.idiv: overflow");
+		return luaL_error(L, "Game.idiv: overflow");
 	}
 	lua_pushinteger(L, a / b);
 	return 1;
 }
 
-// game.imod(a, b): a % b of C++ ints, with the sign of a. Arguments: ints.
+// Game.imod(a, b): a % b of C++ ints, with the sign of a. Arguments: ints.
 // Returns the int. b == 0, and INT_MIN % -1 (which C++ cannot compute), are
 // Lua errors.
 static int GameImod(lua_State *L) {
 	int a = CheckInt(L, 1);
 	int b = CheckInt(L, 2);
 	if (b == 0) {
-		return luaL_error(L, "game.imod: division by zero");
+		return luaL_error(L, "Game.imod: division by zero");
 	}
 	if (a == INT_MIN && b == -1) {
-		return luaL_error(L, "game.imod: overflow");
+		return luaL_error(L, "Game.imod: overflow");
 	}
 	lua_pushinteger(L, a % b);
 	return 1;
 }
 
-// game.print(level, text): print(Level, "%s", Text) of utils.cc. Arguments:
+// Game.print(level, text): print(Level, "%s", Text) of utils.cc. Arguments:
 // an int and a string. Returns nothing.
 static int GamePrint(lua_State *L) {
 	int Level = CheckInt(L, 1);
@@ -776,31 +1047,22 @@ static int GamePrint(lua_State *L) {
 	return 0;
 }
 
-// game.error(text): error("%s", Text) of utils.cc, with each '%' of Text
-// doubled (error() hands the text to Log as its format string). Argument: a
-// string. Returns nothing.
-static int GameError(lua_State *L) {
-	const char *Text = luaL_checkstring(L, 1);
-	error("%s", luaL_gsub(L, Text, "%", "%%"));
-	return 0;
-}
-
-// game.throw(code): raises the result code, a number of RESULT or its name
-// ("NOROOM"), as a C++ throw of it would: a Lua error whose value carries the
-// code. Does not return; a value that is not a result code is a plain Lua
-// error.
-static int GameThrow(lua_State *L) {
+// Game.throwResult(code): raises the result code, a number of RESULT or its
+// name ("RETURNVALUE_NOTENOUGHROOM"), as a C++ throw of it would: a Lua error
+// whose value carries the code. Does not return; a value that is not a
+// result code is a plain Lua error.
+static int GameThrowResult(lua_State *L) {
 	int Code;
 	int Type = lua_type(L, 1);
 	if (Type == LUA_TSTRING) {
 		const char *Name = lua_tostring(L, 1);
 		if (!ResultCode(Name, &Code)) {
-			return luaL_error(L, "game.throw: unknown result '%s'", Name);
+			return luaL_error(L, "Game.throwResult: unknown result '%s'", Name);
 		}
 	} else if (Type == LUA_TNUMBER) {
 		double Value = lua_tonumber(L, 1);
 		if (!(Value >= ERROR && Value <= LOWLEVEL) || Value != floor(Value)) {
-			return luaL_error(L, "game.throw: %s is not a result code", lua_tostring(L, 1));
+			return luaL_error(L, "Game.throwResult: %s is not a result code", lua_tostring(L, 1));
 		}
 		Code = static_cast<int>(Value);
 	} else {
@@ -809,9 +1071,9 @@ static int GameThrow(lua_State *L) {
 	RaiseResult(L, Code);
 }
 
-// game.result_of(err): the result code the error value err (from pcall)
+// Game.getResultOf(err): the result code the error value err (from pcall)
 // carries, as a number, or nil for another error.
-static int GameResultOf(lua_State *L) {
+static int GameGetResultOf(lua_State *L) {
 	int Code;
 	if (lua_gettop(L) >= 1 && IsResultError(L, 1, &Code)) {
 		lua_pushinteger(L, Code);
@@ -821,7 +1083,7 @@ static int GameResultOf(lua_State *L) {
 	return 1;
 }
 
-// A C function and its name: the core API in the table game, and the
+// A C function and its name: the core API in the table Game, and the
 // libraries of the sandbox.
 struct TCoreFunction {
 	const char *Name;
@@ -829,14 +1091,12 @@ struct TCoreFunction {
 };
 
 static const TCoreFunction GameFunctions[] = {
-	{"random", GameRandom},
 	{"rand", GameRand},
 	{"idiv", GameIdiv},
 	{"imod", GameImod},
 	{"print", GamePrint},
-	{"error", GameError},
-	{"throw", GameThrow},
-	{"result_of", GameResultOf},
+	{"throwResult", GameThrowResult},
+	{"getResultOf", GameGetResultOf},
 };
 
 // The libraries of the sandbox (rule 7), opened as luaL_openlibs opens them.
@@ -854,8 +1114,8 @@ static const TCoreFunction Libraries[] = {
 static const char *const ReadOnlyLibraries[] = {LUA_STRLIBNAME, LUA_TABLIBNAME, LUA_MATHLIBNAME, LUA_BITLIBNAME,
 		LUA_COLIBNAME};
 
-// Builds the sandbox, the metatables, require and the core API in the new
-// state L.
+// Builds the sandbox, the metatables, require, the core API, the classes and
+// the RETURNVALUE_ constants in the new state L.
 static void SetUpState(lua_State *L) {
 	for (const TCoreFunction &Library : Libraries) {
 		lua_pushcfunction(L, Library.Function);
@@ -866,12 +1126,16 @@ static void SetUpState(lua_State *L) {
 		lua_pushnil(L);
 		lua_setfield(L, LUA_GLOBALSINDEX, Name);
 	}
+	lua_pushcfunction(L, LuaPrint);
+	lua_setfield(L, LUA_GLOBALSINDEX, "print");
+	lua_pushcfunction(L, DebugPrint);
+	lua_setfield(L, LUA_GLOBALSINDEX, "debugPrint");
 	lua_getfield(L, LUA_GLOBALSINDEX, LUA_STRLIBNAME);
 	lua_pushnil(L);
 	lua_setfield(L, -2, "dump");
 	lua_pop(L, 1);
 	lua_getfield(L, LUA_GLOBALSINDEX, LUA_MATHLIBNAME);
-	lua_pushnil(L);
+	lua_pushcfunction(L, MathRandom);
 	lua_setfield(L, -2, "random");
 	lua_pushnil(L);
 	lua_setfield(L, -2, "randomseed");
@@ -899,10 +1163,13 @@ static void SetUpState(lua_State *L) {
 	lua_setfield(L, -2, "__metatable");
 	lua_pop(L, 1);
 
-	// The script environments read the shared globals.
+	// The script environments read the shared globals and keep the
+	// constants read-only.
 	lua_newtable(L);
 	lua_pushvalue(L, LUA_GLOBALSINDEX);
 	lua_setfield(L, -2, "__index");
+	lua_pushcfunction(L, EnvironmentNewIndex);
+	lua_setfield(L, -2, "__newindex");
 	lua_pushboolean(L, 0);
 	lua_setfield(L, -2, "__metatable");
 	lua_setfield(L, LUA_REGISTRYINDEX, ENVIRONMENT_METATABLE);
@@ -913,6 +1180,10 @@ static void SetUpState(lua_State *L) {
 	lua_setfield(L, LUA_REGISTRYINDEX, REQUIRE_STACK);
 	lua_newtable(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, API_TABLES);
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, CONSTANTS);
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, OBJECT_KINDS);
 	lua_createtable(L, 2, 0);
 	lua_pushboolean(L, 0);
 	lua_rawseti(L, -2, 1);
@@ -922,20 +1193,27 @@ static void SetUpState(lua_State *L) {
 	lua_pushcfunction(L, LuaRequire);
 	lua_setfield(L, LUA_GLOBALSINDEX, "require");
 
-	PushAPITable(L, "game");
+	PushAPITable(L, "Game");
 	for (const TCoreFunction &Function : GameFunctions) {
 		lua_pushcfunction(L, Function.Function);
 		lua_setfield(L, -2, Function.Name);
 	}
 	lua_pop(L, 1);
 
-	PushAPITable(L, "result");
 	for (const TResultName &Result : ResultNames) {
-		lua_pushinteger(L, static_cast<int>(Result.Code));
-		lua_setfield(L, -2, Result.Name);
-		lua_pushstring(L, Result.Name);
-		lua_rawseti(L, -2, static_cast<int>(Result.Code));
+		SetConstant(L, Result.Name, static_cast<int>(Result.Code));
 	}
+
+	lua_pushcfunction(L, ObjectEqual);
+	int Equal = lua_gettop(L);
+	MakeClass(L, SCRIPT_CREATURE, SCRIPT_NO_OBJECT, Equal);
+	MakeClass(L, SCRIPT_PLAYER, SCRIPT_CREATURE, Equal);
+	MakeClass(L, SCRIPT_ITEM, SCRIPT_NO_OBJECT, Equal);
+	MakeClass(L, SCRIPT_VOCATION, SCRIPT_NO_OBJECT, Equal);
+	lua_pop(L, 1);
+	PushAPITable(L, ObjectKindNames[SCRIPT_CREATURE]);
+	lua_pushcfunction(L, CreatureGetId);
+	lua_setfield(L, -2, "getId");
 	lua_pop(L, 1);
 
 	// Last, the shared globals become strict.
@@ -1027,11 +1305,14 @@ int LoadScript(const char *Name, const char *Where) {
 		lua_settop(L, Top);
 		ThrowError(Where, Message);
 	}
+	// The stack is: the message handler, the environment, the chunk.
 	PushEnvironment(L);
+	lua_insert(L, -2);
+	lua_pushvalue(L, -2);
 	lua_setfenv(L, -2);
 	int Depth = RequireStackDepth;
 	ClearTracedError(L);
-	int Status = lua_pcall(L, 0, 1, Top + 1);
+	int Status = lua_pcall(L, 0, LUA_MULTRET, Top + 1);
 	ClearTracedError(L);
 	// require takes its modules off the stack whether they fail or not.
 	assert(RequireStackDepth == Depth);
@@ -1041,14 +1322,16 @@ int LoadScript(const char *Name, const char *Where) {
 		lua_settop(L, Top);
 		ThrowError(Where, Message);
 	}
-	if (!lua_istable(L, -1)) {
-		std::string Message = std::string(Name) + " returns " + luaL_typename(L, -1) + ", not a table";
-		lua_settop(L, Top);
-		ThrowError(Where, Message);
+	for (int i = Top + 3; i <= lua_gettop(L); i++) {
+		if (!lua_isnil(L, i)) {
+			lua_settop(L, Top);
+			ThrowError(Where, std::string(Name) + ": a script returns nothing; its handlers are global functions");
+		}
 	}
-	int Table = luaL_ref(L, LUA_REGISTRYINDEX);
+	lua_settop(L, Top + 2);
+	int Environment = luaL_ref(L, LUA_REGISTRYINDEX);
 	lua_settop(L, Top);
-	Scripts.push_back(TScript{Name, Table});
+	Scripts.push_back(TScript{Name, Environment});
 	return static_cast<int>(Scripts.size()) - 1;
 }
 
@@ -1061,10 +1344,11 @@ const char *ScriptName(int Script) {
 	return Scripts[Script].Name.c_str();
 }
 
-// Pushes the handler Handler of the script Script (a raw field of the table
-// it returned, so no metamethod runs), or nil when there is none.
+// Pushes the handler Handler of the script Script (a raw field of its
+// environment, its global of that name, so no metamethod runs and no shared
+// global counts), or nil when there is none.
 static void PushHandler(lua_State *L, int Script, const char *Handler) {
-	lua_rawgeti(L, LUA_REGISTRYINDEX, Scripts[Script].Table);
+	lua_rawgeti(L, LUA_REGISTRYINDEX, Scripts[Script].Environment);
 	lua_pushstring(L, Handler);
 	lua_rawget(L, -2);
 	lua_remove(L, -2);
@@ -1112,6 +1396,17 @@ sol::table ScriptAPITable(const char *Name) {
 	return Table;
 }
 
+void SetScriptConstant(const char *Name, int Value) {
+	assert(ScriptingActive());
+	AssertMainThread();
+	if (!ScriptingActive()) {
+		throw "SetScriptConstant: the scripting engine is not active";
+	}
+	if (!SetConstant(State->lua_state(), Name, Value)) {
+		ThrowError(nullptr, std::string("SetScriptConstant: the name ") + Name + " is taken or removed by the sandbox");
+	}
+}
+
 void RaiseResult(lua_State *L, int Code) {
 	int *Value = static_cast<int *>(lua_newuserdata(L, sizeof(int)));
 	*Value = Code;
@@ -1132,16 +1427,32 @@ void RaiseError(lua_State *L, const char *Text) {
 	abort();
 }
 
-// An argument of a TScriptCall: its Lua type and value.
+// An argument of a TScriptCall: its Lua type and value (LUA_TTABLE: an array
+// of the strings Strings; LUA_TUSERDATA: an object of the kind Kind holding
+// Object).
 struct TScriptCall::TArgument {
 	int Type;
 	double Number;
 	bool Boolean;
 	std::string String;
+	std::vector<std::string> Strings;
+	TScriptObjectKind Kind = SCRIPT_NO_OBJECT;
+	uint32_t Object = 0;
 
-	// Pushes the value.
+	// Pushes the value; an array as a new table, which takes one more stack
+	// slot while it is filled.
 	void push(lua_State *L) const {
 		switch (Type) {
+		case LUA_TTABLE:
+			lua_createtable(L, static_cast<int>(Strings.size()), 0);
+			for (size_t i = 0; i < Strings.size(); i++) {
+				lua_pushlstring(L, Strings[i].data(), Strings[i].size());
+				lua_rawseti(L, -2, static_cast<int>(i) + 1);
+			}
+			break;
+		case LUA_TUSERDATA:
+			PushScriptObject(L, Kind, Object);
+			break;
 		case LUA_TNUMBER:
 			lua_pushnumber(L, Number);
 			break;
@@ -1308,10 +1619,54 @@ void TScriptCall::addString(const char *Value) {
 	}
 }
 
+void TScriptCall::addPlayer(uint32_t CreatureID) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TUSERDATA;
+	Argument.Kind = SCRIPT_PLAYER;
+	Argument.Object = CreatureID;
+}
+
+void TScriptCall::addCreature(uint32_t CreatureID) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	if (CreatureID != 0) {
+		Argument.Type = LUA_TUSERDATA;
+		Argument.Kind = CreatureID < static_cast<uint32_t>(FIRST_NONPLAYER_CREATURE_ID) ? SCRIPT_PLAYER
+				: SCRIPT_CREATURE;
+		Argument.Object = CreatureID;
+	}
+}
+
+void TScriptCall::addItem(uint32_t ObjectHandle) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TUSERDATA;
+	Argument.Kind = SCRIPT_ITEM;
+	Argument.Object = ObjectHandle;
+}
+
 void TScriptCall::addNil() {
 	AssertMainThread();
 	assert(!Done);
 	AppendArgument(Arguments, NumberOfArguments, Capacity);
+}
+
+void TScriptCall::addStringArray(const char *const *Values, int Count) {
+	AssertMainThread();
+	assert(!Done);
+	assert(Count >= 0);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TTABLE;
+	Argument.Strings.clear();
+	for (int i = 0; i < Count; i++) {
+		// An array has no holes: a null string (not allowed) gives "".
+		assert(Values[i] != nullptr);
+		Argument.Strings.push_back(Values[i] != nullptr ? Values[i] : "");
+	}
 }
 
 void TScriptCall::run() {

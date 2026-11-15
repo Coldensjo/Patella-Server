@@ -917,6 +917,22 @@ class Client:
 	def pos(self):
 		return self.dec.pos
 
+	def type_at(self, p):
+		"""The type of the first object (the ground) the map descriptions
+		showed on the field p, or None if they did not show it. Objects and
+		creatures that came later (AddField, MoveCreature) are not kept."""
+		for kind, val in self.dec.tiles.get(tuple(p), []):
+			if kind == "it":
+				return val[0]
+		return None
+
+	def wait_creature(self, name, start=0, timeout=5.0):
+		"""The id of the first creature of this name the server showed as a
+		new one (cr-new) after record start, or None."""
+		rx = re.compile(r"cr-new\(id=(\d+) remove=\d+ name=%s " % re.escape(repr(name)))
+		rec = self.wait_text(rx.pattern, start, timeout)
+		return int(rx.search(rec["text"]).group(1)) if rec else None
+
 	# --- commands (src/receiving.cc ReceiveData)
 	def logout(self):
 		self.send(b"\x14", "Logout")
@@ -953,6 +969,20 @@ class Client:
 	def use(self, p, tid, rnum, dummy=0):
 		self.send(struct.pack("<BHHBHBB", 0x82, p[0], p[1], p[2], tid, rnum, dummy),
 			"Use %s type=%d rnum=%d dummy=%d" % (fmt_pos(p), tid, rnum, dummy))
+
+	def use_with(self, p, tid, rnum, p2, tid2, rnum2):
+		"""Uses an object with another one or a field (a rune, a key, a
+		tool): the second object is the first one of type tid2 on a field, or
+		the object at an inventory or container position. A creature on a field
+		is type 99."""
+		self.send(struct.pack("<BHHBHBHHBHB", 0x83, p[0], p[1], p[2], tid, rnum, p2[0], p2[1], p2[2], tid2, rnum2),
+			"UseWith %s type=%d rnum=%d -> %s type=%d rnum=%d" % (fmt_pos(p), tid, rnum, fmt_pos(p2), tid2, rnum2))
+
+	def use_on_creature(self, p, tid, rnum, cid):
+		"""Uses an object on a creature, given by its id (the server ignores
+		this for players)."""
+		self.send(struct.pack("<BHHBHBI", 0x84, p[0], p[1], p[2], tid, rnum, cid),
+			"UseOnCreature %s type=%d rnum=%d creature=%d" % (fmt_pos(p), tid, rnum, cid))
 
 	def close_container(self, nr):
 		self.send(bytes([0x87, nr]), "CloseContainer %d" % nr)

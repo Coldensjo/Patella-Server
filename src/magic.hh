@@ -14,6 +14,14 @@ struct Object;
 struct ObjectType;
 struct TCreature;
 
+// The ammunition CreateArrows conjures, named after the spells that use them
+// (Conjure Arrow, Poisoned Arrow, Explosive Arrow, Conjure Bolt, Power Bolt).
+const int CONJURE_ARROW = 0;
+const int CONJURE_POISONED_ARROW = 1;
+const int CONJURE_EXPLOSIVE_ARROW = 2;
+const int CONJURE_BOLT = 3;
+const int CONJURE_POWER_BOLT = 4;
+
 struct TImpact {
 	virtual void handleField(int, int, int) {}
 	virtual void handleCreature(TCreature *) {}
@@ -172,9 +180,12 @@ void SetNameRule(TCreature *cr, char *Name);
 void KickPlayer(TCreature *cr, char *Name);
 void HomeTeleport(TCreature *cr, char *Name);
 void SpellFailed(uint32_t CreatureID);
-void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]);
-void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]);
-void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]);
+// The words of the spoken spell are SpellStr[1] to SpellStr[LastWord], the
+// last entry CheckForSpell set (the empty one that ends them); the spell's
+// script gets them (scripting.hh).
+void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord);
+void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord);
+void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord);
 void RuneSpell(uint32_t CreatureID, int SpellNr);
 int TypeOfSpell(char *Text);
 int FindSpell(unsigned char *Syllable);

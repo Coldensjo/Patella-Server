@@ -50,6 +50,7 @@
 #include "receiving.hh"
 #include "main.hh"
 #include "scripting.hh"
+#include "scripting_api.hh"
 
 // The length of a round (RoundNr) in milliseconds. AdvanceGame also runs the
 // skills, the cron system and the creatures once a round, 250, 500 and 750
@@ -447,6 +448,7 @@ void InitAll(const char *ConfigFile) {
 		char ScriptFolder[sizeof(DATAPATH) + 16];
 		snprintf(ScriptFolder, sizeof(ScriptFolder), "%s/scripts", DATAPATH);
 		InitScripting(ScriptFolder);
+		RegisterMagicAPI();
 		InitObjects();
 		InitMap();
 		InitTriggers();
