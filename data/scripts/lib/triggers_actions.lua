@@ -183,6 +183,7 @@ Actions.set_start = function(ctx, object, position)
 	if cr == nil or not cr:isPlayer() then
 		Game.throwResult(RETURNVALUE_ERROR)
 	end
+	Game.log("game", string.format("Setting new start position for %s.\n", cr:getName()))
 	cr:setStartPosition(position)
 end
 

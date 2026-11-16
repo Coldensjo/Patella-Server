@@ -451,6 +451,7 @@ void InitAll(const char *ConfigFile) {
 		RegisterMagicAPI();
 		RegisterTriggerAPI();
 		RegisterItemAPI();
+		RegisterNpcAPI();
 		InitObjects();
 		InitItemUses();
 		InitMap();

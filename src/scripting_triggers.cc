@@ -54,7 +54,6 @@
 #include "sending.hh"
 #include "strings.hh"
 #include "utils.hh"
-#include "writer.hh"
 #include "triggers.hh"
 #include "scripting_api.hh"
 
@@ -318,14 +317,13 @@ static bool PlayerIsHouseOwner(TScriptPlayer Self, int HouseID) {
 	return IsOwner(static_cast<unsigned short>(HouseID), pl);
 }
 
-// player:setStartPosition(position): what the action set_start did for a
-// player: Log("game", "Setting new start position for %s.\n", Name), the
-// start coordinates set to position, SaveData(). nullptr: checked; no
-// player: binding's check. Throws what SaveData throws.
+// player:setStartPosition(position): the start coordinates set to position,
+// SaveData(), as the NPCs' startposition did (the action set_start logs its
+// line with Game.log before). nullptr: checked; no player: binding's check.
+// Throws what SaveData throws.
 static void PlayerSetStartPosition(TScriptPlayer Self, TScriptPosition Position) {
 	TPlayer *pl = ExistingPlayer(Self.ID, "Player.setStartPosition",
 			"Player.setStartPosition: the creature is not a player");
-	Log("game", "Setting new start position for %s.\n", pl->Name);
 	pl->startx = Position.x;
 	pl->starty = Position.y;
 	pl->startz = Position.z;

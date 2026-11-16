@@ -1,8 +1,8 @@
 // crnonpl.cc: the creatures that are not players. An NPC (TNPC) is made from
-// its .npc file and talks by the rules of its behaviour database (TBehaviour
-// rules with TNode expressions); a monster (TMonster) chooses a target,
-// fights, casts its spells and moves; a monster home spawns monsters of one
-// race and replaces the dead ones after its regeneration time.
+// its entry of npcs.toml and talks by its script (scripting.hh, "NPCs"),
+// which the stimuli call; a monster (TMonster) chooses a target, fights,
+// casts its spells and moves; a monster home spawns monsters of one race and
+// replaces the dead ones after its regeneration time.
 
 #include <algorithm>
 #include <climits>
@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <dirent.h>
+#include <vector>
 
 #include "script.hh"
 #include "config.hh"
@@ -33,133 +33,9 @@
 #include "time.hh"
 #include "communication.hh"
 #include "TXTEASymmetricKey.hh"
+#include "npcdata.hh"
+#include "scripting.hh"
 #include "crnonpl.hh"
-
-struct TNPC;
-
-enum STATE {
-	SLEEPING = 0,
-	IDLE = 1,
-	UNDERATTACK = 2,
-	TALKING = 3,
-	LEAVING = 4,
-	ATTACKING = 5,
-	PANIC = 6,
-};
-
-enum SITUATION {
-	DEFAULT = 0,
-	ADDRESS = 1,
-	ADDRESSQUEUE = 2,
-	BUSY = 3,
-	VANISH = 4,
-};
-
-// The behaviour database of an NPC (the "behaviour" block of its .npc file):
-// rules of conditions, "->" and actions. The names below follow the script's
-// words where it has them.
-
-// The kinds of TNode: the comparisons of a condition (the operators <, >, =,
-// <>, <= and >=), the arithmetic of a term (+, - and *) and the values that
-// readValue reads. NODE_NUMBER_PARAMETER's Data is the N of "%N", NODE_NUMBER's
-// the number itself and NODE_SKILL's a skill number; count, spellknown,
-// spelllevel and questvalue have their argument in Left, random its two in
-// Left and Right.
-const int NODE_LESS = 1;
-const int NODE_GREATER = 2;
-const int NODE_EQUAL = 3;
-const int NODE_NOT_EQUAL = 4;
-const int NODE_LESS_EQUAL = 5;
-const int NODE_GREATER_EQUAL = 6;
-const int NODE_PLUS = 7;
-const int NODE_MINUS = 8;
-const int NODE_TIMES = 9;
-const int NODE_NUMBER_PARAMETER = 10;
-const int NODE_NUMBER = 11;
-const int NODE_TOPIC = 12;
-const int NODE_PRICE = 13;
-const int NODE_AMOUNT = 14;
-const int NODE_SKILL = 15;
-const int NODE_COUNT = 16;
-const int NODE_COUNTMONEY = 17;
-const int NODE_TYPE = 18;
-const int NODE_DATA = 19;
-const int NODE_SPELLKNOWN = 20;
-const int NODE_SPELLLEVEL = 21;
-const int NODE_RANDOM = 22;
-const int NODE_QUESTVALUE = 23;
-
-// The kinds of TCondition: a word the text must contain (a string), a property
-// (an identifier, PROPERTY_*), a number in the text ("%1" to "%3", which the
-// actions read as NODE_NUMBER_PARAMETER), a comparison (a NODE_* tree) and "!",
-// which takes the rule at once if the conditions before it hold.
-const int CONDITION_TEXT = 1;
-const int CONDITION_PROPERTY = 2;
-const int CONDITION_NUMBER = 3;
-const int CONDITION_EXPRESSION = 4;
-const int CONDITION_FORCE = 5;
-
-// The properties a CONDITION_PROPERTY tests, named by their identifiers.
-const int PROPERTY_ADDRESS = 1;
-const int PROPERTY_BUSY = 2;
-const int PROPERTY_VANISH = 3;
-const int PROPERTY_MALE = 4;
-const int PROPERTY_FEMALE = 5;
-const int PROPERTY_KNIGHT = 6;
-const int PROPERTY_PALADIN = 7;
-const int PROPERTY_SORCERER = 8;
-const int PROPERTY_DRUID = 9;
-const int PROPERTY_PREMIUM = 10;
-const int PROPERTY_PROMOTED = 11;
-const int PROPERTY_PZBLOCK = 12;
-const int PROPERTY_NONPVP = 13;
-const int PROPERTY_PVPENFORCED = 14;
-
-// The numbers a rule can take from the text ("%1" to "%3"), and the largest
-// value one of them gets: a larger number in the text counts as this.
-const int MAX_NUMBER_PARAMETERS = 3;
-const int MAX_TEXT_NUMBER = 500;
-
-// The kinds of TAction: "nop" (no action is stored), a text the NPC says,
-// "topic", "price", "amount", "type" or "data" = term (VARIABLE_*), "hp" =
-// term (a skill), a function with two arguments, one or none (FUNCTION_*), the
-// state change "idle", the timers "burning" and "poison" (two arguments), "*"
-// (the actions of the rule before as well) and a function with three
-// arguments. TAction::Number is the variable, skill, state or function.
-const int ACTION_NOP = 0;
-const int ACTION_TEXT = 1;
-const int ACTION_SET_VARIABLE = 2;
-const int ACTION_SET_SKILL = 3;
-const int ACTION_FUNCTION2 = 4;
-const int ACTION_FUNCTION1 = 5;
-const int ACTION_FUNCTION0 = 6;
-const int ACTION_CHANGE_STATE = 7;
-const int ACTION_SET_TIMER = 8;
-const int ACTION_PREVIOUS_RULE = 9;
-const int ACTION_FUNCTION3 = 10;
-
-// The variables of ACTION_SET_VARIABLE.
-const int VARIABLE_TOPIC = 1;
-const int VARIABLE_PRICE = 2;
-const int VARIABLE_AMOUNT = 3;
-const int VARIABLE_TYPE = 4;
-const int VARIABLE_DATA = 6;
-
-// The functions, numbered per kind: ACTION_FUNCTION2's, ACTION_FUNCTION1's,
-// ACTION_FUNCTION0's and ACTION_FUNCTION3's.
-const int FUNCTION_SETQUESTVALUE = 3;
-const int FUNCTION_EFFECTME = 1;
-const int FUNCTION_EFFECTOPP = 2;
-const int FUNCTION_PROFESSION = 3;
-const int FUNCTION_TEACHSPELL = 4;
-const int FUNCTION_SUMMON = 5;
-const int FUNCTION_CREATE = 6;
-const int FUNCTION_DELETE = 7;
-const int FUNCTION_CREATEMONEY = 1;
-const int FUNCTION_DELETEMONEY = 2;
-const int FUNCTION_QUEUE = 3;
-const int FUNCTION_TELEPORT = 1;
-const int FUNCTION_STARTPOSITION = 2;
 
 // How a monster chooses its target (TRaceData::Strategy, the chance of each
 // in percent): the nearest creature, the one with the fewest hit points, the
@@ -169,47 +45,6 @@ const int STRATEGY_NEAREST = 0;
 const int STRATEGY_WEAKEST = 1;
 const int STRATEGY_MOST_DAMAGE = 2;
 const int STRATEGY_RANDOM = 3;
-
-struct TNode {
-	int Type;
-	int Data;
-	TNode *Left;
-	TNode *Right;
-};
-
-struct TCondition {
-	TCondition() { Type = 0; Text = 0; }
-	bool set(int Type, void *Data);
-	void clear();
-	int Type;
-	uint32_t Text;
-	TNode *Expression;
-	int Property;
-	int Number;
-};
-
-struct TAction {
-	TAction() { Type = 0; Text = 0; }
-	bool set(int Type, void *Data, void *Data2, void *Data3, void *Data4);
-	void clear();
-	int Type;
-	uint32_t Text;
-	int Number;
-	TNode *Expression;
-	TNode *Expression2;
-	TNode *Expression3;
-};
-
-struct TBehaviour {
-	TBehaviour();
-	~TBehaviour();
-	bool addCondition(int Type, void *Data);
-	bool addAction(int Type, void *Data, void *Data2, void *Data3, void *Data4);
-	vector<TCondition> Condition;
-	vector<TAction> Action;
-	int Conditions;
-	int Actions;
-};
 
 struct TMonsterhome {
 	int Race;
@@ -221,57 +56,6 @@ struct TMonsterhome {
 	int ActMonsters;
 	int RegenerationTime;
 	int Timer;
-};
-
-struct TBehaviourDatabase {
-	TBehaviourDatabase(TReadScriptFile &Script);
-	void react(TNPC *npc, char *Text, SITUATION Situation);
-private:
-	vector<TBehaviour> Behaviour;
-	int Behaviours;
-	TNode *readTerm(TReadScriptFile &Script);
-	TNode *readFactor(TReadScriptFile &Script);
-	TNode *readValue(TReadScriptFile &Script);
-	int evaluate(TNPC *npc, TNode *Node, int *Number);
-};
-
-struct TNonplayer : public TCreature {
-	TNonplayer();
-	virtual ~TNonplayer();
-	void SetInList();
-	void DelInList();
-protected:
-	STATE State;
-};
-
-struct TNPC : public TNonplayer {
-	TNPC(char *FileName);
-	virtual ~TNPC();
-	virtual void TalkStimulus(uint32_t Speaker, char *Text);
-	virtual void IdleStimulus();
-	virtual void CreatureMoveStimulus(uint32_t CreatureID, int Type);
-	virtual bool MovePossible(int x, int y, int z, bool, bool);
-	void ChangeState(STATE NewState, bool Stimulus);
-private:
-	// react() and evaluate() read and change the conversation state.
-	friend struct TBehaviourDatabase;
-	void GiveTo(ObjectType Type, int Amount);
-	void GetFrom(ObjectType Type, int Amount);
-	void GiveMoney(int Amount);
-	void GetMoney(int Amount);
-	void Enqueue(uint32_t Interlocutor, char *Text);
-	void TurnToInterlocutor();
-	uint32_t Interlocutor;
-	int Topic;
-	int Price;
-	int Amount;
-	int TypeID;
-	uint32_t Data;
-	uint32_t LastTalk;
-	vector<uint32_t> QueuedPlayers;
-	vector<uint32_t> QueuedAddresses;
-	int QueueLength;
-	TBehaviourDatabase *Behaviour;
 };
 
 struct TMonster : public TNonplayer {
@@ -298,1055 +82,6 @@ vector<TNonplayer *> NonplayerList(0, 10000, 1000, nullptr);
 int FirstFreeNonplayer;
 vector<TMonsterhome> Monsterhome(1, 5000, 1000);
 int Monsterhomes;
-store<TNode, 256> *NodeTable;
-
-// Data stays as the store hands it out.
-TNode *NewNode(int op, TNode *left, TNode *right) {
-	TNode *Node = NodeTable->getFreeItem();
-	Node->Type = op;
-	Node->Left = left;
-	Node->Right = right;
-	return Node;
-}
-
-TNode *NewNode(int type, int val) {
-	TNode *Node = NodeTable->getFreeItem();
-	Node->Type = type;
-	Node->Data = val;
-	Node->Left = nullptr;
-	Node->Right = nullptr;
-	return Node;
-}
-
-void DeleteNode(TNode *Node) {
-	if (Node != nullptr) {
-		DeleteNode(Node->Left);
-		DeleteNode(Node->Right);
-		NodeTable->deleteItem(Node);
-	}
-}
-
-bool TCondition::set(int Type, void *Data) {
-	if (Type != CONDITION_FORCE && Data == nullptr) {
-		error("TCondition::set: Data is NULL.\n");
-		this->Type = 0;
-		return false;
-	}
-
-	this->Type = Type;
-	switch (Type) {
-		case CONDITION_TEXT:
-			this->Text = AddDynamicString((char *)Data);
-			break;
-		case CONDITION_PROPERTY:
-			this->Property = 0;
-			if (strcmp((char *)Data, "address") == 0) {
-				this->Property = PROPERTY_ADDRESS;
-			}
-			if (strcmp((char *)Data, "busy") == 0) {
-				this->Property = PROPERTY_BUSY;
-			}
-			if (strcmp((char *)Data, "vanish") == 0) {
-				this->Property = PROPERTY_VANISH;
-			}
-			if (strcmp((char *)Data, "male") == 0) {
-				this->Property = PROPERTY_MALE;
-			}
-			if (strcmp((char *)Data, "female") == 0) {
-				this->Property = PROPERTY_FEMALE;
-			}
-			if (strcmp((char *)Data, "knight") == 0) {
-				this->Property = PROPERTY_KNIGHT;
-			}
-			if (strcmp((char *)Data, "paladin") == 0) {
-				this->Property = PROPERTY_PALADIN;
-			}
-			if (strcmp((char *)Data, "sorcerer") == 0) {
-				this->Property = PROPERTY_SORCERER;
-			}
-			if (strcmp((char *)Data, "druid") == 0) {
-				this->Property = PROPERTY_DRUID;
-			}
-			if (strcmp((char *)Data, "premium") == 0) {
-				this->Property = PROPERTY_PREMIUM;
-			}
-			if (strcmp((char *)Data, "promoted") == 0) {
-				this->Property = PROPERTY_PROMOTED;
-			}
-			if (strcmp((char *)Data, "pzblock") == 0) {
-				this->Property = PROPERTY_PZBLOCK;
-			}
-			if (strcmp((char *)Data, "nonpvp") == 0) {
-				this->Property = PROPERTY_NONPVP;
-			}
-			if (strcmp((char *)Data, "pvpenforced") == 0) {
-				this->Property = PROPERTY_PVPENFORCED;
-			}
-			if (this->Property == 0) {
-				return false;
-			}
-			break;
-		case CONDITION_NUMBER:
-			this->Number = *(int *)Data;
-			break;
-		case CONDITION_EXPRESSION:
-			this->Expression = (TNode *)Data;
-			break;
-		case CONDITION_FORCE:
-			break;
-		default:
-			error("TCondition::set: Invalid condition type %d\n", Type);
-			return false;
-	}
-
-	return true;
-}
-
-void TCondition::clear() {
-	if (this->Type == CONDITION_EXPRESSION) {
-		DeleteNode(this->Expression);
-	}
-	if (this->Type == CONDITION_TEXT) {
-		DeleteDynamicString(this->Text);
-	}
-	this->Type = 0;
-}
-
-bool TAction::set(int Type, void *Data, void *Data2, void *Data3, void *Data4) {
-	this->Type = Type;
-	switch (Type) {
-		case ACTION_TEXT:
-			this->Text = AddDynamicString((char *)Data);
-			break;
-		case ACTION_SET_VARIABLE:
-		case ACTION_SET_SKILL:
-		case ACTION_FUNCTION1:
-			this->Number = *(int *)Data;
-			this->Expression = (TNode *)Data2;
-			break;
-		case ACTION_FUNCTION2:
-		case ACTION_SET_TIMER:
-			this->Number = *(int *)Data;
-			this->Expression = (TNode *)Data2;
-			this->Expression2 = (TNode *)Data3;
-			break;
-		case ACTION_FUNCTION0:
-		case ACTION_CHANGE_STATE:
-			this->Number = *(int *)Data;
-			break;
-		case ACTION_PREVIOUS_RULE:
-			break;
-		case ACTION_FUNCTION3:
-			this->Number = *(int *)Data;
-			this->Expression = (TNode *)Data2;
-			this->Expression2 = (TNode *)Data3;
-			this->Expression3 = (TNode *)Data4;
-			break;
-		default:
-			error("TAction::set: Invalid action type %d\n", Type);
-			return false;
-	}
-
-	return true;
-}
-
-void TAction::clear() {
-	if (this->Type == ACTION_SET_VARIABLE || this->Type == ACTION_SET_SKILL || this->Type == ACTION_FUNCTION2
-			|| this->Type == ACTION_FUNCTION1 || this->Type == ACTION_SET_TIMER || this->Type == ACTION_FUNCTION3) {
-		DeleteNode(this->Expression);
-	}
-	if (this->Type == ACTION_FUNCTION2 || this->Type == ACTION_SET_TIMER || this->Type == ACTION_FUNCTION3) {
-		DeleteNode(this->Expression2);
-	}
-	if (this->Type == ACTION_FUNCTION3) {
-		DeleteNode(this->Expression3);
-	}
-	if (this->Type == ACTION_TEXT) {
-		DeleteDynamicString(this->Text);
-	}
-	this->Type = 0;
-}
-
-TBehaviour::TBehaviour() : Condition(0, 5, 5), Action(0, 5, 5) {
-	this->Conditions = 0;
-	this->Actions = 0;
-}
-
-TBehaviour::~TBehaviour() {
-	for (int i = 0; i < this->Conditions; i++) {
-		this->Condition(i).clear();
-	}
-	for (int i = 0; i < this->Actions; i++) {
-		this->Action(i).clear();
-	}
-}
-
-bool TBehaviour::addCondition(int Type, void *Data) {
-	bool Result = this->Condition(this->Conditions).set(Type, Data);
-	if (Result) {
-		this->Conditions++;
-	}
-	return Result;
-}
-
-bool TBehaviour::addAction(int Type, void *Data, void *Data2, void *Data3, void *Data4) {
-	bool Result = this->Action(this->Actions).set(Type, Data, Data2, Data3, Data4);
-	if (Result) {
-		this->Actions++;
-	}
-	return Result;
-}
-
-TBehaviourDatabase::TBehaviourDatabase(TReadScriptFile &Script) : Behaviour(0, 50, 25) {
-	this->Behaviours = 0;
-	Script.readSymbol('{');
-	Script.nextToken();
-	while (true) {
-		if (Script.Token == SPECIAL && Script.getSpecial() == '}') {
-			break;
-		}
-
-		if (Script.Token != SPECIAL || Script.getSpecial() != 'I') {
-			while (true) {
-				bool Success = false;
-				if (Script.Token == STRING) {
-					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_TEXT, Script.getString());
-				}
-				if (Script.Token == IDENTIFIER) {
-					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_PROPERTY, Script.getIdentifier());
-				}
-				if (Script.Token == SPECIAL && Script.getSpecial() == '!') {
-					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_FORCE, nullptr);
-				}
-				if (Script.Token == SPECIAL && Script.getSpecial() == '%') {
-					int Nr = Script.readNumber();
-					if (Nr < 1 || Nr > MAX_NUMBER_PARAMETERS) {
-						Script.error("illegal ordinal number");
-					}
-					Success = this->Behaviour(this->Behaviours).addCondition(CONDITION_NUMBER, &Nr);
-				}
-
-				if (!Success) {
-					TNode *Term1 = this->readTerm(Script);
-					if (Script.Token != SPECIAL) {
-						Script.error("relational operator expected");
-					}
-					int Operator = 0;
-					switch (Script.getSpecial()) {
-						case '<': Operator = NODE_LESS; break;
-						case '>': Operator = NODE_GREATER; break;
-						case '=': Operator = NODE_EQUAL; break;
-						case 'N': Operator = NODE_NOT_EQUAL; break;
-						case 'L': Operator = NODE_LESS_EQUAL; break;
-						case 'G': Operator = NODE_GREATER_EQUAL; break;
-						default:
-							Script.error("relational operator expected");
-							break;
-					}
-					Script.nextToken();
-					TNode *Term2 = this->readTerm(Script);
-					TNode *Comparison = NewNode(Operator, Term1, Term2);
-					this->Behaviour(this->Behaviours).addCondition(CONDITION_EXPRESSION, Comparison);
-				} else {
-					Script.nextToken();
-				}
-
-				if (Script.Token != SPECIAL || Script.getSpecial() != ',') {
-					break;
-				}
-				Script.nextToken();
-			}
-
-			if (Script.Token != SPECIAL || Script.getSpecial() != 'I') {
-				Script.error("'->' expected");
-			}
-		}
-
-		while (true) {
-			Script.nextToken();
-			if (Script.Token == STRING) {
-				this->Behaviour(this->Behaviours).addAction(ACTION_TEXT, Script.getString(), nullptr, nullptr, nullptr);
-				Script.nextToken();
-			} else if (Script.Token == IDENTIFIER) {
-				char *Ident = Script.getIdentifier();
-				int Type = -1;
-				int Data = 0;
-				if (strcmp(Ident, "topic") == 0) {
-					Type = ACTION_SET_VARIABLE;
-					Data = VARIABLE_TOPIC;
-				}
-				if (strcmp(Ident, "price") == 0) {
-					Type = ACTION_SET_VARIABLE;
-					Data = VARIABLE_PRICE;
-				}
-				if (strcmp(Ident, "amount") == 0) {
-					Type = ACTION_SET_VARIABLE;
-					Data = VARIABLE_AMOUNT;
-				}
-				if (strcmp(Ident, "type") == 0) {
-					Type = ACTION_SET_VARIABLE;
-					Data = VARIABLE_TYPE;
-				}
-				if (strcmp(Ident, "data") == 0) {
-					Type = ACTION_SET_VARIABLE;
-					Data = VARIABLE_DATA;
-				}
-				if (strcmp(Ident, "hp") == 0) {
-					Type = ACTION_SET_SKILL;
-					Data = SKILL_HITPOINTS;
-				}
-				if (strcmp(Ident, "burning") == 0) {
-					Type = ACTION_SET_TIMER;
-					Data = SKILL_BURNING;
-				}
-				if (strcmp(Ident, "poison") == 0) {
-					Type = ACTION_SET_TIMER;
-					Data = SKILL_POISON;
-				}
-				if (strcmp(Ident, "setquestvalue") == 0) {
-					Type = ACTION_FUNCTION2;
-					Data = FUNCTION_SETQUESTVALUE;
-				}
-				if (strcmp(Ident, "effectme") == 0) {
-					Type = ACTION_FUNCTION1;
-					Data = FUNCTION_EFFECTME;
-				}
-				if (strcmp(Ident, "effectopp") == 0) {
-					Type = ACTION_FUNCTION1;
-					Data = FUNCTION_EFFECTOPP;
-				}
-				if (strcmp(Ident, "profession") == 0) {
-					Type = ACTION_FUNCTION1;
-					Data = FUNCTION_PROFESSION;
-				}
-				if (strcmp(Ident, "teachspell") == 0) {
-					Type = ACTION_FUNCTION1;
-					Data = FUNCTION_TEACHSPELL;
-				}
-				if (strcmp(Ident, "summon") == 0) {
-					Type = ACTION_FUNCTION1;
-					Data = FUNCTION_SUMMON;
-				}
-				if (strcmp(Ident, "create") == 0) {
-					Type = ACTION_FUNCTION1;
-					Data = FUNCTION_CREATE;
-				}
-				if (strcmp(Ident, "delete") == 0) {
-					Type = ACTION_FUNCTION1;
-					Data = FUNCTION_DELETE;
-				}
-				if (strcmp(Ident, "createmoney") == 0) {
-					Type = ACTION_FUNCTION0;
-					Data = FUNCTION_CREATEMONEY;
-				}
-				if (strcmp(Ident, "deletemoney") == 0) {
-					Type = ACTION_FUNCTION0;
-					Data = FUNCTION_DELETEMONEY;
-				}
-				if (strcmp(Ident, "queue") == 0) {
-					Type = ACTION_FUNCTION0;
-					Data = FUNCTION_QUEUE;
-				}
-				if (strcmp(Ident, "teleport") == 0) {
-					Type = ACTION_FUNCTION3;
-					Data = FUNCTION_TELEPORT;
-				}
-				if (strcmp(Ident, "startposition") == 0) {
-					Type = ACTION_FUNCTION3;
-					Data = FUNCTION_STARTPOSITION;
-				}
-				if (strcmp(Ident, "idle") == 0) {
-					Type = ACTION_CHANGE_STATE;
-					Data = IDLE;
-				}
-				if (strcmp(Ident, "nop") == 0) {
-					Type = ACTION_NOP;
-				}
-
-				switch (Type) {
-					case ACTION_NOP:
-						Script.nextToken();
-						break;
-					case ACTION_SET_VARIABLE:
-					case ACTION_SET_SKILL:
-						Script.readSymbol('=');
-						Script.nextToken();
-						this->Behaviour(this->Behaviours).addAction(Type, &Data, this->readTerm(Script), nullptr, nullptr);
-						break;
-					case ACTION_FUNCTION2:
-					case ACTION_SET_TIMER: {
-						Script.readSymbol('(');
-						Script.nextToken();
-						TNode *Param1 = this->readTerm(Script);
-						if (Script.Token != SPECIAL || Script.getSpecial() != ',') {
-							Script.error(", expected");
-						}
-						Script.nextToken();
-						TNode *Param2 = this->readTerm(Script);
-						if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-							Script.error(") expected");
-						}
-						this->Behaviour(this->Behaviours).addAction(Type, &Data, Param1, Param2, nullptr);
-						Script.nextToken();
-						break;
-					}
-					case ACTION_FUNCTION1:
-						Script.readSymbol('(');
-						Script.nextToken();
-						this->Behaviour(this->Behaviours).addAction(Type, &Data, this->readTerm(Script), nullptr, nullptr);
-						if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-							Script.error(") expected");
-						}
-						Script.nextToken();
-						break;
-					case ACTION_FUNCTION0:
-					case ACTION_CHANGE_STATE:
-						this->Behaviour(this->Behaviours).addAction(Type, &Data, nullptr, nullptr, nullptr);
-						Script.nextToken();
-						break;
-					case ACTION_FUNCTION3: {
-						Script.readSymbol('(');
-						Script.nextToken();
-						TNode *Param1 = this->readTerm(Script);
-						if (Script.Token != SPECIAL || Script.getSpecial() != ',') {
-							Script.error(", expected");
-						}
-						Script.nextToken();
-						TNode *Param2 = this->readTerm(Script);
-						if (Script.Token != SPECIAL || Script.getSpecial() != ',') {
-							Script.error(", expected");
-						}
-						Script.nextToken();
-						TNode *Param3 = this->readTerm(Script);
-						if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-							Script.error(") expected");
-						}
-						this->Behaviour(this->Behaviours).addAction(Type, &Data, Param1, Param2, Param3);
-						Script.nextToken();
-						break;
-					}
-					default:
-						Script.error("unknown identifier");
-						break;
-				}
-			} else if (Script.Token == SPECIAL && Script.getSpecial() == '*') {
-				if (this->Behaviours == 0) {
-					Script.error("no previous pattern");
-				}
-				this->Behaviour(this->Behaviours).addAction(ACTION_PREVIOUS_RULE, nullptr, nullptr, nullptr, nullptr);
-				Script.nextToken();
-			} else {
-				Script.error("illegal action");
-			}
-
-			if (Script.Token != SPECIAL || Script.getSpecial() != ',') {
-				break;
-			}
-		}
-
-		this->Behaviours++;
-	}
-}
-
-TNode *TBehaviourDatabase::readValue(TReadScriptFile &Script) {
-	TNode *First;
-	TNode *Second;
-	TNode *Node = nullptr;
-	if (Script.Token == NUMBER) {
-		Node = NewNode(NODE_NUMBER, Script.getNumber());
-	} else if (Script.Token == IDENTIFIER) {
-		if (strcmp(Script.getIdentifier(), "topic") == 0) {
-			Node = NewNode(NODE_TOPIC, 0);
-		}
-		if (strcmp(Script.getIdentifier(), "price") == 0) {
-			Node = NewNode(NODE_PRICE, 0);
-		}
-		if (strcmp(Script.getIdentifier(), "amount") == 0) {
-			Node = NewNode(NODE_AMOUNT, 0);
-		}
-		if (strcmp(Script.getIdentifier(), "level") == 0) {
-			Node = NewNode(NODE_SKILL, SKILL_LEVEL);
-		}
-		if (strcmp(Script.getIdentifier(), "maglevel") == 0) {
-			Node = NewNode(NODE_SKILL, SKILL_MAGICLEVEL);
-		}
-		if (strcmp(Script.getIdentifier(), "hp") == 0) {
-			Node = NewNode(NODE_SKILL, SKILL_HITPOINTS);
-		}
-		if (strcmp(Script.getIdentifier(), "burning") == 0) {
-			Node = NewNode(NODE_SKILL, SKILL_BURNING);
-		}
-		if (strcmp(Script.getIdentifier(), "poison") == 0) {
-			Node = NewNode(NODE_SKILL, SKILL_POISON);
-		}
-		if (strcmp(Script.getIdentifier(), "count") == 0) {
-			Script.readSymbol('(');
-			Script.nextToken();
-			First = this->readTerm(Script);
-			Node = NewNode(NODE_COUNT, First, nullptr);
-			if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-				Script.error(") expected");
-			}
-		} else {
-			if (strcmp(Script.getIdentifier(), "countmoney") == 0) {
-				Node = NewNode(NODE_COUNTMONEY, 0);
-			}
-			if (strcmp(Script.getIdentifier(), "type") == 0) {
-				Node = NewNode(NODE_TYPE, 0);
-			}
-			if (strcmp(Script.getIdentifier(), "data") == 0) {
-				Node = NewNode(NODE_DATA, 0);
-			}
-			if (strcmp(Script.getIdentifier(), "spellknown") == 0) {
-				Script.readSymbol('(');
-				Script.nextToken();
-				First = this->readTerm(Script);
-				Node = NewNode(NODE_SPELLKNOWN, First, nullptr);
-				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-					Script.error(") expected");
-				}
-			} else if (strcmp(Script.getIdentifier(), "spelllevel") == 0) {
-				Script.readSymbol('(');
-				Script.nextToken();
-				First = this->readTerm(Script);
-				Node = NewNode(NODE_SPELLLEVEL, First, nullptr);
-				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-					Script.error(") expected");
-				}
-			} else if (strcmp(Script.getIdentifier(), "random") == 0) {
-				Script.readSymbol('(');
-				Script.nextToken();
-				First = this->readTerm(Script);
-				if (Script.Token != SPECIAL || Script.getSpecial() != ',') {
-					Script.error(", expected");
-				}
-				Script.nextToken();
-				Second = this->readTerm(Script);
-				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-					Script.error(") expected");
-				}
-				Node = NewNode(NODE_RANDOM, First, Second);
-			} else if (strcmp(Script.getIdentifier(), "questvalue") == 0) {
-				Script.readSymbol('(');
-				Script.nextToken();
-				First = this->readTerm(Script);
-				Node = NewNode(NODE_QUESTVALUE, First, nullptr);
-				if (Script.Token != SPECIAL || Script.getSpecial() != ')') {
-					Script.error(") expected");
-				}
-			}
-		}
-	} else if (Script.Token == SPECIAL) {
-		if (Script.getSpecial() != '%') {
-			Script.error("illegal character");
-		}
-		Node = NewNode(NODE_NUMBER_PARAMETER, Script.readNumber());
-	} else {
-		Script.error("illegal value");
-	}
-
-	if (Node == nullptr) {
-		Script.error("unknown value");
-	}
-
-	Script.nextToken();
-	return Node;
-}
-
-TNode *TBehaviourDatabase::readFactor(TReadScriptFile &Script) {
-	TNode *Left = this->readValue(Script);
-	while (Script.Token == SPECIAL && Script.getSpecial() == '*') {
-		Script.nextToken();
-		TNode *Right = this->readValue(Script);
-		Left = NewNode(NODE_TIMES, Left, Right);
-	}
-	return Left;
-}
-
-TNode *TBehaviourDatabase::readTerm(TReadScriptFile &Script) {
-	TNode *Left = this->readFactor(Script);
-	while (Script.Token == SPECIAL && (Script.getSpecial() == '+' || Script.getSpecial() == '-')) {
-		int Operator = (Script.getSpecial() == '+' ? NODE_PLUS : NODE_MINUS);
-		Script.nextToken();
-		TNode *Right = this->readFactor(Script);
-		Left = NewNode(Operator, Left, Right);
-	}
-	return Left;
-}
-
-int TBehaviourDatabase::evaluate(TNPC *npc, TNode *Node, int *Number) {
-	if (Node == nullptr) {
-		error("TBehaviourDatabase::evaluate: Node does not exist.\n");
-		return 0;
-	}
-
-	if (Number == nullptr) {
-		error("TBehaviourDatabase::evaluate: Numbers do not exist.\n");
-		return 0;
-	}
-
-	if (npc == nullptr) {
-		error("TBehaviourDatabase::evaluate: NPC does not exist.\n");
-		return 0;
-	}
-
-	TPlayer *Opp = GetPlayer(npc->Interlocutor);
-	if (Opp == nullptr) {
-		error("TBehaviourDatabase::evaluate: Interlocutor does not exist.\n");
-		return 0;
-	}
-
-	// Both operands are evaluated into locals: the order of the evaluations
-	// (and of the random() calls inside them) is part of the behavior.
-	switch (Node->Type) {
-		case NODE_LESS: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left < Right;
-		}
-		case NODE_GREATER: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left > Right;
-		}
-		case NODE_EQUAL: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left == Right;
-		}
-		case NODE_NOT_EQUAL: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left != Right;
-		}
-		case NODE_LESS_EQUAL: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left <= Right;
-		}
-		case NODE_GREATER_EQUAL: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left >= Right;
-		}
-		case NODE_PLUS: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left + Right;
-		}
-		case NODE_MINUS: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left - Right;
-		}
-		case NODE_TIMES: {
-			int Left = this->evaluate(npc, Node->Left, Number);
-			int Right = this->evaluate(npc, Node->Right, Number);
-			return Left * Right;
-		}
-		case NODE_NUMBER_PARAMETER:
-			if (Node->Data < 1 || Node->Data > MAX_NUMBER_PARAMETERS) {
-				error("TBehaviourDatabase::evaluate: Invalid number parameter %d.\n", Node->Data);
-				return 0;
-			}
-			if (Number[Node->Data - 1] < 0) {
-				error("TBehaviourDatabase::evaluate: Number parameter %d not set.\n", Node->Data);
-				return 0;
-			}
-			return Number[Node->Data - 1];
-		case NODE_NUMBER:
-			return Node->Data;
-		case NODE_TOPIC:
-			return npc->Topic;
-		case NODE_PRICE:
-			return npc->Price;
-		case NODE_AMOUNT:
-			return npc->Amount;
-		case NODE_SKILL:
-			if (Node->Data >= SKILL_LEVEL && Node->Data <= SKILL_HITPOINTS) {
-				return Opp->Skills[Node->Data]->Get();
-			}
-			if (Node->Data == SKILL_POISON || Node->Data == SKILL_BURNING) {
-				return Opp->Skills[Node->Data]->TimerValue();
-			}
-			error("TBehaviourDatabase::evaluate: Invalid skill %d.\n", Node->Data);
-			return 0;
-		case NODE_COUNT:
-			return CountInventoryObjects(npc->Interlocutor, this->evaluate(npc, Node->Left, Number), npc->Data);
-		case NODE_COUNTMONEY:
-			return CountInventoryMoney(npc->Interlocutor);
-		case NODE_TYPE:
-			return npc->TypeID;
-		case NODE_DATA:
-			return (int)npc->Data;
-		case NODE_SPELLKNOWN:
-			return Opp->SpellKnown(this->evaluate(npc, Node->Left, Number));
-		case NODE_SPELLLEVEL:
-			return GetSpellLevel(this->evaluate(npc, Node->Left, Number));
-		case NODE_RANDOM: {
-			int Max = this->evaluate(npc, Node->Right, Number);
-			int Min = this->evaluate(npc, Node->Left, Number);
-			return random(Min, Max);
-		}
-		case NODE_QUESTVALUE:
-			return Opp->GetQuestValue(this->evaluate(npc, Node->Left, Number));
-		default:
-			error("TBehaviourDatabase::evaluate: Invalid node type %d.\n", Node->Type);
-			return 0;
-	}
-}
-
-void TBehaviourDatabase::react(TNPC *npc, char *Text, SITUATION Situation) {
-	if (npc == nullptr) {
-		error("TBehaviourDatabase::react: NPC does not exist.\n");
-		return;
-	}
-
-	if (Text == nullptr) {
-		error("TBehaviourDatabase::react: Given text does not exist.\n");
-		return;
-	}
-
-	TPlayer *Opp = GetPlayer(npc->Interlocutor);
-	if (Opp == nullptr) {
-		error("TBehaviourDatabase::react: Interlocutor does not exist (Text=%s, Situation=%d).\n",
-				Text, Situation);
-		return;
-	}
-
-	int maxConditions = -1;
-	int bestPattern = -1;
-	int Numbers[MAX_NUMBER_PARAMETERS];
-	Numbers[0] = -1;
-	Numbers[1] = -1;
-	Numbers[2] = -1;
-	for (int i = 0; i < this->Behaviours; i++) {
-		TBehaviour &B = this->Behaviour(i);
-		bool fulfilled = true;
-		char *LastPos = Text;
-		for (int j = 0; j < B.Conditions && fulfilled; j++) {
-			TCondition &C = B.Condition(j);
-			char *Pos;
-			switch (C.Type) {
-				case CONDITION_TEXT:
-					Pos = SearchForWord(GetDynamicString(C.Text), LastPos);
-					if (Pos == nullptr) {
-						fulfilled = false;
-					} else {
-						LastPos = Pos + strlen(GetDynamicString(C.Text));
-					}
-					break;
-				case CONDITION_PROPERTY:
-					if (C.Property == PROPERTY_ADDRESS && Situation != ADDRESS && Situation != ADDRESSQUEUE) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_BUSY && Situation != BUSY) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_VANISH && Situation != VANISH) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_MALE && Opp->Sex != SEX_MALE) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_FEMALE && Opp->Sex != SEX_FEMALE) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_KNIGHT && Opp->GetEffectiveProfession() != PROFESSION_KNIGHT) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_PALADIN && Opp->GetEffectiveProfession() != PROFESSION_PALADIN) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_SORCERER && Opp->GetEffectiveProfession() != PROFESSION_SORCERER) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_DRUID && Opp->GetEffectiveProfession() != PROFESSION_DRUID) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_PREMIUM && !CheckRight(Opp->ID, PREMIUM_ACCOUNT)) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_PROMOTED && Opp->GetRealProfession() < PROFESSION_PROMOTION) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_PZBLOCK && Opp->EarliestProtectionZoneRound <= RoundNr) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_NONPVP && WorldType != NON_PVP) {
-						fulfilled = false;
-					}
-					if (C.Property == PROPERTY_PVPENFORCED && WorldType != PVP_ENFORCED) {
-						fulfilled = false;
-					}
-					break;
-				case CONDITION_NUMBER:
-					Pos = SearchForNumber(C.Number, LastPos);
-					if (Pos == nullptr) {
-						fulfilled = false;
-					} else {
-						// strtol() is capped at INT32_MAX, where a 32-bit long saturates.
-						Numbers[C.Number - 1] = (int)std::min(strtol(Pos, nullptr, 10), (long)INT32_MAX);
-						if (Numbers[C.Number - 1] > MAX_TEXT_NUMBER) {
-							Numbers[C.Number - 1] = MAX_TEXT_NUMBER;
-						}
-						LastPos = Pos + 1;
-					}
-					break;
-				case CONDITION_EXPRESSION:
-					if (this->evaluate(npc, C.Expression, Numbers) == 0) {
-						fulfilled = false;
-					}
-					break;
-				case CONDITION_FORCE:
-					bestPattern = i;
-					goto Forced;
-			}
-		}
-
-		if (fulfilled && B.Conditions > maxConditions) {
-			maxConditions = B.Conditions;
-			bestPattern = i;
-		}
-	}
-
-	if (maxConditions == -1) {
-		return;
-	}
-
-Forced:
-	if (Situation != BUSY) {
-		npc->Topic = 0;
-	}
-
-	bool StartToDo = false;
-	int TalkDelay = 1000;
-
-PreviousPattern:
-	TBehaviour &B = this->Behaviour(bestPattern);
-	for (int j = 0; j < B.Actions; j++) {
-		TAction &A = B.Action(j);
-		char *AText;
-		char Response[300];
-		int Value;
-		int Value2;
-		int Value3;
-		switch (A.Type) {
-			case ACTION_TEXT:
-				memset(Response, 0, sizeof(Response));
-				AText = GetDynamicString(A.Text);
-				for (unsigned int pos = 0; pos < strlen(AText); pos++) {
-					if (AText[pos] == '%') {
-						char Help[50];
-						int Hour;
-						int Minute;
-						pos++;
-						switch (AText[pos]) {
-							case 'N':
-								strcpy(Help, Opp->Name);
-								break;
-							case 'A':
-								sprintf(Help, "%d", npc->Amount);
-								break;
-							case 'P':
-								sprintf(Help, "%d", npc->Price);
-								break;
-							case 'T':
-								GetTime(Hour, Minute);
-								sprintf(Help, (Hour < 12 ? "%d:%.2d am" : "%d:%.2d pm"), (Hour + 11) % 12 + 1, Minute);
-								break;
-							default:
-								Help[0] = 0;
-								break;
-						}
-						strcat(Response, Help);
-					} else {
-						Response[strlen(Response)] = AText[pos];
-					}
-
-					if (Response[256] != 0) {
-						break;
-					}
-				}
-
-				if (Response[256] != 0) {
-					Response[20] = 0;
-					error("TBehaviourDatabase::react: Text of NPC %s gets too long (%s...).\n", npc->Name, Response);
-				} else {
-					npc->ToDoWait(TalkDelay);
-					npc->ToDoTalk(TALK_SAY, nullptr, Response, false);
-					TalkDelay += 3100 + (int)(strlen(Response) / 2) * 100;
-					StartToDo = true;
-				}
-				break;
-			case ACTION_SET_VARIABLE:
-				Value = this->evaluate(npc, A.Expression, Numbers);
-				switch (A.Number) {
-					case VARIABLE_TOPIC:
-						npc->Topic = Value;
-						break;
-					case VARIABLE_PRICE:
-						npc->Price = Value;
-						break;
-					case VARIABLE_AMOUNT:
-						npc->Amount = Value;
-						break;
-					case VARIABLE_TYPE:
-						npc->TypeID = Value;
-						break;
-					case VARIABLE_DATA:
-						npc->Data = (uint32_t)Value;
-						break;
-					default:
-						error("TBehaviourDatabase::react: Invalid variable.\n");
-						break;
-				}
-				break;
-			case ACTION_SET_SKILL:
-				Value = this->evaluate(npc, A.Expression, Numbers);
-				if (A.Number != SKILL_HITPOINTS) {
-					error("TBehaviourDatabase::react: Invalid skill.\n");
-					break;
-				}
-				Opp->Skills[SKILL_HITPOINTS]->Set(Value);
-				if (Opp->Skills[SKILL_HITPOINTS]->Get() < 1) {
-					error("TBehaviourDatabase::react: NPC %s kills player.\n", npc->Name);
-					Opp->Death();
-				}
-				break;
-			case ACTION_FUNCTION2:
-				Value = this->evaluate(npc, A.Expression, Numbers);
-				Value2 = this->evaluate(npc, A.Expression2, Numbers);
-				if (A.Number != FUNCTION_SETQUESTVALUE) {
-					error("TBehaviourDatabase::react (4): Invalid function number.\n");
-					break;
-				}
-				Opp->SetQuestValue(Value, Value2);
-				break;
-			case ACTION_FUNCTION1:
-				Value = this->evaluate(npc, A.Expression, Numbers);
-				switch (A.Number) {
-					case FUNCTION_EFFECTME:
-						GraphicalEffect(npc->GetCreatureObject(), Value);
-						break;
-					case FUNCTION_EFFECTOPP:
-						GraphicalEffect(Opp->GetCreatureObject(), Value);
-						break;
-					case FUNCTION_PROFESSION:
-						Opp->SetProfession((unsigned char)Value);
-						break;
-					case FUNCTION_TEACHSPELL:
-						Opp->LearnSpell(Value);
-						break;
-					case FUNCTION_SUMMON:
-						CreateMonster(Value, npc->posx, npc->posy, npc->posz, 0, 0, true);
-						break;
-					case FUNCTION_CREATE:
-						npc->GiveTo(Value, npc->Amount);
-						break;
-					case FUNCTION_DELETE:
-						npc->GetFrom(Value, npc->Amount);
-						break;
-					default:
-						error("TBehaviourDatabase::react (5): Invalid function number.\n");
-						break;
-				}
-				break;
-			case ACTION_FUNCTION0:
-				switch (A.Number) {
-					case FUNCTION_CREATEMONEY:
-						npc->GiveMoney(npc->Price);
-						break;
-					case FUNCTION_DELETEMONEY:
-						npc->GetMoney(npc->Price);
-						break;
-					case FUNCTION_QUEUE:
-						if (Situation != BUSY) {
-							error("TBehaviourDatabase::react (6): wrong situation for action \"Queue\".\n");
-						}
-						npc->Enqueue(npc->Interlocutor, Text);
-						break;
-					default:
-						error("TBehaviourDatabase::react (6): Invalid function number.\n");
-						break;
-				}
-				break;
-			case ACTION_CHANGE_STATE:
-				if (!StartToDo) {
-					npc->State = (STATE)A.Number;
-					if (Situation == ADDRESSQUEUE) {
-						error("TBehaviourDatabase::react: NPC %s does not respond to greeting %s.\n", npc->Name, Text);
-					} else {
-						StartToDo = true;
-					}
-				} else {
-					if (A.Number == IDLE) {
-						npc->State = LEAVING;
-					}
-					npc->ToDoChangeState(A.Number);
-				}
-				break;
-			case ACTION_SET_TIMER:
-				Value = this->evaluate(npc, A.Expression, Numbers);
-				Value2 = this->evaluate(npc, A.Expression2, Numbers);
-				if (A.Number != SKILL_POISON && A.Number != SKILL_BURNING) {
-					error("TBehaviourDatabase::react (8): Invalid skill.\n");
-					break;
-				}
-				if (Value == 0 || Opp->Skills[A.Number]->TimerValue() < Value) {
-					Opp->SetTimer((unsigned short)A.Number, Value, Value2, Value2, -1);
-					if (A.Number == SKILL_BURNING) {
-						Opp->FireDamageOrigin = 0;
-					} else {
-						Opp->PoisonDamageOrigin = 0;
-					}
-				}
-				break;
-			case ACTION_PREVIOUS_RULE:
-				if (bestPattern == 0) {
-					error("TBehaviourDatabase::react (9): No previous pattern.\n");
-					break;
-				}
-				bestPattern--;
-				goto PreviousPattern;
-			case ACTION_FUNCTION3:
-				Value = this->evaluate(npc, A.Expression, Numbers);
-				Value2 = this->evaluate(npc, A.Expression2, Numbers);
-				Value3 = this->evaluate(npc, A.Expression3, Numbers);
-				if (A.Number == FUNCTION_TELEPORT) {
-					print(3, "NPC teleports interlocutor to [%d,%d,%d].\n", Value, Value2, Value3);
-					try {
-						Move(0, Opp->GetCreatureObject(), GetMapContainer(Value, Value2, Value3), -1, false, NONE);
-					} catch (RESULT r) {
-						error("TBehaviourDatabase::react (10): Exception %d.\n", r);
-					}
-				} else if (A.Number == FUNCTION_STARTPOSITION) {
-					print(3, "NPC sets start coordinate for interlocutor to [%d,%d,%d].\n", Value, Value2, Value3);
-					if (Opp->Type == PLAYER) {
-						Opp->startx = Value;
-						Opp->starty = Value2;
-						Opp->startz = Value3;
-						Opp->SaveData();
-					} else {
-						error("TBehaviourDatabase::react (10): Interlocutor is not a player.\n");
-					}
-				} else {
-					error("TBehaviourDatabase::react (10): Invalid subnumber.\n");
-				}
-				break;
-		}
-	}
-
-	if (!StartToDo) {
-		return;
-	}
-
-	npc->ToDoWait(TalkDelay);
-	npc->ToDoStart();
-	if (Situation != BUSY) {
-		npc->LastTalk = RoundNr + TalkDelay / 1000;
-	}
-}
 
 void StartMonsterhomeTimer(int nr) {
 	if (nr < 1 || nr > Monsterhomes) {
@@ -1553,15 +288,29 @@ void TNonplayer::DelInList() {
 	error("TNonplayer::DelInList: Creature not found.\n");
 }
 
-TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) {
-	print(1, "Loading NPC data from file %s...\n", FileName);
+// Made from Entry, an entry of npcs.toml, in the order the old constructor
+// took the keys of an .npc file; the script is loaded (and its handlers
+// required) where the behaviour database was parsed, before the checks of the
+// home field. Throws what LoadScript and RequireHandler throw (a start
+// error, with the position of the entry's script key).
+TNPC::TNPC(const TNPCData &Entry) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) {
+	print(1, "Loading NPC data of %s from %s...\n", Entry.Name.c_str(), Entry.Where.c_str());
 	this->Type = NPC;
-	this->Sex = SEX_MALE;
-	this->Race = 0;
-	this->Outfit = TOutfit();
-	this->posz = 255;
 	this->Direction = DIRECTION_SOUTH;
-	this->Name[0] = 0;
+	strcpy(this->Name, Entry.Name.c_str());
+	this->Sex = Entry.Sex;
+	this->Race = Entry.Race;
+	this->SetSkills(this->Race);
+	this->Outfit = Entry.Outfit;
+	this->posx = Entry.HomeX;
+	this->posy = Entry.HomeY;
+	this->posz = Entry.HomeZ;
+	this->startx = Entry.HomeX;
+	this->starty = Entry.HomeY;
+	this->startz = Entry.HomeZ;
+	this->Radius = Entry.Radius;
+	this->Skills[SKILL_GOSTRENGTH]->SetAct(Entry.GoStrength);
+	this->Skills[SKILL_GOSTRENGTH]->SetMax(Entry.GoStrength);
 	this->Topic = 0;
 	this->Price = 0;
 	this->Amount = 1;
@@ -1569,89 +318,9 @@ TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) 
 	this->Data = 0;
 	this->LastTalk = 0;
 	this->QueueLength = 0;
-	this->Behaviour = nullptr;
-
-	TReadScriptFile Script;
-	Script.open(FileName);
-	while (true) {
-		Script.nextToken();
-		if (Script.Token == ENDOFFILE) {
-			break;
-		}
-
-		if (Script.Token != IDENTIFIER) {
-			Script.error("identifier expected");
-		}
-
-		char Ident[30];
-		strcpy(Ident, Script.getIdentifier());
-		Script.readSymbol('=');
-
-		if (strcmp(Ident, "name") == 0) {
-			strcpy(this->Name, Script.readString());
-		}
-
-		if (strcmp(Ident, "sex") == 0) {
-			char *value = Script.readIdentifier();
-			this->Sex = 255;
-			if (strcmp(value, "male") == 0) {
-				this->Sex = SEX_MALE;
-			}
-			if (strcmp(value, "female") == 0) {
-				this->Sex = SEX_FEMALE;
-			}
-			if (this->Sex == 255) {
-				Script.error("unknown constant");
-			}
-		}
-
-		if (strcmp(Ident, "race") == 0) {
-			this->Race = Script.readNumber();
-			this->SetSkills(this->Race);
-		}
-
-		if (strcmp(Ident, "outfit") == 0) {
-			this->Outfit.load(Script);
-		}
-
-		if (strcmp(Ident, "home") == 0) {
-			Script.readCoordinate(this->posx, this->posy, this->posz);
-			Script.getCoordinate(this->startx, this->starty, this->startz);
-		}
-
-		if (strcmp(Ident, "radius") == 0) {
-			this->Radius = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "gostrength") == 0) {
-			if (this->Race == 0) {
-				throw "gostrength before race in npc-script-file";
-			}
-			int GoStrength = Script.readNumber();
-			this->Skills[SKILL_GOSTRENGTH]->SetAct(GoStrength);
-			this->Skills[SKILL_GOSTRENGTH]->SetMax(GoStrength);
-		}
-
-		if (strcmp(Ident, "behaviour") == 0) {
-			if (this->Behaviour != nullptr) {
-				throw "behaviour database specified twice for NPC";
-			}
-			this->Behaviour = new TBehaviourDatabase(Script);
-		}
-	}
-	Script.close();
-
-	if (this->Name[0] == 0) {
-		throw "no name specified for NPC";
-	}
-
-	if (this->posz == 255) {
-		throw "no startpoint specified for NPC";
-	}
-
-	if (this->Behaviour == nullptr) {
-		throw "no behaviour database specified for NPC";
-	}
+	this->ScriptNumber = LoadScript(Entry.Script.c_str(), Entry.Where.c_str());
+	RequireHandler(this->ScriptNumber, "onCreatureSay", Entry.Where.c_str());
+	RequireHandler(this->ScriptNumber, "onCreatureDisappear", Entry.Where.c_str());
 
 	if (!IsOnMap(this->posx, this->posy, this->posz)) {
 		print(1, "WARNING: NPC '%s' is outside the map.\n", this->Name);
@@ -1669,8 +338,25 @@ TNPC::TNPC(char *FileName) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 9, 10) 
 	this->ToDoYield();
 }
 
-TNPC::~TNPC() {
-	delete this->Behaviour;
+// The script's onCreatureSay(npc, creature, text, situation), where the old
+// code called react(this, Text, Situation): the interlocutor at the call as
+// the creature. Throws what TScriptCall::run throws.
+void TNPC::CallCreatureSay(char *Text, SITUATION Situation) {
+	TScriptCall Call(this->ScriptNumber, "onCreatureSay");
+	Call.addNpc(this->ID);
+	Call.addCreature(this->Interlocutor);
+	Call.addString(Text);
+	Call.addNumber(static_cast<int>(Situation));
+	Call.run();
+}
+
+// The script's onCreatureDisappear(npc, creature), where the old code called
+// react(this, "", VANISH). Throws what TScriptCall::run throws.
+void TNPC::CallCreatureDisappear() {
+	TScriptCall Call(this->ScriptNumber, "onCreatureDisappear");
+	Call.addNpc(this->ID);
+	Call.addCreature(this->Interlocutor);
+	Call.run();
 }
 
 void TNPC::TalkStimulus(uint32_t Speaker, char *Text) {
@@ -1686,11 +372,11 @@ void TNPC::TalkStimulus(uint32_t Speaker, char *Text) {
 	if (this->State == TALKING || this->QueueLength != 0) {
 		if (Speaker == this->Interlocutor) {
 			this->LastTalk = RoundNr;
-			this->Behaviour->react(this, Text, DEFAULT);
+			this->CallCreatureSay(Text, DEFAULT);
 		} else {
 			uint32_t Help = this->Interlocutor;
 			this->Interlocutor = Speaker;
-			this->Behaviour->react(this, Text, BUSY);
+			this->CallCreatureSay(Text, BUSY);
 			this->Interlocutor = Help;
 		}
 	} else {
@@ -1698,7 +384,7 @@ void TNPC::TalkStimulus(uint32_t Speaker, char *Text) {
 		this->State = TALKING;
 		this->Interlocutor = Speaker;
 		this->LastTalk = RoundNr;
-		this->Behaviour->react(this, Text, ADDRESS);
+		this->CallCreatureSay(Text, ADDRESS);
 		if (this->State == TALKING) {
 			this->TurnToInterlocutor();
 		}
@@ -1712,7 +398,7 @@ void TNPC::IdleStimulus() {
 			this->ToDoStart();
 			return;
 		}
-		this->Behaviour->react(this, "", VANISH);
+		this->CallCreatureDisappear();
 		this->State = IDLE;
 	}
 
@@ -1729,7 +415,7 @@ Again:
 			error("TNPC::IdleStimulus: Interlocutor does not exist.\n");
 			this->State = IDLE;
 		} else {
-			this->Behaviour->react(this, GetDynamicString(this->QueuedAddresses(0)), ADDRESSQUEUE);
+			this->CallCreatureSay(GetDynamicString(this->QueuedAddresses(0)), ADDRESSQUEUE);
 		}
 
 		DeleteDynamicString(this->QueuedAddresses(0));
@@ -1827,7 +513,7 @@ void TNPC::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 						|| abs(cr->posx - this->posx) >= 5
 						|| abs(cr->posy - this->posy) >= 4
 						|| cr->posz != this->posz) {
-					this->Behaviour->react(this, "", VANISH);
+					this->CallCreatureDisappear();
 					this->State = IDLE;
 					this->ToDoYield();
 				}
@@ -3053,34 +1739,21 @@ void ChallengeMonster(TCreature *Challenger, TCreature *Monster) {
 	((TMonster *)Monster)->SetTarget(Challenger);
 }
 
+// Makes the NPCs of <DATAPATH>/npcs.toml in the file's order (which gives
+// their creature IDs). Throws what LoadNPCs and the constructor throw.
 void InitNPCs() {
-	DIR *WorkDir = opendir(NPCPATH);
-	if (WorkDir == nullptr) {
-		error("InitNPCs: Subdirectory %s not found\n", NPCPATH);
-		throw "Cannot init NPCs";
+	char FileName[4096];
+	snprintf(FileName, sizeof(FileName), "%s/npcs.toml", DATAPATH);
+	std::vector<TNPCData> NPCs;
+	LoadNPCs(FileName, NPCs);
+	for (const TNPCData &Data : NPCs) {
+		new TNPC(Data);
 	}
-
-	while (true) {
-		struct dirent *DirEntry = readdir(WorkDir);
-		if (DirEntry == nullptr) {
-			break;
-		}
-
-		char *s = DirEntry->d_name;
-		if (strlen(s) > 4 && strcmp(s + strlen(s) - 4, ".npc") == 0) {
-			char FileName[4096];
-			sprintf(FileName, "%s/%s", NPCPATH, s);
-			new TNPC(FileName);
-		}
-	}
-
-	closedir(WorkDir);
 }
 
 void InitNonplayer() {
 	print(1, "Initializing Nonplayers ...\n");
 	FirstFreeNonplayer = 0;
-	NodeTable = new store<TNode, 256>;
 	InitNPCs();
 	LoadMonsterhomes();
 }
@@ -3093,6 +1766,4 @@ void ExitNonplayer() {
 			delete np;
 		}
 	}
-
-	delete NodeTable;
 }

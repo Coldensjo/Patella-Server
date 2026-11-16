@@ -1,8 +1,8 @@
 // scripting.cc: the Lua engine (scripting.hh, scripting_api.hh). One LuaJIT
 // state with the sandbox of rule 7, strict shared globals and API tables, the
 // core API (Game, print, debugPrint, math.random, the RETURNVALUE_
-// constants), the objects (Creature, Player, Item, Vocation, ItemType), the
-// Position,
+// constants), the objects (Creature, Player, Npc, Item, Vocation, ItemType),
+// the Position,
 // the read-only constants, the restricted require, the loaded scripts with
 // their environments, and the calls of their handlers (TScriptCall,
 // TScriptEvent).
@@ -747,25 +747,26 @@ static int ResultErrorIndex(lua_State *L) {
 }
 
 // ---------------------------------------------------------------------------
-// The objects: a userdata of one uint32_t (a creature ID, an object handle,
-// a Vocation's player ID, or an ItemType's type number, an int kept as its
-// bits) whose metatable is its class's (no __gc, so it
-// is trivially destructible and the collector runs no code). The metatable
+// The objects: a userdata of one uint32_t (a creature ID of a Creature, Player
+// or Npc, an object handle, a Vocation's player ID, or an ItemType's type
+// number, an int kept as its bits) whose metatable is its class's (no __gc, so
+// it is trivially destructible and the collector runs no code). The metatable
 // reads methods from the class's method table, an API table (so an unknown
 // method is "unknown name '<class>.<method>'"), refuses writes, compares by
-// kind and value (__eq), names the object without an address (__tostring)
-// and is hidden from scripts (__metatable).
+// kind and value (__eq), names the object without an address (__tostring) and
+// is hidden from scripts (__metatable).
 
 // The class names of the kinds (TScriptObjectKind order).
-static const char *const ObjectKindNames[] = {nullptr, "Creature", "Player", "Item", "Vocation", "ItemType"};
+static const char *const ObjectKindNames[] = {nullptr, "Creature", "Player", "Item", "Vocation", "ItemType",
+		"Npc"};
 
 // The registry keys of the kinds' metatables.
 static const char *const ObjectMetatables[] = {nullptr, "patella.object.Creature", "patella.object.Player",
-		"patella.object.Item", "patella.object.Vocation", "patella.object.ItemType"};
+		"patella.object.Item", "patella.object.Vocation", "patella.object.ItemType", "patella.object.Npc"};
 
-static_assert(sizeof(ObjectKindNames) / sizeof(ObjectKindNames[0]) == SCRIPT_ITEMTYPE + 1,
+static_assert(sizeof(ObjectKindNames) / sizeof(ObjectKindNames[0]) == LAST_SCRIPT_OBJECT_KIND + 1,
 		"ObjectKindNames must name every TScriptObjectKind");
-static_assert(sizeof(ObjectMetatables) / sizeof(ObjectMetatables[0]) == SCRIPT_ITEMTYPE + 1,
+static_assert(sizeof(ObjectMetatables) / sizeof(ObjectMetatables[0]) == LAST_SCRIPT_OBJECT_KIND + 1,
 		"ObjectMetatables must have a key for every TScriptObjectKind");
 
 TScriptObjectKind ScriptObjectKind(lua_State *L, int Index) {
@@ -791,7 +792,7 @@ uint32_t ScriptObjectValue(lua_State *L, int Index) {
 }
 
 void PushScriptObject(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
-	assert(Kind > SCRIPT_NO_OBJECT && Kind <= SCRIPT_ITEMTYPE);
+	assert(Kind > SCRIPT_NO_OBJECT && Kind <= LAST_SCRIPT_OBJECT_KIND);
 	void *Data = lua_newuserdata(L, sizeof(Value));
 	memcpy(Data, &Value, sizeof(Value));
 	lua_getfield(L, LUA_REGISTRYINDEX, ObjectMetatables[Kind]);
@@ -808,9 +809,9 @@ void PushScriptCreature(lua_State *L, uint32_t ID) {
 	}
 }
 
-// Pushes the text of an object: "Creature 123", "Player 123", "Item 456",
-// "Vocation of Player 123", "ItemType 123" (the type number as the int it
-// is, so "ItemType -1").
+// Pushes the text of an object: "Creature 123", "Player 123", "Npc 123",
+// "Item 456", "Vocation of Player 123", "ItemType 123" (the type number as
+// the int it is, so "ItemType -1").
 static void PushObjectText(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
 	char Text[64];
 	if (Kind == SCRIPT_VOCATION) {
@@ -838,9 +839,9 @@ static int ObjectEqual(lua_State *L) {
 	return 1;
 }
 
-// __index of the method table of a class derived from another (Player from
-// Creature): a method it lacks is read from the parent's method table (raw,
-// one level), and one neither has is the Lua error "unknown name
+// __index of the method table of a class derived from another (Player and Npc
+// from Creature): a method it lacks is read from the parent's method table
+// (raw, one level), and one neither has is the Lua error "unknown name
 // '<class>.<field>'". Upvalues: the class's name and the parent's table.
 static int DerivedClassIndex(lua_State *L) {
 	lua_pushvalue(L, 2);
@@ -887,10 +888,10 @@ static void MakeClass(lua_State *L, TScriptObjectKind Kind, TScriptObjectKind Pa
 }
 
 // creature:getId(): the creature ID the object holds, also for a creature
-// that is gone. Argument: a Creature or a Player. Returns the number.
+// that is gone. Argument: a Creature, a Player or an Npc. Returns the number.
 static int CreatureGetId(lua_State *L) {
 	TScriptObjectKind Kind = ScriptObjectKind(L, 1);
-	if (Kind != SCRIPT_CREATURE && Kind != SCRIPT_PLAYER) {
+	if (Kind != SCRIPT_CREATURE && Kind != SCRIPT_PLAYER && Kind != SCRIPT_NPC) {
 		return luaL_typerror(L, 1, "Creature");
 	}
 	lua_pushnumber(L, ScriptObjectValue(L, 1));
@@ -1385,6 +1386,7 @@ static void SetUpState(lua_State *L) {
 	MakeClass(L, SCRIPT_ITEM, SCRIPT_NO_OBJECT, Equal);
 	MakeClass(L, SCRIPT_VOCATION, SCRIPT_NO_OBJECT, Equal);
 	MakeClass(L, SCRIPT_ITEMTYPE, SCRIPT_NO_OBJECT, Equal);
+	MakeClass(L, SCRIPT_NPC, SCRIPT_CREATURE, Equal);
 	lua_pop(L, 1);
 	MakeItemTypeConstructor(L);
 	PushAPITable(L, ObjectKindNames[SCRIPT_CREATURE]);
@@ -1860,6 +1862,15 @@ void TScriptCall::addCreature(uint32_t CreatureID) {
 				: SCRIPT_CREATURE;
 		Argument.Object = CreatureID;
 	}
+}
+
+void TScriptCall::addNpc(uint32_t CreatureID) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TUSERDATA;
+	Argument.Kind = SCRIPT_NPC;
+	Argument.Object = CreatureID;
 }
 
 void TScriptCall::addItem(uint32_t ObjectHandle) {

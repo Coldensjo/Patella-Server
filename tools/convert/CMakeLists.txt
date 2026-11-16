@@ -28,6 +28,8 @@ add_library(convert_common STATIC
 	map_writer.cc
 	conversion_lst.cc
 	conversion_writer.cc
+	npc_files.cc
+	npcs_writer.cc
 	tomlwrite.cc
 	usr_files.cc
 	player_records.cc
@@ -37,6 +39,7 @@ add_library(convert_common STATIC
 	${GAME_SOURCE}/housesdata.cc
 	${GAME_SOURCE}/magicdata.cc
 	${GAME_SOURCE}/mapdata.cc
+	${GAME_SOURCE}/npcdata.cc
 	${GAME_SOURCE}/triggersdata.cc
 	${GAME_SOURCE}/objects.cc
 	${GAME_SOURCE}/strings.cc
@@ -197,6 +200,26 @@ add_test(NAME convert_conversion COMMAND convert_test_conversion)
 add_test(NAME convert_conversion_original COMMAND convert_test_conversion --original ${PATELLA_ORIGINAL_CONVERSION}
 	${PROJECT_SOURCE_DIR}/data/conversion.toml)
 set_tests_properties(convert_conversion_original PROPERTIES SKIP_RETURN_CODE 77)
+
+# The round trips of the NPCs: the NPCs' data from their .npc files (through
+# the converter's reader, ReadNpcFile, which reads them as the game did) and
+# from their npcs.toml (through the game's LoadNPCs) is the same, NPC by NPC
+# and in order; and the rules the written scripts and block modules give
+# through the Lua engine (scripting.cc, with a lib/npc.lua of the test's own)
+# are those the reader made. convert_npcs uses made-up files; convert_npcs_original the npc/
+# folder of the pristine installation's tar, PATELLA_ORIGINAL_NPC_TAR,
+# extracted into the build tree (a native file system, whose readdir order
+# the conversion keeps), and the committed data/npcs.toml,
+# data/scripts/npcs/ and data/scripts/lib/npcs/, which must be exactly what
+# patella-convert npcs makes of it. It is skipped when that tar is not there.
+set(PATELLA_ORIGINAL_NPC_TAR "/home/chris/patella-cmp/pristine.tar" CACHE FILEPATH
+	"A tar of the original installation with npc/ at its top, for the test convert_npcs_original")
+add_executable(convert_test_npcs tests/test_npcs.cc ${GAME_SOURCE}/scripting.cc)
+target_link_libraries(convert_test_npcs PRIVATE convert_common sol2)
+add_test(NAME convert_npcs COMMAND convert_test_npcs)
+add_test(NAME convert_npcs_original COMMAND convert_test_npcs --original ${PATELLA_ORIGINAL_NPC_TAR}
+	${CMAKE_CURRENT_BINARY_DIR}/npc-original ${PROJECT_SOURCE_DIR}/data)
+set_tests_properties(convert_npcs_original PROPERTIES SKIP_RETURN_CODE 77)
 
 # The player data through the query manager (test_playerdata.cc): made-up
 # player files read with the old reader must come back the same from

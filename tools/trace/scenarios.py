@@ -1384,3 +1384,416 @@ def items(ctx):
 	s(2)
 	h.logout()
 	s(3)
+
+
+# The scenario npcs: the NPCs of npcs.toml, whose rules are Lua tables matched
+# by lib/npc.lua on main and the .npc files matched by TBehaviourDatabase::react
+# on faithful. An NPC hears the say of a player within 3 fields of it on its
+# floor (Talk, TNPC::TalkStimulus): as ADDRESS when it is free, as DEFAULT from
+# the player it talks to, as BUSY from anyone else while it talks or has a
+# queue. A greeting with the action Queue puts that player into the queue,
+# which the NPC serves when its conversation has ended (ADDRESSQUEUE, with the
+# words of the greeting). A conversation ends with VANISH when the player has
+# said nothing for 30 rounds or moves 5 fields away in x, 4 in y or to another
+# floor, or by a rule's action Idle. The NPC says a text a second after the
+# say it answers (react's ToDoWait(1000)), and a say whose rule has actions
+# clears what the NPC still had to do (ToDoAdd): two says to one NPC come at
+# least 2 rounds apart, so that the first one's text is said in both runs. The
+# NPCs stand still (Radius 0), so where they stand is known, but for the King,
+# who keeps within 1 field of his home; e (Teste Epsilon:
+# no premium account; Move to coordinates, Create Gold, Get Experience, Set and
+# Get Quest Value, Change Profession) talks to them, h (Testh Theta: a premium
+# account, Get Item, level 1) waits in their queue or talks while they are
+# busy, d (Testd Delta, Get Experience and Teleport to Friend) joins at the
+# Oracle. A command (al...) is no talk the NPCs hear (Talk returns before
+# TalkStimulus for character right spells). %T (the time) is left out: GetTime
+# follows the wall clock, which compare_traces does not normalise, and the
+# text's length sets the NPC's later delays. No text of the NPC data becomes
+# too long to say (more than 256 bytes): the longest is 254 bytes without
+# %N, and the longest with %N 165 bytes.
+#
+# The NPCs (no NPC of the data sells houses; that slot takes a ferryman):
+# - Tandros (Port Hope, floor 5): a trader whose rules come mostly from two
+#   rule blocks, gen-t-runes-free-s.ndb and gen-t-wands-prem-s.ndb; a sale
+#   with %1 (Amount, Price), one without the money, a fluid (Type with Data),
+#   the deposit of an empty vial (Count with Data, Delete, CreateMoney), * of
+#   *, and the wand sample a sorcerer gets once (QuestValue(333),
+#   SetQuestValue).
+# - Myra (Port Hope, floor 6): the sorcerers' teacher, the quest NPC: her wand
+#   gift tests QuestValue(333), which Tandros set; the spell sale (Sorcerer,
+#   SpellKnown, Level and SpellLevel, CountMoney, DeleteMoney, EffectOpp,
+#   TeachSpell), a topic chain by level.
+# - Ferks (Port Hope, floor 6): a banker (gen-bank.ndb): the coin exchange,
+#   a topic chain with %1 (a number above 500 counts as 500), Count of a
+#   type, Delete and Create of coins, the "no" branches.
+# - Imbul and Lorek (Port Hope, floor 7): ferrymen (the house seller's slot):
+#   a ride needs Premium and the money (DeleteMoney, Idle, EffectOpp,
+#   Teleport), the refusals without either.
+# - The Oracle (Rookgaard, floor 6): sets the vocation and the start position
+#   and teleports (Profession, StartPosition, Teleport, Level>=8, premium),
+#   ignores a player who does not greet (ADDRESS,! -> Idle), sends children
+#   away, and has a rule without conditions whose action is *.
+# - King Tibianus (Radius 1) and his guards Harsky and Stutch (Thais, floor
+#   6): one say reaches all three; the guards punish an insult (HP=1,
+#   EffectMe, EffectOpp), the King's promotion tests Promoted, Level,
+#   CountMoney and Premium.
+#
+# The fields the players stand on: in front of each NPC's counter, within 3
+# fields of it, and the walks that end a conversation by VANISH.
+TANDROS_E = (32624, 32740, 5)       # 3 east, 1 south of Tandros (32621,32739,5)
+TANDROS_H = (32624, 32741, 5)
+MYRA_E = (32580, 32752, 6)          # south of Myra (32580,32751,6)
+MYRA_H = (32579, 32752, 6)
+FERKS_E = (32632, 32738, 6)         # 2 west of Ferks (32634,32738,6), a table between
+IMBUL_E = (32558, 32780, 7)         # north of Imbul (32558,32781,7)
+IMBUL_H = (32559, 32780, 7)
+LOREK_H = (32679, 32777, 7)         # where Imbul's ride ends, 2 south of Lorek (32679,32775,7)
+ORACLE_E = (32104, 32191, 6)        # south of the Oracle (32104,32190,6)
+ORACLE_H = (32103, 32191, 6)
+ORACLE_D = (32105, 32191, 6)        # where Teleport to Friend to e puts d
+THAIS_TEMPLE = (32369, 32241, 7)    # where the Oracle sends a player who chose Thais
+THRONE_E = (32311, 32173, 6)        # 2 south of the King's home (32311,32171,6), 3 of the guards'
+THRONE_H = (32310, 32173, 6)
+GOLD = 3031
+VIAL = 2874
+
+
+@scenario()
+def npcs(ctx):
+	"""The NPCs Tandros, Myra, Ferks, Imbul, Lorek, the Oracle, King
+	Tibianus, Harsky and Stutch (see the comment above): greetings (hello,
+	hi and hiho, * of the greeting), one say heard by three NPCs, BUSY
+	(NOP for a word that is no greeting, Queue for a greeting) and the queue
+	served after the conversation (ADDRESSQUEUE), VANISH by a walk, by Move
+	to coordinates and after 30 rounds of silence, Idle, sales with and
+	without the money, topic chains with numbers, * and * of *, a quest value
+	set by one NPC and tested by two, premium and level conditions, the
+	vocation, the start position and the teleports of the Oracle and the
+	ferrymen, HP= and EffectMe of the guards. It runs to step 378 (round 398
+	with the start round 20): run it with --stop-round 410."""
+	s = Steps(ctx)
+	ctx.at(0)
+	e = ctx.login("e")
+	s(2)
+	h = ctx.login("h")
+	s(2)
+
+	def say(c, text, what, k=3):
+		c.note("=== " + what)
+		c.say(text)
+		s(k)
+
+	def command(c, text, what, k=1):
+		c.note("=== " + what)
+		c.say(text)
+		s(k)
+
+	def goto(c, p, what, k=2):
+		c.note("=== Move to %d,%d,%d: %s" % (p + (what,)))
+		c.say("alani %d,%d,%d" % p)
+		s(k)
+		ctx.check(c.pos == p, "npcs: %s is at %s, not at %s" % (c.label, c.pos, p))
+
+	def walk(c, steps, what, k):
+		c.note("=== " + what)
+		c.autowalk(steps)
+		s(k)
+
+	# In the Rookgaard temple: e opens its bag (window 0), so that what the
+	# NPCs give shows where it goes; level 8 (the Oracle, Myra's spells), a
+	# sorcerer (Myra's spells, the wand sample), 99 gold coins (into the free
+	# ammo slot).
+	e.note("=== e opens its bag: window 0")
+	e.use((INV, SLOT_BACKPACK, 0), BAG, 0, 0)
+	s(1)
+	command(e, "alevo cogni 4200", "Get Experience: e to level 8")
+	command(e, "aleta vita sorcerer", "Change Profession: e becomes a sorcerer")
+	command(e, "alevo vis 99", "Create Gold: 99 gold coins")
+
+	# Tandros.
+	goto(e, TANDROS_E, "e in front of Tandros' counter")
+	say(e, "hi", "ADDRESS: hi$ -> * of hello$: Be greeted, student of the arcane.")
+	goto(h, TANDROS_H, "h next to e")
+	say(h, "job", "BUSY: no greeting, BUSY,! -> NOP: no answer")
+	say(h, "hello", "BUSY: hello$ -> Show some patience please., Queue: h is queued")
+	say(e, "2 blank runes", "%1, 1<%1, blank, rune: Amount=%1, Price=10*%1, Topic=1")
+	say(e, "yes", "Topic=1, yes, CountMoney>=Price: DeleteMoney, Create(Type) twice, into the bag")
+	say(e, "2 sudden death runes", "a rule of gen-t-runes-free-s.ndb: Amount=2, Price=650, Topic=99")
+	say(e, "yes", "Topic=99, yes, too little money: Sorry, you don't have enough gold.")
+	say(e, "life fluid", "life, fluid: Type=2874, Data=11, Price=60, Topic=2")
+	m = e.mark()
+	say(e, "yes", "Topic=2, yes: DeleteMoney, Create(Type) of Data 11: a vial of life fluid into the bag")
+	ctx.check(e.wait_text(r"^CreateInContainer nr=0 %d\(" % VIAL, m, 0) is not None,
+		"npcs: the vial of life fluid is not in e's bag")
+	say(e, "deposit", "deposit: Data=0, Topic=3")
+	say(e, "yes", "Topic=3, yes, Count(2874) of Data 0 is 0: You don't have any empty vials.")
+	e.note("=== e drinks the life fluid (the vial in front in the bag): an empty vial")
+	e.use_with((INV, 64, 0), VIAL, 0, e.pos, CREATURE, 0)
+	s(2)
+	say(e, "vial", "vial -> * of deposit: Data=0, Topic=3")
+	say(e, "yes", "Topic=3, yes, an empty vial: Amount=Count(2874), Price=Amount*5, Delete(2874), CreateMoney")
+	say(e, "dwarfs", "dwarfs -> * -> * of kazordoon: its text")
+	say(e, "wand of vortex", "sorcerer, wand, of, vortex, QuestValue(333)<1: the sample, SetQuestValue(333,1), "
+		"Create(Type)")
+	say(e, "wand of vortex", "QuestValue(333) is 1: the wand for 500 gold, Topic=92")
+	say(e, "no", "Topic=92 without yes: You don't know what you're missing.")
+	walk(e, ["e", "e"], "VANISH: e walks to 5 fields east of Tandros: Farewell.; then the queue: h is greeted "
+		"(ADDRESSQUEUE, its hello)", 10)
+	say(h, "bye", "bye: Farewell., Idle")
+
+	# Myra.
+	goto(e, MYRA_E, "e in front of Myra")
+	say(e, "hello", "ADDRESS: hello$: Greetings.")
+	goto(h, MYRA_H, "h next to e")
+	say(h, "hiho", "BUSY: hiho$ -> * -> * of hello$: Sorry, not now., Queue: h is queued")
+	say(e, "wand", "sorcerer, wand, QuestValue(333)<1 fails (Tandros set it): no rule holds, no answer")
+	say(e, "spell", "spell, Sorcerer: what she teaches, Topic=2", 4)
+	say(e, "level", "Topic=2, level: Topic=2")
+	say(e, "8", "Topic=2, 8$: the spells of level 8, Topic=2")
+	say(e, "light", "Sorcerer, light: Type=10, Price=100, Topic=3")
+	say(e, "yes", "Topic=3, yes, CountMoney<Price: You need more money.")
+	command(e, "alevo vis 99", "Create Gold: 99 gold coins (a command: no talk the NPC hears)", 2)
+	say(e, "light", "Sorcerer, light: Topic=3")
+	say(e, "yes", "Topic=3, yes: DeleteMoney, EffectOpp(13), TeachSpell(Type)")
+	say(e, "light", "Sorcerer, light: Topic=3")
+	say(e, "yes", "Topic=3, yes, SpellKnown(Type)=1: You already know how to cast this spell.")
+	say(e, "light healing", "Sorcerer, light, healing: Type=1, Price=170, Topic=3")
+	say(e, "yes", "Topic=3, yes, Level<SpellLevel(Type): Amount=SpellLevel(Type), You have to be level %A")
+	command(e, "aliva cogni 333", "Get Quest Value: 333 is 1", 2)
+	say(e, "bye", "bye: Farewell., Idle; then the queue: h is greeted (ADDRESSQUEUE, its hiho)", 10)
+	say(h, "spell", "spell without Sorcerer: Sorry, I only sell spells to Sorcerers.; then h says nothing: "
+		"VANISH after 30 rounds (Farewell.), while e is at Ferks")
+
+	# Ferks, while Myra waits for h to say something.
+	goto(e, FERKS_E, "e in front of Ferks' counter")
+	say(e, "hiho", "ADDRESS: hiho$ -> * -> * of hello$: A good day to you.")
+	say(e, "change gold", "change, gold, !: How many platinum coins..., Topic=91")
+	say(e, "999", "Topic=91, %1, 0<%1: %1 counts as 500: Amount=%1*100, Price=%1, Topic=96")
+	say(e, "no", "Topic=96 without yes: Well, can I help you with something else?")
+	say(e, "exchange gold", "exchange, gold, ! -> * of change, gold, !: Topic=91")
+	say(e, "0", "Topic=91, %1 is 0, not 0<%1: Topic=91 alone: Hmm, can I help you with something else?")
+	say(e, "change gold", "change, gold, !: Topic=91")
+	say(e, "2", "Topic=91, %1: Amount=200, Price=2, Topic=96")
+	say(e, "yes", "Topic=96, yes, Count(3031)<Amount: Sorry, you don't have enough gold coins.")
+	h.note("=== a ping, so that the game keeps h's idle connection")
+	h.ping()
+	command(e, "alevo vis 99", "Create Gold: 99 gold coins", 2)
+	say(e, "change gold", "change, gold, !: Topic=91")
+	say(e, "1", "Topic=91, %1: Amount=100, Price=1, Topic=96")
+	say(e, "yes", "Topic=96, yes, Count(3031)>=Amount: Here you are., Delete(3031), Amount=Price, Create(3035)")
+	say(e, "change platinum", "change, platinum, !: gold or crystal?, Topic=95")
+	say(e, "gold", "Topic=95, gold, !: Topic=93")
+	say(e, "1", "Topic=93, %1: Amount=1, Price=100, Topic=98")
+	say(e, "yes", "Topic=98, yes, Count(3035)>=Amount: Here you are., Delete(3035), Amount=Price, Create(3031)")
+	say(e, "change crystal", "change, crystal, !: Topic=92")
+	say(e, "3", "Topic=92, %1: Amount=3, Price=300, Topic=97")
+	say(e, "yes", "Topic=97, yes, no crystal coins: Sorry, you don't have so many crystal coins.")
+	walk(e, ["w", "w", "w"], "VANISH: e walks to 5 fields west of Ferks: Good bye.", 6)
+
+	# Imbul and Lorek.
+	goto(e, IMBUL_E, "e in front of Imbul")
+	say(e, "hi", "ADDRESS: hi$ -> * of hello$: Hi, %N.")
+	goto(h, IMBUL_H, "h next to e")
+	say(h, "hi", "BUSY: hi$ -> * of hello$: Please wait., Queue: h is queued")
+	say(e, "passage", "passage -> * of route -> * of trip: the destinations", 4)
+	say(e, "east", "east: Price=7, Topic=1")
+	say(e, "yes", "Topic=1, yes, e has the money but no premium account: Topic>0: Maybe another time.")
+	walk(e, ["n", "n", "n"], "VANISH: e walks to 4 fields north of Imbul: Bye.; then the queue: h is greeted "
+		"(ADDRESSQUEUE, its hi)", 10)
+	say(h, "east", "east: Price=7, Topic=1")
+	say(h, "yes", "Topic=1, yes, CountMoney<Price: Sorry, you do not have enough gold.")
+	command(h, "alevo %d 10" % GOLD, "Get Item: 10 gold coins", 2)
+	say(h, "east", "east: Price=7, Topic=1")
+	say(h, "yes", "Topic=1, yes, Premium, CountMoney>=Price: Here we go!, DeleteMoney, Idle, EffectOpp(11), "
+		"Teleport to the east end, EffectOpp(11)", 4)
+	ctx.check(h.pos == LOREK_H, "npcs: h is at %s after the ride, not at %s" % (h.pos, LOREK_H))
+	say(h, "hi", "Lorek, ADDRESS: hi$ -> * of hello$: Greetings, %N.")
+	say(h, "cent", "cent (a word's start): Price=7, Topic=1")
+	say(h, "yes", "Topic=1, yes, 3 gold left: Sorry, you do not have enough gold.")
+
+	# The Oracle; d logs in now in the Rookgaard temple (out of the Oracle's
+	# sight).
+	goto(e, ORACLE_E, "e in front of the Oracle")
+	d = ctx.login("d")
+	s(2)
+	say(e, "hi", "ADDRESS: hi$, Level>=8 -> * of hello$: %N, ARE YOU PREPARED TO FACE YOUR DESTINY?")
+	goto(h, ORACLE_H, "h leaves Lorek for the Oracle (VANISH: Bye.), next to e")
+	say(h, "hi", "BUSY, level 1: hi$ -> * of hello$: CHILD! COME BACK WHEN YOU HAVE GROWN UP! (not queued)")
+	command(d, "alevo cogni 4200", "Get Experience: d to level 8")
+	d.note("=== Teleport to Friend: d next to e")
+	d.say('alani sio "Teste Epsilon"')
+	s(2)
+	ctx.check(d.pos == ORACLE_D, "npcs: d is at %s, not at %s" % (d.pos, ORACLE_D))
+	say(d, "hi", "BUSY, Level>=8: hi$ -> * of hello$: WAIT UNTIL IT IS YOUR TURN!, Queue: d is queued")
+	say(e, "yes", "yes without premium: IN WHICH TOWN ... CARLIN, THAIS, OR VENORE?, Topic=1")
+	say(e, "edron", "Topic=1, edron without premium: YOU NEED A PREMIUM ACCOUNT IN ORDER TO GO THERE!, Topic=1")
+	say(e, "atlantis", "Topic=1 alone: CARLIN, THAIS, OR VENORE?, Topic=1")
+	say(e, "thais", "Topic=1, thais: Data=1, Topic=2")
+	say(e, "knight", "Topic=2, knight: Type=1, Topic=3")
+	say(e, "yes", "Topic=3, Data=1, yes: SO BE IT!, Profession(Type), StartPosition, Idle, EffectOpp(11), "
+		"Teleport to Thais, EffectOpp(11); then the queue: d is greeted (ADDRESSQUEUE, its hi)", 10)
+	ctx.check(e.pos == THAIS_TEMPLE, "npcs: e is at %s, not in the Thais temple %s" % (e.pos, THAIS_TEMPLE))
+	say(d, "maybe", "no rule but the one without conditions, -> * of bye, !: COME BACK WHEN YOU ARE PREPARED TO "
+		"FACE YOUR DESTINY!, Idle", 4)
+	say(h, "good day", "ADDRESS, no greeting: ADDRESS,! -> Idle: no answer")
+	say(h, "hi", "ADDRESS, level 1: CHILD! COME BACK WHEN YOU HAVE GROWN UP!, Idle", 4)
+	say(d, "hello", "ADDRESS, Level>=8: %N, ARE YOU PREPARED TO FACE YOUR DESTINY?")
+	walk(d, ["s", "s", "s"], "VANISH: d walks to 4 fields south of the Oracle: COME BACK WHEN YOU ARE PREPARED TO "
+		"FACE YOUR DESTINY!", 6)
+	d.logout()
+	s(1)
+
+	# The throne room of Thais: King Tibianus and his guards Harsky and
+	# Stutch all stand within 3 fields of e and h, so that each say reaches
+	# the three NPCs, each with its own conversation.
+	goto(e, THRONE_E, "e in the throne room of Thais, within 3 fields of the King and both guards")
+	say(e, "hail king", "ADDRESS, three NPCs: the guards hail$, king: HAIL TO THE KING!; the King hail, king -> * of "
+		"hello, king: I greet thee, my loyal subject.")
+	goto(h, THRONE_H, "h leaves the Oracle for the throne room, next to e")
+	say(h, "hail king", "BUSY, three NPCs: the guards Wait for your audience! (no queue); the King BUSY,! -> NOP")
+	say(e, "promotion", "the King: promot (a word's start): Price=20000, Topic=4; the guards: no rule")
+	say(e, "yes", "Topic=4, yes, Level<20, !: You need to be at least level 20 in order to be promoted.")
+	command(e, "alevo cogni 400000", "Get Experience: e to level 30", 2)
+	say(e, "promotion", "the King: Topic=4")
+	say(e, "yes", "Topic=4, yes, CountMoney<Price, !: You do not have enough money.")
+	command(e, "alevo vis 20000", "Create Gold: 20000 gold (two crystal coins)", 2)
+	say(e, "promotion", "the King: Topic=4")
+	say(e, "yes", "Topic=4, yes, no Premium: You need a premium account in order to promote.")
+	say(e, "stupid", "the guards: Take this!, HP=1, EffectMe(8), EffectOpp(5), each; the King: no rule")
+	say(e, "bye", "bye: the guards LONG LIVE THE KING! You may leave now!, Idle; the King Good bye, %N!, Idle")
+	say(h, "hail king", "ADDRESS, three NPCs: HAIL TO THE KING! twice, I greet thee, my loyal subject.")
+	walk(h, ["s", "s", "s"], "VANISH, three NPCs: h walks to 4 fields or more south of each: LONG LIVE THE KING! "
+		"twice, What a lack of manners!", 6)
+
+	e.logout()
+	s(1)
+	h.logout()
+	s(3)
+
+
+# The scenario npcs_prophet: a rule that teleports the player the NPC talks to
+# without an Idle before it, so the NPC is still TALKING when the player moves
+# away: the move calls the NPC's VANISH reaction inside the action (TNPC::
+# CreatureMoveStimulus, react nested in react), and then the rule's remaining
+# actions and the end of the outer react run. The Blind Prophet (Radius 4)
+# keeps within x 33018 to 33024 and y 32602 to 32607 (a clearing walled in on
+# three sides), so from PROPHET_E it is within 3 fields wherever it walks. He
+# talks only to a friend of the apes (QuestValue(293)>14), which e sets itself.
+# Monsters of the jungle (flamingos, cobras) may come by; e gets level 30
+# first, so that a cobra does not kill it.
+PROPHET_E = (33021, 32605, 7)
+PROPHET_TRANSPORT = (33026, 32580, 6)   # where his rule sends the player
+
+
+@scenario()
+def npcs_prophet(ctx):
+	"""The Blind Prophet: a greeting that needs a quest value, the
+	transport (Teleport without Idle before it: VANISH nested in the rule's
+	actions) and the refusal of it, bye. It ends at step 42 (round 62)."""
+	s = Steps(ctx)
+	ctx.at(0)
+	e = ctx.login("e")
+	s(2)
+
+	def say(text, what, k=3):
+		e.note("=== " + what)
+		e.say(text)
+		s(k)
+
+	def goto(p, what):
+		e.note("=== Move to %d,%d,%d: %s" % (p + (what,)))
+		e.say("alani %d,%d,%d" % p)
+		s(2)
+		ctx.check(e.pos == p, "npcs_prophet: e is at %s, not at %s" % (e.pos, p))
+
+	e.note("=== Get Experience: e to level 30")
+	e.say("alevo cogni 400000")
+	s(1)
+	e.note("=== Set Quest Value: 293 is 15, a friend of the apes")
+	e.say("aleta cogni 293 15")
+	s(1)
+	goto(PROPHET_E, "e next to the Blind Prophet's home")
+	say("hi", "ADDRESS, hi$, QuestValue(293)>14 -> * of hello$: Be greeted, friend of the apes.")
+	say("transport", "transport, QuestValue(293)>14: You want me to transport you to forbidden land?, topic=1", 4)
+	say("yes", "yes, topic=1: Take care!, Teleport (the NPC talks to e still: its VANISH runs inside the action), "
+		"EffectOpp(11)", 8)
+	ctx.check(e.pos == PROPHET_TRANSPORT, "npcs_prophet: e is at %s, not at %s" % (e.pos, PROPHET_TRANSPORT))
+	goto(PROPHET_E, "e back next to the Blind Prophet")
+	say("hello", "ADDRESS, hello$, QuestValue(293)>14: Be greeted, friend of the apes.")
+	say("transport", "transport: topic=1", 4)
+	say("no", "no, topic=1: Wise decision maybe.")
+	say("bye", "bye: Good bye., Idle", 6)
+	e.logout()
+	s(3)
+
+
+# The scenario npcs_busy: the talkers j to m (trace_check.py TALKER_RIGHTS:
+# NO_BANISHMENT, so that talking every round does not mute them; Move to
+# coordinates), each alone at an NPC with a long rule list (out of sight of the
+# others, so that says in the same round cannot reach a client in another
+# order in the other run), say something every round for NPC_BUSY_ROUNDS
+# rounds: every third round a word the NPC answers, the other rounds words no
+# rule takes. Each say is one call of the NPC's react, which tries all of its
+# rules (no rule of these NPCs is taken at once by !, other than the
+# greetings and BUSY ones), so the game's CPU time over the scenario shows
+# what react costs. A word no rule takes changes nothing in the NPC, so it may
+# follow an answered say by a round; answered says come 3 rounds apart. The
+# NPCs: H.L. (321 rules, the most of any NPC; Radius 2), Mortimer (203 rules,
+# most of them of explorer.ndb; Radius 1), Shanar (184 rules; Radius 1),
+# Brengus (169 rules; Radius 0); each talker stands within 2 fields of its
+# NPC's home, within 3 fields of it wherever it walks. (Not Angus, whose
+# explorer.ndb rules Mortimer has too: a creature of Port Hope walks in sight
+# of him a step a round, and its steps near a round's start came labelled
+# with one round in one run and the next in the other.) The talkers are j to
+# m of run_scenario.py's ACCOUNTS.
+# Each talker: its NPC, the field it stands on, the words the NPC answers (one
+# text each, no topic).
+NPC_TALKERS = [
+	("j", "H.L.", (32643, 32213, 7), ["job", "name", "tavern"]),        # H.L. at 32643,32212,7
+	("k", "Shanar", (32657, 31657, 8), ["job", "name"]),                # Shanar at 32657,31655,8
+	("l", "Mortimer", (32499, 31627, 7), ["job", "base"]),              # Mortimer at 32499,31626,7
+	("m", "Brengus", (32634, 32746, 6), ["job", "name", "tibia"]),      # Brengus at 32634,32747,6
+]
+# Words that start no word of these NPCs' rules (and hold no number).
+NO_RULE_WORDS = ["qwerty xylophone zzyzx quokka", "xenon zigzag qualm xerox zebu"]
+NPC_BUSY_ROUNDS = 150
+
+
+@scenario()
+def npcs_busy(ctx):
+	"""Many says to NPCs with long rule lists, for the CPU time of react:
+	the talkers j to m, each alone at H.L., Shanar, Mortimer or Brengus,
+	greet it and say something every round for NPC_BUSY_ROUNDS rounds,
+	every third say a word it answers; then bye. It ends at step 186
+	(round 206), before the default stop round 232."""
+	s = Steps(ctx)
+	ctx.at(0)
+	who = {}
+	for key, npc, stand, _ in NPC_TALKERS:
+		c = who[key] = ctx.login(key)
+		s(2)
+		c.note("=== Move to %d,%d,%d: next to %s" % (stand + (npc,)))
+		c.say("alani %d,%d,%d" % stand)
+		s(2)
+		ctx.check(c.pos == stand, "npcs_busy: %s is at %s, not at %s" % (key, c.pos, stand))
+		c.note("=== ADDRESS: hi, %s greets" % npc)
+		c.say("hi")
+		s(2)
+	for key, npc, _, _ in NPC_TALKERS:
+		who[key].note("=== %d rounds: a say every round, every third one a word %s answers" % (NPC_BUSY_ROUNDS, npc))
+	for i in range(NPC_BUSY_ROUNDS):
+		for key, _, _, answered in NPC_TALKERS:
+			if i % 3 == 0:
+				who[key].say(answered[i // 3 % len(answered)])
+			else:
+				who[key].say(NO_RULE_WORDS[i % 3 - 1])
+		s(1)
+	s(2)
+	for key, _, _, _ in NPC_TALKERS:
+		who[key].note("=== bye: Idle")
+		who[key].say("bye")
+	s(3)
+	for key, _, _, _ in NPC_TALKERS:
+		who[key].logout()
+		s(1)
+	s(3)

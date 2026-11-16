@@ -39,7 +39,7 @@ user = "usr"         # the old player files (NN/<id>.usr) querymanager-seed impo
 log = "log"          # the log files
 save = "save"        # game.pid, swapped-out sectors, patches, unsent player data
 monster = "mon"      # the monster races (*.mon) and raids (*.evt)
-npc = "npc"          # the NPCs (*.npc)
+npc = "npc"          # the original NPC files (*.npc, *.ndb); the game reads npcs.toml
 
 # The query managers, tried in this order (at most 10). password: the game's
 # password at the query manager as the original .tibia writes it; the game

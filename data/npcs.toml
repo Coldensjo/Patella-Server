@@ -1,0 +1,3397 @@
+# npcs.toml: the NPCs of the game server, converted from the original npc/*.npc
+# files by patella-convert. The game reads npcs.toml in its data folder ([paths]
+# data of config.toml) at start and makes the NPCs in the order of the file.
+# The order gives each NPC its creature ID and its turn among the creatures;
+# it is the order in which the original game read its files on the reference
+# installation (readdir of npc/). An unknown key, a missing one or a value of
+# the wrong type is an error.
+#
+# Each [[npc]] is one NPC, and every key is needed:
+#   name         Its name, 1 to 30 characters.
+#   sex          "male" or "female".
+#   race         Its race number, 1 to 511; the NPC gets the race's skills.
+#   outfit       What it looks like: { id = <outfit>, colors = [<head>,
+#                <body>, <legs>, <feet>] }, id 1 to 65535 and the colors 0 to
+#                255; or { id = 0, object_type = <type> } (0 to 65535) to look
+#                like an object.
+#   home         [x, y, z], x and y 0 to 65535, z 0 to 15: where it is placed
+#                at start, and the middle of the square it walks in.
+#   radius       How far it walks from home, in fields along x and y, 0 to
+#                65535, on home's floor.
+#   go_strength  Its GoStrength skill (its speed), 0 to 65535, set as the
+#                skill's value and maximum after the race's skills.
+#   script       Its behaviour, "npcs/<name>.lua", a script in the scripts
+#                folder (data/scripts/ in the repository) with the global
+#                functions onCreatureSay(npc, creature, text, situation) and
+#                onCreatureDisappear(npc, creature). The converted scripts hold
+#                the NPC's rules, which lib/npc.lua matches and runs.
+
+[[npc]]
+name = "Clark"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [19, 79, 98, 95] }
+home = [32636, 32796, 7]
+radius = 2
+go_strength = 2
+script = "npcs/clark.lua"
+
+[[npc]]
+name = "Hoggle"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [20, 46, 88, 94] }
+home = [32537, 32143, 6]
+radius = 3
+go_strength = 10
+script = "npcs/hoggle.lua"
+
+[[npc]]
+name = "Budrik"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [94, 76, 58, 95] }
+home = [32524, 31906, 8]
+radius = 4
+go_strength = 6
+script = "npcs/budrik.lua"
+
+[[npc]]
+name = "Vladruc"
+sex = "male"
+race = 1
+outfit = { id = 68, colors = [0, 0, 0, 0] }
+home = [32976, 32079, 5]
+radius = 2
+go_strength = 3
+script = "npcs/vladruc.lua"
+
+[[npc]]
+name = "Zebron"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 15, 109, 76] }
+home = [32931, 32071, 9]
+radius = 2
+go_strength = 4
+script = "npcs/zebron.lua"
+
+[[npc]]
+name = "Umar"
+sex = "male"
+race = 80
+outfit = { id = 80, colors = [0, 0, 0, 0] }
+home = [33102, 32531, 6]
+radius = 1
+go_strength = 5
+script = "npcs/umar.lua"
+
+[[npc]]
+name = "An Old Dragonlord"
+sex = "male"
+race = 39
+outfit = { id = 39, colors = [0, 0, 0, 0] }
+home = [32796, 31557, 2]
+radius = 3
+go_strength = 1
+script = "npcs/olddragon.lua"
+
+[[npc]]
+name = "Talphion"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [11, 86, 87, 106] }
+home = [32563, 31894, 12]
+radius = 2
+go_strength = 3
+script = "npcs/talphion.lua"
+
+[[npc]]
+name = "Tesha"
+sex = "female"
+race = 1
+outfit = { id = 140, colors = [77, 32, 81, 93] }
+home = [33135, 32821, 6]
+radius = 2
+go_strength = 2
+script = "npcs/tesha.lua"
+
+[[npc]]
+name = "Eroth"
+sex = "male"
+race = 62
+outfit = { id = 63, colors = [0, 0, 0, 0] }
+home = [32661, 31685, 6]
+radius = 4
+go_strength = 10
+script = "npcs/eroth.lua"
+
+[[npc]]
+name = "Eddy"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [60, 64, 0, 95] }
+home = [32168, 32431, 7]
+radius = 3
+go_strength = 10
+script = "npcs/eddy.lua"
+
+[[npc]]
+name = "Zerbrus"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [76, 38, 76, 95] }
+home = [32022, 32203, 6]
+radius = 1
+go_strength = 5
+script = "npcs/zerbrus.lua"
+
+[[npc]]
+name = "Feizuhl"
+sex = "male"
+race = 1
+outfit = { id = 133, colors = [98, 116, 43, 95] }
+home = [33066, 32886, 7]
+radius = 2
+go_strength = 10
+script = "npcs/feizuhl.lua"
+
+[[npc]]
+name = "Mehkesh"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [19, 92, 113, 40] }
+home = [33130, 32811, 5]
+radius = 2
+go_strength = 2
+script = "npcs/mehkesh.lua"
+
+[[npc]]
+name = "Elf Guard"
+sex = "male"
+race = 62
+outfit = { id = 63, colors = [0, 0, 0, 0] }
+home = [32642, 31709, 6]
+radius = 3
+go_strength = 6
+script = "npcs/elfguard.lua"
+
+[[npc]]
+name = "Dario"
+sex = "male"
+race = 62
+outfit = { id = 144, colors = [3, 58, 41, 115] }
+home = [33156, 32810, 4]
+radius = 1
+go_strength = 10
+script = "npcs/dario.lua"
+
+[[npc]]
+name = "Tim, the guard"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [19, 19, 19, 19] }
+home = [32428, 32226, 6]
+radius = 4
+go_strength = 6
+script = "npcs/tim.lua"
+
+[[npc]]
+name = "Quentin"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32369, 32239, 7]
+radius = 4
+go_strength = 10
+script = "npcs/quentin.lua"
+
+[[npc]]
+name = "Turvy"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [78, 52, 64, 115] }
+home = [32414, 32177, 7]
+radius = 2
+go_strength = 3
+script = "npcs/turvy.lua"
+
+[[npc]]
+name = "Gamon"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [97, 58, 105, 120] }
+home = [32408, 32170, 7]
+radius = 1
+go_strength = 5
+script = "npcs/gamon.lua"
+
+[[npc]]
+name = "Halif"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 2, 10, 131] }
+home = [33217, 32423, 7]
+radius = 0
+go_strength = 3
+script = "npcs/halif.lua"
+
+[[npc]]
+name = "Tibra"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [60, 92, 90, 95] }
+home = [32318, 31783, 7]
+radius = 3
+go_strength = 6
+script = "npcs/tibra.lua"
+
+[[npc]]
+name = "Barbara"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [78, 52, 64, 115] }
+home = [32320, 31752, 7]
+radius = 0
+go_strength = 10
+script = "npcs/barbara.lua"
+
+[[npc]]
+name = "Rodney"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 100, 116, 76] }
+home = [32971, 32041, 6]
+radius = 1
+go_strength = 7
+script = "npcs/rodney.lua"
+
+[[npc]]
+name = "Elvith"
+sex = "male"
+race = 62
+outfit = { id = 144, colors = [76, 3, 0, 76] }
+home = [32669, 31607, 7]
+radius = 1
+go_strength = 10
+script = "npcs/elvith.lua"
+
+[[npc]]
+name = "Nelliem"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [115, 100, 105, 76] }
+home = [32883, 32086, 6]
+radius = 2
+go_strength = 3
+script = "npcs/nelliem.lua"
+
+[[npc]]
+name = "Livielle"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [114, 94, 132, 132] }
+home = [32982, 32036, 6]
+radius = 2
+go_strength = 10
+script = "npcs/livielle.lua"
+
+[[npc]]
+name = "Albert"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [78, 0, 49, 95] }
+home = [33312, 31762, 7]
+radius = 3
+go_strength = 10
+script = "npcs/albert.lua"
+
+[[npc]]
+name = "Bozo"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [86, 93, 82, 79] }
+home = [32313, 32183, 7]
+radius = 3
+go_strength = 4
+script = "npcs/bozo.lua"
+
+[[npc]]
+name = "Lily"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [78, 101, 86, 115] }
+home = [32068, 32225, 7]
+radius = 2
+go_strength = 5
+script = "npcs/lily.lua"
+
+[[npc]]
+name = "Julian"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [55, 30, 23, 115] }
+home = [32883, 32076, 6]
+radius = 1
+go_strength = 10
+script = "npcs/julian.lua"
+
+[[npc]]
+name = "Hardek"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [96, 86, 63, 115] }
+home = [32272, 32339, 7]
+radius = 20
+go_strength = 10
+script = "npcs/hardek.lua"
+
+[[npc]]
+name = "Dallheim"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [76, 38, 76, 95] }
+home = [32093, 32180, 6]
+radius = 1
+go_strength = 10
+script = "npcs/dallheim.lua"
+
+[[npc]]
+name = "Hagor"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [19, 58, 105, 94] }
+home = [32654, 32151, 10]
+radius = 4
+go_strength = 10
+script = "npcs/hagor.lua"
+
+[[npc]]
+name = "Lea"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [59, 95, 94, 113] }
+home = [32348, 31828, 6]
+radius = 3
+go_strength = 10
+script = "npcs/lea.lua"
+
+[[npc]]
+name = "Blind Orc"
+sex = "male"
+race = 5
+outfit = { id = 5, colors = [0, 0, 0, 0] }
+home = [32102, 32130, 4]
+radius = 1
+go_strength = 5
+script = "npcs/blindorc.lua"
+
+[[npc]]
+name = "Stutch"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [79, 79, 79, 79] }
+home = [32310, 32170, 6]
+radius = 0
+go_strength = 10
+script = "npcs/stutch.lua"
+
+[[npc]]
+name = "Galuna"
+sex = "female"
+race = 1
+outfit = { id = 137, colors = [40, 96, 95, 96] }
+home = [32342, 32246, 6]
+radius = 2
+go_strength = 10
+script = "npcs/galuna.lua"
+
+[[npc]]
+name = "James"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 41, 45, 118] }
+home = [33280, 31771, 7]
+radius = 2
+go_strength = 5
+script = "npcs/james.lua"
+
+[[npc]]
+name = "Lightfoot"
+sex = "male"
+race = 1
+outfit = { id = 32, colors = [0, 0, 0, 0] }
+home = [32914, 32080, 6]
+radius = 14
+go_strength = 10
+script = "npcs/lightfoot.lua"
+
+[[npc]]
+name = "William"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 0, 67, 114] }
+home = [32314, 31802, 8]
+radius = 3
+go_strength = 15
+script = "npcs/william.lua"
+
+[[npc]]
+name = "Perac"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [78, 52, 68, 114] }
+home = [32295, 31784, 7]
+radius = 1
+go_strength = 10
+script = "npcs/perac.lua"
+
+[[npc]]
+name = "Morun"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [95, 5, 26, 76] }
+home = [33240, 32393, 6]
+radius = 2
+go_strength = 6
+script = "npcs/morun.lua"
+
+[[npc]]
+name = "Lee'Delle"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [78, 76, 72, 96] }
+home = [32024, 32196, 7]
+radius = 2
+go_strength = 6
+script = "npcs/leedelle.lua"
+
+[[npc]]
+name = "Partos"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [116, 56, 95, 122] }
+home = [32323, 32280, 8]
+radius = 1
+go_strength = 13
+script = "npcs/partos.lua"
+
+[[npc]]
+name = "Aldo"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [40, 37, 116, 76] }
+home = [32953, 32110, 6]
+radius = 2
+go_strength = 10
+script = "npcs/aldo.lua"
+
+[[npc]]
+name = "Dermot"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [76, 49, 19, 95] }
+home = [32165, 32437, 7]
+radius = 2
+go_strength = 10
+script = "npcs/dermot.lua"
+
+[[npc]]
+name = "Fenbala"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [77, 52, 64, 115] }
+home = [32320, 31755, 7]
+radius = 0
+go_strength = 10
+script = "npcs/fenbala.lua"
+
+[[npc]]
+name = "Chatterbone"
+sex = "male"
+race = 1
+outfit = { id = 18, colors = [0, 0, 0, 0] }
+home = [32981, 32080, 6]
+radius = 2
+go_strength = 10
+script = "npcs/chatterbone.lua"
+
+[[npc]]
+name = "Shanar"
+sex = "male"
+race = 62
+outfit = { id = 144, colors = [0, 93, 105, 76] }
+home = [32657, 31655, 8]
+radius = 1
+go_strength = 3
+script = "npcs/shanar.lua"
+
+[[npc]]
+name = "Mortimer"
+sex = "male"
+race = 1
+outfit = { id = 133, colors = [57, 113, 95, 113] }
+home = [32499, 31626, 7]
+radius = 1
+go_strength = 7
+script = "npcs/mortimer.lua"
+
+[[npc]]
+name = "A Lost Soul"
+sex = "male"
+race = 1
+outfit = { id = 48, colors = [0, 0, 0, 0] }
+home = [32209, 31924, 12]
+radius = 7
+go_strength = 7
+script = "npcs/soullost.lua"
+
+[[npc]]
+name = "Dixi"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [96, 99, 76, 115] }
+home = [32105, 32207, 6]
+radius = 1
+go_strength = 5
+script = "npcs/dixi.lua"
+
+[[npc]]
+name = "Myra"
+sex = "female"
+race = 1
+outfit = { id = 140, colors = [115, 0, 19, 95] }
+home = [32580, 32751, 6]
+radius = 0
+go_strength = 2
+script = "npcs/myra.lua"
+
+[[npc]]
+name = "Leeland"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [19, 36, 96, 76] }
+home = [32883, 32082, 5]
+radius = 1
+go_strength = 10
+script = "npcs/leeland.lua"
+
+[[npc]]
+name = "Thanita"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [78, 52, 64, 52] }
+home = [32535, 31773, 1]
+radius = 2
+go_strength = 3
+script = "npcs/thanita.lua"
+
+[[npc]]
+name = "Lorek"
+sex = "male"
+race = 1
+outfit = { id = 132, colors = [19, 10, 38, 95] }
+home = [32679, 32775, 7]
+radius = 0
+go_strength = 1
+script = "npcs/lorek.lua"
+
+[[npc]]
+name = "Imalas"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 10, 39, 114] }
+home = [32334, 31801, 7]
+radius = 1
+go_strength = 10
+script = "npcs/imalas.lua"
+
+[[npc]]
+name = "Padreia"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [0, 87, 85, 95] }
+home = [32300, 31816, 7]
+radius = 2
+go_strength = 10
+script = "npcs/padreia.lua"
+
+[[npc]]
+name = "Ubaid"
+sex = "male"
+race = 51
+outfit = { id = 51, colors = [0, 0, 0, 0] }
+home = [33046, 32622, 6]
+radius = 1
+go_strength = 5
+script = "npcs/ubaid.lua"
+
+[[npc]]
+name = "Noodles"
+sex = "male"
+race = 32
+outfit = { id = 32, colors = [0, 0, 0, 0] }
+home = [32315, 32178, 6]
+radius = 2
+go_strength = 2
+script = "npcs/noodles.lua"
+
+[[npc]]
+name = "Gurbasch"
+sex = "male"
+race = 69
+outfit = { id = 66, colors = [0, 0, 0, 0] }
+home = [33313, 31989, 15]
+radius = 2
+go_strength = 3
+script = "npcs/gurbasch.lua"
+
+[[npc]]
+name = "Carina"
+sex = "female"
+race = 69
+outfit = { id = 138, colors = [97, 70, 94, 76] }
+home = [33015, 32048, 6]
+radius = 1
+go_strength = 10
+script = "npcs/carina.lua"
+
+[[npc]]
+name = "Frodo"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [58, 68, 109, 131] }
+home = [32356, 32209, 7]
+radius = 3
+go_strength = 10
+script = "npcs/frodo.lua"
+
+[[npc]]
+name = "Humgolf"
+sex = "male"
+race = 69
+outfit = { id = 69, colors = [0, 0, 0, 0] }
+home = [32598, 31880, 9]
+radius = 2
+go_strength = 3
+script = "npcs/humgolf.lua"
+
+[[npc]]
+name = "Sherry McRonald"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [78, 94, 38, 58] }
+home = [32390, 32241, 7]
+radius = 2
+go_strength = 10
+script = "npcs/sherry.lua"
+
+[[npc]]
+name = "Riddler"
+sex = "male"
+race = 48
+outfit = { id = 48, colors = [0, 0, 0, 0] }
+home = [32479, 31902, 2]
+radius = 5
+go_strength = 10
+script = "npcs/riddler.lua"
+
+[[npc]]
+name = "Amanda"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [96, 95, 0, 95] }
+home = [33222, 31814, 8]
+radius = 5
+go_strength = 10
+script = "npcs/amanda.lua"
+
+[[npc]]
+name = "Christoph"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [113, 113, 113, 115] }
+home = [32885, 32031, 6]
+radius = 10
+go_strength = 6
+script = "npcs/christoph.lua"
+
+[[npc]]
+name = "Marvik"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [0, 101, 121, 95] }
+home = [32444, 32213, 8]
+radius = 4
+go_strength = 10
+script = "npcs/marvik.lua"
+
+[[npc]]
+name = "Etzel"
+sex = "male"
+race = 69
+outfit = { id = 66, colors = [0, 0, 0, 0] }
+home = [32626, 31917, 5]
+radius = 3
+go_strength = 2
+script = "npcs/etzel.lua"
+
+[[npc]]
+name = "A Strange Fellow"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [76, 43, 38, 76] }
+home = [32910, 32077, 9]
+radius = 3
+go_strength = 4
+script = "npcs/stranger.lua"
+
+[[npc]]
+name = "Dalbrect"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [76, 97, 105, 76] }
+home = [32211, 31756, 7]
+radius = 5
+go_strength = 5
+script = "npcs/windtrouser.lua"
+
+[[npc]]
+name = "Bonifacius"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [59, 82, 58, 95] }
+home = [33165, 31801, 7]
+radius = 1
+go_strength = 7
+script = "npcs/bonifacius.lua"
+
+[[npc]]
+name = "Uzon"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [95, 5, 18, 76] }
+home = [32537, 31836, 4]
+radius = 1
+go_strength = 10
+script = "npcs/uzon.lua"
+
+[[npc]]
+name = "Captain Sinbeard"
+sex = "male"
+race = 1
+outfit = { id = 134, colors = [95, 10, 56, 77] }
+home = [33094, 32884, 6]
+radius = 2
+go_strength = 5
+script = "npcs/captain7.lua"
+
+[[npc]]
+name = "Avar Tar"
+sex = "male"
+race = 1
+outfit = { id = 73, colors = [0, 0, 0, 0] }
+home = [33250, 31764, 7]
+radius = 4
+go_strength = 10
+script = "npcs/avar.lua"
+
+[[npc]]
+name = "Willard"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [58, 104, 19, 116] }
+home = [33214, 31793, 6]
+radius = 3
+go_strength = 10
+script = "npcs/willard.lua"
+
+[[npc]]
+name = "Frans"
+sex = "male"
+race = 1
+outfit = { id = 0, object_type = 3114 }
+home = [32971, 32080, 6]
+radius = 1
+go_strength = 10
+script = "npcs/frans.lua"
+
+[[npc]]
+name = "Ulrik"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [60, 70, 97, 95] }
+home = [32282, 32056, 7]
+radius = 2
+go_strength = 10
+script = "npcs/ulrik.lua"
+
+[[npc]]
+name = "Puffels"
+sex = "male"
+race = 1
+outfit = { id = 21, colors = [0, 0, 0, 0] }
+home = [33269, 31850, 8]
+radius = 4
+go_strength = 40
+script = "npcs/puffels.lua"
+
+[[npc]]
+name = "Nemal"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [57, 97, 45, 115] }
+home = [32615, 32108, 10]
+radius = 4
+go_strength = 10
+script = "npcs/nemal.lua"
+
+[[npc]]
+name = "Lorbas"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32695, 32310, 7]
+radius = 2
+go_strength = 2
+script = "npcs/lorbas.lua"
+
+[[npc]]
+name = "Ukea"
+sex = "female"
+race = 62
+outfit = { id = 144, colors = [78, 58, 64, 58] }
+home = [32651, 31665, 6]
+radius = 2
+go_strength = 5
+script = "npcs/ukea.lua"
+
+[[npc]]
+name = "Muriel"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [115, 94, 97, 57] }
+home = [32296, 32263, 7]
+radius = 2
+go_strength = 10
+script = "npcs/muriel.lua"
+
+[[npc]]
+name = "Gabel"
+sex = "male"
+race = 80
+outfit = { id = 80, colors = [0, 0, 0, 0] }
+home = [33102, 32520, 1]
+radius = 1
+go_strength = 8
+script = "npcs/gabel.lua"
+
+[[npc]]
+name = "Djema"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [77, 9, 86, 131] }
+home = [33101, 32520, 3]
+radius = 2
+go_strength = 10
+script = "npcs/djema.lua"
+
+[[npc]]
+name = "Mugluf"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 0, 0, 96] }
+home = [33220, 32416, 7]
+radius = 0
+go_strength = 7
+script = "npcs/mugluf.lua"
+
+[[npc]]
+name = "Cornelia"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [95, 57, 102, 115] }
+home = [32334, 31796, 7]
+radius = 3
+go_strength = 10
+script = "npcs/cornelia.lua"
+
+[[npc]]
+name = "Marlene"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [96, 111, 16, 96] }
+home = [32483, 31624, 7]
+radius = 3
+go_strength = 5
+script = "npcs/marlene.lua"
+
+[[npc]]
+name = "The Orc King"
+sex = "male"
+race = 1
+outfit = { id = 19, colors = [0, 0, 0, 0] }
+home = [32983, 31728, 9]
+radius = 3
+go_strength = 11
+script = "npcs/orcking.lua"
+
+[[npc]]
+name = "Tulf"
+sex = "male"
+race = 69
+outfit = { id = 71, colors = [0, 0, 0, 0] }
+home = [32586, 31928, 3]
+radius = 2
+go_strength = 6
+script = "npcs/tulf.lua"
+
+[[npc]]
+name = "Cipfried"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32097, 32217, 7]
+radius = 1
+go_strength = 10
+script = "npcs/cipfried.lua"
+
+[[npc]]
+name = "Maryza"
+sex = "female"
+race = 69
+outfit = { id = 160, colors = [60, 110, 58, 76] }
+home = [32634, 31889, 9]
+radius = 3
+go_strength = 4
+script = "npcs/maryza.lua"
+
+[[npc]]
+name = "A Tainted Soul"
+sex = "male"
+race = 1
+outfit = { id = 48, colors = [0, 0, 0, 0] }
+home = [32216, 31927, 12]
+radius = 7
+go_strength = 7
+script = "npcs/soultainted.lua"
+
+[[npc]]
+name = "Nezil"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [115, 78, 116, 57] }
+home = [32661, 31912, 9]
+radius = 8
+go_strength = 3
+script = "npcs/nezil.lua"
+
+[[npc]]
+name = "Odemara"
+sex = "female"
+race = 69
+outfit = { id = 138, colors = [22, 99, 5, 76] }
+home = [33015, 32058, 6]
+radius = 1
+go_strength = 10
+script = "npcs/odemara.lua"
+
+[[npc]]
+name = "King Tibianus"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [21, 87, 107, 95] }
+home = [32311, 32171, 6]
+radius = 1
+go_strength = 10
+script = "npcs/king.lua"
+
+[[npc]]
+name = "Basilisk"
+sex = "male"
+race = 28
+outfit = { id = 28, colors = [0, 0, 0, 0] }
+home = [32641, 31943, 15]
+radius = 2
+go_strength = 5
+script = "npcs/basilisk.lua"
+
+[[npc]]
+name = "Costello"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32180, 31936, 7]
+radius = 3
+go_strength = 4
+script = "npcs/costello.lua"
+
+[[npc]]
+name = "Adrenius"
+sex = "male"
+race = 1
+outfit = { id = 9, colors = [0, 0, 0, 0] }
+home = [32660, 32112, 8]
+radius = 2
+go_strength = 10
+script = "npcs/adrenius.lua"
+
+[[npc]]
+name = "Obi"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [39, 63, 96, 38] }
+home = [32109, 32204, 7]
+radius = 1
+go_strength = 5
+script = "npcs/obi.lua"
+
+[[npc]]
+name = "Harsky"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [79, 79, 79, 79] }
+home = [32312, 32170, 6]
+radius = 0
+go_strength = 10
+script = "npcs/harsky.lua"
+
+[[npc]]
+name = "Dane"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [79, 58, 86, 96] }
+home = [32308, 31838, 8]
+radius = 3
+go_strength = 10
+script = "npcs/dane.lua"
+
+[[npc]]
+name = "Nah'bob"
+sex = "male"
+race = 80
+outfit = { id = 80, colors = [0, 0, 0, 0] }
+home = [33104, 32520, 2]
+radius = 1
+go_strength = 20
+script = "npcs/nahbob.lua"
+
+[[npc]]
+name = "Rahkem"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [0, 77, 87, 116] }
+home = [33194, 32848, 7]
+radius = 2
+go_strength = 2
+script = "npcs/rahkem.lua"
+
+[[npc]]
+name = "Ebenizer"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [59, 95, 87, 76] }
+home = [33175, 31801, 7]
+radius = 1
+go_strength = 10
+script = "npcs/ebenizer.lua"
+
+[[npc]]
+name = "Sigurd"
+sex = "male"
+race = 69
+outfit = { id = 69, colors = [0, 0, 0, 0] }
+home = [32626, 31923, 5]
+radius = 8
+go_strength = 3
+script = "npcs/sigurd.lua"
+
+[[npc]]
+name = "Graubart"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [98, 87, 12, 114] }
+home = [32489, 31622, 7]
+radius = 2
+go_strength = 5
+script = "npcs/graubart.lua"
+
+[[npc]]
+name = "Perod"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [58, 68, 12, 114] }
+home = [32635, 32739, 5]
+radius = 3
+go_strength = 10
+script = "npcs/perod.lua"
+
+[[npc]]
+name = "Velvet"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [59, 96, 115, 95] }
+home = [32943, 32104, 6]
+radius = 1
+go_strength = 10
+script = "npcs/velvet.lua"
+
+[[npc]]
+name = "Gorn"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [58, 68, 101, 95] }
+home = [32377, 32200, 7]
+radius = 3
+go_strength = 10
+script = "npcs/gorn.lua"
+
+[[npc]]
+name = "Cobra"
+sex = "male"
+race = 1
+outfit = { id = 0, object_type = 2051 }
+home = [33366, 32855, 14]
+radius = 0
+go_strength = 0
+script = "npcs/cobra.lua"
+
+[[npc]]
+name = "A Sweaty Cyclops"
+sex = "male"
+race = 22
+outfit = { id = 22, colors = [0, 0, 0, 0] }
+home = [32697, 31674, 3]
+radius = 2
+go_strength = 3
+script = "npcs/bigben.lua"
+
+[[npc]]
+name = "Bunny Bonecrusher"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [96, 3, 79, 115] }
+home = [32315, 31756, 6]
+radius = 2
+go_strength = 6
+script = "npcs/bunny.lua"
+
+[[npc]]
+name = "Jakahr"
+sex = "male"
+race = 1
+outfit = { id = 133, colors = [95, 37, 32, 40] }
+home = [33066, 32876, 7]
+radius = 1
+go_strength = 10
+script = "npcs/jakahr.lua"
+
+[[npc]]
+name = "Maealil"
+sex = "female"
+race = 62
+outfit = { id = 63, colors = [0, 0, 0, 0] }
+home = [32732, 31631, 7]
+radius = 3
+go_strength = 10
+script = "npcs/maealil.lua"
+
+[[npc]]
+name = "Boozer"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [76, 20, 116, 76] }
+home = [32921, 32068, 5]
+radius = 1
+go_strength = 8
+script = "npcs/boozer.lua"
+
+[[npc]]
+name = "Xodet"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [19, 86, 87, 95] }
+home = [32399, 32222, 7]
+radius = 1
+go_strength = 10
+script = "npcs/xodet.lua"
+
+[[npc]]
+name = "Brasith"
+sex = "male"
+race = 62
+outfit = { id = 144, colors = [60, 94, 58, 76] }
+home = [32692, 31589, 7]
+radius = 1
+go_strength = 10
+script = "npcs/brasith.lua"
+
+[[npc]]
+name = "Thomas"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [116, 11, 101, 76] }
+home = [33256, 31838, 4]
+radius = 2
+go_strength = 7
+script = "npcs/thomas.lua"
+
+[[npc]]
+name = "An Apparition"
+sex = "male"
+race = 1
+outfit = { id = 48, colors = [0, 0, 0, 0] }
+home = [32204, 31788, 5]
+radius = 7
+go_strength = 7
+script = "npcs/apparition.lua"
+
+[[npc]]
+name = "Rachel"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [58, 84, 86, 114] }
+home = [32343, 31828, 7]
+radius = 1
+go_strength = 5
+script = "npcs/rachel.lua"
+
+[[npc]]
+name = "Eva"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [96, 60, 95, 0] }
+home = [32325, 31780, 7]
+radius = 1
+go_strength = 5
+script = "npcs/eva.lua"
+
+[[npc]]
+name = "Sylvester"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [113, 113, 113, 115] }
+home = [32897, 32145, 4]
+radius = 3
+go_strength = 6
+script = "npcs/sylvester.lua"
+
+[[npc]]
+name = "Zaidal"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [76, 43, 77, 76] }
+home = [32621, 32747, 5]
+radius = 0
+go_strength = 2
+script = "npcs/zaidal.lua"
+
+[[npc]]
+name = "Vera"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [59, 96, 115, 95] }
+home = [32138, 31672, 7]
+radius = 1
+go_strength = 10
+script = "npcs/vera.lua"
+
+[[npc]]
+name = "Omur"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 0, 6, 116] }
+home = [33228, 32416, 7]
+radius = 0
+go_strength = 7
+script = "npcs/omur.lua"
+
+[[npc]]
+name = "Jezzara"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [3, 43, 91, 97] }
+home = [33126, 32821, 6]
+radius = 2
+go_strength = 2
+script = "npcs/jezzara.lua"
+
+[[npc]]
+name = "Trimegis"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [57, 109, 94, 0] }
+home = [32307, 32185, 5]
+radius = 1
+go_strength = 10
+script = "npcs/trimegis.lua"
+
+[[npc]]
+name = "Legola"
+sex = "female"
+race = 1
+outfit = { id = 137, colors = [72, 105, 105, 95] }
+home = [32298, 31784, 7]
+radius = 2
+go_strength = 10
+script = "npcs/legola.lua"
+
+[[npc]]
+name = "Simon the Beggar"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [116, 123, 32, 40] }
+home = [32186, 32468, 7]
+radius = 4
+go_strength = 10
+script = "npcs/simon.lua"
+
+[[npc]]
+name = "Kazzan"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [95, 13, 15, 76] }
+home = [33231, 32389, 6]
+radius = 1
+go_strength = 6
+script = "npcs/kazzan.lua"
+
+[[npc]]
+name = "Anderson"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [79, 113, 68, 67] }
+home = [32127, 31660, 7]
+radius = 1
+go_strength = 5
+script = "npcs/ferryman2.lua"
+
+[[npc]]
+name = "Karl"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [58, 68, 109, 131] }
+home = [32318, 31797, 8]
+radius = 3
+go_strength = 8
+script = "npcs/karl.lua"
+
+[[npc]]
+name = "Ferks"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [78, 52, 118, 115] }
+home = [32634, 32738, 6]
+radius = 0
+go_strength = 2
+script = "npcs/ferks.lua"
+
+[[npc]]
+name = "Yberius"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32961, 32076, 7]
+radius = 2
+go_strength = 10
+script = "npcs/yberius.lua"
+
+[[npc]]
+name = "Rokyn"
+sex = "male"
+race = 1
+outfit = { id = 160, colors = [58, 87, 57, 95] }
+home = [33021, 32053, 6]
+radius = 2
+go_strength = 10
+script = "npcs/rokyn.lua"
+
+[[npc]]
+name = "Arnold"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [113, 113, 113, 115] }
+home = [32945, 32070, 6]
+radius = 6
+go_strength = 6
+script = "npcs/arnold.lua"
+
+[[npc]]
+name = "Willie"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [58, 63, 58, 115] }
+home = [32047, 32204, 7]
+radius = 2
+go_strength = 8
+script = "npcs/willie.lua"
+
+[[npc]]
+name = "Kevin"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [76, 43, 38, 76] }
+home = [32569, 32018, 6]
+radius = 2
+go_strength = 4
+script = "npcs/kevin.lua"
+
+[[npc]]
+name = "Mirabell"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [96, 12, 87, 77] }
+home = [33174, 31801, 6]
+radius = 1
+go_strength = 8
+script = "npcs/mirabell.lua"
+
+[[npc]]
+name = "Hyacinth"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [11, 123, 123, 94] }
+home = [32137, 32171, 4]
+radius = 1
+go_strength = 5
+script = "npcs/hyacinth.lua"
+
+[[npc]]
+name = "Queen Eloise"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [96, 94, 79, 115] }
+home = [32315, 31753, 7]
+radius = 2
+go_strength = 10
+script = "npcs/queen.lua"
+
+[[npc]]
+name = "Ustan"
+sex = "male"
+race = 1
+outfit = { id = 132, colors = [0, 24, 13, 76] }
+home = [32580, 32757, 6]
+radius = 0
+go_strength = 2
+script = "npcs/ustan.lua"
+
+[[npc]]
+name = "Nydala"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [76, 86, 86, 96] }
+home = [32327, 31827, 7]
+radius = 1
+go_strength = 5
+script = "npcs/nydala.lua"
+
+[[npc]]
+name = "Ishebad"
+sex = "male"
+race = 1
+outfit = { id = 65, colors = [0, 0, 0, 0] }
+home = [33158, 32848, 7]
+radius = 1
+go_strength = 2
+script = "npcs/ishebad.lua"
+
+[[npc]]
+name = "Dagomir"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [0, 2, 41, 76] }
+home = [33018, 32047, 5]
+radius = 0
+go_strength = 2
+script = "npcs/dagomir.lua"
+
+[[npc]]
+name = "Trisha"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [94, 67, 38, 95] }
+home = [32348, 31748, 7]
+radius = 3
+go_strength = 10
+script = "npcs/trisha.lua"
+
+[[npc]]
+name = "Fa'hradin"
+sex = "male"
+race = 80
+outfit = { id = 80, colors = [0, 0, 0, 0] }
+home = [33106, 32541, 5]
+radius = 1
+go_strength = 10
+script = "npcs/fahradin.lua"
+
+[[npc]]
+name = "Roderick"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [38, 129, 129, 19] }
+home = [32672, 31699, 6]
+radius = 4
+go_strength = 10
+script = "npcs/roderick.lua"
+
+[[npc]]
+name = "Lector"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [79, 38, 0, 124] }
+home = [32351, 31795, 7]
+radius = 3
+go_strength = 10
+script = "npcs/lector.lua"
+
+[[npc]]
+name = "Bruno"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [113, 10, 95, 95] }
+home = [32486, 31604, 7]
+radius = 1
+go_strength = 5
+script = "npcs/bruno.lua"
+
+[[npc]]
+name = "Elathriel"
+sex = "male"
+race = 62
+outfit = { id = 64, colors = [0, 0, 0, 0] }
+home = [32684, 31671, 9]
+radius = 4
+go_strength = 7
+script = "npcs/elathriel.lua"
+
+[[npc]]
+name = "Ahmet"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [38, 40, 39, 114] }
+home = [33126, 32810, 6]
+radius = 2
+go_strength = 2
+script = "npcs/ahmet.lua"
+
+[[npc]]
+name = "Angelina"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [57, 79, 98, 95] }
+home = [32635, 32402, 10]
+radius = 1
+go_strength = 1
+script = "npcs/angelina.lua"
+
+[[npc]]
+name = "Carlson"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [19, 113, 68, 67] }
+home = [32029, 31692, 7]
+radius = 2
+go_strength = 5
+script = "npcs/ferryman4.lua"
+
+[[npc]]
+name = "Azil"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [95, 10, 12, 119] }
+home = [33217, 32431, 7]
+radius = 0
+go_strength = 7
+script = "npcs/azil.lua"
+
+[[npc]]
+name = "The Queen of the Banshee"
+sex = "female"
+race = 1
+outfit = { id = 78, colors = [0, 0, 0, 0] }
+home = [32260, 31863, 14]
+radius = 6
+go_strength = 25
+script = "npcs/bansheequeen.lua"
+
+[[npc]]
+name = "Old Adall"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [95, 26, 115, 76] }
+home = [32628, 32772, 7]
+radius = 2
+go_strength = 2
+script = "npcs/oldadall.lua"
+
+[[npc]]
+name = "Edoch"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [95, 0, 40, 116] }
+home = [33232, 32430, 7]
+radius = 0
+go_strength = 4
+script = "npcs/edoch.lua"
+
+[[npc]]
+name = "Tothdral"
+sex = "male"
+race = 1
+outfit = { id = 65, colors = [0, 0, 0, 0] }
+home = [33148, 32867, 6]
+radius = 2
+go_strength = 2
+script = "npcs/tothdral.lua"
+
+[[npc]]
+name = "Captain Seahorse"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [19, 113, 95, 115] }
+home = [33176, 31764, 6]
+radius = 2
+go_strength = 5
+script = "npcs/captain4.lua"
+
+[[npc]]
+name = "Tokel"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [78, 96, 30, 114] }
+home = [32256, 32056, 7]
+radius = 3
+go_strength = 5
+script = "npcs/tokel.lua"
+
+[[npc]]
+name = "Grof, the guard"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [19, 19, 19, 19] }
+home = [32373, 32184, 7]
+radius = 3
+go_strength = 6
+script = "npcs/grof.lua"
+
+[[npc]]
+name = "Benjamin"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [116, 79, 117, 76] }
+home = [32350, 32219, 7]
+radius = 1
+go_strength = 10
+script = "npcs/benjamin.lua"
+
+[[npc]]
+name = "Edvard"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [59, 115, 96, 95] }
+home = [33229, 31831, 7]
+radius = 3
+go_strength = 5
+script = "npcs/edvard.lua"
+
+[[npc]]
+name = "Captain Greyhound"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [96, 113, 95, 115] }
+home = [32388, 31822, 6]
+radius = 2
+go_strength = 5
+script = "npcs/captain2.lua"
+
+[[npc]]
+name = "Haroun"
+sex = "male"
+race = 80
+outfit = { id = 80, colors = [0, 0, 0, 0] }
+home = [33108, 32525, 4]
+radius = 1
+go_strength = 10
+script = "npcs/haroun.lua"
+
+[[npc]]
+name = "Chemar"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [95, 3, 14, 76] }
+home = [33270, 32439, 6]
+radius = 2
+go_strength = 10
+script = "npcs/chemar.lua"
+
+[[npc]]
+name = "Uso"
+sex = "male"
+race = 1
+outfit = { id = 160, colors = [79, 39, 77, 115] }
+home = [32580, 32756, 8]
+radius = 2
+go_strength = 2
+script = "npcs/uso.lua"
+
+[[npc]]
+name = "Bambi Bonecrusher"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [96, 19, 68, 95] }
+home = [32341, 31749, 7]
+radius = 2
+go_strength = 6
+script = "npcs/bambi.lua"
+
+[[npc]]
+name = "Zoltan"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [95, 94, 95, 57] }
+home = [33268, 31849, 4]
+radius = 3
+go_strength = 8
+script = "npcs/zoltan.lua"
+
+[[npc]]
+name = "Harkath Bloodblade"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [76, 38, 38, 76] }
+home = [32342, 32184, 7]
+radius = 2
+go_strength = 6
+script = "npcs/blood.lua"
+
+[[npc]]
+name = "Rose"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [79, 77, 112, 116] }
+home = [32971, 32034, 6]
+radius = 2
+go_strength = 5
+script = "npcs/rose.lua"
+
+[[npc]]
+name = "Billy"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [58, 63, 58, 115] }
+home = [32037, 32205, 7]
+radius = 3
+go_strength = 6
+script = "npcs/billy.lua"
+
+[[npc]]
+name = "A Wrinkled Beholder"
+sex = "male"
+race = 17
+outfit = { id = 17, colors = [0, 0, 0, 0] }
+home = [32788, 31690, 13]
+radius = 10
+go_strength = 3
+script = "npcs/beholder.lua"
+
+[[npc]]
+name = "Kroox"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [0, 100, 105, 76] }
+home = [32650, 31887, 9]
+radius = 6
+go_strength = 6
+script = "npcs/kroox.lua"
+
+[[npc]]
+name = "Sandra"
+sex = "female"
+race = 1
+outfit = { id = 137, colors = [115, 63, 95, 38] }
+home = [33258, 31840, 7]
+radius = 2
+go_strength = 7
+script = "npcs/sandra.lua"
+
+[[npc]]
+name = "Hanna"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [113, 65, 0, 96] }
+home = [32407, 32219, 7]
+radius = 2
+go_strength = 10
+script = "npcs/hanna.lua"
+
+[[npc]]
+name = "Malor"
+sex = "male"
+race = 51
+outfit = { id = 51, colors = [0, 0, 0, 0] }
+home = [33044, 32621, 1]
+radius = 1
+go_strength = 10
+script = "npcs/malor.lua"
+
+[[npc]]
+name = "Asrak"
+sex = "male"
+race = 1
+outfit = { id = 29, colors = [0, 0, 0, 0] }
+home = [32932, 32074, 11]
+radius = 2
+go_strength = 10
+script = "npcs/asrak.lua"
+
+[[npc]]
+name = "Briasol"
+sex = "male"
+race = 62
+outfit = { id = 144, colors = [3, 86, 87, 76] }
+home = [32635, 31667, 8]
+radius = 1
+go_strength = 10
+script = "npcs/briasol.lua"
+
+[[npc]]
+name = "Captain Fearless"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [19, 113, 95, 115] }
+home = [32955, 32022, 6]
+radius = 2
+go_strength = 5
+script = "npcs/captain5.lua"
+
+[[npc]]
+name = "Duria"
+sex = "female"
+race = 69
+outfit = { id = 70, colors = [0, 0, 0, 0] }
+home = [32617, 31938, 8]
+radius = 3
+go_strength = 4
+script = "npcs/duria.lua"
+
+[[npc]]
+name = "Tandros"
+sex = "male"
+race = 1
+outfit = { id = 132, colors = [78, 79, 113, 95] }
+home = [32621, 32739, 5]
+radius = 0
+go_strength = 2
+script = "npcs/tandros.lua"
+
+[[npc]]
+name = "Borkas"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [77, 43, 38, 76] }
+home = [32992, 32068, 6]
+radius = 2
+go_strength = 10
+script = "npcs/borkas.lua"
+
+[[npc]]
+name = "Muzir"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 4, 11, 76] }
+home = [33222, 32390, 7]
+radius = 1
+go_strength = 10
+script = "npcs/muzir.lua"
+
+[[npc]]
+name = "Angus"
+sex = "male"
+race = 1
+outfit = { id = 133, colors = [57, 113, 95, 113] }
+home = [32670, 32730, 7]
+radius = 1
+go_strength = 7
+script = "npcs/angus.lua"
+
+[[npc]]
+name = "Alesar"
+sex = "male"
+race = 80
+outfit = { id = 80, colors = [0, 0, 0, 0] }
+home = [33048, 32621, 5]
+radius = 1
+go_strength = 5
+script = "npcs/alesar.lua"
+
+[[npc]]
+name = "A Ghostly Woman"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [0, 0, 0, 0] }
+home = [32191, 31811, 5]
+radius = 7
+go_strength = 7
+script = "npcs/spooky.lua"
+
+[[npc]]
+name = "Dabui"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [95, 10, 26, 76] }
+home = [33229, 32409, 7]
+radius = 1
+go_strength = 6
+script = "npcs/dabui.lua"
+
+[[npc]]
+name = "Warbert"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [113, 113, 113, 115] }
+home = [32935, 32141, 6]
+radius = 10
+go_strength = 6
+script = "npcs/warbert.lua"
+
+[[npc]]
+name = "Ursula"
+sex = "female"
+race = 54
+outfit = { id = 54, colors = [0, 0, 0, 0] }
+home = [33268, 31849, 7]
+radius = 3
+go_strength = 8
+script = "npcs/ursula.lua"
+
+[[npc]]
+name = "Urkalio"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [39, 40, 118, 76] }
+home = [32913, 32081, 10]
+radius = 1
+go_strength = 8
+script = "npcs/urkalio.lua"
+
+[[npc]]
+name = "Captain Seagull"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [60, 113, 95, 115] }
+home = [32735, 31668, 6]
+radius = 2
+go_strength = 5
+script = "npcs/captain3.lua"
+
+[[npc]]
+name = "Nielson"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [114, 113, 68, 67] }
+home = [32232, 31677, 7]
+radius = 2
+go_strength = 5
+script = "npcs/ferryman1.lua"
+
+[[npc]]
+name = "Alia"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [96, 95, 0, 95] }
+home = [32360, 31785, 7]
+radius = 2
+go_strength = 10
+script = "npcs/alia.lua"
+
+[[npc]]
+name = "Dustrunner"
+sex = "male"
+race = 1
+outfit = { id = 32, colors = [0, 0, 0, 0] }
+home = [32914, 32076, 6]
+radius = 14
+go_strength = 10
+script = "npcs/dustrunner.lua"
+
+[[npc]]
+name = "Kasmir"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [76, 0, 38, 95] }
+home = [33212, 32452, 1]
+radius = 3
+go_strength = 7
+script = "npcs/kasmir.lua"
+
+[[npc]]
+name = "Miraia"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [95, 0, 7, 115] }
+home = [33238, 32483, 7]
+radius = 1
+go_strength = 4
+script = "npcs/miraia.lua"
+
+[[npc]]
+name = "Faluae"
+sex = "female"
+race = 62
+outfit = { id = 62, colors = [0, 0, 0, 0] }
+home = [32660, 31673, 7]
+radius = 5
+go_strength = 10
+script = "npcs/faluae.lua"
+
+[[npc]]
+name = "A Tortured Soul"
+sex = "male"
+race = 1
+outfit = { id = 48, colors = [0, 0, 0, 0] }
+home = [32207, 31928, 12]
+radius = 7
+go_strength = 7
+script = "npcs/soultortured.lua"
+
+[[npc]]
+name = "Dove"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [59, 86, 106, 115] }
+home = [32919, 32075, 7]
+radius = 1
+go_strength = 10
+script = "npcs/dove.lua"
+
+[[npc]]
+name = "Busty Bonecrusher"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [96, 19, 66, 95] }
+home = [32294, 31791, 7]
+radius = 3
+go_strength = 6
+script = "npcs/busty.lua"
+
+[[npc]]
+name = "Gundralph"
+sex = "male"
+race = 9
+outfit = { id = 9, colors = [0, 0, 0, 0] }
+home = [33268, 31849, 5]
+radius = 3
+go_strength = 8
+script = "npcs/gundralph.lua"
+
+[[npc]]
+name = "Suzy"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [78, 10, 96, 95] }
+home = [32320, 32258, 7]
+radius = 2
+go_strength = 10
+script = "npcs/suzy.lua"
+
+[[npc]]
+name = "Emperor Kruzak"
+sex = "male"
+race = 69
+outfit = { id = 66, colors = [0, 0, 0, 0] }
+home = [32627, 31923, 3]
+radius = 1
+go_strength = 4
+script = "npcs/kruzak.lua"
+
+[[npc]]
+name = "Chephan"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [2, 26, 115, 76] }
+home = [32890, 32077, 6]
+radius = 1
+go_strength = 10
+script = "npcs/chephan.lua"
+
+[[npc]]
+name = "Maria"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [77, 79, 61, 131] }
+home = [32912, 32082, 9]
+radius = 1
+go_strength = 8
+script = "npcs/maria.lua"
+
+[[npc]]
+name = "Penny"
+sex = "female"
+race = 1
+outfit = { id = 137, colors = [96, 79, 95, 96] }
+home = [32315, 31936, 7]
+radius = 2
+go_strength = 10
+script = "npcs/penny.lua"
+
+[[npc]]
+name = "Loria"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [96, 118, 82, 95] }
+home = [32385, 32131, 7]
+radius = 10
+go_strength = 10
+script = "npcs/loria.lua"
+
+[[npc]]
+name = "The Oracle"
+sex = "female"
+race = 1
+outfit = { id = 0, object_type = 2031 }
+home = [32104, 32190, 6]
+radius = 0
+go_strength = 1
+script = "npcs/oracle.lua"
+
+[[npc]]
+name = "Blossom Bonecrusher"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [96, 19, 63, 95] }
+home = [32390, 31787, 7]
+radius = 3
+go_strength = 6
+script = "npcs/blossom.lua"
+
+[[npc]]
+name = "Yoem"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [41, 112, 105, 96] }
+home = [33305, 31966, 7]
+radius = 2
+go_strength = 10
+script = "npcs/yoem.lua"
+
+[[npc]]
+name = "Jimbin"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [97, 69, 58, 76] }
+home = [32636, 31886, 9]
+radius = 3
+go_strength = 4
+script = "npcs/jimbin.lua"
+
+[[npc]]
+name = "Abran Ironeye"
+sex = "male"
+race = 1
+outfit = { id = 73, colors = [0, 0, 0, 0] }
+home = [32907, 32116, 5]
+radius = 2
+go_strength = 10
+script = "npcs/ironeye.lua"
+
+[[npc]]
+name = "Digger"
+sex = "male"
+race = 1
+outfit = { id = 9, colors = [0, 0, 0, 0] }
+home = [32970, 32087, 6]
+radius = 1
+go_strength = 10
+script = "npcs/digger.lua"
+
+[[npc]]
+name = "Demon Skeleton"
+sex = "male"
+race = 37
+outfit = { id = 37, colors = [0, 0, 0, 0] }
+home = [32666, 31676, 15]
+radius = 0
+go_strength = 0
+script = "npcs/demonskeleton.lua"
+
+[[npc]]
+name = "Edowir"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [0, 58, 96, 95] }
+home = [32343, 32363, 7]
+radius = 5
+go_strength = 3
+script = "npcs/edowir.lua"
+
+[[npc]]
+name = "Baxter"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [96, 29, 29, 115] }
+home = [32322, 32188, 7]
+radius = 3
+go_strength = 6
+script = "npcs/baxter.lua"
+
+[[npc]]
+name = "Edala"
+sex = "female"
+race = 62
+outfit = { id = 63, colors = [0, 0, 0, 0] }
+home = [32698, 31718, 2]
+radius = 3
+go_strength = 10
+script = "npcs/edala.lua"
+
+[[npc]]
+name = "Sam"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [57, 112, 48, 95] }
+home = [32360, 32199, 7]
+radius = 4
+go_strength = 10
+script = "npcs/sam.lua"
+
+[[npc]]
+name = "Chrystal"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [116, 79, 117, 76] }
+home = [33174, 31811, 7]
+radius = 2
+go_strength = 8
+script = "npcs/chrystal.lua"
+
+[[npc]]
+name = "Wally"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [96, 113, 95, 115] }
+home = [32566, 32019, 7]
+radius = 2
+go_strength = 4
+script = "npcs/wally.lua"
+
+[[npc]]
+name = "Oswald"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 0, 67, 114] }
+home = [32381, 32220, 7]
+radius = 2
+go_strength = 10
+script = "npcs/oswald.lua"
+
+[[npc]]
+name = "Yanni"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [22, 22, 22, 57] }
+home = [32909, 32111, 6]
+radius = 2
+go_strength = 10
+script = "npcs/yanni.lua"
+
+[[npc]]
+name = "Captain Bluebear"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [19, 69, 107, 50] }
+home = [32310, 32210, 6]
+radius = 2
+go_strength = 5
+script = "npcs/captain1.lua"
+
+[[npc]]
+name = "Phillip"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [116, 54, 68, 76] }
+home = [32369, 31764, 7]
+radius = 4
+go_strength = 2
+script = "npcs/phillip.lua"
+
+[[npc]]
+name = "Captain Jack"
+sex = "male"
+race = 1
+outfit = { id = 132, colors = [19, 70, 95, 115] }
+home = [32189, 31957, 6]
+radius = 2
+go_strength = 3
+script = "npcs/ferrymanjack.lua"
+
+[[npc]]
+name = "Talesia"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [114, 78, 77, 116] }
+home = [32979, 32035, 5]
+radius = 1
+go_strength = 10
+script = "npcs/talesia.lua"
+
+[[npc]]
+name = "Rata'mari"
+sex = "male"
+race = 21
+outfit = { id = 21, colors = [0, 0, 0, 0] }
+home = [33036, 32625, 7]
+radius = 1
+go_strength = 10
+script = "npcs/ratamari.lua"
+
+[[npc]]
+name = "Aruda"
+sex = "female"
+race = 1
+outfit = { id = 140, colors = [77, 83, 79, 95] }
+home = [32368, 32215, 7]
+radius = 99
+go_strength = 20
+script = "npcs/aruda.lua"
+
+[[npc]]
+name = "Elane"
+sex = "female"
+race = 1
+outfit = { id = 137, colors = [113, 63, 120, 119] }
+home = [32343, 32239, 7]
+radius = 4
+go_strength = 10
+script = "npcs/elane.lua"
+
+[[npc]]
+name = "Demonguard"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [113, 113, 94, 113] }
+home = [32854, 32318, 10]
+radius = 0
+go_strength = 0
+script = "npcs/demongrd.lua"
+
+[[npc]]
+name = "Romella"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [79, 39, 77, 115] }
+home = [32913, 32117, 6]
+radius = 1
+go_strength = 10
+script = "npcs/romella.lua"
+
+[[npc]]
+name = "Allen"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [76, 43, 38, 76] }
+home = [32991, 32062, 6]
+radius = 1
+go_strength = 10
+script = "npcs/allen.lua"
+
+[[npc]]
+name = "Uzgod"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [77, 79, 56, 115] }
+home = [32664, 31894, 9]
+radius = 1
+go_strength = 7
+script = "npcs/uzgod.lua"
+
+[[npc]]
+name = "Ray"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [10, 96, 106, 115] }
+home = [32621, 32747, 6]
+radius = 0
+go_strength = 2
+script = "npcs/ray.lua"
+
+[[npc]]
+name = "Brengus"
+sex = "male"
+race = 1
+outfit = { id = 132, colors = [79, 57, 57, 95] }
+home = [32634, 32747, 6]
+radius = 0
+go_strength = 2
+script = "npcs/brengus.lua"
+
+[[npc]]
+name = "The Blind Prophet"
+sex = "male"
+race = 1
+outfit = { id = 117, colors = [0, 0, 0, 0] }
+home = [33022, 32604, 7]
+radius = 4
+go_strength = 10
+script = "npcs/blindprophet.lua"
+
+[[npc]]
+name = "Lugri"
+sex = "male"
+race = 1
+outfit = { id = 9, colors = [0, 0, 0, 0] }
+home = [32389, 32118, 8]
+radius = 4
+go_strength = 7
+script = "npcs/lugri.lua"
+
+[[npc]]
+name = "Gail"
+sex = "female"
+race = 1
+outfit = { id = 140, colors = [77, 64, 52, 95] }
+home = [32621, 32738, 6]
+radius = 0
+go_strength = 2
+script = "npcs/gail.lua"
+
+[[npc]]
+name = "Timur"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [0, 116, 102, 95] }
+home = [32191, 32443, 7]
+radius = 2
+go_strength = 10
+script = "npcs/timur.lua"
+
+[[npc]]
+name = "Norf"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32346, 32363, 6]
+radius = 4
+go_strength = 10
+script = "npcs/norf.lua"
+
+[[npc]]
+name = "Ishina"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [95, 9, 87, 95] }
+home = [33231, 32423, 7]
+radius = 0
+go_strength = 10
+script = "npcs/ishina.lua"
+
+[[npc]]
+name = "Rudolph"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [41, 29, 78, 76] }
+home = [33212, 31812, 6]
+radius = 1
+go_strength = 10
+script = "npcs/rudolph.lua"
+
+[[npc]]
+name = "Gregor"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [38, 38, 38, 38] }
+home = [32407, 32202, 6]
+radius = 4
+go_strength = 10
+script = "npcs/gregor.lua"
+
+[[npc]]
+name = "Humphrey"
+sex = "male"
+race = 1
+outfit = { id = 133, colors = [0, 96, 101, 76] }
+home = [32359, 31683, 6]
+radius = 4
+go_strength = 10
+script = "npcs/humphrey.lua"
+
+[[npc]]
+name = "Wyat"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [98, 96, 95, 116] }
+home = [32325, 32276, 7]
+radius = 2
+go_strength = 6
+script = "npcs/wyat.lua"
+
+[[npc]]
+name = "Alexander"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [96, 63, 71, 97] }
+home = [33256, 31839, 3]
+radius = 2
+go_strength = 10
+script = "npcs/alexander.lua"
+
+[[npc]]
+name = "Iwan"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [0, 112, 88, 113] }
+home = [33217, 31833, 7]
+radius = 1
+go_strength = 7
+script = "npcs/iwan.lua"
+
+[[npc]]
+name = "Ormuhn"
+sex = "male"
+race = 1
+outfit = { id = 18, colors = [0, 0, 0, 0] }
+home = [33160, 32810, 5]
+radius = 2
+go_strength = 2
+script = "npcs/ormuhn.lua"
+
+[[npc]]
+name = "H.L."
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [12, 76, 0, 95] }
+home = [32643, 32212, 7]
+radius = 2
+go_strength = 10
+script = "npcs/hl.lua"
+
+[[npc]]
+name = "Hairycles"
+sex = "male"
+race = 1
+outfit = { id = 117, colors = [0, 0, 0, 0] }
+home = [32826, 32574, 6]
+radius = 1
+go_strength = 5
+script = "npcs/hairycles.lua"
+
+[[npc]]
+name = "Sarina"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [41, 72, 95, 96] }
+home = [32334, 31808, 7]
+radius = 1
+go_strength = 10
+script = "npcs/sarina.lua"
+
+[[npc]]
+name = "The Crone"
+sex = "female"
+race = 1
+outfit = { id = 78, colors = [0, 0, 0, 0] }
+home = [33229, 32522, 14]
+radius = 3
+go_strength = 5
+script = "npcs/crone.lua"
+
+[[npc]]
+name = "Clyde"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [98, 40, 48, 95] }
+home = [32573, 32753, 7]
+radius = 2
+go_strength = 2
+script = "npcs/clyde.lua"
+
+[[npc]]
+name = "Beatrice"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [96, 102, 69, 95] }
+home = [33214, 31803, 6]
+radius = 3
+go_strength = 10
+script = "npcs/beatrice.lua"
+
+[[npc]]
+name = "Lungelen"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [77, 19, 95, 115] }
+home = [32303, 32267, 6]
+radius = 2
+go_strength = 13
+script = "npcs/lungelen.lua"
+
+[[npc]]
+name = "Petros"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [79, 10, 127, 127] }
+home = [33289, 32481, 6]
+radius = 2
+go_strength = 5
+script = "npcs/captain6.lua"
+
+[[npc]]
+name = "Fenech"
+sex = "male"
+race = 1
+outfit = { id = 132, colors = [76, 40, 49, 117] }
+home = [33131, 32820, 5]
+radius = 2
+go_strength = 2
+script = "npcs/fenech.lua"
+
+[[npc]]
+name = "Luna"
+sex = "female"
+race = 1
+outfit = { id = 137, colors = [0, 118, 100, 115] }
+home = [33254, 31840, 5]
+radius = 2
+go_strength = 7
+script = "npcs/luna.lua"
+
+[[npc]]
+name = "Bo'ques"
+sex = "male"
+race = 80
+outfit = { id = 80, colors = [0, 0, 0, 0] }
+home = [33101, 32520, 5]
+radius = 2
+go_strength = 10
+script = "npcs/boques.lua"
+
+[[npc]]
+name = "Charles"
+sex = "male"
+race = 1
+outfit = { id = 134, colors = [57, 29, 95, 98] }
+home = [32529, 32785, 6]
+radius = 2
+go_strength = 2
+script = "npcs/charles.lua"
+
+[[npc]]
+name = "Liane"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [77, 60, 79, 114] }
+home = [32332, 31784, 7]
+radius = 1
+go_strength = 10
+script = "npcs/liane.lua"
+
+[[npc]]
+name = "Chester Kahs"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [10, 28, 47, 95] }
+home = [32348, 32184, 6]
+radius = 2
+go_strength = 4
+script = "npcs/chester.lua"
+
+[[npc]]
+name = "Todd"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 0, 67, 114] }
+home = [32363, 32210, 6]
+radius = 7
+go_strength = 7
+script = "npcs/todd.lua"
+
+[[npc]]
+name = "Markwin"
+sex = "male"
+race = 23
+outfit = { id = 23, colors = [0, 0, 0, 0] }
+home = [32418, 32147, 15]
+radius = 4
+go_strength = 5
+script = "npcs/markwin.lua"
+
+[[npc]]
+name = "Scott"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [75, 38, 77, 96] }
+home = [32138, 31659, 7]
+radius = 1
+go_strength = 10
+script = "npcs/scott.lua"
+
+[[npc]]
+name = "Aneus"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [0, 50, 58, 116] }
+home = [32426, 31666, 7]
+radius = 1
+go_strength = 5
+script = "npcs/aneus.lua"
+
+[[npc]]
+name = "Norma"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [78, 76, 72, 96] }
+home = [32098, 32180, 7]
+radius = 2
+go_strength = 8
+script = "npcs/norma.lua"
+
+[[npc]]
+name = "Ashtamor"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [19, 114, 76, 114] }
+home = [32958, 32088, 6]
+radius = 1
+go_strength = 5
+script = "npcs/ashtamor.lua"
+
+[[npc]]
+name = "Svenson"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [77, 113, 68, 67] }
+home = [32044, 31582, 7]
+radius = 2
+go_strength = 5
+script = "npcs/ferryman3.lua"
+
+[[npc]]
+name = "Arito"
+sex = "male"
+race = 1
+outfit = { id = 132, colors = [59, 74, 62, 115] }
+home = [33069, 32886, 6]
+radius = 3
+go_strength = 10
+script = "npcs/arito.lua"
+
+[[npc]]
+name = "Hugo"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [14, 81, 80, 93] }
+home = [32951, 32103, 5]
+radius = 1
+go_strength = 10
+script = "npcs/hugo.lua"
+
+[[npc]]
+name = "Hofech"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 2, 2, 57] }
+home = [33270, 32441, 7]
+radius = 2
+go_strength = 10
+script = "npcs/hofech.lua"
+
+[[npc]]
+name = "Lokur"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [57, 79, 98, 95] }
+home = [32647, 31904, 8]
+radius = 2
+go_strength = 2
+script = "npcs/lokur.lua"
+
+[[npc]]
+name = "Olrik"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 79, 117, 76] }
+home = [32675, 31698, 7]
+radius = 4
+go_strength = 10
+script = "npcs/olrik.lua"
+
+[[npc]]
+name = "Irea"
+sex = "female"
+race = 62
+outfit = { id = 64, colors = [0, 0, 0, 0] }
+home = [32688, 31610, 7]
+radius = 3
+go_strength = 6
+script = "npcs/irea.lua"
+
+[[npc]]
+name = "A Prisoner"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [81, 40, 55, 94] }
+home = [32393, 32137, 13]
+radius = 2
+go_strength = 25
+script = "npcs/prisoner.lua"
+
+[[npc]]
+name = "Imbul"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [95, 2, 63, 115] }
+home = [32558, 32781, 7]
+radius = 0
+go_strength = 1
+script = "npcs/imbul.lua"
+
+[[npc]]
+name = "Brodrosch"
+sex = "male"
+race = 69
+outfit = { id = 66, colors = [0, 0, 0, 0] }
+home = [32661, 31957, 15]
+radius = 2
+go_strength = 3
+script = "npcs/brodrosch.lua"
+
+[[npc]]
+name = "Snake Eye"
+sex = "male"
+race = 1
+outfit = { id = 73, colors = [0, 0, 0, 0] }
+home = [32657, 32190, 8]
+radius = 4
+go_strength = 10
+script = "npcs/snakeeye.lua"
+
+[[npc]]
+name = "Asima"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [97, 70, 94, 76] }
+home = [33220, 32404, 7]
+radius = 2
+go_strength = 10
+script = "npcs/asima.lua"
+
+[[npc]]
+name = "Razan"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [95, 19, 10, 58] }
+home = [33239, 32409, 7]
+radius = 2
+go_strength = 10
+script = "npcs/razan.lua"
+
+[[npc]]
+name = "Bashira"
+sex = "female"
+race = 62
+outfit = { id = 144, colors = [78, 62, 97, 76] }
+home = [32669, 31655, 8]
+radius = 1
+go_strength = 6
+script = "npcs/bashira.lua"
+
+[[npc]]
+name = "Kawill"
+sex = "male"
+race = 69
+outfit = { id = 66, colors = [0, 0, 0, 0] }
+home = [32644, 31969, 12]
+radius = 2
+go_strength = 3
+script = "npcs/kawill.lua"
+
+[[npc]]
+name = "Seymour"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 69, 87, 116] }
+home = [32103, 32195, 7]
+radius = 1
+go_strength = 5
+script = "npcs/seymour.lua"
+
+[[npc]]
+name = "Al Dee"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [97, 77, 87, 115] }
+home = [32063, 32180, 7]
+radius = 1
+go_strength = 8
+script = "npcs/aldee.lua"
+
+[[npc]]
+name = "Shiantis"
+sex = "female"
+race = 1
+outfit = { id = 136, colors = [0, 36, 13, 76] }
+home = [32890, 32086, 6]
+radius = 2
+go_strength = 10
+script = "npcs/shiantis.lua"
+
+[[npc]]
+name = "Tezila"
+sex = "female"
+race = 69
+outfit = { id = 160, colors = [3, 92, 110, 115] }
+home = [32657, 31922, 9]
+radius = 2
+go_strength = 10
+script = "npcs/tezila.lua"
+
+[[npc]]
+name = "Bezil"
+sex = "female"
+race = 69
+outfit = { id = 160, colors = [116, 79, 117, 57] }
+home = [32657, 31909, 9]
+radius = 8
+go_strength = 3
+script = "npcs/bezil.lua"
+
+[[npc]]
+name = "Falk"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [76, 11, 11, 76] }
+home = [33190, 31777, 7]
+radius = 3
+go_strength = 3
+script = "npcs/falk.lua"
+
+[[npc]]
+name = "Pemaret"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [79, 10, 127, 127] }
+home = [33287, 31956, 6]
+radius = 1
+go_strength = 5
+script = "npcs/pemaret.lua"
+
+[[npc]]
+name = "Shauna"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [78, 95, 38, 58] }
+home = [32384, 31778, 7]
+radius = 2
+go_strength = 6
+script = "npcs/shauna.lua"
+
+[[npc]]
+name = "Quero"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [55, 30, 23, 115] }
+home = [32390, 32220, 7]
+radius = 1
+go_strength = 10
+script = "npcs/quero.lua"
+
+[[npc]]
+name = "Xed"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [78, 36, 57, 97] }
+home = [32904, 32117, 6]
+radius = 1
+go_strength = 10
+script = "npcs/xed.lua"
+
+[[npc]]
+name = "Iwar"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [58, 108, 63, 76] }
+home = [32618, 31917, 8]
+radius = 3
+go_strength = 5
+script = "npcs/iwar.lua"
+
+[[npc]]
+name = "Habdel"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [95, 2, 0, 97] }
+home = [33225, 32434, 7]
+radius = 0
+go_strength = 10
+script = "npcs/habdel.lua"
+
+[[npc]]
+name = "Arkhothep"
+sex = "male"
+race = 1
+outfit = { id = 91, colors = [0, 0, 0, 0] }
+home = [33150, 32842, 4]
+radius = 2
+go_strength = 7
+script = "npcs/arkhothep.lua"
+
+[[npc]]
+name = "Shiriel"
+sex = "female"
+race = 62
+outfit = { id = 144, colors = [2, 103, 0, 95] }
+home = [32670, 31657, 6]
+radius = 1
+go_strength = 10
+script = "npcs/shiriel.lua"
+
+[[npc]]
+name = "Jean Claude"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [113, 113, 113, 115] }
+home = [33006, 32053, 6]
+radius = 5
+go_strength = 6
+script = "npcs/jeanclaude.lua"
+
+[[npc]]
+name = "Yaman"
+sex = "male"
+race = 51
+outfit = { id = 51, colors = [0, 0, 0, 0] }
+home = [33045, 32620, 2]
+radius = 1
+go_strength = 5
+script = "npcs/yaman.lua"
+
+[[npc]]
+name = "Loui"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32014, 32190, 7]
+radius = 2
+go_strength = 6
+script = "npcs/loui.lua"
+
+[[npc]]
+name = "Smiley"
+sex = "male"
+race = 1
+outfit = { id = 37, colors = [0, 0, 0, 0] }
+home = [32979, 32087, 6]
+radius = 1
+go_strength = 10
+script = "npcs/smiley.lua"
+
+[[npc]]
+name = "Lynda"
+sex = "female"
+race = 1
+outfit = { id = 138, colors = [79, 83, 86, 114] }
+home = [32333, 32200, 7]
+radius = 4
+go_strength = 7
+script = "npcs/lynda.lua"
+
+[[npc]]
+name = "Lubo"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [38, 39, 96, 114] }
+home = [32488, 32119, 7]
+radius = 3
+go_strength = 10
+script = "npcs/lubo.lua"
+
+[[npc]]
+name = "Shalmar"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [95, 8, 65, 0] }
+home = [33221, 32408, 7]
+radius = 2
+go_strength = 10
+script = "npcs/shalmar.lua"
+
+[[npc]]
+name = "Eremo"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [0, 109, 128, 95] }
+home = [33322, 31883, 7]
+radius = 3
+go_strength = 8
+script = "npcs/eremo.lua"
+
+[[npc]]
+name = "Shirith"
+sex = "male"
+race = 62
+outfit = { id = 144, colors = [59, 97, 58, 76] }
+home = [32646, 31655, 9]
+radius = 3
+go_strength = 6
+script = "npcs/shirith.lua"
+
+[[npc]]
+name = "Melchior"
+sex = "male"
+race = 1
+outfit = { id = 130, colors = [0, 25, 59, 115] }
+home = [33143, 32828, 7]
+radius = 60
+go_strength = 15
+script = "npcs/melchior.lua"
+
+[[npc]]
+name = "Brewster"
+sex = "male"
+race = 1
+outfit = { id = 133, colors = [57, 115, 115, 95] }
+home = [32595, 32744, 7]
+radius = 2
+go_strength = 2
+script = "npcs/brewster.lua"
+
+[[npc]]
+name = "Pino"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [115, 0, 67, 114] }
+home = [33192, 31783, 3]
+radius = 1
+go_strength = 10
+script = "npcs/pino.lua"
+
+[[npc]]
+name = "Baa'leal"
+sex = "male"
+race = 51
+outfit = { id = 51, colors = [0, 0, 0, 0] }
+home = [33048, 32620, 4]
+radius = 2
+go_strength = 8
+script = "npcs/baaleal.lua"
+
+[[npc]]
+name = "Walter, the guard"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [19, 19, 19, 19] }
+home = [32338, 32278, 7]
+radius = 2
+go_strength = 6
+script = "npcs/walter.lua"
+
+[[npc]]
+name = "Yulas"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [58, 43, 38, 76] }
+home = [33000, 32065, 6]
+radius = 1
+go_strength = 10
+script = "npcs/yulas.lua"
+
+[[npc]]
+name = "Kulag, the guard"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [19, 19, 19, 19] }
+home = [32287, 32264, 7]
+radius = 2
+go_strength = 6
+script = "npcs/kulag.lua"
+
+[[npc]]
+name = "Gamel"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [79, 132, 115, 116] }
+home = [32337, 32207, 8]
+radius = 3
+go_strength = 10
+script = "npcs/gamel.lua"
+
+[[npc]]
+name = "Norbert"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [6, 79, 93, 14] }
+home = [32953, 32103, 6]
+radius = 1
+go_strength = 10
+script = "npcs/norbert.lua"
+
+[[npc]]
+name = "Memech"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [21, 21, 40, 116] }
+home = [33135, 32810, 6]
+radius = 2
+go_strength = 2
+script = "npcs/memech.lua"
+
+[[npc]]
+name = "Topsy"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [78, 52, 64, 115] }
+home = [32415, 32170, 7]
+radius = 2
+go_strength = 3
+script = "npcs/topsy.lua"
+
+[[npc]]
+name = "Tom"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [113, 115, 58, 115] }
+home = [32085, 32199, 7]
+radius = 1
+go_strength = 5
+script = "npcs/tom.lua"
+
+[[npc]]
+name = "The Gatekeeper"
+sex = "female"
+race = 1
+outfit = { id = 0, object_type = 2031 }
+home = [32035, 32183, 6]
+radius = 0
+go_strength = 1
+script = "npcs/gatekeeper.lua"
+
+[[npc]]
+name = "Amber"
+sex = "female"
+race = 1
+outfit = { id = 137, colors = [59, 113, 132, 76] }
+home = [32103, 32182, 8]
+radius = 4
+go_strength = 7
+script = "npcs/amber.lua"
+
+[[npc]]
+name = "Pydar"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [95, 94, 132, 118] }
+home = [32655, 31893, 11]
+radius = 2
+go_strength = 3
+script = "npcs/pydar.lua"
+
+[[npc]]
+name = "Skjaar"
+sex = "male"
+race = 9
+outfit = { id = 9, colors = [0, 0, 0, 0] }
+home = [32450, 32038, 8]
+radius = 2
+go_strength = 10
+script = "npcs/skjaar.lua"
+
+[[npc]]
+name = "Daniel Steelsoul"
+sex = "male"
+race = 1
+outfit = { id = 73, colors = [0, 0, 0, 0] }
+home = [33191, 31795, 7]
+radius = 2
+go_strength = 6
+script = "npcs/daniel.lua"
+
+[[npc]]
+name = "Wyda"
+sex = "female"
+race = 54
+outfit = { id = 54, colors = [0, 0, 0, 0] }
+home = [32726, 31980, 6]
+radius = 5
+go_strength = 5
+script = "npcs/wyda.lua"
+
+[[npc]]
+name = "Anerui"
+sex = "female"
+race = 62
+outfit = { id = 63, colors = [0, 0, 0, 0] }
+home = [32669, 31659, 7]
+radius = 2
+go_strength = 6
+script = "npcs/anerui.lua"
+
+[[npc]]
+name = "Isimov"
+sex = "male"
+race = 69
+outfit = { id = 160, colors = [115, 0, 19, 95] }
+home = [32653, 31925, 11]
+radius = 2
+go_strength = 2
+script = "npcs/isimov.lua"
+
+[[npc]]
+name = "Helor"
+sex = "male"
+race = 1
+outfit = { id = 134, colors = [57, 79, 95, 98] }
+home = [32572, 32753, 6]
+radius = 0
+go_strength = 2
+script = "npcs/helor.lua"
+
+[[npc]]
+name = "Robin"
+sex = "male"
+race = 1
+outfit = { id = 129, colors = [77, 118, 118, 115] }
+home = [32287, 32252, 6]
+radius = 3
+go_strength = 10
+script = "npcs/robin.lua"
+
+[[npc]]
+name = "Oldrak"
+sex = "male"
+race = 1
+outfit = { id = 57, colors = [0, 0, 0, 0] }
+home = [32816, 32260, 6]
+radius = 2
+go_strength = 10
+script = "npcs/oldrak.lua"
+
+[[npc]]
+name = "Alwin"
+sex = "male"
+race = 1
+outfit = { id = 131, colors = [113, 113, 113, 115] }
+home = [32875, 32125, 6]
+radius = 10
+go_strength = 6
+script = "npcs/alwin.lua"
+
+[[npc]]
+name = "Donald McRonald"
+sex = "male"
+race = 1
+outfit = { id = 128, colors = [41, 94, 79, 76] }
+home = [32391, 32229, 7]
+radius = 3
+go_strength = 10
+script = "npcs/don.lua"
+
+[[npc]]
+name = "Rowenna"
+sex = "female"
+race = 1
+outfit = { id = 139, colors = [132, 38, 76, 38] }
+home = [32324, 31794, 7]
+radius = 3
+go_strength = 10
+script = "npcs/rowenna.lua"
