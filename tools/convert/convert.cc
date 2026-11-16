@@ -55,6 +55,14 @@
 //     conversion.lst to conversion.toml, which belongs in the installation's
 //     data folder. OUTPUT "-" is standard output.
 //
+//   patella-convert npcs NPC_FOLDER DATA_FOLDER
+//     The NPCs: every .npc of NPC_FOLDER (the installation's npc/), in the
+//     order readdir gives them as the game read them, to DATA_FOLDER/npcs.toml
+//     (their data) and DATA_FOLDER/scripts/npcs/<name>.lua (their rules), and
+//     every .ndb there (the rule blocks the .npc files include) to
+//     DATA_FOLDER/scripts/lib/npcs/<name>.lua. Run it on a folder of the
+//     file system the game ran on: its readdir order is the NPCs' order.
+//
 //   patella-convert usr-export CONFIG_TOML OUTPUT_FOLDER [CHARACTER_ID...]
 //     The player data the query manager has of the world's characters (or of
 //     the characters given), as player files (OUTPUT_FOLDER/NN/<id>.usr),
@@ -91,6 +99,8 @@
 #include "items_writer.hh"
 #include "map_dat.hh"
 #include "map_writer.hh"
+#include "npc_files.hh"
+#include "npcs_writer.hh"
 #include "moveuse_dat.hh"
 #include "triggers_writer.hh"
 #include "objects.hh"
@@ -112,6 +122,7 @@ static int Usage() {
 			"       patella-convert houses HOUSEAREAS_DAT HOUSES_DAT OUTPUT\n"
 			"       patella-convert map MAP_DAT OUTPUT\n"
 			"       patella-convert conversion CONVERSION_LST OUTPUT\n"
+			"       patella-convert npcs NPC_FOLDER DATA_FOLDER\n"
 			"       patella-convert usr-export CONFIG_TOML OUTPUT_FOLDER [CHARACTER_ID...]\n"
 			"       patella-convert usr-check [--read-only] CONFIG_TOML [USER_FOLDER]\n");
 	return 2;
@@ -233,6 +244,17 @@ static int ConvertConversion(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertNpcs(int argc, char **argv) {
+	if (argc != 2 || (argv[0][0] == '-' && argv[0][1] != 0) || (argv[1][0] == '-' && argv[1][1] != 0)) {
+		return Usage();
+	}
+
+	TNpcFolder Folder;
+	ReadNpcFolder(argv[0], Folder);
+	WriteNpcFolder(Folder, argv[1]);
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		return Usage();
@@ -265,6 +287,9 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[1], "conversion") == 0) {
 			return ConvertConversion(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "npcs") == 0) {
+			return ConvertNpcs(argc - 2, argv + 2);
 		}
 		if (strcmp(argv[1], "usr-export") == 0) {
 			return UsrExport(argc - 2, argv + 2);
