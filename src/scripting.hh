@@ -834,6 +834,60 @@
 //   Magic.angleShapeSpell(actor, angle, range, impact, effect)
 // (ActorShapeSpell ... AngleShapeSpell of magic.cc).
 //
+// Game events (phase 7; scripting_events.cc, RegisterEventAPI). data/events.toml is an ordered
+// list of event scripts, [[event]] script = "events/<name>.lua" (the
+// delivered file has none). InitEvents (InitAll, after the API is
+// registered) loads them in the file's order; a script defines any of the
+// handlers below, and for an event every script that defines its handler is
+// called, in the file's order. With no script the C++ code does what it did.
+// A script's failure is logged and the game carries on (runCaught). The
+// handlers other than onSay cannot change what the game does through their
+// result, and their callers do not take result codes: a result code one of
+// them raises is logged ("<handler> of <script>: result code <n>, ignored.")
+// and the next script is called. onSay's result code goes to Talk's caller,
+// as a result code of Talk does. The handlers (TFS's names, our arguments):
+//   onLogin(player)
+//       When a player has entered the game (TConnection::JoinGame, a new
+//       player): after the player is in the player list and on the map and
+//       its client has the login data. Taking over a player that is still
+//       in the game (a reconnect) is no login.
+//   onLogout(player)
+//       When a player leaves the game (a logout, a lost connection, a kick, a
+//       death, the server's shutdown): right before the player is deleted
+//       (ProcessCreatures, LogoutAllPlayers), so player resolves.
+//   onDeath(player, killer)
+//       At the end of TPlayer::Death, for a player that dies (not a god,
+//       whose Death only heals): killer the creature responsible (an
+//       attacker's master for a summon) when the death comes from
+//       TCreature::Damage, nil otherwise. A death from TCreature::Damage has
+//       the rest of Damage's handling still to come (the attacker's logout
+//       block, the kill statistics, the murder record).
+//   onAdvance(player, skill, oldLevel, newLevel)
+//       When a skill of the player rises (where the game tells the player
+//       "You advanced ..."; not when it falls): skill a SKILL_ constant
+//       (SKILL_LEVEL for the level, SKILL_MAGLEVEL, the fighting skills,
+//       fishing), oldLevel and newLevel the skill's level before and after
+//       as the message counts them (Get(), with temporary changes; the level
+//       can rise by more than one at once).
+//   onSay(player, text, mode) -> boolean
+//       Talk (operate.cc), for a player, right before the spell and command
+//       check (CheckForSpell), which Talk skips for a player its spam check
+//       mutes: text what the player said, mode a TALKTYPE_ constant. A script
+//       that gives true consumes the text: the scripts after it are not
+//       called and Talk returns at that point (nothing is cast or said);
+//       false or nil goes on. A Talk made while an onSay runs (a script's
+//       player:say) calls no onSay.
+// Constants (7.72's values of operate.hh's TALK_MODE for the modes a player's
+// Talk has, TFS's names where the meaning is TFS's): TALKTYPE_SAY 1,
+// TALKTYPE_WHISPER 2, TALKTYPE_YELL 3, TALKTYPE_PRIVATE_TO 4 (a private
+// message a player sends), TALKTYPE_CHANNEL_Y 5, TALKTYPE_BROADCAST 9,
+// TALKTYPE_CHANNEL_R1 10 (a gamemaster's channel call),
+// TALKTYPE_PRIVATE_RED_TO 11, TALKTYPE_CHANNEL_O 12 (a highlighted channel
+// call), TALKTYPE_MONSTER_SAY 16, TALKTYPE_MONSTER_YELL 17; the others by
+// their 7.72 names: TALKTYPE_GAMEMASTER_REQUEST 6, TALKTYPE_GAMEMASTER_ANSWER
+// 7, TALKTYPE_PLAYER_ANSWER 8, TALKTYPE_ANONYMOUS_BROADCAST 13,
+// TALKTYPE_ANONYMOUS_CHANNELCALL 14, TALKTYPE_ANONYMOUS_MESSAGE 15.
+//
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with
 // error() that comes from a script or from Lua (debugPrint, the script errors
@@ -962,6 +1016,10 @@ public:
 	// failed with a non-result error (logged as run logs it; failure() gives
 	// its message), true otherwise; a result code is thrown as run throws it.
 	bool runCaught();
+	// As runCaught, for a handler whose result is a boolean: on success
+	// Value is its first result (nil gives false); a result that is not a
+	// boolean is a failure, logged as runBoolean words it (Value false).
+	bool runCaughtBoolean(bool &Value);
 	int runNumber();
 	bool runBoolean();
 	// After a run that threw ERROR for a non-result error: that error's
@@ -1037,5 +1095,21 @@ void MonsterTargetHook(int Script, uint32_t MonsterID, uint32_t TargetID);
 void MonsterDeathHook(int Script, uint32_t MonsterID, uint32_t KillerID);
 void RaidHook(int Script, const char *RaidKey);
 void RaidWaveHook(int Script, const char *RaidKey, int Wave);
+
+// Game events (phase 7; scripting_events.cc). InitEvents reads events.toml
+// (the data folder's; FileName) and loads its scripts; it throws a const char
+// * (a start error, with the entry's position) as LoadScript does and for a
+// file that is missing or wrong. ExitEvents forgets the scripts (ExitAll,
+// before ExitScripting). The Event functions call the handler of every
+// script that defines it, in order, each with runCaught; with no event script
+// they return at once. EventSay gives true when a script consumed the text. A
+// creature argument of 0 is nil.
+void InitEvents(const char *FileName);
+void ExitEvents();
+void EventLogin(uint32_t PlayerID);
+void EventLogout(uint32_t PlayerID);
+void EventDeath(uint32_t PlayerID, uint32_t KillerID);
+void EventAdvance(uint32_t PlayerID, int Skill, int OldLevel, int NewLevel);
+bool EventSay(uint32_t PlayerID, const char *Text, int Mode);
 
 #endif
