@@ -16,12 +16,13 @@ What it does, in WSL Ubuntu-24.04:
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
      relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/commands.toml,
-     data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml, data/conversion.toml
-     and data/npcs.toml go into the copy's data folder ([paths] data), as does data/scripts/ (the Lua scripts, as a
-     whole folder), and the files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat,
-     houses.dat, map.dat with the mem.dat it includes, conversion.lst and the NPC folder ([paths] npc, with its .npc
-     and .ndb files), are removed (spells.toml and commands.toml replace the spell table and the commands' rights in
-     the code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the
+     data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml, data/conversion.toml,
+     data/npcs.toml, data/monsters.toml, data/raids.toml and data/monster_homes.toml go into the copy's data folder
+     ([paths] data), as does data/scripts/ (the Lua scripts, as a whole folder), and the files they were converted
+     from, objects.srv, circles.dat, moveuse.dat, houseareas.dat, houses.dat, map.dat with the mem.dat it includes,
+     conversion.lst, monster.db, and the folders npc/ (the .npc and .ndb files) and mon/ (the .mon and .evt files) of
+     the copy, are removed (spells.toml and commands.toml replace the spell table and the commands' rights in the
+     code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the
      copy, and keeps those files. The scenario's clients read the object types from the file the copy has. Either config
      gets a scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the
      three after it for the other entries). Then it seeds a scratch database with the build's querymanager-seed (game
@@ -365,11 +366,16 @@ DATA_FILES = [
 	("map.toml", ("map.dat", "mem.dat")),
 	("conversion.toml", ("conversion.lst",)),
 	("npcs.toml", ()),
+	("monsters.toml", ()),
+	("raids.toml", ()),
+	("monster_homes.toml", ("monster.db",)),
 ]
 
-# The TOML files of a tree's data/ that replace a whole folder of the copy, by the [paths] key that names it.
+# The TOML files of a tree's data/ that replace a whole folder of the copy, the folder as the original installation
+# lays it out (its .tibia's NPCPATH and MONSTERPATH; config.toml no longer names them).
 DATA_FOLDERS = {
 	"npcs.toml": "npc",
+	"monsters.toml": "mon",
 }
 
 
@@ -394,7 +400,7 @@ def lay_out(game, data, options):
 					os.remove(os.path.join(folder, original))
 				layout += ", no %s" % original
 			if name in DATA_FOLDERS:
-				replaced = paths_folder(game, DATA_FOLDERS[name])
+				replaced = os.path.join(game, DATA_FOLDERS[name])
 				if os.path.exists(replaced):
 					shutil.rmtree(replaced)
 				layout += ", no %s/" % DATA_FOLDERS[name]

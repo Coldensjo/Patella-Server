@@ -1797,3 +1797,370 @@ def npcs_busy(ctx):
 		who[key].logout()
 		s(1)
 	s(3)
+
+
+
+# The scenarios monsters, raids and homes: the monster races of monsters.toml
+# with their spells (the spell loop of TMonster::IdleStimulus, on main
+# castSpells of scripts/lib/monsters.lua), the raids of raids.toml (Start
+# Monsterraid, ProcessMonsterRaids) and the monster homes of
+# monster_homes.toml (ProcessMonsterhomes). The caster h ('Testh Theta',
+# trace_check.py CASTER_RIGHTS: no damage taken, Summon Wild Creature, Kill
+# All Creatures, Start Monsterraid, Move to coordinates, every spell) summons
+# the monsters, is their target and survives them: a damage on h shows as a
+# puff (TCreature::Damage), a speed, drunken or strength impact on h does
+# nothing (the impacts' handleCreature), an outfit impact changes h's outfit.
+# Summon Wild Creature makes a monster without master and home next to h;
+# Summon Creature (utevo res) one with h as its master. A monster thinks
+# (IdleStimulus) about once a second while a player is within 12 fields of it
+# on its floor, and sleeps otherwise; each think rolls every spell of its race
+# (rand() % one_in). A spell is cast with its impact; an aggressive one only
+# while the monster has a target that is not its master; a summon only by a
+# monster without master. A monster without master at or below its
+# flee_threshold casts a spell whose roll hit only one time in three
+# (random(1, 3) == 1).
+#
+# The fights of the scenario monsters are on a wide grass plain without
+# monster homes (the nearest is 190 fields away) and without protection zones,
+# each at a spot of its own, 40 fields from the others (the sixth 15 fields
+# south of the fifth, whose two monsters are rooted and cast 7 fields far), so
+# that the monsters left at one spot sleep while h fights at the next one.
+MONSTER_SPOTS = [(32200, 32735, 7), (32240, 32735, 7), (32280, 32735, 7), (32320, 32735, 7), (32200, 32775, 7)]
+# The races and what they cast (one_in after the slash) at h, together every
+# shape and every impact:
+# - spot 1: orc shaman (actor healing /4, victim damage /8, origin summon of
+#   snakes /4, destination damage /13), green djinn (victim damage /2, /3, /4,
+#   victim drunken /5, victim outfit /6), Dharalion (actor healing /5, actor
+#   speed /15, victim damage /7, /8, /10, victim strength /8, origin summon
+#   of demon skeletons /18).
+# - spot 2: demon (actor healing /7, victim damage /8, origin summon of a fire
+#   elemental /12, destination damage /3, destination field /7, angle damage
+#   /10), whose fire elemental is a monster with a monster master (it casts
+#   destination damage /4 and field /3 at the demon's target), dragon (actor
+#   healing /8, destination damage /7, angle damage /9).
+# - spot 3: ancient scarab (actor speed /13, victim damage /9, victim speed
+#   /8, origin damage /6 twice, origin speed /4, origin summon of larvae /7),
+#   hydra (actor healing /3, destination speed /6, angle damage /7, /9),
+#   tarantula (actor speed /8, victim field /5).
+# - spot 4: stalker (actor outfit /4, invisible; victim damage /6), Dipthrah
+#   (actor healing /4, victim damage /5, /7, victim speed /7, origin drunken
+#   /9, origin strength /8, origin summon of priestesses /7), whose
+#   priestesses have a monster master: their summon of ghouls (/13) makes no
+#   impact; scarab (actor speed /20, origin field /5: a poison field under
+#   it, destination damage /6), here and not with the demon, whose area
+#   damage kills it.
+# - spot 5, low health: a spit nettle (150 hit points, flee threshold 150:
+#   always at it; actor healing /8, victim damage /7, /4) and a flamethrower
+#   (100 of 100; victim damage /1), both rooted, cast one roll in three.
+# - spot 6, 15 fields south of spot 5 (out of the nettle's and the
+#   flamethrower's reach), masters: h's summons, a necromancer (a monster
+#   with a master: its summons of a ghoul /6, a ghost /7 and a mummy /8 make
+#   no impact, the flee check is not made; actor healing /4, victim damage
+#   /5, /6) and a behemoth (actor speed /15, victim damage /7), fight a dwarf
+#   geomancer (380 hit points, flee threshold 150; actor healing /2, victim
+#   damage /3, /4) that h attacks, down below its threshold, where it flees
+#   and casts one roll in three.
+# A target that leaves: h goes 16 fields away from the spot-1 fight and comes
+# back. A target that dies: h's summoned rat at spot 1, a target the monsters
+# there kill; the geomancer, the target of h's summons, at spot 6.
+MONSTER_FIGHT = 20                  # rounds of fighting between two actions of h
+
+
+def summon_wild(ctx, s, c, race):
+	"""Summon Wild Creature: a monster of the race (its name, as Summon Wild
+	Creature takes it and the clients see it) next to c; returns its
+	creature id."""
+	m = c.mark()
+	c.note("=== Summon Wild Creature: %s" % race)
+	c.say('alevo res "%s"' % race if " " in race else "alevo res %s" % race)
+	s(1)
+	cid = c.wait_creature(race, m, 3)
+	ctx.check(cid is not None, "summon: %s was not seen" % race)
+	return cid
+
+
+def summon_own(ctx, s, c, race):
+	"""Summon Creature: a monster of the race (its name) with c as its
+	master; returns its creature id. An aggressive spell: the next one 3
+	rounds later."""
+	m = c.mark()
+	c.note("=== Summon Creature: %s, with %s as its master" % (race, c.label))
+	c.say('utevo res "%s"' % race if " " in race else "utevo res %s" % race)
+	s(3)
+	cid = c.wait_creature(race, m, 3)
+	ctx.check(cid is not None, "summon: %s of %s was not seen" % (race, c.label))
+	return cid
+
+
+def fight(s, c, what, k=MONSTER_FIGHT):
+	c.note("=== %d rounds: %s" % (k, what))
+	s(k)
+
+
+@scenario()
+def monsters(ctx):
+	"""The monster spells: h summons monsters whose races together cast
+	every shape (actor, victim, origin, destination, angle) and every
+	impact (damage, field, healing, speed, drunken, strength, outfit,
+	summon) at it, at six spots of a grass plain (see the comment above):
+	summoning monsters with and without a master, a monster summoned by a
+	monster, a target that leaves and comes back, targets that die
+	mid-fight, monsters at or below their flee threshold, h's summons
+	fighting one. It ends at step 324 (round 344): run it with --stop-round
+	350."""
+	s = Steps(ctx)
+	ctx.at(0)
+	h = ctx.login("h")
+	s(2)
+	a, b, c, d, e = MONSTER_SPOTS
+
+	# Spot 1: orc shaman, green djinn, Dharalion; h leaves and comes back;
+	# a rat of h's as a target that dies.
+	teleport(s, h, a, "spot 1 of the grass plain")
+	summon_wild(ctx, s, h, "orc shaman")
+	summon_wild(ctx, s, h, "green djinn")
+	summon_wild(ctx, s, h, "Dharalion")
+	fight(s, h, "orc shaman, green djinn and Dharalion cast at h")
+	fight(s, h, "the same")
+	teleport(s, h, offset(a, 16, 0), "the target leaves: 16 fields east, out of the monsters' reach (10 fields)")
+	fight(s, h, "the monsters lose h and stop casting aggressive spells", 6)
+	teleport(s, h, a, "back to spot 1: the monsters take h as their target again")
+	fight(s, h, "the monsters cast at h again", 10)
+	summon_own(ctx, s, h, "rat")
+	fight(s, h, "the rat of h, a target of the monsters that dies")
+
+	# Spot 2: demon (and its fire elemental), dragon.
+	teleport(s, h, b, "spot 2, 40 fields east: the monsters of spot 1 sleep")
+	summon_wild(ctx, s, h, "demon")
+	summon_wild(ctx, s, h, "dragon")
+	fight(s, h, "demon (fire elemental) and dragon cast at h")
+	fight(s, h, "the same")
+	fight(s, h, "the same", 10)
+
+	# Spot 3: ancient scarab, hydra, tarantula.
+	teleport(s, h, c, "spot 3")
+	summon_wild(ctx, s, h, "ancient scarab")
+	summon_wild(ctx, s, h, "hydra")
+	summon_wild(ctx, s, h, "tarantula")
+	fight(s, h, "ancient scarab (larvae), hydra and tarantula cast at h")
+	fight(s, h, "the same")
+	fight(s, h, "the same", 10)
+
+	# Spot 4: stalker, Dipthrah (and its priestesses), scarab.
+	teleport(s, h, d, "spot 4")
+	summon_wild(ctx, s, h, "stalker")
+	summon_wild(ctx, s, h, "Dipthrah")
+	summon_wild(ctx, s, h, "scarab")
+	fight(s, h, "stalker, Dipthrah (priestesses) and scarab cast at h")
+	fight(s, h, "the same")
+	fight(s, h, "the same", 10)
+
+	# Spot 5: low health.
+	teleport(s, h, e, "spot 5")
+	summon_wild(ctx, s, h, "spit nettle")
+	summon_wild(ctx, s, h, "flamethrower")
+	fight(s, h, "the nettle and the flamethrower at their flee threshold cast at h", 16)
+
+	# Spot 6: monsters with a master against one at low health.
+	teleport(s, h, offset(e, 0, 15), "spot 6, out of the nettle's and the flamethrower's reach")
+	geomancer = summon_wild(ctx, s, h, "dwarf geomancer")
+	summon_own(ctx, s, h, "necromancer")
+	summon_own(ctx, s, h, "behemoth")
+	h.note("=== h attacks the dwarf geomancer: its summons fight it below its flee threshold")
+	h.attack(geomancer or 0)
+	s(1)
+	fight(s, h, "h's necromancer and behemoth fight the dwarf geomancer", 34)
+	h.note("=== h stops attacking")
+	h.cancel()
+	s(2)
+
+	h.logout()
+	s(4)
+
+
+# The scenario raids: h starts raids with Start Monsterraid ("alevo mas res
+# <key>", raids.toml) and watches where their waves come; the gamemaster c
+# (Testc Gamma: CREATE_MONSTERS) stays in the Rookgaard temple, gets the
+# raids' messages and names a raid that does not exist (a puff). A raid's
+# waves come delay seconds after its start (ProcessMonsterRaids, once a
+# round), each with random(min, max) monsters within spread fields of its
+# position; a wave with a message broadcasts it first.
+# - abdendrielwolfattack: wolves south of Ab'Dendriel, waves at 1 (9 to 18
+#   wolves) and 60 seconds (12 to 24, with the message "Many agressive beasts
+#   are roaming south of Ab'Dendriel! Take care!"), and more from 120
+#   seconds on (after the scenario); h starts it, watches the first wave,
+#   goes away and is back for the second.
+# - halloweenhare: two waves at 0 seconds, the first (with the message
+#   "Beware, beware the halloween hare.") at [32624,32017,7], the second on
+#   the Rookgaard pasture where h stands; The Halloween Hare casts outfits (actor
+#   /1, destination /60).
+# - rookgaardrats: nine waves of 10 to 15 rats each at 1 and 3 seconds, on
+#   the upper floors of Rookgaard; h watches the one at [32081,32214,6].
+# - orclandorc: an orc near the orcs' land at 1 second with an inventory (an
+#   old and used backpack, chance 1000 of 1000); h kills it (Kill All
+#   Creatures) and opens its corpse.
+WOLF_RAID_SPOT = (32635, 31724, 7)  # the wolf waves' position
+HARE_SPOT = (32070, 32213, 7)       # 2 fields from the hare's second wave at [32071,32215,7]
+RAT_RAID_SPOT = (32081, 32214, 6)   # the position of a rat wave at 3 seconds
+ORC_RAID_SPOT = (32975, 31743, 7)   # the orc's wave, in the orcs' land (others of its orcs come to h too)
+OLD_BACKPACK = 3244
+ORC_CORPSE = 4001                   # the corpse of the race orc (others of the orcs' land leave other ones)
+
+
+def find_corpse(ctx, c, m, tid=None):
+	"""The position and type of the first corpse (of type tid, if given) c
+	saw appear (AddField) after record m, or (None, 0)."""
+	def is_corpse(rec):
+		found = ADD_FIELD.match(rec["text"])
+		return found is not None and ctx.types.has(int(found.group(4)), "corpse") and tid in (None,
+			int(found.group(4)))
+
+	rec = c.wait_for(is_corpse, m, 3)
+	if rec is None:
+		return None, 0
+	x, y, z, tid = map(int, ADD_FIELD.match(rec["text"]).groups())
+	return (x, y, z), tid
+
+
+@scenario()
+def raids(ctx):
+	"""Raids started by Start Monsterraid (see the comment above): a raid
+	key that does not exist (a puff), the wolves of Ab'Dendriel (two waves,
+	the second with a message, 60 seconds apart), the Halloween Hare (two
+	waves at once, a message), the rats of Rookgaard (nine waves at 1 and 3
+	seconds), the orc with an inventory (its corpse opened). It ends at step
+	81 (round 101): run it with --stop-round 110."""
+	s = Steps(ctx)
+	ctx.at(0)
+	h = ctx.login("h")
+	s(2)
+	c = ctx.login("c")
+	s(2)
+
+	def start(who, key, what, k=1):
+		"""Start Monsterraid; returns the mark before it (a wave at 0
+		seconds comes in the same round)."""
+		m = who.mark()
+		who.note("=== Start Monsterraid %s: %s" % (key, what))
+		who.say("alevo mas res %s" % key)
+		s(k)
+		return m
+
+	start(c, "nosuchraid", "no raid of that key: a puff, nothing queued")
+	teleport(s, h, WOLF_RAID_SPOT, "where the wolves of Ab'Dendriel come")
+	wolves = start(h, "abdendrielwolfattack", "queued: waves at 1, 60, 120 and more seconds")
+	s(4)
+	ctx.check(h.wait_creature("wolf", wolves, 0) is not None, "raids: no wolf of the first wave seen")
+	wolf_start = s.n - 5
+
+	teleport(s, h, HARE_SPOT, "the Rookgaard pasture, next to the hare's second wave")
+	hare = start(h, "halloweenhare", "two waves at once, the first with its message")
+	s(2)
+	ctx.check(h.wait_creature("Halloween Hare", hare, 0) is not None, "raids: The Halloween Hare not seen")
+	fight(s, h, "The Halloween Hare casts its outfits", 12)
+
+	teleport(s, h, RAT_RAID_SPOT, "an upper floor of Rookgaard, a rat wave's position")
+	rats = start(h, "rookgaardrats", "nine waves at 1 and 3 seconds")
+	s(5)
+	ctx.check(h.wait_creature("rat", rats, 0) is not None, "raids: no rat of the waves seen")
+	fight(s, h, "the rats", 5)
+
+	teleport(s, h, ORC_RAID_SPOT, "where the orc with the backpack comes")
+	orc = start(h, "orclandorc", "one orc at 1 second, with an old and used backpack")
+	s(5)
+	ctx.check(h.wait_creature("orc", orc, 0) is not None, "raids: the orc not seen")
+	m = h.mark()
+	for _ in range(3):
+		h.note("=== Kill All Creatures: the orc next to h (and the other orcs around)")
+		h.say("alito mas res")
+		s(2)
+	corpse, _ = find_corpse(ctx, h, m, ORC_CORPSE)
+	ctx.check(corpse is not None, "raids: no corpse of the orc")
+	h.note("=== the orc's corpse opened: its inventory, the backpack among it")
+	m = h.mark()
+	h.use(corpse or ORC_RAID_SPOT, ORC_CORPSE, 0, 1)
+	s(2)
+	ctx.check(h.wait_text(r"^Container nr=1 .*%d\(" % OLD_BACKPACK, m, 0) is not None,
+		"raids: the old and used backpack is not in the orc's corpse")
+
+	h.note("=== back to the wolves before their second wave (60 seconds after the start)")
+	s(max(1, wolf_start + 53 - s.n))
+	teleport(s, h, WOLF_RAID_SPOT, "the wolves of the first wave are still there")
+	m = h.mark()
+	fight(s, h, "the second wave with its message", 63 - (s.n - wolf_start))
+	ctx.check(h.wait_text("^Message .*Ab'Dendriel", m, 0) is not None, "raids: no message of the second wolf wave")
+	fight(s, h, "the wolves of both waves", 6)
+
+	c.logout()
+	s(1)
+	h.logout()
+	s(4)
+
+
+# The scenario homes: the monster homes of monster_homes.toml. A home keeps
+# up to amount monsters of its race; when one dies (NotifyMonsterhomeOfDeath)
+# a timer of random(regeneration / 2, regeneration) rounds starts, and when
+# it runs out ProcessMonsterhomes makes a new monster, unless a player is
+# within 9 fields along x and 7 along y of the home's position (then it tries
+# again with a new timer), next to the position when the home has no monster
+# left, otherwise farther away. The homes:
+# - home 1167: up to 8 wolves (regeneration 100 seconds) in the forest north
+#   of Thais, [32323,32131,7]; h stands at the position, the wolves come to
+#   it and Kill All Creatures (within 2 fields) kills them.
+# - home 459: one rat (regeneration 60 seconds) in a cave under Rookgaard,
+#   [32093,32166,8]; h kills it next to the position and waits 10 fields east
+#   of it (out of sight of the position, far enough for the home to make a
+#   new rat) until the new rat comes to it, kills that one too and goes back
+#   to the wolves, whose home has made new ones meanwhile.
+WOLF_HOME = (32323, 32131, 7)
+RAT_HOME_NEAR = (32094, 32166, 8)   # next to the rat home's position
+RAT_HOME_WATCH = (32103, 32165, 8)  # 10 fields east of it, in the corridor to the room
+
+
+@scenario()
+def homes(ctx):
+	"""Monster homes (see the comment above): the wolves of a home north of
+	Thais killed, the rat of a home under Rookgaard killed and made again
+	(ProcessMonsterhomes) while h waits out of sight, killed again, and the
+	wolves made again. It ends at step 140 (round 160): run it with
+	--stop-round 170."""
+	s = Steps(ctx)
+	ctx.at(0)
+	h = ctx.login("h")
+	s(2)
+
+	def kill(times, what):
+		m = h.mark()
+		for _ in range(times):
+			h.note("=== Kill All Creatures: " + what)
+			h.say("alito mas res")
+			s(2)
+		corpse, _ = find_corpse(ctx, h, m)
+		return corpse
+
+	teleport(s, h, WOLF_HOME, "the position of a home of 8 wolves")
+	fight(s, h, "the wolves come to h", 6)
+	ctx.check(kill(4, "the wolves next to h") is not None, "homes: no wolf killed")
+	wolves_killed = s.n
+
+	teleport(s, h, RAT_HOME_NEAR, "next to the position of a home of one rat")
+	fight(s, h, "the rat comes to h", 4)
+	ctx.check(kill(3, "the rat next to h") is not None, "homes: the rat was not killed")
+	teleport(s, h, RAT_HOME_WATCH, "10 fields east of the rat home: the home may make a new rat")
+	m = h.mark()
+	for _ in range(3):
+		fight(s, h, "waiting for the new rat (30 to 60 rounds)", 22)
+		h.note("=== a ping, so that the game keeps the idle connection")
+		h.ping()
+		s(1)
+	ctx.check(h.wait_creature("rat", m, 0) is not None, "homes: no new rat came")
+	ctx.check(kill(3, "the new rat next to h") is not None, "homes: the new rat was not killed")
+
+	h.note("=== back to the wolf home, more than 100 rounds after the wolves died")
+	s(max(1, wolves_killed + 104 - s.n))
+	teleport(s, h, WOLF_HOME, "the wolf home: new wolves")
+	fight(s, h, "the wolves come to h", 8)
+	kill(2, "the wolves next to h")
+
+	h.logout()
+	s(4)
