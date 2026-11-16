@@ -1,0 +1,37 @@
+# events.toml: the event scripts of the game server, an ordered list. The game
+# reads events.toml in its data folder ([paths] data of config.toml) at start
+# and loads the scripts in the order of the file. A missing file, an unknown
+# key, a value of the wrong type and a script listed twice are errors. Without
+# an entry the game does what it did without the event scripts.
+#
+# Each [[event]] is one script, and every key is needed:
+#   script       "events/<name>.lua", a script in the scripts folder
+#                (data/scripts/ in the repository) with one or more of the
+#                global functions below.
+#
+# The handlers. For each event the game calls the handler of every listed
+# script that defines it, in the order of the file; a script without the
+# handler is skipped. player is the Player, killer a Creature, a Player or nil.
+#   onLogin(player)
+#       When a player has entered the game (in the player list, on the map,
+#       its client has the login data). Not when a player still in the game
+#       logs in again (after a lost connection).
+#   onLogout(player)
+#       When a player leaves the game: a logout, a lost connection, a death,
+#       the server's shutdown; before it is taken out of the player list.
+#   onDeath(player, killer)
+#       When a player dies (a god does not), after the death's handling: killer
+#       the creature responsible (a summon's master) when the death comes from
+#       damage, nil otherwise.
+#   onAdvance(player, skill, oldLevel, newLevel)
+#       When a skill of the player rises, where the game tells the player "You
+#       advanced ...": skill SKILL_LEVEL, SKILL_MAGLEVEL, SKILL_SHIELD,
+#       SKILL_DISTANCE, SKILL_SWORD, SKILL_CLUB, SKILL_AXE, SKILL_FIST or
+#       SKILL_FISHING; the level can rise by more than one at once.
+#   onSay(player, text, mode)
+#       When a player who is not muted talks, before the spells and commands
+#       are checked: mode a TALKTYPE_ constant. A handler that returns true
+#       consumes the text: the scripts after it are not called and nothing is
+#       cast or said; false or nil goes on.
+# The other handlers' results are ignored. A handler's error is logged and the
+# game carries on with the next script.

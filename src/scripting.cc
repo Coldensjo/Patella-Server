@@ -2170,6 +2170,44 @@ bool TScriptCall::runCaught() {
 	return FinishCall(L, Top, Script, Handler, NumberOfArguments, &Result, true);
 }
 
+bool TScriptCall::runCaughtBoolean(bool &Value) {
+	Value = false;
+	assert(ScriptingActive());
+	AssertMainThread();
+	assert(!Done);
+	if (Done) {
+		LogScriptFailure(Script, Handler, "the call has run already");
+		return false;
+	}
+	Done = true;
+	FailuresBefore = FailureCount;
+	int Top;
+	try {
+		Top = PrepareCall(Script, Handler, NumberOfArguments);
+	} catch (RESULT) {
+		// PrepareCall throws only through ScriptFailure, which has logged.
+		return false;
+	}
+	lua_State *L = State->lua_state();
+	for (int i = 0; i < NumberOfArguments; i++) {
+		Arguments[i].push(L);
+	}
+	TCallResult Result;
+	if (!FinishCall(L, Top, Script, Handler, NumberOfArguments, &Result, true)) {
+		return false;
+	}
+	if (Result.Type == LUA_TNIL) {
+		return true;
+	}
+	if (Result.Type != LUA_TBOOLEAN) {
+		LogScriptFailure(Script, Handler,
+				std::string(Handler) + " returned " + ResultValueText(Result) + ", not a boolean");
+		return false;
+	}
+	Value = Result.Boolean;
+	return true;
+}
+
 int TScriptCall::runNumber() {
 	assert(ScriptingActive());
 	AssertMainThread();

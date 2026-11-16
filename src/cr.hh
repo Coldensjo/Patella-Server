@@ -602,6 +602,11 @@ private:
 	int NumberOfMutings;
 	uint32_t Addressees[20];
 	uint32_t AddresseesTimes[20];
+public:
+	// The creature responsible for the death TCreature::Damage is about to
+	// cause (0 for none), set right before it calls Death, which takes it for
+	// onDeath and sets it back to 0.
+	uint32_t DeathKiller;
 };
 
 #endif

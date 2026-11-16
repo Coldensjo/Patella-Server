@@ -24,6 +24,7 @@
 #include "utils.hh"
 #include "time.hh"
 #include "crskill.hh"
+#include "scripting.hh"
 
 struct TSkillLevel : public TSkill {
 	TSkillLevel(int nr, TCreature *cr) : TSkill(nr, cr) {}
@@ -661,6 +662,7 @@ bool TSkillLevel::Jump(int Range) {
 		if (cr->Type == PLAYER) {
 			SendMessage(cr->GetConnection(), TALK_EVENT_MESSAGE,
 					"You advanced from Level %d to Level %d.", OldLevel, Get());
+			EventAdvance(cr->ID, GetSkNr(), OldLevel, Get());
 		}
 	} else {
 		if (cr->Type == PLAYER) {
@@ -750,6 +752,9 @@ bool TSkillProbe::Jump(int Range) {
 							"You advanced in fishing.");
 					break;
 			}
+			// Every TSkillProbe is one of the skills above (TSkillBase::
+			// NewSkill), so each advance here was told to the player.
+			EventAdvance(cr->ID, GetSkNr(), Get() - Range, Get());
 		}
 	}
 	return true;

@@ -2081,6 +2081,9 @@ void Talk(uint32_t CreatureID, int Mode, char *Addressee, char *Text, bool Check
 	}
 
 	if (cr->Type == PLAYER && Muting == 0) {
+		if (EventSay(CreatureID, Text, Mode)) {
+			return;
+		}
 		SpellType = CheckForSpell(CreatureID, Text);
 		if (SpellType == 1 || SpellType == 5 || SpellType < 0) {
 			return;

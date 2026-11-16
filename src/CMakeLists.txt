@@ -52,6 +52,7 @@ add_executable(game
 	scripting_items.cc
 	scripting_npcs.cc
 	scripting_monsters.cc
+	scripting_events.cc
 )
 target_include_directories(game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # -Wno-write-strings: many prototypes take `char *` and are called with
@@ -78,3 +79,11 @@ add_executable(game_test_scripting tests/test_scripting.cc scripting.cc utils.cc
 target_include_directories(game_test_scripting PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(game_test_scripting PRIVATE game_flags sol2)
 add_test(NAME game_scripting COMMAND game_test_scripting)
+
+# game_test_events: the game events (scripting_events.cc) on the engine, with
+# tomlfile.cc for events.toml; its files are made in a scratch folder the test
+# creates.
+add_executable(game_test_events tests/test_events.cc scripting_events.cc scripting.cc tomlfile.cc utils.cc)
+target_include_directories(game_test_events PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(game_test_events PRIVATE game_flags tomlplusplus sol2)
+add_test(NAME game_events COMMAND game_test_events)

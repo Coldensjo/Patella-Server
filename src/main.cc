@@ -453,8 +453,12 @@ void InitAll(const char *ConfigFile) {
 		RegisterItemAPI();
 		RegisterNpcAPI();
 		RegisterMonsterAPI();
+		RegisterEventAPI();
 		InitObjects();
 		InitItemUses();
+		char EventsFile[sizeof(DATAPATH) + 16];
+		snprintf(EventsFile, sizeof(EventsFile), "%s/events.toml", DATAPATH);
+		InitEvents(EventsFile);
 		InitMap();
 		InitTriggers();
 		InitMagic();
@@ -478,6 +482,7 @@ void ExitAll() {
 	ExitReader();
 	ExitWriter();
 	ExitCommunication();
+	ExitEvents();
 	ExitScripting();
 	ExitSHM();
 }
