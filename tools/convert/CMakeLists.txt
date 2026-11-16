@@ -30,6 +30,8 @@ add_library(convert_common STATIC
 	conversion_writer.cc
 	npc_files.cc
 	npcs_writer.cc
+	mon_files.cc
+	monsters_writer.cc
 	tomlwrite.cc
 	usr_files.cc
 	player_records.cc
@@ -40,6 +42,7 @@ add_library(convert_common STATIC
 	${GAME_SOURCE}/magicdata.cc
 	${GAME_SOURCE}/mapdata.cc
 	${GAME_SOURCE}/npcdata.cc
+	${GAME_SOURCE}/monsterdata.cc
 	${GAME_SOURCE}/triggersdata.cc
 	${GAME_SOURCE}/objects.cc
 	${GAME_SOURCE}/strings.cc
@@ -220,6 +223,25 @@ add_test(NAME convert_npcs COMMAND convert_test_npcs)
 add_test(NAME convert_npcs_original COMMAND convert_test_npcs --original ${PATELLA_ORIGINAL_NPC_TAR}
 	${CMAKE_CURRENT_BINARY_DIR}/npc-original ${PROJECT_SOURCE_DIR}/data)
 set_tests_properties(convert_npcs_original PROPERTIES SKIP_RETURN_CODE 77)
+
+# The round trips of the monsters: the races, raids and homes from their .mon,
+# .evt and monster.db files (through the converter's reader, which reads them
+# as the game did) and from monsters.toml, raids.toml and monster_homes.toml
+# (through LoadMonsterRaces, LoadRaids and LoadMonsterHomes) are the same, field
+# by field and in order. convert_monsters uses made-up files;
+# convert_monsters_original mon/ and dat/monster.db of the pristine tar,
+# PATELLA_ORIGINAL_MONSTER_TAR, extracted into the build tree (a native file
+# system, whose readdir order the raids keep), and the committed
+# data/monsters.toml, raids.toml and monster_homes.toml, which must be exactly
+# what patella-convert monsters makes of them. Skipped when the tar is not there.
+set(PATELLA_ORIGINAL_MONSTER_TAR "/home/chris/patella-cmp/pristine.tar" CACHE FILEPATH
+	"A tar of the original installation with mon/ and dat/monster.db, for the test convert_monsters_original")
+add_executable(convert_test_monsters tests/test_monsters.cc)
+target_link_libraries(convert_test_monsters PRIVATE convert_common)
+add_test(NAME convert_monsters COMMAND convert_test_monsters)
+add_test(NAME convert_monsters_original COMMAND convert_test_monsters --original ${PATELLA_ORIGINAL_MONSTER_TAR}
+	${CMAKE_CURRENT_BINARY_DIR}/monsters-original ${PROJECT_SOURCE_DIR}/data)
+set_tests_properties(convert_monsters_original PROPERTIES SKIP_RETURN_CODE 77)
 
 # The player data through the query manager (test_playerdata.cc): made-up
 # player files read with the old reader must come back the same from
