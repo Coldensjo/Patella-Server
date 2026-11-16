@@ -340,23 +340,26 @@ TNPC::TNPC(const TNPCData &Entry) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 
 
 // The script's onCreatureSay(npc, creature, text, situation), where the old
 // code called react(this, Text, Situation): the interlocutor at the call as
-// the creature. Throws what TScriptCall::run throws.
+// the creature. A script failure is logged and the stimulus carries on
+// (TScriptCall::runCaught); a result code the script raises is thrown.
 void TNPC::CallCreatureSay(char *Text, SITUATION Situation) {
 	TScriptCall Call(this->ScriptNumber, "onCreatureSay");
 	Call.addNpc(this->ID);
 	Call.addCreature(this->Interlocutor);
 	Call.addString(Text);
 	Call.addNumber(static_cast<int>(Situation));
-	Call.run();
+	Call.runCaught();
 }
 
 // The script's onCreatureDisappear(npc, creature), where the old code called
-// react(this, "", VANISH). Throws what TScriptCall::run throws.
+// react(this, "", VANISH). A script failure is logged and the stimulus
+// carries on (TScriptCall::runCaught); a result code the script raises is
+// thrown.
 void TNPC::CallCreatureDisappear() {
 	TScriptCall Call(this->ScriptNumber, "onCreatureDisappear");
 	Call.addNpc(this->ID);
 	Call.addCreature(this->Interlocutor);
-	Call.run();
+	Call.runCaught();
 }
 
 void TNPC::TalkStimulus(uint32_t Speaker, char *Text) {

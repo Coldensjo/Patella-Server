@@ -544,7 +544,8 @@
 // What the C++ code does around the call stays there (State IDLE after a
 // VANISH, the turn to the interlocutor after an ADDRESS, the queue's
 // order). A result code the function raises goes to the stimulus's caller
-// as one react passed on; any other error is logged and thrown as ERROR.
+// as one react passed on; any other error is logged and the stimulus
+// carries on (TScriptCall::runCaught, phase 6).
 // The converted scripts hold the NPC's rules and hand both calls to the
 // rule matcher, the module lib/npc.lua:
 //	local behaviour = require("lib.npc")
