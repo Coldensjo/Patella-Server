@@ -137,6 +137,10 @@ void ProcessCreatures() {
 				cr->Skills[SKILL_HITPOINTS]->Set(0);
 			}
 
+			if (cr->Type == PLAYER) {
+				EventLogout(cr->ID);
+			}
+
 			// The destructor moves the last entry of CreatureList to this
 			// index, so the index is processed again.
 			delete cr;
@@ -1025,6 +1029,9 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		}
 
 		int OldLevel = Skills[SKILL_LEVEL]->Get();
+		if (Type == PLAYER) {
+			((TPlayer *)this)->DeathKiller = Responsible != nullptr ? Responsible->ID : 0;
+		}
 		Death();
 
 		if (atk != nullptr && Type == PLAYER) {

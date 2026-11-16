@@ -541,5 +541,6 @@ void RegisterTriggerAPI();
 void RegisterItemAPI();
 void RegisterNpcAPI();
 void RegisterMonsterAPI();
+void RegisterEventAPI();
 
 #endif

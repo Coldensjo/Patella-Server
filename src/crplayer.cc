@@ -37,6 +37,7 @@
 #include "shm.hh"
 #include "strings.hh"
 #include "mudinc.hh"
+#include "scripting.hh"
 
 // LoadDepot, SaveDepot and TPlayer::MovePossible throw RESULT. No exception
 // specification limits them or InitPlayer (C++17 has none), so an exception
@@ -208,6 +209,7 @@ void LogoutAllPlayers() {
 			continue;
 		}
 
+		EventLogout(pl->ID);
 		// The destructor takes the player out of the list, so i stays.
 		delete pl;
 	}
@@ -993,6 +995,7 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 	for (int i = 0; i < 20; i++) {
 		Addressees[i] = 0;
 	}
+	DeathKiller = 0;
 
 	PlayerData = AttachPlayerPoolSlot(CharacterID, false);
 	if (PlayerData == nullptr) {
@@ -1499,6 +1502,8 @@ void TPlayer::TakeOver(TConnection *Connection) {
 }
 
 void TPlayer::Death() {
+	uint32_t Killer = DeathKiller;
+	DeathKiller = 0;
 	if (CheckRight(ID, INVULNERABLE)) {
 		error("TPlayer::Death: Aha, that is not how it works!! Gods cannot be killed!!\n");
 		Skills[SKILL_HITPOINTS]->Set(Skills[SKILL_HITPOINTS]->GetMax());
@@ -1542,6 +1547,7 @@ void TPlayer::Death() {
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
 	sk = Skills[SKILL_LEVEL];
 	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	EventDeath(ID, Killer);
 }
 
 void TPlayer::AttackStimulus(uint32_t) {

@@ -34,6 +34,7 @@
 #include "sending.hh"
 #include "shm.hh"
 #include "writer.hh"
+#include "scripting.hh"
 
 const int PINGTIME = 30;
 const int IDLETIME = 900;
@@ -215,6 +216,7 @@ bool TConnection::JoinGame(TReadBuffer &Buffer) {
 		return false;
 	}
 
+	bool Entered = false;
 	TPlayer *pl = ::GetPlayer(CharacterID);
 	if (pl != nullptr) {
 		if (pl->IsDead) {
@@ -248,11 +250,17 @@ bool TConnection::JoinGame(TReadBuffer &Buffer) {
 			delete pl;
 			return false;
 		}
+		Entered = true;
 	}
 
 	strcpy(Name, pl->Name);
 	TimeStamp = RoundNr;
 	TimeStampAction = RoundNr;
+	// A player taken over (above) has not left the game, so only a new one
+	// enters it.
+	if (Entered) {
+		EventLogin(pl->ID);
+	}
 	return true;
 }
 
