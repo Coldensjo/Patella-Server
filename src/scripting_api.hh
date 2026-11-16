@@ -24,15 +24,17 @@
 //
 // A binding's parameters are numbers (integral or floating types, bool),
 // strings (const char *, std::string), the objects below (TScriptCreature,
-// TScriptPlayer, TScriptNpc, TScriptItem, TScriptThing, TScriptVocation,
-// TScriptItemType), a Position (TScriptPosition) or sol::optional of those
-// ("|nil"); Guarded refuses any
-// other parameter type at compile
-// time. A script can so pass only numbers, booleans, strings, nil and the
-// objects; any other value where an object is expected (a table, a shared
-// table's proxy, a result error) is a Lua argument error. Tables never reach
-// a binding: the shared tables are userdata proxies, and sol would accept one
-// where it expects a table.
+// TScriptPlayer, TScriptNpc, TScriptMonster, TScriptItem, TScriptThing,
+// TScriptVocation, TScriptItemType, TScriptMonsterType), a Position
+// (TScriptPosition), an Impact (TScriptImpact), an outfit's colors
+// (TScriptColors) or sol::optional of those ("|nil"); Guarded refuses any
+// other parameter type at compile time. A script can so pass only numbers,
+// booleans, strings, nil, the objects, Positions, Impacts and the colors'
+// arrays; any other value where an object is expected (a table, a shared
+// table's proxy, a result error) is a Lua argument error. No other table
+// reaches a binding: the shared tables are userdata proxies, and sol would
+// accept one where it expects a table; TScriptColors takes only a real table
+// and reads it raw.
 //
 // Include it after the game headers that declare RESULT (info.hh, which needs
 // objects.hh and map.hh before it), as the game's units include info.hh.
@@ -84,9 +86,9 @@ void SetScriptConstant(const char *Name, int Value);
 [[noreturn]] void RaiseError(lua_State *L, const char *Text);
 
 // The objects (scripting.hh, "Objects"): a userdata holding a creature ID
-// (a Creature, Player or Npc), an object handle, for a Vocation its player's
-// creature ID, or for an ItemType an object type's number (an int, kept as
-// its uint32_t bits).
+// (a Creature, Player, Npc or Monster), an object handle, for a Vocation its
+// player's creature ID, for an ItemType an object type's number (an int, kept
+// as its uint32_t bits), or for a MonsterType a race number.
 enum TScriptObjectKind {
 	SCRIPT_NO_OBJECT,
 	SCRIPT_CREATURE,
@@ -95,10 +97,12 @@ enum TScriptObjectKind {
 	SCRIPT_VOCATION,
 	SCRIPT_ITEMTYPE,
 	SCRIPT_NPC,
+	SCRIPT_MONSTER,
+	SCRIPT_MONSTERTYPE,
 };
 
 // The last kind (the kinds are numbered from SCRIPT_NO_OBJECT, 0, on).
-const TScriptObjectKind LAST_SCRIPT_OBJECT_KIND = SCRIPT_NPC;
+const TScriptObjectKind LAST_SCRIPT_OBJECT_KIND = SCRIPT_MONSTERTYPE;
 
 // The kind of the value at Index: SCRIPT_NO_OBJECT for anything that is not
 // one of the objects. Calls no metamethod.
@@ -131,13 +135,54 @@ bool IsScriptPosition(lua_State *L, int Index);
 void GetScriptPosition(lua_State *L, int Index, int *x, int *y, int *z);
 void PushScriptPosition(lua_State *L, int x, int y, int z);
 
+// An Impact (scripting.hh, "Monster", Impact): a userdata holding the kind of
+// an impact of magic.hh, its actor's creature ID and its numbers, not one of
+// the objects above (ScriptObjectKind gives SCRIPT_NO_OBJECT for it). Its
+// methods are those of the API table Impact (impact:isAggressive()), which
+// also holds the constructors (Impact.damage, ...); it cannot be changed, two
+// are equal (==) when kind, actor, numbers and colors are, and its tostring
+// is "Impact <kind>" ("Impact damage"). The numbers by kind (Values, the rest
+// 0): damage {damage type, power, allow defense (0 or 1)}, field {field
+// type}, healing {power}, speed {percent, duration}, drunken {power,
+// duration}, strength {skills, percent, duration}, outfit {outfit ID,
+// duration} and the four color bytes (Colors, all 0 for the others), summon
+// {race, maximum}.
+enum TScriptImpactKind {
+	SCRIPT_IMPACT_DAMAGE,
+	SCRIPT_IMPACT_FIELD,
+	SCRIPT_IMPACT_HEALING,
+	SCRIPT_IMPACT_SPEED,
+	SCRIPT_IMPACT_DRUNKEN,
+	SCRIPT_IMPACT_STRENGTH,
+	SCRIPT_IMPACT_OUTFIT,
+	SCRIPT_IMPACT_SUMMON,
+};
+
+const TScriptImpactKind LAST_SCRIPT_IMPACT_KIND = SCRIPT_IMPACT_SUMMON;
+
+struct TScriptImpact {
+	TScriptImpactKind Kind;
+	uint32_t Actor;
+	int Values[4];
+	unsigned char Colors[4];
+};
+
+// Whether the value at Index is an Impact (calls no metamethod); the Impact
+// it holds (kind damage, all numbers 0, for another value); pushing a new
+// one.
+bool IsScriptImpact(lua_State *L, int Index);
+TScriptImpact GetScriptImpact(lua_State *L, int Index);
+void PushScriptImpact(lua_State *L, const TScriptImpact &Impact);
+
 // The parameter and result types of the objects. TScriptCreature takes a
-// Creature, a Player or an Npc (both are Creatures); TScriptPlayer only a
-// Player; TScriptNpc only an Npc; TScriptItem only an Item; TScriptThing an
-// Item, a Creature, a Player or an Npc (for the C++ functions that take an
-// Object); TScriptVocation a Vocation; TScriptItemType an ItemType. A
+// Creature, a Player, an Npc or a Monster (all are Creatures); TScriptPlayer
+// only a Player; TScriptNpc only an Npc; TScriptMonster only a Monster;
+// TScriptItem only an Item; TScriptThing an Item or any of the creatures (for
+// the C++ functions that take an Object); TScriptVocation a Vocation;
+// TScriptItemType an ItemType; TScriptMonsterType a MonsterType. A
 // TScriptCreature result is nil for 0, a Player for a player's ID and a
-// Creature otherwise (PushScriptCreature), also for an NPC's ID.
+// Creature otherwise (PushScriptCreature), also for an NPC's or a monster's
+// ID.
 struct TScriptCreature {
 	uint32_t ID;
 };
@@ -147,6 +192,10 @@ struct TScriptPlayer {
 };
 
 struct TScriptNpc {
+	uint32_t ID;
+};
+
+struct TScriptMonster {
 	uint32_t ID;
 };
 
@@ -167,6 +216,18 @@ struct TScriptItemType {
 	int TypeID;
 };
 
+struct TScriptMonsterType {
+	int Race;
+};
+
+// The colors of an outfit as a parameter: a Lua array of four integers (a
+// real table, read raw: elements 1 to 4, each a number without fraction in
+// the range of int, and no element 5); any other value is the argument error
+// "array of four colors expected". Values[0] is element 1.
+struct TScriptColors {
+	int Values[4];
+};
+
 // A Position as a parameter or result.
 struct TScriptPosition {
 	int x;
@@ -182,7 +243,7 @@ struct TScriptObjectType;
 template<>
 struct TScriptObjectType<TScriptCreature> {
 	static bool accepts(TScriptObjectKind Kind) {
-		return Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER || Kind == SCRIPT_NPC;
+		return Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER || Kind == SCRIPT_NPC || Kind == SCRIPT_MONSTER;
 	}
 	static const char *expected() { return "Creature expected"; }
 	static TScriptCreature make(TScriptObjectKind, uint32_t Value) { return TScriptCreature{Value}; }
@@ -206,6 +267,14 @@ struct TScriptObjectType<TScriptNpc> {
 };
 
 template<>
+struct TScriptObjectType<TScriptMonster> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_MONSTER; }
+	static const char *expected() { return "Monster expected"; }
+	static TScriptMonster make(TScriptObjectKind, uint32_t Value) { return TScriptMonster{Value}; }
+	static void push(lua_State *L, const TScriptMonster &Value) { PushScriptObject(L, SCRIPT_MONSTER, Value.ID); }
+};
+
+template<>
 struct TScriptObjectType<TScriptItem> {
 	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_ITEM; }
 	static const char *expected() { return "Item expected"; }
@@ -216,7 +285,8 @@ struct TScriptObjectType<TScriptItem> {
 template<>
 struct TScriptObjectType<TScriptThing> {
 	static bool accepts(TScriptObjectKind Kind) {
-		return Kind == SCRIPT_ITEM || Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER || Kind == SCRIPT_NPC;
+		return Kind == SCRIPT_ITEM || Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER || Kind == SCRIPT_NPC
+				|| Kind == SCRIPT_MONSTER;
 	}
 	static const char *expected() { return "Item or Creature expected"; }
 	static TScriptThing make(TScriptObjectKind Kind, uint32_t Value) {
@@ -250,6 +320,18 @@ struct TScriptObjectType<TScriptItemType> {
 	}
 	static void push(lua_State *L, const TScriptItemType &Value) {
 		PushScriptObject(L, SCRIPT_ITEMTYPE, static_cast<uint32_t>(Value.TypeID));
+	}
+};
+
+template<>
+struct TScriptObjectType<TScriptMonsterType> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_MONSTERTYPE; }
+	static const char *expected() { return "MonsterType expected"; }
+	static TScriptMonsterType make(TScriptObjectKind, uint32_t Value) {
+		return TScriptMonsterType{static_cast<int>(Value)};
+	}
+	static void push(lua_State *L, const TScriptMonsterType &Value) {
+		PushScriptObject(L, SCRIPT_MONSTERTYPE, static_cast<uint32_t>(Value.Race));
 	}
 };
 
@@ -320,10 +402,12 @@ sol::optional<T> GetOptionalScriptObject(lua_State *L, int Index, sol::stack::re
 SCRIPT_OBJECT_TYPE(TScriptCreature)
 SCRIPT_OBJECT_TYPE(TScriptPlayer)
 SCRIPT_OBJECT_TYPE(TScriptNpc)
+SCRIPT_OBJECT_TYPE(TScriptMonster)
 SCRIPT_OBJECT_TYPE(TScriptItem)
 SCRIPT_OBJECT_TYPE(TScriptThing)
 SCRIPT_OBJECT_TYPE(TScriptVocation)
 SCRIPT_OBJECT_TYPE(TScriptItemType)
+SCRIPT_OBJECT_TYPE(TScriptMonsterType)
 
 #undef SCRIPT_OBJECT_TYPE
 
@@ -353,6 +437,55 @@ inline int sol_lua_push(sol::types<TScriptPosition>, lua_State *L, const TScript
 	return 1;
 }
 
+// sol's customization points of an Impact parameter (only an Impact; any
+// other value is the argument error "Impact expected") and result.
+template<typename Handler>
+bool sol_lua_check(sol::types<TScriptImpact>, lua_State *L, int Index, Handler &&handler,
+		sol::stack::record &tracking) {
+	tracking.use(1);
+	if (IsScriptImpact(L, Index)) {
+		return true;
+	}
+	handler(L, Index, sol::type::userdata, sol::type_of(L, Index), "Impact expected");
+	return false;
+}
+
+inline TScriptImpact sol_lua_get(sol::types<TScriptImpact>, lua_State *L, int Index,
+		sol::stack::record &tracking) {
+	tracking.use(1);
+	return GetScriptImpact(L, Index);
+}
+
+inline int sol_lua_push(sol::types<TScriptImpact>, lua_State *L, const TScriptImpact &Value) {
+	PushScriptImpact(L, Value);
+	return 1;
+}
+
+// Whether the value at Index is an array of four colors (TScriptColors),
+// read raw (no metamethod runs); sets *Colors when it is and Colors is not
+// nullptr.
+bool ReadScriptColors(lua_State *L, int Index, TScriptColors *Colors);
+
+// sol's customization points of a colors parameter (TScriptColors).
+template<typename Handler>
+bool sol_lua_check(sol::types<TScriptColors>, lua_State *L, int Index, Handler &&handler,
+		sol::stack::record &tracking) {
+	tracking.use(1);
+	if (ReadScriptColors(L, Index, nullptr)) {
+		return true;
+	}
+	handler(L, Index, sol::type::table, sol::type_of(L, Index), "array of four colors expected");
+	return false;
+}
+
+inline TScriptColors sol_lua_get(sol::types<TScriptColors>, lua_State *L, int Index,
+		sol::stack::record &tracking) {
+	tracking.use(1);
+	TScriptColors Colors = {{0, 0, 0, 0}};
+	ReadScriptColors(L, Index, &Colors);
+	return Colors;
+}
+
 // Guarded(f): a function for sol's set_function that calls f with the same
 // arguments and gives its result. A RESULT f throws is caught and raised with
 // RaiseResult after the catch block has ended. A const char * or a
@@ -366,17 +499,19 @@ template<typename T>
 struct TScriptArgument : std::integral_constant<bool, std::is_arithmetic<T>::value
 		|| std::is_same<T, const char *>::value || std::is_same<T, std::string>::value
 		|| std::is_same<T, TScriptCreature>::value || std::is_same<T, TScriptPlayer>::value
-		|| std::is_same<T, TScriptNpc>::value
+		|| std::is_same<T, TScriptNpc>::value || std::is_same<T, TScriptMonster>::value
 		|| std::is_same<T, TScriptItem>::value || std::is_same<T, TScriptThing>::value
 		|| std::is_same<T, TScriptVocation>::value || std::is_same<T, TScriptItemType>::value
-		|| std::is_same<T, TScriptPosition>::value> {};
+		|| std::is_same<T, TScriptMonsterType>::value || std::is_same<T, TScriptPosition>::value
+		|| std::is_same<T, TScriptImpact>::value || std::is_same<T, TScriptColors>::value> {};
 template<typename T>
 struct TScriptArgument<sol::optional<T>> : TScriptArgument<std::decay_t<T>> {};
 
 template<typename R, typename... A>
 auto Guarded(R (*Function)(A...)) {
 	static_assert((TScriptArgument<std::decay_t<A>>::value && ...),
-			"a binding takes only numbers, bool, strings, the script objects and sol::optional of those");
+			"a binding takes only numbers, bool, strings, the script objects, Positions, Impacts, colors and"
+				" sol::optional of those");
 	return [Function](sol::this_state State, A... Arguments) -> R {
 		int Code = 0;
 		bool Text = false;
@@ -405,5 +540,6 @@ void RegisterMagicAPI();
 void RegisterTriggerAPI();
 void RegisterItemAPI();
 void RegisterNpcAPI();
+void RegisterMonsterAPI();
 
 #endif

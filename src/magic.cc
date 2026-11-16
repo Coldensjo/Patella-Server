@@ -1784,19 +1784,12 @@ void StartMonsterraid(TCreature *cr, char *RaidName) {
 	}
 
 	strLower(RaidName);
-	char FileName[4096];
-	snprintf(FileName, sizeof(FileName), "%s/%s.evt", MONSTERPATH, RaidName);
-	if (!FileExists(FileName)) {
+	if (!QueueMonsterRaid(RaidName, (int)RoundNr)) {
 		GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 		return;
 	}
 
-	try {
-		LoadMonsterRaid(FileName, (int)RoundNr,nullptr, nullptr, nullptr, nullptr);
-		GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
-	} catch (const char *) {
-		GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
-	}
+	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_BLUE);
 }
 
 void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints) {

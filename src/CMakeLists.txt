@@ -51,6 +51,7 @@ add_executable(game
 	scripting_triggers.cc
 	scripting_items.cc
 	scripting_npcs.cc
+	scripting_monsters.cc
 )
 target_include_directories(game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # -Wno-write-strings: many prototypes take `char *` and are called with

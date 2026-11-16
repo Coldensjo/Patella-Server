@@ -17,8 +17,6 @@ extern char USERPATH[4096];
 extern char LOGPATH[4096];
 extern char SAVEPATH[4096];
 extern char BINPATH[4096];
-extern char MONSTERPATH[4096];
-extern char NPCPATH[4096];
 // The file of the server's RSA private key (rsa_key, by default key.pem in
 // the config file's folder), as a full path unless written as an absolute one.
 extern char RSAKEYPATH[4096];

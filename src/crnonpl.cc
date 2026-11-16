@@ -1,8 +1,10 @@
 // crnonpl.cc: the creatures that are not players. An NPC (TNPC) is made from
 // its entry of npcs.toml and talks by its script (scripting.hh, "NPCs"),
 // which the stimuli call; a monster (TMonster) chooses a target, fights,
-// casts its spells and moves; a monster home spawns monsters of one race and
-// replaces the dead ones after its regeneration time.
+// casts its spells (the spell library, scripting.hh, "Monsters") and moves,
+// and calls its race's hooks; a monster home (monster_homes.toml) spawns
+// monsters of one race and replaces the dead ones after its regeneration
+// time.
 
 #include <algorithm>
 #include <climits>
@@ -12,7 +14,6 @@
 #include <cstring>
 #include <vector>
 
-#include "script.hh"
 #include "config.hh"
 #include "threads.hh"
 #include "dbfuncs.hh"
@@ -34,6 +35,7 @@
 #include "communication.hh"
 #include "TXTEASymmetricKey.hh"
 #include "npcdata.hh"
+#include "monsterdata.hh"
 #include "scripting.hh"
 #include "crnonpl.hh"
 
@@ -69,6 +71,7 @@ struct TMonster : public TNonplayer {
 	virtual uint32_t GetMaster() { return Master; }
 	void Convince(TCreature *newMaster);
 	void SetTarget(TCreature *NewTarget);
+	friend uint32_t GetMonsterTarget(TCreature *Monster);
 private:
 	bool CanKickBoxes();
 	void KickBoxes(Object Obj);
@@ -111,38 +114,35 @@ void StartMonsterhomeTimer(int nr) {
 	MH.Timer = random(PlayerAdjustedTime / 2, PlayerAdjustedTime);
 }
 
+// Makes the monster homes of <DATAPATH>/monster_homes.toml in the file's
+// order (their race keys checked against the races LoadRaces read) and
+// spawns their monsters. Throws what LoadMonsterHomes throws (a start error).
 void LoadMonsterhomes() {
 	char FileName[4096];
 	print(1, "Initializing monster homes ...\n");
-	sprintf(FileName, "%s/monster.db", DATAPATH);
+	snprintf(FileName, sizeof(FileName), "%s/monster_homes.toml", DATAPATH);
 
-	TReadScriptFile Script;
-	Script.open(FileName);
+	std::vector<TMonsterHomeData> Homes;
+	LoadMonsterHomes(FileName, GetMonsterRaces(), Homes);
 	Monsterhomes = 0;
-	while (true) {
-		int Race = Script.readNumber();
-		if (Race == 0) {
-			break;
-		}
-
+	for (const TMonsterHomeData &Home : Homes) {
 		Monsterhomes++;
 		TMonsterhome &MH = Monsterhome(Monsterhomes);
-		MH.Race = Race;
-		MH.x = Script.readNumber();
-		MH.y = Script.readNumber();
-		MH.z = Script.readNumber();
+		MH.Race = GetRaceByKey(Home.Race.c_str());
+		MH.x = Home.x;
+		MH.y = Home.y;
+		MH.z = Home.z;
 		if (!IsOnMap(MH.x, MH.y, MH.z)) {
 			print(1, "WARNING: Monster home [%d,%d,%d] is outside the map.\n", MH.x, MH.y, MH.z);
 		}
-		MH.Radius = Script.readNumber();
-		MH.MaxMonsters = Script.readNumber();
+		MH.Radius = Home.Radius;
+		MH.MaxMonsters = Home.Amount;
 		MH.ActMonsters = 0;
-		MH.RegenerationTime = Script.readNumber();
+		MH.RegenerationTime = Home.Regeneration;
 		MH.Timer = 0;
 	}
 
 	print(1, "%d monster homes loaded.\n", Monsterhomes);
-	Script.close();
 
 	for (int i = 1; i <= Monsterhomes; i++) {
 		TMonsterhome &MH = Monsterhome(i);
@@ -824,6 +824,8 @@ void TMonster::IdleStimulus() {
 		return;
 	}
 
+	MonsterThinkHook(RaceData[this->Race].Script, this->ID);
+
 	if (this->Master != 0) {
 		TCreature *master = GetCreature(this->Master);
 		if (master == nullptr) {
@@ -863,6 +865,7 @@ void TMonster::IdleStimulus() {
 			return;
 		}
 
+		uint32_t OldTarget = this->Target;
 		if (master != nullptr && !master->Combat.IsFollowing()) {
 			this->Target = master->Combat.GetAttackDest();
 		} else {
@@ -870,6 +873,9 @@ void TMonster::IdleStimulus() {
 		}
 		if (this->Target == 0 || this->Target == this->ID) {
 			this->Target = this->Master;
+		}
+		if (this->Target != 0 && this->Target != OldTarget) {
+			MonsterTargetHook(RaceData[this->Race].Script, this->ID, this->Target);
 		}
 	} else if (!MonsterhomeInRange(this->Home, this->posx, this->posy, this->posz)) {
 		print(3, "%s at [%d,%d,%d] too far from [%d,%d,%d].\n",
@@ -1020,6 +1026,11 @@ void TMonster::IdleStimulus() {
 					TieBreaker = NewTieBreaker;
 				}
 			}
+
+			// Target was 0 before the choice.
+			if (this->Target != 0) {
+				MonsterTargetHook(RaceData[this->Race].Script, this->ID, this->Target);
+			}
 		}
 
 		if (this->Target == 0 && Sleep && this->State != UNDERATTACK && this->State != PANIC) {
@@ -1042,103 +1053,7 @@ void TMonster::IdleStimulus() {
 	}
 
 	if (RaceData[this->Race].Spells > 0) {
-		TCreature *target = nullptr;
-		if (this->Target != 0) {
-			target = GetCreature(this->Target);
-		}
-
-		for (int i = 1; i <= RaceData[this->Race].Spells; i++) {
-			TSpellData &S = RaceData[this->Race].Spell(i);
-			if (rand() % S.Delay != 0) {
-				continue;
-			}
-
-			if (this->Master == 0
-					&& this->Skills[SKILL_HITPOINTS]->Get() <= RaceData[this->Race].FleeThreshold
-					&& random(1, 3) != 1) {
-				continue;
-			}
-
-			TImpact *Impact = nullptr;
-			switch (S.Impact) {
-				case IMPACT_DAMAGE:
-					Impact = new TDamageImpact(this, S.ImpactParam1,
-							ComputeDamage(this, 0, S.ImpactParam2, S.ImpactParam3), true);
-					break;
-				case IMPACT_FIELD:
-					Impact = new TFieldImpact(this, S.ImpactParam1);
-					break;
-				case IMPACT_HEALING:
-					Impact = new THealingImpact(this,
-							ComputeDamage(this, 0, S.ImpactParam1, S.ImpactParam2));
-					break;
-				case IMPACT_SPEED:
-					Impact = new TSpeedImpact(this,
-							ComputeDamage(this, 0, S.ImpactParam1, S.ImpactParam2), S.ImpactParam3);
-					break;
-				case IMPACT_DRUNKEN:
-					Impact = new TDrunkenImpact(this,
-							ComputeDamage(this, 0, S.ImpactParam1, S.ImpactParam2), S.ImpactParam3);
-					break;
-				case IMPACT_STRENGTH:
-					Impact = new TStrengthImpact(this, S.ImpactParam1,
-							ComputeDamage(this, 0, S.ImpactParam2, S.ImpactParam3), S.ImpactParam4);
-					break;
-				case IMPACT_OUTFIT: {
-					TOutfit HelpOutfit;
-					HelpOutfit.OutfitID = S.ImpactParam1;
-					HelpOutfit.Colors[0] = (unsigned char)S.ImpactParam2;
-					HelpOutfit.Colors[1] = (unsigned char)(S.ImpactParam2 / 256);
-					HelpOutfit.Colors[2] = (unsigned char)S.ImpactParam3;
-					HelpOutfit.Colors[3] = (unsigned char)(S.ImpactParam3 / 256);
-					Impact = new TOutfitImpact(this, HelpOutfit, S.ImpactParam4);
-					break;
-				}
-				case IMPACT_SUMMON:
-					if (this->Master == 0) {
-						Impact = new TSummonImpact(this, S.ImpactParam1, S.ImpactParam2);
-					}
-					break;
-			}
-
-			if (Impact == nullptr) {
-				continue;
-			}
-
-			if (!Impact->isAggressive() || (this->Target != 0 && this->Target != this->Master)) {
-				switch (S.Shape) {
-					case SHAPE_ACTOR:
-						ActorShapeSpell(this, Impact, S.ShapeParam1);
-						break;
-					case SHAPE_VICTIM:
-						if (target != nullptr) {
-							this->Rotate(target);
-							VictimShapeSpell(this, target, S.ShapeParam1, S.ShapeParam2, Impact, S.ShapeParam3);
-						}
-						break;
-					case SHAPE_ORIGIN:
-						OriginShapeSpell(this, S.ShapeParam1, Impact, S.ShapeParam2);
-						break;
-					case SHAPE_DESTINATION:
-						if (target != nullptr) {
-							this->Rotate(target);
-							DestinationShapeSpell(this, target, S.ShapeParam1, S.ShapeParam2, S.ShapeParam3,
-									Impact, S.ShapeParam4);
-						}
-						break;
-					case SHAPE_ANGLE:
-						if (target != nullptr) {
-							this->Rotate(target);
-						}
-						AngleShapeSpell(this, S.ShapeParam1, S.ShapeParam2, Impact, S.ShapeParam3);
-						break;
-				}
-			}
-
-			// TImpact has no virtual destructor and all impacts have trivial
-			// ones, so only the memory is freed.
-			::operator delete(Impact);
-		}
+		CastMonsterSpells(this->ID, this->Race, this->Target);
 	}
 
 	if (this->Target != 0) {
@@ -1353,6 +1268,8 @@ void TMonster::CreatureMoveStimulus(uint32_t CreatureID, int Type) {
 }
 
 void TMonster::DamageStimulus(uint32_t Attacker, int Damage, int) {
+	MonsterHealthChangeHook(RaceData[this->Race].Script, this->ID, Attacker, Damage);
+
 	if (Attacker == 0 || Damage == 0) {
 		return;
 	}
@@ -1677,9 +1594,17 @@ void TMonster::SetTarget(TCreature *NewTarget) {
 		return;
 	}
 
+	uint32_t OldTarget = this->Target;
 	this->Rotate(NewTarget);
 	this->Target = NewTarget->ID;
 	this->ToDoYield();
+	if (this->Target != OldTarget) {
+		MonsterTargetHook(RaceData[this->Race].Script, this->ID, this->Target);
+	}
+}
+
+uint32_t GetMonsterTarget(TCreature *Monster) {
+	return static_cast<TMonster *>(Monster)->Target;
 }
 
 TCreature *CreateMonster(int Race, int x, int y, int z, int Home, uint32_t Father, bool ShowEffect) {

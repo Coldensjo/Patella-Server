@@ -56,8 +56,7 @@ static const struct {
 	char *Path;
 } PathSettings[] = {
 	{"BINPATH", BINPATH}, {"DATAPATH", DATAPATH}, {"LOGPATH", LOGPATH},
-	{"MAPPATH", MAPPATH}, {"MONSTERPATH", MONSTERPATH}, {"NPCPATH", NPCPATH},
-	{"ORIGMAPPATH", ORIGMAPPATH}, {"SAVEPATH", SAVEPATH}, {"USERPATH", USERPATH},
+	{"MAPPATH", MAPPATH}, {"ORIGMAPPATH", ORIGMAPPATH}, {"SAVEPATH", SAVEPATH}, {"USERPATH", USERPATH},
 };
 
 // The path of the .tibia as config.toml stands for it, under Folder.
@@ -259,7 +258,8 @@ static void TestRoundTrips(const fs::path &Folder) {
 		"QueryManager = {(\"127.0.0.1\",7173,\"a\\\"b\\\\c\"),(\"qm.example\",-5,\"\"),(\"h\",7175,\"12345678\")}\n"
 		"World = \"Z\xe4nera\"\n"
 		"State = private\n";
-	std::string Text = RoundTrip(Folder, "full", Full, "/inst/", {"adminport", "querymanagerport", "adminaddress",
+	std::string Text = RoundTrip(Folder, "full", Full, "/inst/", {"monsterpath", "npcpath", "adminport",
+		"querymanagerport", "adminaddress",
 		"querymanageraddress", "querymanageradminpw", "querymanagergamepw", "querymanagerwebpw", "admindatabase",
 		"volatiledatabase", "webdatabase", "forumdatabase", "managerdatabase"});
 	CHECK(Text.find("bin = \"bin\"") != std::string::npos);
@@ -268,7 +268,8 @@ static void TestRoundTrips(const fs::path &Folder) {
 	CHECK(Text.find("data = \"/elsewhere/dat\"") != std::string::npos);
 	CHECK(Text.find("log = \"/institute/log\"") != std::string::npos);
 	CHECK(Text.find("user = \"u s\\\"r\"") != std::string::npos);
-	CHECK(Text.find("npc = \"n\xc3\xa4pc\"") != std::string::npos);
+	CHECK(Text.find("npc =") == std::string::npos);
+	CHECK(Text.find("monster =") == std::string::npos);
 	CHECK(Text.find("name = \"Z\xc3\xa4nera\"") != std::string::npos);
 	CHECK(Text.find("state = \"private\"") != std::string::npos);
 	CHECK(Text.find("password = \"a\\\"b\\\\c\"") != std::string::npos);

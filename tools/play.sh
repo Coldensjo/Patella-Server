@@ -17,8 +17,8 @@
 # config.toml (with QM_PORT and SHM_KEY set), the other data/*.toml files and the
 # Lua scripts (data/scripts/) go into its data folder ([paths] data), and
 # data/origmap.zip fills its origmap folder when the installation has none (map/
-# then starts as a copy of it). The rest (monsters, NPCs, owners.dat, monster.db)
-# comes from the installation. The RSA key is the copy's key.pem (the file rsa_key
+# then starts as a copy of it). The rest (owners.dat, the player files the
+# database imports) comes from the installation. The RSA key is the copy's key.pem (the file rsa_key
 # in its config.toml names, key.pem by default), which the game and the login server
 # (--key) both read; a copy without one gets PLAY_KEY, or else a new key from the
 # build's rsakeygen. Its player files are imported into the database
@@ -26,7 +26,9 @@
 # game itself never reads them. Copy and database are made on first use and kept, so
 # characters keep their progress; only the data/*.toml files and data/scripts/ are
 # brought up to date with this tree's on every start, since its game reads them as
-# the tree has them. The installation and the repository are not touched.
+# the tree has them, and the copy's config.toml loses the [paths] keys the game
+# no longer knows (monster, npc). The installation and the repository are not
+# touched.
 #
 # Environment (defaults in brackets):
 #   PLAY_BUILD      the build directory [$HOME/build/patella-server]
@@ -119,6 +121,35 @@ with open(target, "w", encoding="utf-8", newline="\n") as f:
 EOF
 }
 
+# Removes the keys monster and npc of [paths] from the copy's config.toml: the
+# game reads the races, raids, homes and NPCs from its data folder and refuses
+# both keys. A copy made before has them.
+drop_old_paths() {
+	python3 -I - "$ROOT/config.toml" <<'EOF'
+import re, sys, tomllib
+target = sys.argv[1]
+with open(target, encoding="utf-8") as f:
+	text = f.read()
+paths = tomllib.loads(text).get("paths", {})
+if "monster" not in paths and "npc" not in paths:
+	sys.exit(0)
+lines, section = [], None
+for line in text.splitlines(keepends=True):
+	header = re.match(r"\s*\[\s*([A-Za-z0-9_.]+)\s*\]", line)
+	if header:
+		section = header.group(1)
+	elif section == "paths" and re.match(r"\s*(monster|npc)\s*=", line):
+		continue
+	lines.append(line)
+text = "".join(lines)
+if any(key in tomllib.loads(text).get("paths", {}) for key in ("monster", "npc")):
+	sys.exit("%s: cannot remove [paths] monster and npc" % target)
+with open(target, "w", encoding="utf-8", newline="\n") as f:
+	f.write(text)
+print("removed [paths] monster and npc from %s" % target)
+EOF
+}
+
 # The copy's key file: rsa_key of its config.toml, relative to the copy, or
 # key.pem in the copy.
 key_file() {
@@ -195,6 +226,7 @@ setup() {
 		# The installation's .tibia stays for its operator tools, pointed at the copy.
 		[ -f "$ROOT/.tibia" ] && sed -i "s#\"/game/#\"$ROOT/#" "$ROOT/.tibia"
 	fi
+	drop_old_paths || die "cannot update $ROOT/config.toml"
 	data=$ROOT/$(config_value paths.data) || die "config.toml has no [paths] data"
 	mkdir -p "$data" || exit 1
 	for name in "$REPO"/data/*.toml; do

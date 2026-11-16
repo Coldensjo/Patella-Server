@@ -479,6 +479,7 @@ struct TCreature : public TSkillBase {
 	uint32_t FireDamageOrigin;
 	uint32_t PoisonDamageOrigin;
 	uint32_t EnergyDamageOrigin;
+	void Rotate(TCreature *Target);
 protected:
 	void Go(int x, int y, int z);
 	void Move(Object Obj, int zx, int zy, int zz, unsigned char Count);
@@ -486,7 +487,6 @@ protected:
 	void Turn(Object Obj);
 	void Trade(Object Obj, uint32_t PartnerID);
 	void Rotate(unsigned char Dir);
-	void Rotate(TCreature *Target);
 	void Attack();
 	void SetInCrList();
 	void DelInCrList();

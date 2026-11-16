@@ -79,14 +79,6 @@ void ReadTibiaConfig(const char *FileName, TTibiaConfigExtras &Extras) {
 			strcpy(DATAPATH, Script.readString());
 		}
 
-		if (strcmp(Ident, "monsterpath") == 0) {
-			strcpy(MONSTERPATH, Script.readString());
-		}
-
-		if (strcmp(Ident, "npcpath") == 0) {
-			strcpy(NPCPATH, Script.readString());
-		}
-
 		if (strcmp(Ident, "userpath") == 0) {
 			strcpy(USERPATH, Script.readString());
 		}
@@ -107,6 +99,13 @@ void ReadTibiaConfig(const char *FileName, TTibiaConfigExtras &Extras) {
 		// query managers it connects to are those of "querymanager".
 		if (strcmp(Ident, "adminport") == 0 || strcmp(Ident, "querymanagerport") == 0) {
 			Script.readNumber();
+			Extras.Dropped.push_back(Ident);
+		}
+
+		// The game reads the races, raids and NPCs from data/ (monsters.toml,
+		// raids.toml, npcs.toml), not from these folders.
+		if (strcmp(Ident, "monsterpath") == 0 || strcmp(Ident, "npcpath") == 0) {
+			Script.readString();
 			Extras.Dropped.push_back(Ident);
 		}
 
