@@ -16,11 +16,12 @@ What it does, in WSL Ubuntu-24.04:
      and lays it out for the build's tree. The TOML files the tree has in data/ replace the original files they were
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
      relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/commands.toml,
-     data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml and data/conversion.toml
-     go into the copy's data folder ([paths] data), as does data/scripts/ (the Lua scripts, as a whole folder), and the
-     files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat, houses.dat, map.dat with the
-     mem.dat it includes, and conversion.lst, are removed (spells.toml and commands.toml replace the spell table and the
-     commands' rights in the code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the
+     data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml, data/conversion.toml
+     and data/npcs.toml go into the copy's data folder ([paths] data), as does data/scripts/ (the Lua scripts, as a
+     whole folder), and the files they were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat,
+     houses.dat, map.dat with the mem.dat it includes, conversion.lst and the NPC folder ([paths] npc, with its .npc
+     and .ndb files), are removed (spells.toml and commands.toml replace the spell table and the commands' rights in
+     the code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the
      copy, and keeps those files. The scenario's clients read the object types from the file the copy has. Either config
      gets a scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the
      three after it for the other entries). Then it seeds a scratch database with the build's querymanager-seed (game
@@ -28,8 +29,9 @@ What it does, in WSL Ubuntu-24.04:
      900002 'Testb Beta', female; and the gamemasters 900003 to 900007, 'Testc Gamma' to 'Testg Eta', male, each with
      some of the rights the commands check, GM_RIGHTS; and the caster 900008 'Testh Theta', male, with the rights to
      cast every spell and make and use every rune, CASTER_RIGHTS; and the door opener 900009 'Testi Iota', male, who
-     may open every name door, DOOR_RIGHTS; none may have a player file or player data) and starts the build's query
-     manager. A build whose query manager keeps the player data (its database has the table
+     may open every name door, DOOR_RIGHTS; and the talkers 900010 to 900013, 'Testj Kappa' to 'Testm Nu', male,
+     with NO_BANISHMENT and TELEPORT_TO_COORDINATE, TALKER_RIGHTS; none may have a player file or player data) and
+     starts the build's query manager. A build whose query manager keeps the player data (its database has the table
      player_data) gets them from the player files with the seed, which imports them; the copy's usr/ is then removed,
      so the run also shows that its game no longer reads or writes player files. The game runs with HOME set to the
      copy, so it reads the copy's config.toml (or .tibia). The copy gets the check's RSA key (repro_check's key
@@ -122,6 +124,11 @@ CASTER_RIGHTS = ["ALL_SPELLS", "UNLIMITED_MANA", "PREMIUM_ACCOUNT", "ATTACK_EVER
 # OPEN_NAMEDDOORS (the game's right OPEN_NAMEDOORS), as the original query manager did.
 DOOR_RIGHTS = ["OPEN_NAMEDDOORS", "TELEPORT_TO_COORDINATE"]
 
+# The rights of the talkers 'Testj Kappa' to 'Testm Nu' (scenario npcs_busy): each says something every round to an
+# NPC, which mutes a player without NO_BANISHMENT after a few lines (TPlayer::RecordTalk: one line in 2.5 seconds, four
+# in a row); they go to their NPC by Move to coordinates.
+TALKER_RIGHTS = ["NO_BANISHMENT", "TELEPORT_TO_COORDINATE"]
+
 # Account, password, sex, character name and rights.
 TEST_ACCOUNTS = [
 	(900001, "testa", 1, "Testa Alpha", []),
@@ -133,6 +140,10 @@ TEST_ACCOUNTS = [
 	(900007, "testg", 1, "Testg Eta", gm_rights(4)),
 	(900008, "testh", 1, "Testh Theta", CASTER_RIGHTS),
 	(900009, "testi", 1, "Testi Iota", DOOR_RIGHTS),
+	(900010, "testj", 1, "Testj Kappa", TALKER_RIGHTS),
+	(900011, "testk", 1, "Testk Lambda", TALKER_RIGHTS),
+	(900012, "testl", 1, "Testl Mu", TALKER_RIGHTS),
+	(900013, "testm", 1, "Testm Nu", TALKER_RIGHTS),
 ]
 BOOT_SECONDS = 300
 STOP_SECONDS = 600
@@ -326,14 +337,19 @@ def write_config(source, game, shm, qm_port):
 	return world
 
 
-def data_folder(game):
-	"""The copy's data folder as its config.toml names it ([paths] data, relative to the copy)."""
+def paths_folder(game, key):
+	"""A folder of the copy as its config.toml names it ([paths] key, relative to the copy)."""
 	import tomllib
 	with open(os.path.join(game, "config.toml"), "rb") as f:
-		data = tomllib.load(f).get("paths", {}).get("data")
-	if not data or data.startswith("/"):
-		raise CheckError("data/config.toml: [paths] data = %r does not name a folder in the copy" % data)
-	return os.path.normpath(os.path.join(game, data))
+		folder = tomllib.load(f).get("paths", {}).get(key)
+	if not folder or folder.startswith("/"):
+		raise CheckError("data/config.toml: [paths] %s = %r does not name a folder in the copy" % (key, folder))
+	return os.path.normpath(os.path.join(game, folder))
+
+
+def data_folder(game):
+	"""The copy's data folder as its config.toml names it ([paths] data, relative to the copy)."""
+	return paths_folder(game, "data")
 
 
 # The TOML files of a tree's data/ that go into the copy's data folder, each with the original files of that folder it
@@ -348,7 +364,13 @@ DATA_FILES = [
 	("houses.toml", ("houseareas.dat", "houses.dat")),
 	("map.toml", ("map.dat", "mem.dat")),
 	("conversion.toml", ("conversion.lst",)),
+	("npcs.toml", ()),
 ]
+
+# The TOML files of a tree's data/ that replace a whole folder of the copy, by the [paths] key that names it.
+DATA_FOLDERS = {
+	"npcs.toml": "npc",
+}
 
 
 def lay_out(game, data, options):
@@ -371,6 +393,11 @@ def lay_out(game, data, options):
 				if os.path.exists(os.path.join(folder, original)):
 					os.remove(os.path.join(folder, original))
 				layout += ", no %s" % original
+			if name in DATA_FOLDERS:
+				replaced = paths_folder(game, DATA_FOLDERS[name])
+				if os.path.exists(replaced):
+					shutil.rmtree(replaced)
+				layout += ", no %s/" % DATA_FOLDERS[name]
 			if name == "items.toml":
 				objects = os.path.join(folder, name)
 		if os.path.isdir(os.path.join(data, "scripts")):
