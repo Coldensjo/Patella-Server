@@ -1,8 +1,9 @@
 // crinc.hh: the races and the monster raids, shared by the creature sources.
-// TRaceData holds one race of a .mon file (outfit, corpse, blood, fighting
-// values, flags, skills, talk, loot and spells), RaceData all of them;
-// TAttackWave is one wave of a raid (.evt file). ToDoQueue orders the
-// creatures by the time of their next to-do entry.
+// TRaceData holds one race of monsters.toml (key, outfit, corpse, blood,
+// fighting values, flags, skills, talk, loot, the number of its spells and its
+// script), RaceData all of them; TAttackWave is one queued wave of a raid of
+// raids.toml. ToDoQueue orders the creatures by the time of their next to-do
+// entry.
 
 #ifndef PATELLA_CRINC_HH
 #define PATELLA_CRINC_HH
@@ -14,6 +15,7 @@
 #include "dbfuncs.hh"
 #include "containr.hh"
 #include "crmain.hh"
+#include "monsterdata.hh"
 
 enum BloodType {
 	BT_BLOOD = 0,
@@ -21,25 +23,6 @@ enum BloodType {
 	BT_BONES = 2,
 	BT_FIRE = 3,
 	BT_ENERGY = 4,
-};
-
-enum SpellShapeType {
-	SHAPE_ACTOR = 0,
-	SHAPE_VICTIM = 1,
-	SHAPE_ORIGIN = 2,
-	SHAPE_DESTINATION = 3,
-	SHAPE_ANGLE = 4,
-};
-
-enum SpellImpactType {
-	IMPACT_DAMAGE = 0,
-	IMPACT_FIELD = 1,
-	IMPACT_HEALING = 2,
-	IMPACT_SPEED = 3,
-	IMPACT_DRUNKEN = 4,
-	IMPACT_STRENGTH = 5,
-	IMPACT_OUTFIT = 6,
-	IMPACT_SUMMON = 7,
 };
 
 struct TSkillData {
@@ -59,22 +42,12 @@ struct TItemData {
 	TItemData() {}
 };
 
-struct TSpellData {
-	SpellShapeType Shape;
-	int ShapeParam1;
-	int ShapeParam2;
-	int ShapeParam3;
-	int ShapeParam4;
-	SpellImpactType Impact;
-	int ImpactParam1;
-	int ImpactParam2;
-	int ImpactParam3;
-	int ImpactParam4;
-	int Delay;
-};
-
+// Spells is the number of the race's spells, which the spell library keeps
+// (scripting.hh, "Monsters"); Script the number of its script (LoadScript),
+// -1 for none.
 struct TRaceData {
 	TRaceData();
+	char Key[MAX_MONSTER_KEY_LENGTH + 1];
 	char Name[30];
 	char Article[3];
 	TOutfit Outfit;
@@ -111,12 +84,14 @@ struct TRaceData {
 	int Items;
 	vector<TItemData> Item;
 	int Spells;
-	vector<TSpellData> Spell;
+	int Script;
 };
 
 extern TRaceData RaceData[512];
 extern priority_queue<uint32_t, uint32_t> ToDoQueue;
 
+// Raid is the raid's index among the loaded raids (crmain.cc), Wave the
+// wave's number in the raid (1 for its first).
 struct TAttackWave {
 	TAttackWave();
 	~TAttackWave();
@@ -132,6 +107,8 @@ struct TAttackWave {
 	uint32_t Message;
 	int ExtraItems;
 	vector<TItemData> ExtraItem;
+	int Raid;
+	int Wave;
 };
 
 #endif

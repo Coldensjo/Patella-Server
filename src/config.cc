@@ -26,8 +26,6 @@ char BINPATH[4096];
 char DATAPATH[4096];
 char LOGPATH[4096];
 char MAPPATH[4096];
-char MONSTERPATH[4096];
-char NPCPATH[4096];
 char ORIGMAPPATH[4096];
 char SAVEPATH[4096];
 char USERPATH[4096];
@@ -73,8 +71,6 @@ void SetConfigDefaults() {
 	DATAPATH[0] = 0;
 	LOGPATH[0] = 0;
 	MAPPATH[0] = 0;
-	MONSTERPATH[0] = 0;
-	NPCPATH[0] = 0;
 	ORIGMAPPATH[0] = 0;
 	SAVEPATH[0] = 0;
 	USERPATH[0] = 0;
@@ -200,13 +196,11 @@ void LoadConfig(const char *FileName) {
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {
 		TomlCheckKeys(*Paths, "[paths]",
-				{"bin", "data", "map", "origmap", "monster", "npc", "user", "log", "save"});
+				{"bin", "data", "map", "origmap", "user", "log", "save"});
 		ReadPath(*Paths, "bin", Folder, BINPATH);
 		ReadPath(*Paths, "data", Folder, DATAPATH);
 		ReadPath(*Paths, "map", Folder, MAPPATH);
 		ReadPath(*Paths, "origmap", Folder, ORIGMAPPATH);
-		ReadPath(*Paths, "monster", Folder, MONSTERPATH);
-		ReadPath(*Paths, "npc", Folder, NPCPATH);
 		ReadPath(*Paths, "user", Folder, USERPATH);
 		ReadPath(*Paths, "log", Folder, LOGPATH);
 		ReadPath(*Paths, "save", Folder, SAVEPATH);

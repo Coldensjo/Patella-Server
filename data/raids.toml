@@ -1,0 +1,4312 @@
+# raids.toml: the raids of the game server, converted from the original
+# mon/*.evt files by patella-convert, with their comments. The game reads
+# raids.toml in its data folder ([paths] data of config.toml) at start. A raid
+# is named by its key, the name of its original file without ".evt"; the
+# start_monsterraid command names it. The raids are in the order in which the
+# original game read its files on the reference installation (readdir of
+# mon/), which is the order in which their start rounds are drawn. An unknown
+# key, a missing one, a value of the wrong type or out of range is an error,
+# as is an unknown race key.
+#
+# Each [[raid]] is one raid:
+#   key             The raid's key.
+#   description     (optional) A text the game does not use.
+#   type            "small" or "big".
+#   interval        The mean time between two of its raids in seconds; or
+#   date            the time of its one raid (seconds since 1970). Exactly
+#                   one of the two.
+#   script          (optional) "raids/<key>.lua", a script in the scripts
+#                   folder with its hooks (onRaid, onWave).
+#   [[raid.wave]]   One wave or more, in order:
+#     delay         Seconds after the raid's start.
+#     position      [x, y, z], where its monsters appear.
+#     spread        How far from position, in fields along x and y.
+#     race          The race's key (monsters.toml).
+#     count         [<min>, <max>]: how many, 0 <= min <= max, max >= 1.
+#     radius        (optional) How far the monsters walk; none: no limit.
+#     lifetime      (optional) Seconds until they vanish; 0 or none: never.
+#     message       (optional) A text broadcast when the wave comes.
+#     location      (optional) A text the game does not use.
+#     inventory     (optional) { type, maximum, chance } as for a race: the
+#                   objects one of the wave's monsters gets.
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Stein
+#         Golem Boss (Grorlam) irgendwo tief in den Höhlen
+#         unter Mount Sternum spawnt. Es gibt insgesamt sechs
+#         Grorlam-Events; bei den meisten ist es auf Grund des
+#         großen Spreads eher unwahrscheinlich, dass Grorlam
+#         spawnt.
+#         Falls er nach 4 Stunden nicht gefunden und besiegt
+#         wurde, verschwindet er wieder.
+
+[[raid]]
+key = "cavesgrorlam1"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Tief in den Mount Sternum Höhlen
+# Monster: Grorlam (besonderer Stone Golem)
+[[raid.wave]]
+delay = 0
+position = [32392, 32029, 11]
+spread = 32
+race = "grorlam"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Grorlam is looking for food."
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von je bis zu 20 Spinnen
+#         an 13 unterschiedlichen Orten in Kazordoon.
+
+[[raid]]
+key = "kazordoonspiderplague"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: An der Eingangstreppe von Kazordoon, 1. Untergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32577, 31895, 8]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: An der Eingangstreppe von Kazordoon, 2. Untergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32577, 31895, 9]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: An der Treppe zu Kazordoon Stadt, 2. Untergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32581, 31976, 9]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: Im Westen von Kazordoon Stadt, 2. Untergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32609, 31921, 9]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: Vor der Jolly Axeman Taverne, 2. Untergeschoss
+# Monster: 10-20 Spiders
+[[raid.wave]]
+delay = 0
+position = [32636, 31902, 9]
+spread = 20
+race = "spider"
+count = [10, 20]
+
+# Ort: An der Kreuzung zum Templebezirk, 3. Untergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32590, 31951, 10]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: In der Schmiede, 1. Untergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32632, 31910, 8]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: Bei der Rittergilde, 1. Untergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32619, 31947, 8]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: Bei den Rüstungskammern, 1. Obergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32615, 31929, 6]
+spread = 7
+race = "spider"
+count = [6, 12]
+
+# Ort: Bei den oberen Baracken, 2. Obergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32609, 31929, 5]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: Bei den Adelsquartieren, 3. Obergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32600, 31930, 4]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: Im Gang zum Thronsaal, 4. Obergeschoss
+# Monster: 6-12 Spiders
+[[raid.wave]]
+delay = 0
+position = [32598, 31928, 3]
+spread = 10
+race = "spider"
+count = [6, 12]
+
+# Ort: Bei den Farmen, 5. Obergeschoss
+# Monster: 10-20 Spiders
+[[raid.wave]]
+delay = 0
+position = [32620, 31912, 2]
+spread = 15
+race = "spider"
+count = [10, 20]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von 4-8 Wilden Kriegern
+#         0-1 Jägern auf der Straße zwischen Kazordoon und
+#         Ab'Dendriel.
+
+[[raid]]
+key = "northroadoutlaws"
+type = "small"
+interval = 604800
+#           (durchschnittlich einmal pro Woche)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Auf der Straße zwischen Kazordoon und Ab'Dendriel
+# Monster: 0-1 Hunter
+[[raid.wave]]
+delay = 1
+position = [32618, 31825, 7]
+spread = 6
+race = "hunter"
+count = [0, 1]
+# Message   = "Outlaws were sighted on the road from Kazordoon to Ab'Dendriel!"
+
+# Ort: Auf der Straße zwischen Kazordoon und Ab'Dendriel
+# Monster: 4-8 Wild Warriors
+[[raid.wave]]
+delay = 1
+position = [32619, 31826, 7]
+spread = 6
+race = "wildwarrior"
+count = [4, 8]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von je 9-18 Dachsen
+#         an sieben unterschiedlichen Orten in Ab'Dendriel.
+
+[[raid]]
+key = "abdendrielbadgers"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Norden von Ab'Dendriel, südwestlich vom Obstladen
+# Monster: 9-18 Badgers
+[[raid.wave]]
+delay = 1
+position = [32681, 31598, 7]
+spread = 6
+race = "badger"
+count = [9, 18]
+# Message   = "Badgers in Ab'Dendriel!"
+
+# Ort: Im Norden von Ab'Dendriel, südlich vom Musikgeschäft
+# Monster: 9-18 Badgers
+[[raid.wave]]
+delay = 1
+position = [32671, 31623, 7]
+spread = 6
+race = "badger"
+count = [9, 18]
+
+# Ort: Im Zentrum von Ab'Dendriel, südlich vom kleinen Sumpfgebiet
+# Monster: 9-18 Badgers
+[[raid.wave]]
+delay = 1
+position = [32644, 31647, 7]
+spread = 6
+race = "badger"
+count = [9, 18]
+
+# Ort: Im Zentrum von Ab'Dendriel, nordwestlich von der Bücherei
+# Monster: 9-18 Badgers
+[[raid.wave]]
+delay = 1
+position = [32680, 31650, 7]
+spread = 6
+race = "badger"
+count = [9, 18]
+
+# Ort: Im Südwesten von Ab'Dendriel, westlich vom Säulenplatz
+# Monster: 9-18 Badgers
+[[raid.wave]]
+delay = 1
+position = [32648, 31685, 7]
+spread = 6
+race = "badger"
+count = [9, 18]
+
+# Ort: Im Südosten von Ab'Dendriel, westlich vom Käfergehege
+# Monster: 9-18 Badgers
+[[raid.wave]]
+delay = 1
+position = [32684, 31700, 7]
+spread = 6
+race = "badger"
+count = [9, 18]
+
+# Ort: Im Osten von Ab'Dendriel, östlich von der Bücherei
+# Monster: 9-18 Badgers
+[[raid.wave]]
+delay = 1
+position = [32696, 31652, 7]
+spread = 6
+race = "badger"
+count = [9, 18]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Elder
+#         Beholder Boss (Evil Eye) sowie normale Beholder und,
+#         Elder Beholder in Necropolis unter Hellgate spawnen.
+#         Werden diese Monster nicht innerhalb von 8 Stunden
+#         gefunden und getötet, verschwinden sie wieder.
+
+[[raid]]
+key = "necropolisbeholder"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# ------------------ NECROPOLIS NORDOSTEN ------------------ #
+
+# Ort: Im Nordosten von Necropolis in Hellgate
+# Monster: Evil Eye (besonderer Elder Beholder)
+[[raid.wave]]
+delay = 0
+position = [32809, 31611, 14]
+spread = 1
+race = "evileye"
+count = [1, 1]
+lifetime = 28800
+
+# Ort: Im Nordosten von Necropolis in Hellgate
+# Monster: 2-4 Elder Beholder
+[[raid.wave]]
+delay = 0
+position = [32807, 31615, 14]
+spread = 3
+race = "elderbeholder"
+count = [2, 4]
+lifetime = 28800
+
+# Ort: Im Nordosten von Necropolis in Hellgate
+# Monster: 3-6 Beholder
+[[raid.wave]]
+delay = 0
+position = [32805, 31613, 14]
+spread = 3
+race = "beholder"
+count = [3, 6]
+lifetime = 28800
+
+# ------------------- NECROPOLIS ZENTRUM ------------------- #
+
+# Ort: Im Zentrum von Necropolis in Hellgate
+# Monster: 2-4 Elder Beholder
+[[raid.wave]]
+delay = 0
+position = [32783, 31636, 14]
+spread = 3
+race = "elderbeholder"
+count = [2, 4]
+lifetime = 28800
+
+# Ort: Im Zentrum von Necropolis in Hellgate
+# Monster: 3-6 Beholder
+[[raid.wave]]
+delay = 0
+position = [32785, 31640, 14]
+spread = 3
+race = "beholder"
+count = [3, 6]
+lifetime = 28800
+
+# -------------------- NECROPOLIS SÜDEN -------------------- #
+
+# Ort: Im Süden von Necropolis in Hellgate
+# Monster: 2-4 Elder Beholder
+[[raid.wave]]
+delay = 0
+position = [32802, 31678, 14]
+spread = 3
+race = "elderbeholder"
+count = [2, 4]
+lifetime = 28800
+
+# Ort: Im Süden von Necropolis in Hellgate
+# Monster: 3-6 Beholder
+[[raid.wave]]
+delay = 0
+position = [32798, 31675, 14]
+spread = 3
+race = "beholder"
+count = [3, 6]
+lifetime = 28800
+
+# ------------------- NECROPOLIS WESTEN -------------------- #
+
+# Ort: Im Westen von Necropolis in Hellgate
+# Monster: 2-4 Elder Beholder
+[[raid.wave]]
+delay = 0
+position = [32712, 31673, 14]
+spread = 3
+race = "elderbeholder"
+count = [2, 4]
+lifetime = 28800
+
+# Ort: Im Westen von Necropolis in Hellgate
+# Monster: 3-6 Beholder
+[[raid.wave]]
+delay = 0
+position = [32714, 31678, 14]
+spread = 3
+race = "beholder"
+count = [3, 6]
+lifetime = 28800
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Orc im
+#         Osten der Orc Fortress unauffällig zwischen den
+#         normalen Monstern spawnt.
+#         Wird er nicht innerhalb von 2 Stunden gefunden und
+#         getötet, verschwindet er wieder.
+
+# Besonderer Loot: Questbackpack, das man zu Sam nach Thais
+#                  bringen kann (100% Drop)
+
+[[raid]]
+key = "orclandorc"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Osten der Orc Fortress
+# Monster: 1 Orc mit Questloot
+[[raid.wave]]
+delay = 1
+position = [32975, 31743, 7]
+spread = 2
+race = "orc"
+count = [1, 1]
+lifetime = 7200
+# Message   = "The orc is out!"
+inventory = [{ type = 3244, maximum = 1, chance = 1000 }] # questbackpack
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Necromant
+#         Boss (Necropharus) und 2 normale Necromanten in Drefia
+#         im Ritualraum über dem Pentagrammgang spawnen.
+#         Werden diese Monster nicht innerhalb von 4 Stunden
+#         gefunden und getötet, verschwinden sie wieder.
+
+[[raid]]
+key = "drefianecromancer"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Drefia, im Ritualraum über dem Pentagrammgang
+# Monster: Necropharus (besonderer Necromancer)
+[[raid.wave]]
+delay = 0
+position = [33050, 32400, 10]
+spread = 1
+race = "necropharus"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Necropharus is preparing a ritual."
+
+# Ort: Drefia, im Ritualraum über dem Pentagrammgang
+# Monster: 2 Necromancer
+[[raid.wave]]
+delay = 0
+position = [33050, 32399, 10]
+spread = 2
+race = "necromancer"
+count = [2, 2]
+lifetime = 14400
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Drachenfürst
+#         Boss (Demodras) und 2 normale Drachenfürsten im
+#         Drachenhort unter den Plains of Havoc spawnen.
+#         Werden diese Monster nicht innerhalb von 4 Stunden
+#         gefunden und getötet, verschwinden sie wieder.
+
+[[raid]]
+key = "pohdemodras"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Dragon Lair in den Plains of Havoc, unterste Höhle
+# Monster: Demodras (besonderer Dragon Lord)
+[[raid.wave]]
+delay = 0
+position = [32774, 32292, 10]
+spread = 1
+race = "demodras"
+count = [1, 1]
+lifetime = 14400
+
+# Ort: Im Dragon Lair in den Plains of Havoc, unterste Höhle
+# Monster: 2 Dragon Lords
+[[raid.wave]]
+delay = 0
+position = [32774, 32292, 10]
+spread = 3
+race = "dragonlord"
+count = [2, 2]
+lifetime = 14400
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Stein
+#         Golem Boss (Grorlam) irgendwo tief in den Höhlen
+#         unter Mount Sternum spawnt. Es gibt insgesamt sechs
+#         Grorlam-Events; bei den meisten ist es auf Grund des
+#         großen Spreads eher unwahrscheinlich, dass Grorlam
+#         spawnt.
+#         Falls er nach 4 Stunden nicht gefunden und besiegt
+#         wurde, verschwindet er wieder.
+
+[[raid]]
+key = "cavesgrorlam2"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Tief in den Mount Sternum Höhlen
+# Monster: Grorlam (besonderer Stone Golem)
+[[raid.wave]]
+delay = 0
+position = [32394, 32019, 12]
+spread = 32
+race = "grorlam"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Grorlam is looking for food."
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Vier Angriffswellen mit Spawn von Orcs, Orc Warriors,
+#         Orc Spearmen, Orc Shamans, Orc Riders, Orc Leaders,
+#         Orc Berserkers, Orc Warlords und Warwolves vor allen
+#         vier Toren von Thais (Süden, Norden, Osten, Südwesten).
+#         Monster, die nach 2 Stunden noch nicht besiegt wurden,
+#         verschwinden wieder.
+
+[[raid]]
+key = "thaisorcinvasion"
+type = "big"
+interval = 15552000
+#           (durchschnittlich alle sechs Monate)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Beginn der Raid; harmlose Orcs vor den 4 toren (Orcs, Orc Spearmen, Rider, Warwolves)
+
+# ----------------- THAIS SÜDTOR, 1. WELLE ----------------- #
+
+# Ort: Thais, vor dem Südtor
+# Monster: 12-24 Orcs
+[[raid.wave]]
+delay = 0
+position = [32333, 32298, 7]
+spread = 7
+race = "orc"
+count = [12, 24]
+lifetime = 7200
+message = "Orc activity near Thais reported! Beware!"
+
+# Ort: Thais, vor dem Südtor
+# Monster: 7-14 Orc Spearmen
+[[raid.wave]]
+delay = 0
+position = [32330, 32297, 7]
+spread = 8
+race = "orcspearman"
+count = [7, 14]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 2-4 Orc Riders
+[[raid.wave]]
+delay = 0
+position = [32334, 32299, 7]
+spread = 9
+race = "orcrider"
+count = [2, 4]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 2-4 Warwolves
+[[raid.wave]]
+delay = 0
+position = [32334, 32300, 7]
+spread = 9
+race = "warwolf"
+count = [2, 4]
+lifetime = 7200
+
+# ----------------- THAIS NORDTOR, 1. WELLE ---------------- #
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 12-24 Orcs
+[[raid.wave]]
+delay = 0
+position = [32361, 32161, 7]
+spread = 7
+race = "orc"
+count = [12, 24]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 7-14 Orc Spearmen
+[[raid.wave]]
+delay = 0
+position = [32365, 32163, 7]
+spread = 8
+race = "orcspearman"
+count = [7, 14]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 2-4 Orc Riders
+[[raid.wave]]
+delay = 0
+position = [32362, 32157, 7]
+spread = 9
+race = "orcrider"
+count = [2, 4]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 2-4 Warwolves
+[[raid.wave]]
+delay = 0
+position = [32360, 32157, 7]
+spread = 9
+race = "warwolf"
+count = [2, 4]
+lifetime = 7200
+
+# ----------------- THAIS OSTTOR, 1. WELLE ----------------- #
+
+# Ort: Thais, vor dem Osttor
+# Monster: 12-24 Orcs
+[[raid.wave]]
+delay = 0
+position = [32450, 32223, 7]
+spread = 7
+race = "orc"
+count = [12, 24]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 7-14 Orc Spearmen
+[[raid.wave]]
+delay = 0
+position = [32454, 32222, 7]
+spread = 8
+race = "orcspearman"
+count = [7, 14]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 2-4 Orc Riders
+[[raid.wave]]
+delay = 0
+position = [32449, 32226, 7]
+spread = 9
+race = "orcrider"
+count = [2, 4]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 2-4 Warwolves
+[[raid.wave]]
+delay = 0
+position = [32446, 32221, 7]
+spread = 9
+race = "warwolf"
+count = [2, 4]
+lifetime = 7200
+
+# --------------- THAIS SÜDWESTTOR, 1. WELLE --------------- #
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 12-24 Orcs
+[[raid.wave]]
+delay = 0
+position = [32268, 32271, 7]
+spread = 7
+race = "orc"
+count = [12, 24]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 7-14 Orc Spearmen
+[[raid.wave]]
+delay = 0
+position = [32266, 32273, 7]
+spread = 8
+race = "orcspearman"
+count = [7, 14]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 2-4 Orc Riders
+[[raid.wave]]
+delay = 0
+position = [32270, 32275, 7]
+spread = 9
+race = "orcrider"
+count = [2, 4]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 2-4 Warwolves
+[[raid.wave]]
+delay = 0
+position = [32267, 32278, 7]
+spread = 9
+race = "warwolf"
+count = [2, 4]
+lifetime = 7200
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# 4 Minuten nach Beginn der Raid; Truppen vor den 4 Toren (Orc Warriors, Spearmen, Riders, Shamans, Warwolves)
+
+# ----------------- THAIS SÜDTOR, 2. WELLE ----------------- #
+
+# Ort: Thais, vor dem Südtor
+# Monster: 15-30 Orc Warriors
+[[raid.wave]]
+delay = 240
+position = [32333, 32302, 7]
+spread = 8
+race = "orcwarrior"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 15-30 Orc Spearmen
+[[raid.wave]]
+delay = 240
+position = [32327, 32302, 7]
+spread = 8
+race = "orcspearman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 8-16 Orc Riders
+[[raid.wave]]
+delay = 240
+position = [32324, 32301, 7]
+spread = 8
+race = "orcrider"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 8-16 Warwolves
+[[raid.wave]]
+delay = 240
+position = [32324, 32301, 7]
+spread = 8
+race = "warwolf"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 7-14 Orc Shamans
+[[raid.wave]]
+delay = 240
+position = [32328, 32300, 7]
+spread = 8
+race = "orcshaman"
+count = [7, 14]
+lifetime = 7200
+
+# ----------------- THAIS NORDTOR, 2. WELLE ---------------- #
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 15-30 Orc Warriors
+[[raid.wave]]
+delay = 240
+position = [32358, 32152, 7]
+spread = 8
+race = "orcwarrior"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 15-30 Orc Spearmen
+[[raid.wave]]
+delay = 240
+position = [32360, 32154, 7]
+spread = 8
+race = "orcspearman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 8-16 Orc Riders
+[[raid.wave]]
+delay = 240
+position = [32362, 32155, 7]
+spread = 8
+race = "orcrider"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 8-16 Warwolves
+[[raid.wave]]
+delay = 240
+position = [32359, 32155, 7]
+spread = 8
+race = "warwolf"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 7-14 Orc Shamans
+[[raid.wave]]
+delay = 240
+position = [32361, 32156, 7]
+spread = 8
+race = "orcshaman"
+count = [7, 14]
+lifetime = 7200
+
+# ----------------- THAIS OSTTOR, 2. WELLE ----------------- #
+
+# Ort: Thais, vor dem Osttor
+# Monster: 15-30 Orc Warriors
+[[raid.wave]]
+delay = 240
+position = [32445, 32225, 7]
+spread = 8
+race = "orcwarrior"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 15-30 Orc Spearmen
+[[raid.wave]]
+delay = 240
+position = [32452, 32219, 7]
+spread = 8
+race = "orcspearman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 8-16 Orc Riders
+[[raid.wave]]
+delay = 240
+position = [32450, 32226, 7]
+spread = 8
+race = "orcrider"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 8-16 Warwolves
+[[raid.wave]]
+delay = 240
+position = [32456, 32232, 7]
+spread = 8
+race = "warwolf"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 7-14 Orc Shamans
+[[raid.wave]]
+delay = 240
+position = [32453, 32226, 7]
+spread = 8
+race = "orcshaman"
+count = [7, 14]
+lifetime = 7200
+
+# --------------- THAIS SÜDWESTTOR, 2. WELLE --------------- #
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 15-30 Orc Warriors
+[[raid.wave]]
+delay = 240
+position = [32268, 32271, 7]
+spread = 8
+race = "orcwarrior"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 15-30 Orc Spearmen
+[[raid.wave]]
+delay = 240
+position = [32266, 32273, 7]
+spread = 8
+race = "orcspearman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 8-16 Orc Riders
+[[raid.wave]]
+delay = 240
+position = [32270, 32275, 7]
+spread = 8
+race = "orcrider"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 8-16 Warwolves
+[[raid.wave]]
+delay = 240
+position = [32267, 32278, 7]
+spread = 8
+race = "warwolf"
+count = [8, 16]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 7-14 Orc Shamans
+[[raid.wave]]
+delay = 240
+position = [32267, 32274, 7]
+spread = 8
+race = "orcshaman"
+count = [7, 14]
+lifetime = 7200
+
+##############################################################
+# ----------------- Dritte Angriffswelle ------------------- #
+##############################################################
+
+# 7 Minuten nach Beginn der Raid; Verstärkung vor den 4 Toren (Orc Warriors, Riders, Shamans, Berserkers, Leaders)
+
+# ----------------- THAIS SÜDTOR, 3. WELLE ----------------- #
+
+# Ort: Thais, vor dem Südtor
+# Monster: 20-40 Orc Warriors
+[[raid.wave]]
+delay = 420
+position = [32333, 32302, 7]
+spread = 8
+race = "orcwarrior"
+count = [20, 40]
+lifetime = 7200
+message = "Thais is under attack!"
+
+# Ort: Thais, vor dem Südtor
+# Monster: 16-32 Orc Riders
+[[raid.wave]]
+delay = 420
+position = [32324, 32301, 7]
+spread = 9
+race = "orcrider"
+count = [16, 32]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 14-28 Orc Shamans
+[[raid.wave]]
+delay = 420
+position = [32328, 32300, 7]
+spread = 9
+race = "orcshaman"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 14-28 Orc Berserkers
+[[raid.wave]]
+delay = 420
+position = [32330, 32300, 7]
+spread = 9
+race = "orcberserker"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 5-10 Orc Leaders
+[[raid.wave]]
+delay = 420
+position = [32330, 32300, 7]
+spread = 9
+race = "orcleader"
+count = [5, 10]
+lifetime = 7200
+
+# ----------------- THAIS NORDTOR, 3. WELLE ---------------- #
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 20-40 Orc Warriors
+[[raid.wave]]
+delay = 420
+position = [32358, 32152, 7]
+spread = 8
+race = "orcwarrior"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 16-32 Orc Riders
+[[raid.wave]]
+delay = 420
+position = [32360, 32154, 7]
+spread = 9
+race = "orcrider"
+count = [16, 32]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 14-28 Orc Shamans
+[[raid.wave]]
+delay = 420
+position = [32362, 32155, 7]
+spread = 9
+race = "orcshaman"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 14-28 Orc Berserkers
+[[raid.wave]]
+delay = 420
+position = [32359, 32155, 7]
+spread = 9
+race = "orcberserker"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 5-10 Orc Leaders
+[[raid.wave]]
+delay = 420
+position = [32361, 32156, 7]
+spread = 9
+race = "orcleader"
+count = [5, 10]
+lifetime = 7200
+
+# ----------------- THAIS OSTTOR, 3. WELLE ----------------- #
+
+# Ort: Thais, vor dem Osttor
+# Monster: 20-40 Orc Warriors
+[[raid.wave]]
+delay = 420
+position = [32450, 32223, 7]
+spread = 8
+race = "orcwarrior"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 16-32 Orc Riders
+[[raid.wave]]
+delay = 420
+position = [32454, 32222, 7]
+spread = 9
+race = "orcrider"
+count = [16, 32]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 14-28 Orc Shamans
+[[raid.wave]]
+delay = 420
+position = [32449, 32226, 7]
+spread = 9
+race = "orcshaman"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 14-28 Orc Berserkers
+[[raid.wave]]
+delay = 420
+position = [32446, 32221, 7]
+spread = 9
+race = "orcberserker"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 5-10 Orc Leaders
+[[raid.wave]]
+delay = 420
+position = [32450, 32224, 7]
+spread = 9
+race = "orcleader"
+count = [5, 10]
+lifetime = 7200
+
+# --------------- THAIS SÜDWESTTOR, 3. WELLE --------------- #
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 20-40 Orc Warriors
+[[raid.wave]]
+delay = 420
+position = [32268, 32274, 7]
+spread = 8
+race = "orcwarrior"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 16-32 Orc Riders
+[[raid.wave]]
+delay = 420
+position = [32269, 32278, 7]
+spread = 9
+race = "orcrider"
+count = [16, 32]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 14-28 Orc Shamans
+[[raid.wave]]
+delay = 420
+position = [32266, 32280, 7]
+spread = 9
+race = "orcshaman"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 14-28 Orc Berserkers
+[[raid.wave]]
+delay = 420
+position = [32268, 32281, 7]
+spread = 9
+race = "orcberserker"
+count = [14, 28]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 5-10 Orc Leaders
+[[raid.wave]]
+delay = 420
+position = [32265, 32278, 7]
+spread = 9
+race = "orcleader"
+count = [5, 10]
+lifetime = 7200
+
+##############################################################
+# ----------------- Vierte Angriffswelle ------------------- #
+##############################################################
+
+# 9 Minuten nach Beginn der Raid; Hauptangriff an allen 4 Toren (Orc Riders, Shamans, Bersekers, Leaders, Warlords)
+
+# ----------------- THAIS SÜDTOR, 4. WELLE ----------------- #
+
+# Ort: Thais, vor dem Südtor
+# Monster: 20-40 Orc Riders
+[[raid.wave]]
+delay = 540
+position = [32324, 32301, 7]
+spread = 10
+race = "orcrider"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 15-30 Orc Shamans
+[[raid.wave]]
+delay = 540
+position = [32328, 32300, 7]
+spread = 10
+race = "orcshaman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 20-40 Orc Berserkers
+[[raid.wave]]
+delay = 540
+position = [32330, 32300, 7]
+spread = 10
+race = "orcberserker"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 10-20 Orc Leaders
+[[raid.wave]]
+delay = 540
+position = [32330, 32300, 7]
+spread = 10
+race = "orcleader"
+count = [10, 20]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südtor
+# Monster: 5-10 Orc Warlords
+[[raid.wave]]
+delay = 540
+position = [32333, 32302, 7]
+spread = 10
+race = "orcwarlord"
+count = [5, 10]
+lifetime = 7200
+
+# ----------------- THAIS NORDTOR, 4. WELLE ---------------- #
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 20-40 Orc Riders
+[[raid.wave]]
+delay = 540
+position = [32361, 32157, 7]
+spread = 10
+race = "orcrider"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 15-30 Orc Shamans
+[[raid.wave]]
+delay = 540
+position = [32365, 32159, 7]
+spread = 10
+race = "orcshaman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 20-40 Orc Berserkers
+[[raid.wave]]
+delay = 540
+position = [32361, 32162, 7]
+spread = 10
+race = "orcberserker"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 10-20 Orc Leaders
+[[raid.wave]]
+delay = 540
+position = [32362, 32157, 7]
+spread = 10
+race = "orcleader"
+count = [10, 20]
+lifetime = 7200
+
+# Ort: Thais, vor dem Nordtor
+# Monster: 5-10 Orc Warlords
+[[raid.wave]]
+delay = 540
+position = [32358, 32152, 7]
+spread = 10
+race = "orcwarlord"
+count = [5, 10]
+lifetime = 7200
+
+# ----------------- THAIS OSTTOR, 4. WELLE ----------------- #
+
+# Ort: Thais, vor dem Osttor
+# Monster: 20-40 Orc Riders
+[[raid.wave]]
+delay = 540
+position = [32448, 32223, 7]
+spread = 10
+race = "orcrider"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 15-30 Orc Shamans
+[[raid.wave]]
+delay = 540
+position = [32454, 32221, 7]
+spread = 10
+race = "orcshaman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 20-40 Orc Berserkers
+[[raid.wave]]
+delay = 540
+position = [32458, 32220, 7]
+spread = 10
+race = "orcberserker"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 10-20 Orc Leaders
+[[raid.wave]]
+delay = 540
+position = [32459, 32223, 7]
+spread = 10
+race = "orcleader"
+count = [10, 20]
+lifetime = 7200
+
+# Ort: Thais, vor dem Osttor
+# Monster: 5-10 Orc Warlords
+[[raid.wave]]
+delay = 540
+position = [32457, 32220, 7]
+spread = 10
+race = "orcwarlord"
+count = [5, 10]
+lifetime = 7200
+
+# --------------- THAIS SÜDWESTTOR, 4. WELLE --------------- #
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 20-40 Orc Riders
+[[raid.wave]]
+delay = 540
+position = [32268, 32274, 7]
+spread = 10
+race = "orcrider"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 15-30 Orc Shamans
+[[raid.wave]]
+delay = 540
+position = [32269, 32278, 7]
+spread = 10
+race = "orcshaman"
+count = [15, 30]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 20-40 Orc Berserkers
+[[raid.wave]]
+delay = 540
+position = [32266, 32280, 7]
+spread = 10
+race = "orcberserker"
+count = [20, 40]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 10-20 Orc Leaders
+[[raid.wave]]
+delay = 540
+position = [32268, 32281, 7]
+spread = 10
+race = "orcleader"
+count = [10, 20]
+lifetime = 7200
+
+# Ort: Thais, vor dem Südwesttor
+# Monster: 5-10 Orc Warlords
+[[raid.wave]]
+delay = 540
+position = [32265, 32278, 7]
+spread = 10
+race = "orcwarlord"
+count = [5, 10]
+lifetime = 7200
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Zwei größere Angriffswellen, zwischen denen ein Abstand
+#         von 30 Minuten liegt. Bei beiden Angriffswellen
+#         spawnen an 19 verschiedenen Kanaldeckeln in Thais bis
+#         zu 30 Höhlenratten mit jeweils 5 Sekunden Abstand
+#         zwischen den einzelnen Spawns, so dass sich die Raid
+#         wie eine Kettenreaktion durch die Stadt zieht.
+
+[[raid]]
+key = "thaiscaverats"
+type = "small"
+interval = 604800
+#           (durchschnittlich einmal pro Woche)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Thais, Kanaldeckel auf der Kreuzung nördlich vom Tempel
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 10
+position = [32370, 32213, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+message = "Rat plague in Thais!"
+
+# Ort: Thais, Kanaldeckel östlich von der Burg bei Harkath Bloodblade
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 20
+position = [32339, 32183, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel vor der Zugbrücke am Nordausgang
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 25
+position = [32368, 32183, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel südöstlich vom Schiff
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 30
+position = [32324, 32226, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Kreuzung nördlich vom Tempel
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 35
+position = [32370, 32213, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Hauptstraße vor der Spielhalle
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 40
+position = [32385, 32216, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Hauptstraße vor der Knights Arena
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 45
+position = [32405, 32213, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Hauptstraße bei der Druidengilde
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 50
+position = [32422, 32214, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südosten der Stadt nördlich vom Wachturm
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 55
+position = [32425, 32260, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südosten der Stadt auf der Upper Swamp Lane
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 60
+position = [32409, 32255, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südosten der Stadt vor den Alai Flats
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 65
+position = [32389, 32251, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südwesten der Stadt nordwestlich vom Outlook Tower
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 70
+position = [32337, 32262, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südwesten der Stadt südwestlich vom Outlook Tower
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 75
+position = [32335, 32272, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Westen der Stadt in der Latrine
+# Monster: 10-15 Cave Rats
+[[raid.wave]]
+delay = 80
+position = [32322, 32241, 7]
+spread = 7
+race = "caverat"
+count = [10, 15]
+
+# Ort: Thais, Kanaldeckel im Westen der Stadt nordwestlich der Bank
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 85
+position = [32310, 32248, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Zentrum der Stadt direkt nördlich vom Tempel
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 90
+position = [32369, 32223, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Nordosten der Stadt nordwestlich der Druidengilde
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 95
+position = [32425, 32195, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Norden der Stadt zwischen Sam und Gorn
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 100
+position = [32369, 32197, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Osten der Stadt unterhalb des Ostausgangs
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 105
+position = [32425, 32241, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Süden der Stadt vor den Alai Flats
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 110
+position = [32366, 32252, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Thais, Kanaldeckel östlich von der Burg bei Harkath Bloodblade
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1820
+position = [32339, 32183, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel vor der Zugbrücke am Nordausgang
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1825
+position = [32368, 32183, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel südöstlich vom Schiff
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1830
+position = [32324, 32226, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Kreuzung nördlich vom Tempel
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1835
+position = [32370, 32213, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Hauptstraße vor der Spielhalle
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1840
+position = [32385, 32216, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Hauptstraße vor der Knights Arena
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1845
+position = [32405, 32213, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel auf der Hauptstraße bei der Druidengilde
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1850
+position = [32422, 32214, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südosten der Stadt nördlich vom Wachturm
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1855
+position = [32425, 32260, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südosten der Stadt auf der Upper Swamp Lane
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1860
+position = [32409, 32255, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südosten der Stadt vor den Alai Flats
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1865
+position = [32389, 32251, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südwesten der Stadt nordwestlich vom Outlook Tower
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1870
+position = [32337, 32262, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Südwesten der Stadt südwestlich vom Outlook Tower
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1875
+position = [32335, 32272, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Westen der Stadt in der Latrine
+# Monster: 10-15 Cave Rats
+[[raid.wave]]
+delay = 1880
+position = [32322, 32241, 7]
+spread = 7
+race = "caverat"
+count = [10, 15]
+
+# Ort: Thais, Kanaldeckel im Westen der Stadt nordwestlich der Bank
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1885
+position = [32310, 32248, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Zentrum der Stadt direkt nördlich vom Tempel
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1890
+position = [32369, 32223, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Nordosten der Stadt nordwestlich der Druidengilde
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1895
+position = [32425, 32195, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Norden der Stadt zwischen Sam und Gorn
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1900
+position = [32369, 32197, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Osten der Stadt unterhalb des Ostausgangs
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1905
+position = [32425, 32241, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+# Ort: Thais, Kanaldeckel im Süden der Stadt vor den Alai Flats
+# Monster: 20-30 Cave Rats
+[[raid.wave]]
+delay = 1910
+position = [32366, 32252, 7]
+spread = 7
+race = "caverat"
+count = [20, 30]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Neun Angriffswellen mit Spawn von anfangs Larven und
+#         Skarabäen, später Skarabäen und Alten Skarabäen am
+#         Nordwest-, Nord- und Nordosttor von Ankrahmun. Die
+#         Anzahl der Käfer nimmt pro Angriffswelle zunächst zu,
+#         gegen Ende hin dann langsam wieder ab.
+
+[[raid]]
+key = "ankrahmunscarabinvasion"
+type = "big"
+interval = 15552000
+#           (durchschnittlich alle 6 monate)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 6-12 Scarabs
+[[raid.wave]]
+delay = 0
+position = [33087, 32773, 7]
+spread = 8
+race = "scarab"
+count = [6, 12]
+message = "Unusual frequent scarab sightings at the gates of Ankrahmun."
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 6-12 Larvae
+[[raid.wave]]
+delay = 0
+position = [33152, 32746, 7]
+spread = 8
+race = "larva"
+count = [6, 12]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 6-12 Larvae
+[[raid.wave]]
+delay = 0
+position = [33243, 32788, 7]
+spread = 8
+race = "larva"
+count = [6, 12]
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 5-10 Larvae
+[[raid.wave]]
+delay = 120
+position = [33087, 32773, 7]
+spread = 8
+race = "larva"
+count = [5, 10]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 5-10 Scarabs
+[[raid.wave]]
+delay = 120
+position = [33152, 32746, 7]
+spread = 8
+race = "scarab"
+count = [5, 10]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 5-10 Scarabs
+[[raid.wave]]
+delay = 120
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [5, 10]
+
+##############################################################
+# ----------------- Dritte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 8-16 Scarabs
+[[raid.wave]]
+delay = 240
+position = [33087, 32773, 7]
+spread = 9
+race = "scarab"
+count = [8, 16]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 8-16 Scarabs
+[[raid.wave]]
+delay = 240
+position = [33152, 32746, 7]
+spread = 9
+race = "scarab"
+count = [8, 16]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 8-16 Scarabs
+[[raid.wave]]
+delay = 240
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [8, 16]
+
+##############################################################
+# ----------------- Vierte Angriffswelle ------------------- #
+##############################################################
+
+# ---------------- NORDWESTTOR ANKRAHMUN ------------------- #
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 12-20 Scarabs
+[[raid.wave]]
+delay = 360
+position = [33087, 32773, 7]
+spread = 8
+race = "scarab"
+count = [12, 20]
+message = "Ancient scarabs are leading an attack on Ankrahmun."
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 1-2 Ancient Scarabs
+[[raid.wave]]
+delay = 360
+position = [33087, 32773, 7]
+spread = 8
+race = "ancientscarab"
+count = [1, 2]
+
+# ------------------ NORDTOR ANKRAHMUN ----------------------#
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 12-20 Scarabs
+[[raid.wave]]
+delay = 360
+position = [33152, 32746, 7]
+spread = 8
+race = "scarab"
+count = [12, 20]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 1-2 Ancient Scarabs
+[[raid.wave]]
+delay = 360
+position = [33152, 32746, 7]
+spread = 8
+race = "ancientscarab"
+count = [1, 2]
+
+# ---------------- NORDOSTTOR ANKRAHMUN -------------------- #
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 12-20 Scarabs
+[[raid.wave]]
+delay = 360
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [12, 20]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 1-2 Ancient Scarabs
+[[raid.wave]]
+delay = 360
+position = [33243, 32788, 7]
+spread = 8
+race = "ancientscarab"
+count = [1, 2]
+
+##############################################################
+# ----------------- Fünfte Angriffswelle ------------------- #
+##############################################################
+
+# ---------------- NORDWESTTOR ANKRAHMUN ------------------- #
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 16-26 Scarabs
+[[raid.wave]]
+delay = 480
+position = [33087, 32773, 7]
+spread = 8
+race = "scarab"
+count = [16, 26]
+message = "Ancient scarabs are leading an attack on Ankrahmun."
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 3-6 Ancient Scarabs
+[[raid.wave]]
+delay = 480
+position = [33087, 32773, 7]
+spread = 8
+race = "ancientscarab"
+count = [3, 6]
+
+# ------------------ NORDTOR ANKRAHMUN ----------------------#
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 16-26 Scarabs
+[[raid.wave]]
+delay = 480
+position = [33152, 32746, 7]
+spread = 8
+race = "scarab"
+count = [16, 26]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 3-6 Ancient Scarabs
+[[raid.wave]]
+delay = 480
+position = [33152, 32746, 7]
+spread = 8
+race = "ancientscarab"
+count = [3, 6]
+
+# ---------------- NORDOSTTOR ANKRAHMUN -------------------- #
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 16-26 Scarabs
+[[raid.wave]]
+delay = 480
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [16, 26]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 3-6 Ancient Scarabs
+[[raid.wave]]
+delay = 480
+position = [33243, 32788, 7]
+spread = 8
+race = "ancientscarab"
+count = [3, 6]
+
+##############################################################
+# ----------------- Sechste Angriffswelle ------------------ #
+##############################################################
+
+# ---------------- NORDWESTTOR ANKRAHMUN ------------------- #
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 15-20 Scarabs
+[[raid.wave]]
+delay = 600
+position = [33087, 32773, 7]
+spread = 8
+race = "scarab"
+count = [15, 20]
+message = "Ancient scarabs are leading an attack on Ankrahmun."
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 5-10 Ancient Scarabs
+[[raid.wave]]
+delay = 600
+position = [33087, 32773, 7]
+spread = 8
+race = "ancientscarab"
+count = [5, 10]
+
+# ------------------ NORDTOR ANKRAHMUN ----------------------#
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 15-20 Scarabs
+[[raid.wave]]
+delay = 600
+position = [33152, 32746, 7]
+spread = 8
+race = "scarab"
+count = [15, 20]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 5-10 Ancient Scarabs
+[[raid.wave]]
+delay = 600
+position = [33152, 32746, 7]
+spread = 8
+race = "ancientscarab"
+count = [5, 10]
+
+# ---------------- NORDOSTTOR ANKRAHMUN -------------------- #
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 15-20 Scarabs
+[[raid.wave]]
+delay = 600
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [15, 20]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 5-10 Ancient Scarabs
+[[raid.wave]]
+delay = 600
+position = [33243, 32788, 7]
+spread = 8
+race = "ancientscarab"
+count = [5, 10]
+
+##############################################################
+# ------------------ Siebte Angriffswelle ------------------ #
+##############################################################
+
+# ---------------- NORDWESTTOR ANKRAHMUN ------------------- #
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 8-16 Scarabs
+[[raid.wave]]
+delay = 720
+position = [33087, 32773, 7]
+spread = 8
+race = "scarab"
+count = [8, 16]
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 1-5 Ancient Scarabs
+[[raid.wave]]
+delay = 720
+position = [33087, 32773, 7]
+spread = 8
+race = "ancientscarab"
+count = [1, 5]
+
+# ------------------ NORDTOR ANKRAHMUN ----------------------#
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 8-16 Scarabs
+[[raid.wave]]
+delay = 720
+position = [33152, 32746, 7]
+spread = 8
+race = "scarab"
+count = [8, 16]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 1-5 Ancient Scarabs
+[[raid.wave]]
+delay = 720
+position = [33152, 32746, 7]
+spread = 8
+race = "ancientscarab"
+count = [1, 5]
+
+# ---------------- NORDOSTTOR ANKRAHMUN -------------------- #
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 8-16 Scarabs
+[[raid.wave]]
+delay = 720
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [8, 16]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 1-5 Ancient Scarabs
+[[raid.wave]]
+delay = 720
+position = [33243, 32788, 7]
+spread = 8
+race = "ancientscarab"
+count = [1, 5]
+
+##############################################################
+# ------------------- Achte Angriffswelle ------------------ #
+##############################################################
+
+# ---------------- NORDWESTTOR ANKRAHMUN ------------------- #
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 4-12 Scarabs
+[[raid.wave]]
+delay = 780
+position = [33087, 32773, 7]
+spread = 8
+race = "scarab"
+count = [4, 12]
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 0-1 Ancient Scarabs
+[[raid.wave]]
+delay = 780
+position = [33087, 32773, 7]
+spread = 8
+race = "ancientscarab"
+count = [0, 1]
+
+# ------------------ NORDTOR ANKRAHMUN ----------------------#
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 4-12 Scarabs
+[[raid.wave]]
+delay = 780
+position = [33152, 32746, 7]
+spread = 8
+race = "scarab"
+count = [4, 12]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 0-1 Ancient Scarabs
+[[raid.wave]]
+delay = 780
+position = [33152, 32746, 7]
+spread = 8
+race = "ancientscarab"
+count = [0, 1]
+
+# ---------------- NORDOSTTOR ANKRAHMUN -------------------- #
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 4-12 Scarabs
+[[raid.wave]]
+delay = 780
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [4, 12]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 0-1 Ancient Scarabs
+[[raid.wave]]
+delay = 780
+position = [33243, 32788, 7]
+spread = 8
+race = "ancientscarab"
+count = [0, 1]
+
+##############################################################
+# ------------------ Neunte Angriffswelle ------------------ #
+##############################################################
+
+# Ort: Außerhalb des Nordwesttores von Ankrahmun
+# Monster: 0-6 Scarabs
+[[raid.wave]]
+delay = 840
+position = [33087, 32773, 7]
+spread = 8
+race = "scarab"
+count = [0, 6]
+
+# Ort: Außerhalb des Nordtores von Ankrahmun
+# Monster: 0-6 Scarabs
+[[raid.wave]]
+delay = 840
+position = [33152, 32746, 7]
+spread = 8
+race = "scarab"
+count = [0, 6]
+
+# Ort: Außerhalb des Nordosttores von Ankrahmun
+# Monster: 0-6 Scarabs
+[[raid.wave]]
+delay = 840
+position = [33243, 32788, 7]
+spread = 8
+race = "scarab"
+count = [0, 6]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von Orcs, Orc Warriors,
+#         Shamans, Riders, Berserkers, Leaders und Warlords in
+#         den Femor Hills (in der Gegend des bzw. im Whitewatch
+#         Tower).
+#         Nach 5 Stunden verschwinden alle Orcs, die bis dahin
+#         nicht besiegt wurden.
+
+# Besonderer Loot: Amazon Helmet, Amazon Armor, Amazon Shield
+#                  (mit geringer Wahrscheinlichkeit in Warlords)
+
+[[raid]]
+key = "carlintowerorcs"
+type = "small"
+interval = 2592000
+#           (durchschnittlich einmal pro Monat)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Femor Hills, südwestlich vom Tower of Whitewatch
+# Monster: 10-15 Orcs
+[[raid.wave]]
+delay = 1
+position = [32533, 31797, 7]
+spread = 5
+race = "orc"
+count = [10, 15]
+lifetime = 18000
+# Message   = "Orc attack on the tower of whitewatch!"
+
+# Ort: Femor Hills, Westaufgang zum Teppich
+# Monster: 10-15 Orc Warriors
+[[raid.wave]]
+delay = 1
+position = [32537, 31820, 6]
+spread = 5
+race = "orcwarrior"
+count = [10, 15]
+lifetime = 18000
+
+# Ort: Femor Hills, südwestlich vom Tower of Whitewatch
+# Monster: 10-15 Orc Warriors
+[[raid.wave]]
+delay = 1
+position = [32539, 31797, 6]
+spread = 4
+race = "orcwarrior"
+count = [10, 15]
+lifetime = 18000
+
+# Ort: Femor Hills, östlich vom Tower of Whitewatch
+# Monster: 10-15 Orc Warriors
+[[raid.wave]]
+delay = 1
+position = [32559, 31771, 6]
+spread = 5
+race = "orcwarrior"
+count = [10, 15]
+lifetime = 18000
+
+# Ort: Femor Hills, südlich vom Tower of Whitewatch
+# Monster: 10-15 Orc Shamans
+[[raid.wave]]
+delay = 1
+position = [32538, 31782, 6]
+spread = 10
+race = "orcshaman"
+count = [10, 15]
+lifetime = 18000
+
+# Ort: Femor Hills, westlich vom Tower of Whitewatch
+# Monster: 10-15 Orc Riders
+[[raid.wave]]
+delay = 1
+position = [32521, 31783, 6]
+spread = 8
+race = "orcrider"
+count = [10, 15]
+lifetime = 18000
+
+# Ort: Femor Hills, Tower of Whitewatch Basement
+# Monster: 15-20 Orc Berserkers
+[[raid.wave]]
+delay = 1
+position = [32535, 31773, 5]
+spread = 10
+race = "orcberserker"
+count = [15, 20]
+lifetime = 18000
+
+# Ort: Femor Hills, Tower of Whitewatch Basement
+# Monster: 15-20 Orc Shamans
+[[raid.wave]]
+delay = 1
+position = [32535, 31772, 5]
+spread = 10
+race = "orcshaman"
+count = [15, 20]
+lifetime = 18000
+
+# Ort: Femor Hills, Tower of Whitewatch Basement
+# Monster: 1-2 Orc Leaders
+[[raid.wave]]
+delay = 1
+position = [32542, 31773, 5]
+spread = 10
+race = "orcleader"
+count = [1, 2]
+lifetime = 18000
+
+# Ort: Femor Hills, Tower of Whitewatch 1. Stock
+# Monster: 2-4 Orc Leaders
+[[raid.wave]]
+delay = 1
+position = [32535, 31773, 4]
+spread = 2
+race = "orcleader"
+count = [2, 4]
+lifetime = 18000
+
+# Ort: Femor Hills, Tower of Whitewatch 2. Stock
+# Monster: 2-4 Orc Leaders
+[[raid.wave]]
+delay = 1
+position = [32535, 31773, 3]
+spread = 2
+race = "orcleader"
+count = [2, 4]
+lifetime = 18000
+
+# Ort: Femor Hills, Tower of Whitewatch 3. Stock
+# Monster: 2-4 Orc Leaders
+[[raid.wave]]
+delay = 1
+position = [32535, 31773, 2]
+spread = 2
+race = "orcleader"
+count = [2, 4]
+lifetime = 18000
+
+# Ort: Femor Hills, Tower of Whitewatch 3. Stock
+# Monster: 4 Orc Warlords
+[[raid.wave]]
+delay = 1
+position = [32535, 31773, 2]
+spread = 2
+race = "orcwarlord"
+count = [4, 4]
+lifetime = 18000
+inventory = [
+	{ type = 3393, maximum = 1, chance = 8 }, # amazon helmet
+	{ type = 3394, maximum = 1, chance = 6 }, # amazon armor
+	{ type = 3437, maximum = 1, chance = 4 }, # amazon shield
+]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn je eines Halloween Hares
+#         südlich der Dwarf Bridge und im Rookgaard Schafgehege.
+
+[[raid]]
+key = "halloweenhare"
+type = "small"
+date = 1130763600
+#           zu Halloween (2005)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Ebene südlich Kazordoons, südlich von McNoodles
+# Monster: the halloween hare
+[[raid.wave]]
+delay = 0
+position = [32624, 32017, 7]
+spread = 1
+race = "halloweenhare"
+count = [1, 1]
+message = "Beware, beware the halloween hare."
+
+# Ort: Rookgaard im Schafgehege
+# Monster: the halloween hare
+[[raid.wave]]
+delay = 0
+position = [32071, 32215, 7]
+spread = 1
+race = "halloweenhare"
+count = [1, 1]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Zwei Angriffswellen mit Spawn von je 10-15 Ratten
+#         an 9 unterschiedlichen Orten in Rookgaard.
+#         Monster, die nach 2 Stunden noch nicht besiegt wurden,
+#         verschwinden wieder.
+
+[[raid]]
+key = "rookgaardrats"
+type = "small"
+interval = 86400
+#           (durchschnittlich einmal pro Tag)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Rookgaard, auf dem Dach von Lilys Laden
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 1
+position = [32068, 32226, 6]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+# Message   = "Rats in rookgaard!"
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Rookgaard, auf einem Hügel im Südosten
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32093, 32229, 6]
+spread = 5
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+# Ort: Rookgaard, auf einem Hügel im Stockwerk über Toms Hütte
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32081, 32214, 6]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+# Ort: Rookgaard, im Stockwerk über Al Dees Laden
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32060, 32177, 6]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+# Ort: Rookgaard, im Getreidelager über den Ställen
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32082, 32184, 6]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+# Ort: Rookgaard, auf dem Dach des Getreidelagers
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32082, 32184, 5]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+# Ort: Rookgaard, im Stockwerk über Normas Laden
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32099, 32183, 6]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+# Ort: Rookgaard, auf dem Dach der Akademie
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32103, 32192, 5]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+# Ort: Rookgaard, im Stockwerk über Lee'Delles Laden
+# Monster: 10-15 Rats
+[[raid.wave]]
+delay = 3
+position = [32026, 32195, 6]
+spread = 4
+race = "rat"
+count = [10, 15]
+lifetime = 7200
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von 20-30 Stinktieren an
+#         sechs unterschiedlichen Orten in Edron. Monster, die
+#         nach einer Stunde noch nicht besiegt wurden,
+#         verschwinden wieder.
+
+[[raid]]
+key = "edronskunks"
+type = "small"
+interval = 2592000
+#           (durchschnittlich einmal pro Monat)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Süden der Stadt Edron, westlich vom Sky Lane Guildhouse
+# Monster: 20-30 Skunks
+[[raid.wave]]
+delay = 0
+position = [33203, 31867, 7]
+spread = 10
+race = "skunk"
+count = [20, 30]
+lifetime = 3600
+# Message   = "Skunkplague in Edron!"
+
+# Ort: Im Osten der Stadt Edron, westlich von der Magic Academy
+# Monster: 20-30 Skunks
+[[raid.wave]]
+delay = 0
+position = [33240, 31839, 7]
+spread = 10
+race = "skunk"
+count = [20, 30]
+lifetime = 3600
+
+# Ort: Stonehome, östlich von Healer Albert
+# Monster: 20-30 Skunks
+[[raid.wave]]
+delay = 0
+position = [33316, 31758, 7]
+spread = 10
+race = "skunk"
+count = [20, 30]
+lifetime = 3600
+
+# Ort: Im Nordwesten der Stadt Edron (Castle Street)
+# Monster: 20-30 Skunks
+[[raid.wave]]
+delay = 0
+position = [33158, 31809, 7]
+spread = 10
+race = "skunk"
+count = [20, 30]
+lifetime = 3600
+
+# Ort: Im Süden der Insel Edron, bei den Kornfeldern
+# Monster: 20-30 Skunks
+[[raid.wave]]
+delay = 0
+position = [33213, 31901, 7]
+spread = 10
+race = "skunk"
+count = [20, 30]
+lifetime = 3600
+
+# Ort: Nordwestlich von Stonehome, bei den Kornfeldern
+# Monster: 20-30 Skunks
+[[raid.wave]]
+delay = 0
+position = [33280, 31742, 7]
+spread = 10
+race = "skunk"
+count = [20, 30]
+lifetime = 3600
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Riesen-
+#         spinnen Boss (The Old Widow) sowie 2 Riesenspinnen
+#         im Osten der Plains of Havoc spawnen.
+#         Werden diese Monster nicht innerhalb von 4 Stunden
+#         gefunden und getötet, verschwinden sie wieder.
+
+[[raid]]
+key = "pohwidow"
+type = "small"
+interval = 2419200
+#           (durchschnittlich alle vier Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Osten der Plains of Havoc
+# Monster: The Old Widow (besondere Giant Spider)
+[[raid.wave]]
+delay = 0
+position = [32778, 32297, 7]
+spread = 1
+race = "oldwidow"
+count = [1, 1]
+lifetime = 14400
+
+# Ort: Im Osten der Plains of Havoc
+# Monster: 2 Giant Spiders
+[[raid.wave]]
+delay = 0
+position = [32778, 32297, 7]
+spread = 3
+race = "giantspider"
+count = [2, 2]
+lifetime = 14400
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Fünf Angriffswellen mit Spawn von anfangs Wölfen,
+#         später Wölfen und Kriegswölfen südlich von Ab'Dendriel.
+
+[[raid]]
+key = "abdendrielwolfattack"
+type = "small"
+interval = 2592000
+#           (durchschnittlich einmal pro Monat)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 9-18 Wolves
+[[raid.wave]]
+delay = 1
+position = [32635, 31724, 7]
+spread = 12
+race = "wolf"
+count = [9, 18]
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 12-24 Wolves
+[[raid.wave]]
+delay = 60
+position = [32635, 31724, 7]
+spread = 12
+race = "wolf"
+count = [12, 24]
+message = "Many agressive beasts are roaming south of Ab'Dendriel! Take care!"
+
+##############################################################
+# ----------------- Dritte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 12-24 Wolves
+[[raid.wave]]
+delay = 120
+position = [32635, 31724, 7]
+spread = 12
+race = "wolf"
+count = [12, 24]
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 3-6 Warwolves
+[[raid.wave]]
+delay = 120
+position = [32635, 31724, 7]
+spread = 12
+race = "warwolf"
+count = [3, 6]
+
+##############################################################
+# ----------------- Vierte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 9-18 Wolves
+[[raid.wave]]
+delay = 180
+position = [32635, 31724, 7]
+spread = 12
+race = "wolf"
+count = [9, 18]
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 6-12 Warwolves
+[[raid.wave]]
+delay = 180
+position = [32635, 31724, 7]
+spread = 12
+race = "warwolf"
+count = [6, 12]
+
+##############################################################
+# ----------------- Fünfte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 5-10 Wolves
+[[raid.wave]]
+delay = 240
+position = [32635, 31724, 7]
+spread = 12
+race = "wolf"
+count = [5, 10]
+
+# Ort: Einen Screen südlich vor den Toren Ab'Dendriels
+# Monster: 10-20 Warwolves
+[[raid.wave]]
+delay = 240
+position = [32635, 31724, 7]
+spread = 12
+race = "warwolf"
+count = [10, 20]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von 1-3 Yetis auf der
+#         Insel Folda. Monster, die nach einer Stunde noch
+#         nicht besiegt wurden, verschwinden wieder.
+
+[[raid]]
+key = "foldayetis"
+type = "small"
+interval = 2592000
+#           (durchschnittlich einmal pro Monat)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Süden von Folda
+# Monster: 1-3 Yetis
+[[raid.wave]]
+delay = 4
+position = [32006, 31596, 7]
+spread = 10
+race = "yeti"
+count = [1, 3]
+lifetime = 3600
+# Message   = "Yetis on Folda!"
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Fünf Angriffswellen mit Spawn von Skeletten, Ghulen,
+#         Beholdern, Crypt Shamblern, Dämonenskeletten, Vampiren,
+#         Knochenbestien, Mumien, Lichs und Nekromanten westlich
+#         von Darashia
+
+[[raid]]
+key = "darashiaundeadinvasion"
+type = "big"
+interval = 15552000
+#           (durchschnittlich alle 6 monate)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 12-24 Skeletons
+[[raid.wave]]
+delay = 1
+position = [33170, 32432, 7]
+spread = 10
+race = "skeleton"
+count = [12, 24]
+message = "Sightings of undead, west of Darashia! Imminent invasion is suspected!"
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 20-30 Skeletons
+[[raid.wave]]
+delay = 220
+position = [33170, 32432, 7]
+spread = 10
+race = "skeleton"
+count = [20, 30]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 6-12 Ghouls
+[[raid.wave]]
+delay = 220
+position = [33170, 32432, 7]
+spread = 15
+race = "ghoul"
+count = [6, 12]
+
+##############################################################
+# ----------------- Dritte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 10-20 Skeletons
+[[raid.wave]]
+delay = 340
+position = [33170, 32432, 7]
+spread = 10
+race = "skeleton"
+count = [10, 20]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 10-20 Ghouls
+[[raid.wave]]
+delay = 340
+position = [33170, 32432, 7]
+spread = 12
+race = "ghoul"
+count = [10, 20]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 5-10 Crypt Shamblers
+[[raid.wave]]
+delay = 340
+position = [33170, 32432, 7]
+spread = 12
+race = "cryptshambler"
+count = [5, 10]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 1-3 Vampires
+[[raid.wave]]
+delay = 340
+position = [33170, 32432, 7]
+spread = 10
+race = "vampire"
+count = [1, 3]
+
+##############################################################
+# ----------------- Vierte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 16-32 Ghouls
+[[raid.wave]]
+delay = 460
+position = [33170, 32432, 7]
+spread = 15
+race = "ghoul"
+count = [16, 32]
+message = "The undead are attacking Darashia!"
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 12-24 Crypt Shamblers
+[[raid.wave]]
+delay = 460
+position = [33170, 32432, 7]
+spread = 15
+race = "cryptshambler"
+count = [12, 24]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 5-10 Demon Skeletons
+[[raid.wave]]
+delay = 460
+position = [33170, 32432, 7]
+spread = 13
+race = "demonskeleton"
+count = [5, 10]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 4-8 Beholders
+[[raid.wave]]
+delay = 460
+position = [33170, 32432, 7]
+spread = 15
+race = "beholder"
+count = [4, 8]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 1-2 Necromancers
+[[raid.wave]]
+delay = 460
+position = [33170, 32432, 7]
+spread = 11
+race = "necromancer"
+count = [1, 2]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 2-6 Vampires
+[[raid.wave]]
+delay = 460
+position = [33170, 32432, 7]
+spread = 10
+race = "vampire"
+count = [2, 6]
+
+##############################################################
+# ----------------- Fünfte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 1-2 Lichs
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 12
+race = "lich"
+count = [1, 2]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 5-10 Mummies
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 12
+race = "mummy"
+count = [5, 10]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 5-10 Vampires
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 12
+race = "vampire"
+count = [5, 10]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 3-6 Bone Beasts
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 12
+race = "bonebeast"
+count = [3, 6]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 9-18 Ghouls
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 20
+race = "ghoul"
+count = [9, 18]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 10-20 Crypt Shamblers
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 15
+race = "cryptshambler"
+count = [10, 20]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 10-20 Demon Skeletons
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 12
+race = "demonskeleton"
+count = [10, 20]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 6-12 Beholders
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 15
+race = "beholder"
+count = [6, 12]
+
+# Ort: Zwei Screens westlich von Darashia
+# Monster: 4-8 Necromancers
+[[raid.wave]]
+delay = 580
+position = [33170, 32432, 7]
+spread = 12
+race = "necromancer"
+count = [4, 8]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Drei Angriffswellen im Steinkreis im Norden von Edron
+#         mit Spawn von Feuerelementaren und Dämonen, bis in
+#         der dritten Angriffswelle ein besonderer Dämonenboss
+#         (Orshabaal) mit 1-2 Dämonen spawnt. Werden diese
+#         Monster nach 4 Stunden nicht besiegt, verschwinden sie
+#         wieder.
+
+[[raid]]
+key = "edronorshabaal"
+type = "big"
+interval = 31104000
+#           (durchschnittlich einmal pro Jahr)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Steinkreis im Norden von Edron
+# Monster: 4-10 Fire Elementals
+[[raid.wave]]
+delay = 1
+position = [33118, 31700, 7]
+spread = 5
+race = "fireelemental"
+count = [4, 10]
+lifetime = 14400
+message = "Orshabaal's minions are working on his return to the World. LEAVE Edron at once, mortals."
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Steinkreis im Norden von Edron
+# Monster: 1-2 Demons
+[[raid.wave]]
+delay = 200
+position = [33118, 31700, 7]
+spread = 5
+race = "demon"
+count = [1, 2]
+lifetime = 14400
+
+# Ort: Steinkreis im Norden von Edron
+# Monster: 4-12 Fire Elementals
+[[raid.wave]]
+delay = 200
+position = [33118, 31700, 7]
+spread = 7
+race = "fireelemental"
+count = [4, 12]
+lifetime = 14400
+message = "Orshabaal is about to make his way into the mortal realm. Run for your lives!"
+
+##############################################################
+# ----------------- Dritte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Steinkreis im Norden von Edron
+# Monster: Orshabaal (besonderer Dämon)
+[[raid.wave]]
+delay = 400
+position = [33118, 31700, 7]
+spread = 2
+race = "orshabaal"
+count = [1, 1]
+lifetime = 14400
+message = "Orshabaal has been summoned from hell to plague the lands of mortals again."
+
+# Ort: Steinkreis im Norden von Edron
+# Monster: 1-2 Demons
+[[raid.wave]]
+delay = 400
+position = [33118, 31700, 7]
+spread = 5
+race = "demon"
+count = [1, 2]
+lifetime = 14400
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Elfen-
+#         magier Boss (Dharalion) sowie 2 normale Elfenmagier
+#         und 2-4 Elfenspäher im Ritualraum unter der dunklen
+#         Elfenstadt Shadowthorn im Süden von Venore spawnen.
+#         Werden diese Monster nicht innerhalb von 8 Stunden
+#         gefunden und getötet, verschwinden sie wieder.
+
+[[raid]]
+key = "shadowthorndharalion"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Ritualraum unter der dunklen Elfenstadt Shadowthorn
+# Monster: Dharalion (besonderer Elf Arcanist)
+[[raid.wave]]
+delay = 0
+position = [33034, 32175, 9]
+spread = 1
+race = "dharalion"
+count = [1, 1]
+lifetime = 28800
+
+# Ort: Im Ritualraum unter der dunklen Elfenstadt Shadowthorn
+# Monster: 2 Elf Arcanists
+[[raid.wave]]
+delay = 0
+position = [33034, 32175, 9]
+spread = 3
+race = "elfarcanist"
+count = [2, 2]
+lifetime = 28800
+
+# Ort: Im Ritualraum unter der dunklen Elfenstadt Shadowthorn
+# Monster: 2-4 Elf Scouts
+[[raid.wave]]
+delay = 0
+position = [33034, 32175, 9]
+spread = 3
+race = "elfscout"
+count = [2, 4]
+lifetime = 28800
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von je 9-18 Wespen an
+#         drei unterschiedlichen Orten in Darashia.
+
+[[raid]]
+key = "darashiawaspplague"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Südlich vom Darashia Depot
+# Monster: 9-18 Wasps
+[[raid.wave]]
+delay = 0
+position = [33215, 32460, 7]
+spread = 22
+race = "wasp"
+count = [9, 18]
+# Message   = "Wasps are swarming Darashia."
+
+# Ort: Östlich vom Darashia Marktplatz
+# Monster: 9-18 Wasps
+[[raid.wave]]
+delay = 0
+position = [33254, 32414, 7]
+spread = 22
+race = "wasp"
+count = [9, 18]
+
+# Ort: Westlich vom Darashia Marktplatz
+# Monster: 9-18 Wasps
+[[raid.wave]]
+delay = 0
+position = [33203, 32414, 7]
+spread = 22
+race = "wasp"
+count = [9, 18]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Zwei Angriffswellen mit Spawn von Orcs, Orc Warriors,
+#         Shamans, Berserkers, Leaders und Warlords im Leuchtturm
+#         südwestlich von Thais.
+#         Monster, die nach 2 Stunden noch nicht besiegt wurden,
+#         verschwinden wieder.
+
+[[raid]]
+key = "thaislighthouseorcs"
+type = "small"
+interval = 604800
+#           (durchschnittlich einmal pro Woche)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Thais Lighthouse, Basement
+# Monster: 10-20 Orcs
+[[raid.wave]]
+delay = 1
+position = [32228, 32281, 7]
+spread = 10
+race = "orc"
+count = [10, 20]
+lifetime = 7200
+# Message   = "Orc have taken over the Thais lighthouse!"
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Thais Lighthouse, 1. Stock
+# Monster: 1-2 Orc Warriors
+[[raid.wave]]
+delay = 3
+position = [32225, 32276, 6]
+spread = 2
+race = "orcwarrior"
+count = [1, 2]
+lifetime = 7200
+
+# Ort: Thais Lighthouse, 2. Stock
+# Monster: 1-2 Orc Shamans
+[[raid.wave]]
+delay = 3
+position = [32225, 32276, 5]
+spread = 2
+race = "orcshaman"
+count = [1, 2]
+lifetime = 7200
+
+# Ort: Thais Lighthouse, 3. Stock
+# Monster: 1-2 Orc Berserker
+[[raid.wave]]
+delay = 3
+position = [32225, 32276, 4]
+spread = 2
+race = "orcberserker"
+count = [1, 2]
+lifetime = 7200
+
+# Ort: Thais Lighthouse, 4. Stock
+# Monster: 1-2 Orc Leaders
+[[raid.wave]]
+delay = 3
+position = [32225, 32276, 3]
+spread = 2
+race = "orcleader"
+count = [1, 2]
+lifetime = 7200
+
+# Ort: Thais Lighthouse, 5. Stock
+# Monster: 1-2 Orc Warlords
+[[raid.wave]]
+delay = 3
+position = [32225, 32276, 2]
+spread = 2
+race = "orcwarlord"
+count = [1, 2]
+lifetime = 7200
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Vier Angriffswellen in rascher Abfolge mit Spawn von
+#         jeweils 0-2 Drachen an vier unterschiedlichen Orten
+#         auf Dracoria. Drachen, die nach 4 Stunden noch nicht
+#         gefunden und getötet wurden, verschwinden wieder.
+
+[[raid]]
+key = "dracoriadieingdragons"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Westen von Dracoria
+# Monster: 0-2 Dragons
+[[raid.wave]]
+delay = 0
+position = [32775, 31596, 7]
+spread = 3
+race = "dragon"
+count = [0, 2]
+lifetime = 14400
+# Message   = "Dieing Dragons are appearing on Dracoria."
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Osten von Dracoria
+# Monster: 0-2 Dragons
+[[raid.wave]]
+delay = 20
+position = [32822, 31593, 7]
+spread = 3
+race = "dragon"
+count = [0, 2]
+lifetime = 14400
+
+##############################################################
+# ----------------- Dritte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Norden von Dracoria
+# Monster: 0-2 Dragons
+[[raid.wave]]
+delay = 40
+position = [32803, 31565, 7]
+spread = 3
+race = "dragon"
+count = [0, 2]
+lifetime = 14400
+
+##############################################################
+# ----------------- Vierte Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Nordosten von Dracoria
+# Monster: 0-2 Dragons
+[[raid.wave]]
+delay = 60
+position = [32826, 31574, 7]
+spread = 3
+race = "dragon"
+count = [0, 2]
+lifetime = 14400
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Minotaur
+#         Guard Boss (General Murius) sowie Minotaurus Schützen,
+#         Minotaurus Wachen und Minotaurus Wachen spawnen.
+
+[[raid]]
+key = "mintwalinminogeneral"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Zentrum von Mintwallin
+# Monster: General Murius (besonderer Minotaur Guard)
+[[raid.wave]]
+delay = 0
+position = [32418, 32121, 15]
+spread = 2
+race = "murius"
+count = [1, 1]
+# Message   = "General Murius is patroling Mintwalin."
+
+# Ort: Im Zentrum von Mintwallin
+# Monster: 3-7 Minotaur Guards
+[[raid.wave]]
+delay = 0
+position = [32418, 32121, 15]
+spread = 5
+race = "minotaurguard"
+count = [3, 7]
+
+# Ort: Im Zentrum von Mintwallin
+# Monster: 5-9 Minotaur Archers
+[[raid.wave]]
+delay = 0
+position = [32418, 32121, 15]
+spread = 5
+race = "minotaurarcher"
+count = [5, 9]
+
+# Ort: Im Zentrum von Mintwallin
+# Monster: 1-2 Minotaur Mages
+[[raid.wave]]
+delay = 0
+position = [32418, 32121, 15]
+spread = 5
+race = "minotaurmage"
+count = [1, 2]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Vier Angriffswellen mit Spawn von Elfen, Elfenspähern
+#         und Elfenmagiern auf je vier Orte in bzw. um Venore
+#         (Werft, Südtor, Westtor, Nordwesttor).
+
+[[raid]]
+key = "venoreelfinvasion"
+type = "big"
+interval = 15552000
+#           (durchschnittlich alle sechs Monate)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# ---------- VENORE WERFT, UNTERGESCHOSS, 1. WELLE --------- #
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 5-10 Elves
+[[raid.wave]]
+delay = 1
+position = [32894, 32020, 7]
+spread = 10
+race = "elf"
+count = [5, 10]
+message = "Elven scouts from Shadowthorn have been spotted near Venore! Beware!"
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 1-2 Elf Scouts
+[[raid.wave]]
+delay = 1
+position = [32894, 32020, 7]
+spread = 10
+race = "elfscout"
+count = [1, 2]
+
+# ----------------- VENORE SÜDTOR, 1. WELLE ---------------- #
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 5-10 Elves
+[[raid.wave]]
+delay = 1
+position = [32941, 32170, 7]
+spread = 10
+race = "elf"
+count = [5, 10]
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 1-2 Elf Scouts
+[[raid.wave]]
+delay = 1
+position = [32941, 32170, 7]
+spread = 10
+race = "elfscout"
+count = [1, 2]
+
+# ---------------- VENORE WESTTOR, 1. WELLE ---------------- #
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 5-10 Elves
+[[raid.wave]]
+delay = 1
+position = [32851, 32126, 7]
+spread = 10
+race = "elf"
+count = [5, 10]
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 1-2 Elf Scouts
+[[raid.wave]]
+delay = 1
+position = [32851, 32126, 7]
+spread = 10
+race = "elfscout"
+count = [1, 2]
+
+# -------------- VENORE NORDWESTTOR, 1. WELLE -------------- #
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 5-10 Elves
+[[raid.wave]]
+delay = 1
+position = [32852, 32029, 7]
+spread = 10
+race = "elf"
+count = [5, 10]
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 1-2 Elf Scouts
+[[raid.wave]]
+delay = 1
+position = [32852, 32029, 7]
+spread = 10
+race = "elfscout"
+count = [1, 2]
+
+##############################################################
+# ----------------- Zweite Angriffswelle ------------------- #
+##############################################################
+
+# ---------- VENORE WERFT, UNTERGESCHOSS, 2. WELLE --------- #
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 10-20 Elves
+[[raid.wave]]
+delay = 220
+position = [32894, 32020, 7]
+spread = 10
+race = "elf"
+count = [10, 20]
+message = "Venore is under attack!"
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 5-10 Elf Scouts
+[[raid.wave]]
+delay = 220
+position = [32894, 32020, 7]
+spread = 10
+race = "elfscout"
+count = [5, 10]
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 2-5 Elf Arcanists
+[[raid.wave]]
+delay = 220
+position = [32894, 32020, 7]
+spread = 10
+race = "elfarcanist"
+count = [2, 5]
+
+# ---------- VENORE WERFT, OBERGESCHOSS, 2. WELLE ---------- #
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 5-10 Elves
+[[raid.wave]]
+delay = 220
+position = [32894, 32020, 6]
+spread = 7
+race = "elf"
+count = [5, 10]
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 1-2 Elf Scouts
+[[raid.wave]]
+delay = 220
+position = [32894, 32020, 6]
+spread = 7
+race = "elfscout"
+count = [1, 2]
+
+# ----------------- VENORE SÜDTOR, 2. WELLE ---------------- #
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 10-20 Elves
+[[raid.wave]]
+delay = 220
+position = [32941, 32170, 7]
+spread = 10
+race = "elf"
+count = [10, 20]
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 5-10 Elf Scouts
+[[raid.wave]]
+delay = 220
+position = [32941, 32170, 7]
+spread = 10
+race = "elfscout"
+count = [5, 10]
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 2-5 Elf Arcanists
+[[raid.wave]]
+delay = 220
+position = [32941, 32170, 7]
+spread = 10
+race = "elfarcanist"
+count = [2, 5]
+
+# ---------------- VENORE WESTTOR, 2. WELLE ---------------- #
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 10-20 Elves
+[[raid.wave]]
+delay = 220
+position = [32851, 32126, 7]
+spread = 10
+race = "elf"
+count = [10, 20]
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 5-10 Elf Scouts
+[[raid.wave]]
+delay = 220
+position = [32851, 32126, 7]
+spread = 10
+race = "elfscout"
+count = [5, 10]
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 2-5 Elf Arcanists
+[[raid.wave]]
+delay = 220
+position = [32851, 32126, 7]
+spread = 10
+race = "elfarcanist"
+count = [2, 5]
+
+# -------------- VENORE NORDWESTTOR, 2. WELLE -------------- #
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 10-20 Elves
+[[raid.wave]]
+delay = 220
+position = [32852, 32029, 7]
+spread = 10
+race = "elf"
+count = [10, 20]
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 5-10 Elf Scouts
+[[raid.wave]]
+delay = 220
+position = [32852, 32029, 7]
+spread = 10
+race = "elfscout"
+count = [5, 10]
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 2-5 Elf Arcanists
+[[raid.wave]]
+delay = 220
+position = [32852, 32029, 7]
+spread = 10
+race = "elfarcanist"
+count = [2, 5]
+
+##############################################################
+# ----------------- Dritte Angriffswelle ------------------- #
+##############################################################
+
+# ---------- VENORE WERFT, UNTERGESCHOSS, 3. WELLE --------- #
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 8-16 Elves
+[[raid.wave]]
+delay = 340
+position = [32894, 32020, 7]
+spread = 10
+race = "elf"
+count = [8, 16]
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 10-20 Elf Scouts
+[[raid.wave]]
+delay = 340
+position = [32894, 32020, 7]
+spread = 10
+race = "elfscout"
+count = [10, 20]
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 5-10 Elf Arcanists
+[[raid.wave]]
+delay = 340
+position = [32894, 32020, 7]
+spread = 10
+race = "elfarcanist"
+count = [5, 10]
+
+# ---------- VENORE WERFT, OBERGESCHOSS, 3. WELLE ---------- #
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 10-20 Elves
+[[raid.wave]]
+delay = 340
+position = [32894, 32020, 6]
+spread = 10
+race = "elf"
+count = [10, 20]
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 5-10 Elf Scouts
+[[raid.wave]]
+delay = 340
+position = [32894, 32020, 6]
+spread = 7
+race = "elfscout"
+count = [5, 10]
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 2-5 Elf Arcanists
+[[raid.wave]]
+delay = 340
+position = [32894, 32020, 6]
+spread = 7
+race = "elfarcanist"
+count = [2, 5]
+
+# ----------------- VENORE SÜDTOR, 3. WELLE ---------------- #
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 8-16 Elves
+[[raid.wave]]
+delay = 340
+position = [32941, 32170, 7]
+spread = 10
+race = "elf"
+count = [8, 16]
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 10-20 Elf Scouts
+[[raid.wave]]
+delay = 340
+position = [32941, 32170, 7]
+spread = 10
+race = "elfscout"
+count = [10, 20]
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 5-10 Elf Arcanists
+[[raid.wave]]
+delay = 340
+position = [32941, 32170, 7]
+spread = 10
+race = "elfarcanist"
+count = [5, 10]
+
+# ---------------- VENORE WESTTOR, 3. WELLE ---------------- #
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 8-16 Elves
+[[raid.wave]]
+delay = 340
+position = [32851, 32126, 7]
+spread = 10
+race = "elf"
+count = [8, 16]
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 10-20 Elf Scouts
+[[raid.wave]]
+delay = 340
+position = [32851, 32126, 7]
+spread = 10
+race = "elfscout"
+count = [10, 20]
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 5-10 Elf Arcanists
+[[raid.wave]]
+delay = 340
+position = [32851, 32126, 7]
+spread = 10
+race = "elfarcanist"
+count = [5, 10]
+
+# -------------- VENORE NORDWESTTOR, 3. WELLE -------------- #
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 8-16 Elves
+[[raid.wave]]
+delay = 340
+position = [32852, 32029, 7]
+spread = 10
+race = "elf"
+count = [8, 16]
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 10-20 Elf Scouts
+[[raid.wave]]
+delay = 340
+position = [32852, 32029, 7]
+spread = 10
+race = "elfscout"
+count = [10, 20]
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 5-10 Elf Arcanists
+[[raid.wave]]
+delay = 340
+position = [32852, 32029, 7]
+spread = 10
+race = "elfarcanist"
+count = [5, 10]
+
+##############################################################
+# ----------------- Vierte Angriffswelle ------------------- #
+##############################################################
+
+# ---------- VENORE WERFT, UNTERGESCHOSS, 4. WELLE --------- #
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 15-30 Elf Scouts
+[[raid.wave]]
+delay = 460
+position = [32894, 32020, 7]
+spread = 10
+race = "elfscout"
+count = [15, 30]
+
+# Ort: In der Werft im Nordwesten von Venore, Untergeschoss
+# Monster: 9-18 Elf Arcanists
+[[raid.wave]]
+delay = 460
+position = [32894, 32020, 7]
+spread = 10
+race = "elfarcanist"
+count = [9, 18]
+
+# ---------- VENORE WERFT, OBERGESCHOSS, 4. WELLE ---------- #
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 5-10 Elves
+[[raid.wave]]
+delay = 460
+position = [32894, 32020, 6]
+spread = 7
+race = "elf"
+count = [5, 10]
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 10-20 Elf Scouts
+[[raid.wave]]
+delay = 460
+position = [32894, 32020, 6]
+spread = 7
+race = "elfscout"
+count = [10, 20]
+
+# Ort: In der Werft im Nordwesten von Venore, Obergeschoss
+# Monster: 5-10 Elf Arcanists
+[[raid.wave]]
+delay = 460
+position = [32894, 32020, 6]
+spread = 7
+race = "elfarcanist"
+count = [5, 10]
+
+# ----------------- VENORE SÜDTOR, 4. WELLE ---------------- #
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 15-30 Elf Scouts
+[[raid.wave]]
+delay = 460
+position = [32941, 32170, 7]
+spread = 10
+race = "elfscout"
+count = [15, 30]
+
+# Ort: Am Südausgang außerhalb von Venore
+# Monster: 9-18 Elf Arcanists
+[[raid.wave]]
+delay = 460
+position = [32941, 32170, 7]
+spread = 10
+race = "elfarcanist"
+count = [9, 18]
+
+# ---------------- VENORE WESTTOR, 4. WELLE ---------------- #
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 15-30 Elf Scouts
+[[raid.wave]]
+delay = 460
+position = [32851, 32126, 7]
+spread = 10
+race = "elfscout"
+count = [15, 30]
+
+# Ort: Am Westausgang außerhalb von Venore
+# Monster: 9-18 Elf Arcanists
+[[raid.wave]]
+delay = 460
+position = [32851, 32126, 7]
+spread = 10
+race = "elfarcanist"
+count = [9, 18]
+
+# -------------- VENORE NORDWESTTOR, 4. WELLE -------------- #
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 15-30 Elf Scouts
+[[raid.wave]]
+delay = 460
+position = [32852, 32029, 7]
+spread = 10
+race = "elfscout"
+count = [15, 30]
+
+# Ort: Am Nordwestausgang außerhalb von Venore
+# Monster: 9-18 Elf Arcanists
+[[raid.wave]]
+delay = 460
+position = [32852, 32029, 7]
+spread = 10
+race = "elfarcanist"
+count = [9, 18]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Stein
+#         Golem Boss (Grorlam) irgendwo tief in den Höhlen
+#         unter Mount Sternum spawnt. Es gibt insgesamt sechs
+#         Grorlam-Events; bei den meisten ist es auf Grund des
+#         großen Spreads eher unwahrscheinlich, dass Grorlam
+#         spawnt.
+#         Falls er nach 4 Stunden nicht gefunden und besiegt
+#         wurde, verschwindet er wieder.
+
+[[raid]]
+key = "cavesgrorlam4"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Tief in den Mount Sternum Höhlen
+# Monster: Grorlam (besonderer Stone Golem)
+[[raid.wave]]
+delay = 0
+position = [32410, 32005, 14]
+spread = 32
+race = "grorlam"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Grorlam is looking for food."
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Stein
+#         Golem Boss (Grorlam) irgendwo tief in den Höhlen
+#         unter Mount Sternum spawnt. Es gibt insgesamt sechs
+#         Grorlam-Events; bei den meisten ist es auf Grund des
+#         großen Spreads eher unwahrscheinlich, dass Grorlam
+#         spawnt.
+#         Falls er nach 4 Stunden nicht gefunden und besiegt
+#         wurde, verschwindet er wieder.
+
+[[raid]]
+key = "cavesgrorlam5"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Tief in den Mount Sternum Höhlen
+# Monster: Grorlam (besonderer Stone Golem)
+[[raid.wave]]
+delay = 0
+position = [32423, 32000, 15]
+spread = 3
+race = "grorlam"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Grorlam is looking for food."
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Mönch
+#         Boss (Fernfang) und bis zu 10 Kriegswölfe auf der
+#         Isle of Mist südöstlich der Plains of Havoc spawnen.
+#         Werden diese Monster nicht innerhalb von 4 Stunden
+#         gefunden und getötet, verschwinden sie wieder.
+
+[[raid]]
+key = "mistisledruid"
+type = "small"
+interval = 2592000
+#           (durchschnittlich einmal pro Monat)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Auf der Isle of Mist südöstlich der Plains of Havoc
+# Monster: Fernfang (besonderer Monk)
+[[raid.wave]]
+delay = 0
+position = [32851, 32340, 6]
+spread = 0
+race = "fernfang"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Its full moon again and Fernfang is out for new prey."
+
+# Ort: Auf der Isle of Mist südöstlich der Plains of Havoc
+# Monster: 2-4 Warwolves
+[[raid.wave]]
+delay = 0
+position = [32851, 32340, 6]
+spread = 3
+race = "warwolf"
+count = [2, 4]
+lifetime = 14400
+
+# Ort: Auf der Isle of Mist südöstlich der Plains of Havoc
+# Monster: 4-6 Warwolves
+[[raid.wave]]
+delay = 0
+position = [32855, 32333, 7]
+spread = 3
+race = "warwolf"
+count = [4, 6]
+lifetime = 14400
+# Message   = "Its full moon again and Fernfang is out for new prey."
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Stein
+#         Golem Boss (Grorlam) irgendwo tief in den Höhlen
+#         unter Mount Sternum spawnt. Es gibt insgesamt sechs
+#         Grorlam-Events; bei den meisten ist es auf Grund des
+#         großen Spreads eher unwahrscheinlich, dass Grorlam
+#         spawnt.
+#         Falls er nach 4 Stunden nicht gefunden und besiegt
+#         wurde, verschwindet er wieder.
+
+[[raid]]
+key = "cavesgrorlam3"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Tief in den Mount Sternum Höhlen
+# Monster: Grorlam (besonderer Stone Golem)
+[[raid.wave]]
+delay = 0
+position = [32398, 32015, 13]
+spread = 32
+race = "grorlam"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Grorlam is looking for food."
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von vielen Dwarf Soldiers
+#         im Süden und Norden von Cormaya.
+
+[[raid]]
+key = "cormayadwarfattack"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Cormaya, südlich vom Castle of the White Dragon
+# Monster: 20-40 Dwarf Soldiers
+[[raid.wave]]
+delay = 0
+position = [33315, 32007, 7]
+spread = 44
+race = "dwarfsoldier"
+count = [20, 40]
+# Message   = "Renegade drunken dwarfs are attacking cormaya."
+
+# Ort: Cormaya, nördlich von der Stadt
+# Monster: 7-14 Dwarf Soldiers
+[[raid.wave]]
+delay = 0
+position = [33317, 31954, 7]
+spread = 16
+race = "dwarfsoldier"
+count = [7, 14]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Stein
+#         Golem Boss (Grorlam) irgendwo tief in den Höhlen
+#         unter Mount Sternum spawnt. Es gibt insgesamt sechs
+#         Grorlam-Events; bei den meisten ist es auf Grund des
+#         großen Spreads eher unwahrscheinlich, dass Grorlam
+#         spawnt.
+#         Falls er nach 4 Stunden nicht gefunden und besiegt
+#         wurde, verschwindet er wieder.
+
+[[raid]]
+key = "cavesgrorlam0"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle 2 Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Tief in den Mount Sternum Höhlen
+# Monster: Grorlam (besonderer Stone Golem)
+[[raid.wave]]
+delay = 0
+position = [32381, 32063, 12]
+spread = 1
+race = "grorlam"
+count = [1, 1]
+lifetime = 14400
+# Message   = "Grorlam is looking for food."
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von Elfen, Elfenspähern
+#         und Elfenmagiern im Südosten der Venore Sümpfe,
+#         zwischen Venore und Shadowthorn.
+
+[[raid]]
+key = "venoreswampelves"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Südosten der Venore Sümpfe, zwischen Venore und Shadowthorn
+# Monster: 10-20 Elves
+[[raid.wave]]
+delay = 1
+position = [32991, 32212, 7]
+spread = 10
+race = "elf"
+count = [10, 20]
+# Message   = "A swampelf raiding party has been sighted in the venore swamps!"
+
+# Ort: Im Südosten der Venore Sümpfe, zwischen Venore und Shadowthorn
+# Monster: 5-10 Elf Scouts
+[[raid.wave]]
+delay = 1
+position = [32991, 32212, 7]
+spread = 10
+race = "elfscout"
+count = [5, 10]
+
+# Ort: Im Südosten der Venore Sümpfe, zwischen Venore und Shadowthorn
+# Monster: 1-5 Elf Arcanists
+[[raid.wave]]
+delay = 1
+position = [32991, 32212, 7]
+spread = 10
+race = "elfarcanist"
+count = [1, 5]
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle, bei der ein besonderer Minotaur
+#         Guard Boss (Horned Fox) sowie Minotaurus Schützen,
+#         Minotaurus Wachen und Minotaurus Wachen im Unterschlupf
+#         des Horned Fox (südwestlich von Kazordoon) spawnen.
+#         Werden diese Monster nicht innerhalb von 2 Stunden
+#         gefunden und getötet, verschwinden sie wieder.
+
+[[raid]]
+key = "kazordoonhornedfox"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Im Unterschlupf des Horned Fox, südwestlich von Kazordoon
+# Monster: Horned Fox (besonderer Minotaur Guard)
+[[raid.wave]]
+delay = 0
+position = [32462, 31954, 4]
+spread = 2
+race = "hornedfox"
+count = [1, 1]
+lifetime = 7200
+# Message   = "The horned fox is in his lair."
+
+# Ort: Im Unterschlupf des Horned Fox, südwestlich von Kazordoon
+# Monster: 2 Minotaur Guards
+[[raid.wave]]
+delay = 0
+position = [32462, 31954, 4]
+spread = 3
+race = "minotaurguard"
+count = [2, 2]
+lifetime = 7200
+
+# Ort: Im Unterschlupf des Horned Fox, südwestlich von Kazordoon
+# Monster: 2 Minotaur Archers
+[[raid.wave]]
+delay = 0
+position = [32462, 31954, 4]
+spread = 3
+race = "minotaurarcher"
+count = [2, 2]
+lifetime = 7200
+
+# Ort: Im Unterschlupf des Horned Fox, südwestlich von Kazordoon
+# Monster: 1 Minotaur Mage
+[[raid.wave]]
+delay = 0
+position = [32462, 31954, 4]
+spread = 3
+race = "minotaurmage"
+count = [1, 1]
+lifetime = 7200
+
+##############################################################
+# ---------------------- Allgemeines ----------------------- #
+##############################################################
+
+# Ablauf: Eine Angriffswelle mit Spawn von 6-12 Ghulen auf Edron
+#         (nordwestlich von Stonehome).
+
+[[raid]]
+key = "stonehomeghoulattack"
+type = "small"
+interval = 1209600
+#           (durchschnittlich alle zwei Wochen)
+
+##############################################################
+# ------------------ Erste Angriffswelle ------------------- #
+##############################################################
+
+# Ort: Edron, nordwestlich von Stonehome
+# Monster: 6-12 Ghouls
+[[raid.wave]]
+delay = 0
+position = [33283, 31737, 7]
+spread = 16
+race = "ghoul"
+count = [6, 12]
+# Message   = "The undead are hungry for life."

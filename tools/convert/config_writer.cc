@@ -76,8 +76,6 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 		{"user", USERPATH, "the old player files (NN/<id>.usr) querymanager-seed imports"},
 		{"log", LOGPATH, "the log files"},
 		{"save", SAVEPATH, "game.pid, swapped-out sectors, patches, unsent player data"},
-		{"monster", MONSTERPATH, "the monster races (*.mon) and raids (*.evt)"},
-		{"npc", NPCPATH, "the original NPC files (*.npc, *.ndb); the game reads npcs.toml"},
 	};
 	const size_t NumberOfPaths = sizeof(Paths) / sizeof(Paths[0]);
 	std::string Lines[NumberOfPaths];

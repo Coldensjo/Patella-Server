@@ -97,6 +97,9 @@ void ChangeNPCState(TCreature *npc, int NewState, bool Stimulus);
 TCreature *CreateMonster(int Race, int x, int y, int z, int Home, uint32_t Father, bool ShowEffect);
 void ConvinceMonster(TCreature *Master, TCreature *Slave);
 void ChallengeMonster(TCreature *Challenger, TCreature *Monster);
+// The Target of a monster (Type MONSTER; not checked), its raw creature ID (0
+// for none), for monster:getTargetId (scripting_monsters.cc).
+uint32_t GetMonsterTarget(TCreature *Monster);
 void InitNPCs();
 void InitNonplayer();
 void ExitNonplayer();

@@ -2,16 +2,18 @@
 // each round goes through (ProcessSkills, ProcessCreatures), the to-do queue
 // (MoveCreatures) and the chains of creatures per map block, which
 // TFindCreatures searches; TCreature's construction and destruction, ID,
-// logout, damage and death; the kill statistics; the races (.mon files) and
-// the monster raids (.evt files) of MONSTERPATH. InitCr sets it all up, ExitCr
+// logout, damage and death; the kill statistics; the races (monsters.toml) and
+// the monster raids (raids.toml) of DATAPATH. InitCr sets it all up, ExitCr
 // takes it down.
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <dirent.h>
+#include <map>
+#include <string>
 #include <time.h>
+#include <vector>
 
 #include "script.hh"
 #include "config.hh"
@@ -36,16 +38,18 @@
 #include "time.hh"
 #include "communication.hh"
 #include "TXTEASymmetricKey.hh"
+#include "monsterdata.hh"
+#include "scripting.hh"
 #include "crmain.hh"
 
 // The width and height in fields of a block of FirstChainCreature, which
 // chains the creatures in each block (two blocks per sector side, see InitCr).
 const int CHAIN_BLOCK_SIZE = 16;
 
-// TCreature::MovePossible may throw RESULT, and LoadRace, LoadRaces,
-// LoadMonsterRaid, LoadMonsterRaids and InitCr may throw const char *. None of
-// them has an exception specification, so an exception of another type passes
-// to the caller as well.
+// TCreature::MovePossible may throw RESULT, and LoadRaces, LoadMonsterRaids
+// and InitCr may throw const char *. None of them has an exception
+// specification, so an exception of another type passes to the caller as
+// well.
 
 TCreature *HashList[HASH_LIST_SIZE];
 vector<TCreature *> CreatureList(0, 10000, 1000, nullptr);
@@ -1089,6 +1093,12 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 				Remark[0] = 0;
 			}
 		}
+
+		// The corpse is made later, when the dead monster is deleted
+		// (~TCreature), so the hook gets none.
+		if (Type == MONSTER) {
+			MonsterDeathHook(RaceData[Race].Script, ID, Responsible != nullptr ? Responsible->ID : 0);
+		}
 	}
 
 	AnnounceChangedCreature(ID, CREATURE_HEALTH);
@@ -1113,7 +1123,8 @@ bool TCreature::MovePossible(int x, int y, int z, bool Execute, bool Jump) {
 	return true;
 }
 
-TRaceData::TRaceData() : Skill(1, 5, 5), Talk(1, 5, 5, 0), Item(1, 5, 5), Spell(1, 5, 5) {
+TRaceData::TRaceData() : Skill(1, 5, 5), Talk(1, 5, 5, 0), Item(1, 5, 5) {
+	Key[0] = 0;
 	Name[0] = 0;
 	Article[0] = 0;
 	Outfit.OutfitID = 0;
@@ -1149,6 +1160,7 @@ TRaceData::TRaceData() : Skill(1, 5, 5), Talk(1, 5, 5, 0), Item(1, 5, 5), Spell(
 	Talks = 0;
 	Items = 0;
 	Spells = 0;
+	Script = -1;
 }
 
 char *GetRaceName(int Race) {
@@ -1232,388 +1244,163 @@ bool GetRaceUnpushable(int Race) {
 	return RaceData[Race].Unpushable;
 }
 
-// The properties are tested one after the other without else, and neither an
-// unknown property nor an unknown flag is an error.
-void LoadRace(char *FileName) {
-	print(1, "Loading race data from file %s...\n", FileName);
+// The races of monsters.toml as LoadRaces read them, and their numbers by key.
+static std::vector<TMonsterData> MonsterRaces;
+static std::map<std::string, int> RaceNumbers;
 
-	TReadScriptFile Script;
-	Script.open(FileName);
-
-	if (strcmp(Script.readIdentifier(), "racenumber") != 0) {
-		Script.error("race number expected");
+int GetRaceByKey(const char *Key) {
+	if (Key == nullptr) {
+		return 0;
 	}
 
-	Script.readSymbol('=');
-	int Race = Script.readNumber();
-	if (Race < 1 || Race >= MAX_RACES) {
-		Script.error("illegal race number");
-	}
+	auto Found = RaceNumbers.find(Key);
+	return Found != RaceNumbers.end() ? Found->second : 0;
+}
 
+const std::vector<TMonsterData> &GetMonsterRaces() {
+	return MonsterRaces;
+}
+
+// The text of a start error LoadRace throws, which lives on after the throw.
+static char RaceErrorString[4096 + 512];
+
+// Fills the race of Entry (an entry of monsters.toml, checked by its loader):
+// its skills and talk in the entry's order, each text of talk a dynamic string
+// (AddDynamicString); Spells gets only the number of its spells (the spell
+// library prepares them, LoadRaces). Then its script is loaded. Throws a
+// const char * "<file>:<line>:<column>: unknown skill name ..." for a skill
+// GetSkillByName does not know, and what LoadScript throws.
+static void LoadRace(const TMonsterData &Entry) {
+	print(1, "Loading race data of %s from %s...\n", Entry.Key.c_str(), Entry.Where.c_str());
+
+	int Race = Entry.Number;
 	TRaceData &R = RaceData[Race];
-	if (R.Name[0] != 0) {
-		Script.error("race already defined");
+	// The loader checked the lengths: a key of at most MAX_MONSTER_KEY_LENGTH,
+	// a name of at most 29 and an article of at most 2 characters.
+	strcpy(R.Key, Entry.Key.c_str());
+	strcpy(R.Name, Entry.Name.c_str());
+	strcpy(R.Article, Entry.Article.c_str());
+	R.Outfit = Entry.Outfit;
+	R.MaleCorpse = Entry.Corpse;
+	R.FemaleCorpse = Entry.FemaleCorpse;
+
+	if (Entry.Blood == "blood") {
+		R.Blood = BT_BLOOD;
+	} else if (Entry.Blood == "slime") {
+		R.Blood = BT_SLIME;
+	} else if (Entry.Blood == "bones") {
+		R.Blood = BT_BONES;
+	} else if (Entry.Blood == "fire") {
+		R.Blood = BT_FIRE;
+	} else {
+		R.Blood = BT_ENERGY;
 	}
 
-	memset(R.Outfit.Colors, 0, sizeof(R.Outfit.Colors));
-	R.Outfit.OutfitID = Race;
+	R.ExperiencePoints = Entry.Experience;
+	R.SummonCost = Entry.SummonCost;
+	R.FleeThreshold = Entry.FleeThreshold;
+	R.Attack = Entry.Attack;
+	R.Defend = Entry.Defend;
+	R.Armor = Entry.Armor;
+	R.Poison = Entry.Poison;
+	R.LoseTarget = Entry.LoseTarget;
+	for (int i = 0; i < 4; i++) {
+		R.Strategy[i] = Entry.Strategy[i];
+	}
 
-	while (true) {
-		Script.nextToken();
-		if (Script.Token == ENDOFFILE) {
-			break;
-		}
-
-		if (Script.Token != IDENTIFIER) {
-			Script.error("identifier expected");
-		}
-
-		char Ident[30];
-		strcpy(Ident, Script.getIdentifier());
-		Script.readSymbol('=');
-
-		if (strcmp(Ident, "name") == 0) {
-			strcpy(R.Name, Script.readString());
-		}
-
-		if (strcmp(Ident, "article") == 0) {
-			strcpy(R.Article, Script.readString());
-		}
-
-		if (strcmp(Ident, "outfit") == 0) {
-			R.Outfit.load(Script);
-		}
-
-		if (strcmp(Ident, "corpse") == 0) {
-			R.MaleCorpse = Script.readNumber();
-			R.FemaleCorpse = R.MaleCorpse;
-		}
-
-		if (strcmp(Ident, "corpses") == 0) {
-			R.MaleCorpse = Script.readNumber();
-			Script.readSymbol(',');
-			R.FemaleCorpse = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "blood") == 0) {
-			char *Value = Script.readIdentifier();
-			if (strcmp(Value, "blood") == 0) {
-				R.Blood = BT_BLOOD;
-			} else if (strcmp(Value, "slime") == 0) {
-				R.Blood = BT_SLIME;
-			} else if (strcmp(Value, "bones") == 0) {
-				R.Blood = BT_BONES;
-			} else if (strcmp(Value, "fire") == 0) {
-				R.Blood = BT_FIRE;
-			} else if (strcmp(Value, "energy") == 0) {
-				R.Blood = BT_ENERGY;
-			} else {
-				Script.error("unknown blood type");
-			}
-		}
-
-		if (strcmp(Ident, "experience") == 0) {
-			R.ExperiencePoints = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "summoncost") == 0) {
-			R.SummonCost = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "fleethreshold") == 0) {
-			R.FleeThreshold = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "attack") == 0) {
-			R.Attack = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "defend") == 0) {
-			R.Defend = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "armor") == 0) {
-			R.Armor = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "poison") == 0) {
-			R.Poison = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "losetarget") == 0) {
-			R.LoseTarget = Script.readNumber();
-		}
-
-		if (strcmp(Ident, "strategy") == 0) {
-			Script.readSymbol('(');
-			for (int i = 0; i < 4; i++) {
-				if (i != 0) {
-					Script.readSymbol(',');
-				}
-				R.Strategy[i] = Script.readNumber();
-			}
-			Script.readSymbol(')');
-		}
-
-		if (strcmp(Ident, "flags") == 0) {
-			Script.readSymbol('{');
-			do {
-				char *Flag = Script.readIdentifier();
-				if (strcmp(Flag, "kickboxes") == 0) {
-					R.KickBoxes = true;
-				}
-				if (strcmp(Flag, "kickcreatures") == 0) {
-					R.KickCreatures = true;
-				}
-				if (strcmp(Flag, "seeinvisible") == 0) {
-					R.SeeInvisible = true;
-				}
-				if (strcmp(Flag, "unpushable") == 0) {
-					R.Unpushable = true;
-				}
-				if (strcmp(Flag, "distancefighting") == 0) {
-					R.DistanceFighting = true;
-				}
-				if (strcmp(Flag, "nosummon") == 0) {
-					R.NoSummon = true;
-				}
-				if (strcmp(Flag, "noconvince") == 0) {
-					R.NoConvince = true;
-				}
-				if (strcmp(Flag, "noillusion") == 0) {
-					R.NoIllusion = true;
-				}
-				if (strcmp(Flag, "noburning") == 0) {
-					R.NoBurning = true;
-				}
-				if (strcmp(Flag, "nopoison") == 0) {
-					R.NoPoison = true;
-				}
-				if (strcmp(Flag, "noenergy") == 0) {
-					R.NoEnergy = true;
-				}
-				if (strcmp(Flag, "nohit") == 0) {
-					R.NoHit = true;
-				}
-				if (strcmp(Flag, "nolifedrain") == 0) {
-					R.NoLifeDrain = true;
-				}
-				if (strcmp(Flag, "noparalyze") == 0) {
-					R.NoParalyze = true;
-				}
-			} while (Script.readSpecial() != '}');
-		}
-
-		if (strcmp(Ident, "skills") == 0) {
-			Script.readSymbol('{');
-			do {
-				Script.readSymbol('(');
-				int SkillNr = GetSkillByName(Script.readIdentifier());
-				if (SkillNr == -1) {
-					Script.error("unknown skill name");
-				}
-
-				R.Skills++;
-				TSkillData &S = R.Skill(R.Skills);
-				S.Nr = SkillNr;
-				Script.readSymbol(',');
-				S.Actual = Script.readNumber();
-				Script.readSymbol(',');
-				S.Minimum = Script.readNumber();
-				Script.readSymbol(',');
-				S.Maximum = Script.readNumber();
-				Script.readSymbol(',');
-				S.NextLevel = Script.readNumber();
-				Script.readSymbol(',');
-				S.FactorPercent = Script.readNumber();
-				Script.readSymbol(',');
-				S.AddLevel = Script.readNumber();
-				Script.readSymbol(')');
-			} while (Script.readSpecial() != '}');
-		}
-
-		if (strcmp(Ident, "talk") == 0) {
-			Script.readSymbol('{');
-			do {
-				R.Talks++;
-				R.Talk(R.Talks) = AddDynamicString(Script.readString());
-			} while (Script.readSpecial() != '}');
-		}
-
-		if (strcmp(Ident, "inventory") == 0) {
-			Script.readSymbol('{');
-			do {
-				Script.readSymbol('(');
-				R.Items++;
-				TItemData &I = R.Item(R.Items);
-				I.Type = Script.readNumber();
-				Script.readSymbol(',');
-				I.Maximum = Script.readNumber();
-				Script.readSymbol(',');
-				I.Probability = Script.readNumber();
-				Script.readSymbol(')');
-			} while (Script.readSpecial() != '}');
-		}
-
-		if (strcmp(Ident, "spells") == 0) {
-			Script.readSymbol('{');
-			do {
-				R.Spells++;
-				TSpellData &S = R.Spell(R.Spells);
-
-				char *Shape = Script.readIdentifier();
-				if (strcmp(Shape, "actor") == 0) {
-					S.Shape = SHAPE_ACTOR;
-					Script.readSymbol('(');
-					S.ShapeParam1 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Shape, "victim") == 0) {
-					S.Shape = SHAPE_VICTIM;
-					Script.readSymbol('(');
-					S.ShapeParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam2 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam3 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Shape, "origin") == 0) {
-					S.Shape = SHAPE_ORIGIN;
-					Script.readSymbol('(');
-					S.ShapeParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam2 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Shape, "destination") == 0) {
-					S.Shape = SHAPE_DESTINATION;
-					Script.readSymbol('(');
-					S.ShapeParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam2 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam3 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam4 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Shape, "angle") == 0) {
-					S.Shape = SHAPE_ANGLE;
-					Script.readSymbol('(');
-					S.ShapeParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam2 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ShapeParam3 = Script.readNumber();
-					Script.readSymbol(')');
-				} else {
-					Script.error("unknown spell shape");
-				}
-
-				Script.readSymbol('I');
-
-				char *Impact = Script.readIdentifier();
-				if (strcmp(Impact, "damage") == 0) {
-					S.Impact = IMPACT_DAMAGE;
-					Script.readSymbol('(');
-					S.ImpactParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam2 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam3 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Impact, "field") == 0) {
-					S.Impact = IMPACT_FIELD;
-					Script.readSymbol('(');
-					S.ImpactParam1 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Impact, "healing") == 0) {
-					S.Impact = IMPACT_HEALING;
-					Script.readSymbol('(');
-					S.ImpactParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam2 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Impact, "speed") == 0) {
-					S.Impact = IMPACT_SPEED;
-					Script.readSymbol('(');
-					S.ImpactParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam2 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam3 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Impact, "drunken") == 0) {
-					S.Impact = IMPACT_DRUNKEN;
-					Script.readSymbol('(');
-					S.ImpactParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam2 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam3 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Impact, "strength") == 0) {
-					S.Impact = IMPACT_STRENGTH;
-					Script.readSymbol('(');
-					S.ImpactParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam2 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam3 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam4 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Impact, "outfit") == 0) {
-					S.Impact = IMPACT_OUTFIT;
-					Script.readSymbol('(');
-					// For an outfit of an object type only two of the four
-					// bytes are read, so ImpactParam3 is undefined.
-					TOutfit HelpOutfit;
-					HelpOutfit.load(Script);
-					S.ImpactParam1 = HelpOutfit.OutfitID;
-					S.ImpactParam2 = HelpOutfit.Colors[0] + HelpOutfit.Colors[1] * 256;
-					S.ImpactParam3 = HelpOutfit.Colors[2] + HelpOutfit.Colors[3] * 256;
-					Script.readSymbol(',');
-					S.ImpactParam4 = Script.readNumber();
-					Script.readSymbol(')');
-				} else if (strcmp(Impact, "summon") == 0) {
-					S.Impact = IMPACT_SUMMON;
-					Script.readSymbol('(');
-					S.ImpactParam1 = Script.readNumber();
-					Script.readSymbol(',');
-					S.ImpactParam2 = Script.readNumber();
-					Script.readSymbol(')');
-				} else {
-					Script.error("unknown spell impact");
-				}
-
-				Script.readSymbol(':');
-				S.Delay = Script.readNumber();
-				if (S.Delay == 0) {
-					Script.error("zero spell delay");
-				}
-			} while (Script.readSpecial() != '}');
+	for (const std::string &Flag : Entry.Flags) {
+		if (Flag == "kick_boxes") {
+			R.KickBoxes = true;
+		} else if (Flag == "kick_creatures") {
+			R.KickCreatures = true;
+		} else if (Flag == "see_invisible") {
+			R.SeeInvisible = true;
+		} else if (Flag == "unpushable") {
+			R.Unpushable = true;
+		} else if (Flag == "distance_fighting") {
+			R.DistanceFighting = true;
+		} else if (Flag == "no_summon") {
+			R.NoSummon = true;
+		} else if (Flag == "no_convince") {
+			R.NoConvince = true;
+		} else if (Flag == "no_illusion") {
+			R.NoIllusion = true;
+		} else if (Flag == "no_burning") {
+			R.NoBurning = true;
+		} else if (Flag == "no_poison") {
+			R.NoPoison = true;
+		} else if (Flag == "no_energy") {
+			R.NoEnergy = true;
+		} else if (Flag == "no_hit") {
+			R.NoHit = true;
+		} else if (Flag == "no_life_drain") {
+			R.NoLifeDrain = true;
+		} else if (Flag == "no_paralyze") {
+			R.NoParalyze = true;
 		}
 	}
 
-	Script.close();
+	for (const TMonsterSkillData &Skill : Entry.Skills) {
+		char SkillName[64];
+		int SkillNr = -1;
+		if (Skill.Skill.size() < sizeof(SkillName)) {
+			strcpy(SkillName, Skill.Skill.c_str());
+			SkillNr = GetSkillByName(SkillName);
+		}
+		if (SkillNr == -1) {
+			snprintf(RaceErrorString, sizeof(RaceErrorString), "%s: unknown skill name \"%s\"",
+					Skill.Where.c_str(), Skill.Skill.c_str());
+			throw static_cast<const char *>(RaceErrorString);
+		}
+
+		R.Skills++;
+		TSkillData &S = R.Skill(R.Skills);
+		S.Nr = SkillNr;
+		S.Actual = Skill.Actual;
+		S.Minimum = Skill.Minimum;
+		S.Maximum = Skill.Maximum;
+		S.NextLevel = Skill.NextLevel;
+		S.FactorPercent = Skill.FactorPercent;
+		S.AddLevel = Skill.AddLevel;
+	}
+
+	for (const std::string &Text : Entry.Talk) {
+		R.Talks++;
+		R.Talk(R.Talks) = AddDynamicString(const_cast<char *>(Text.c_str()));
+	}
+
+	for (const TMonsterItemData &Item : Entry.Inventory) {
+		R.Items++;
+		TItemData &I = R.Item(R.Items);
+		I.Type = Item.Type;
+		I.Maximum = Item.Maximum;
+		I.Probability = Item.Chance;
+	}
+
+	R.Spells = static_cast<int>(Entry.Spells.size());
+
+	if (!Entry.Script.empty()) {
+		R.Script = LoadScript(Entry.Script.c_str(), Entry.Where.c_str());
+	}
 }
 
 void LoadRaces() {
-	DIR *WorkDir = opendir(MONSTERPATH);
-	if (WorkDir == nullptr) {
-		error("LoadRaces: Subdirectory %s not found\n", MONSTERPATH);
-		throw "Cannot load races";
+	char FileName[4096];
+	snprintf(FileName, sizeof(FileName), "%s/monsters.toml", DATAPATH);
+	LoadMonsterRaces(FileName, MonsterRaces);
+
+	RaceNumbers.clear();
+	for (const TMonsterData &Entry : MonsterRaces) {
+		RaceNumbers[Entry.Key] = Entry.Number;
+		LoadRace(Entry);
 	}
 
-	dirent *DirEntry;
-	while ((DirEntry = readdir(WorkDir)) != nullptr) {
-		char *s = DirEntry->d_name;
-		if (strlen(s) > 4 && strncmp(s + strlen(s) - 4, ".mon", 4) == 0) {
-			char FileName[4096];
-			sprintf(FileName, "%s/%s", MONSTERPATH, s);
-			LoadRace(FileName);
+	InitMonsterSpells();
+	for (const TMonsterData &Entry : MonsterRaces) {
+		for (size_t i = 0; i < Entry.Spells.size(); i++) {
+			PrepareMonsterSpell(Entry.Number, Entry.Spells[i], Entry.SpellWhere[i].c_str());
 		}
 	}
-
-	closedir(WorkDir);
 }
 
 TAttackWave::TAttackWave() : ExtraItem(1, 5, 5) {
@@ -1628,6 +1415,8 @@ TAttackWave::TAttackWave() : ExtraItem(1, 5, 5) {
 	Lifetime = 0;
 	Message = 0;
 	ExtraItems = 0;
+	Raid = -1;
+	Wave = 0;
 }
 
 TAttackWave::~TAttackWave() {
@@ -1636,245 +1425,150 @@ TAttackWave::~TAttackWave() {
 	}
 }
 
-// The properties of a wave are tested one after the other without else, and
-// an unknown property is not an error. Type is only written with the type of
-// the raid; it is not preset.
-void LoadMonsterRaid(char *FileName, int Start, bool *Type, int *Date, int *Interval, int *Duration) {
-	if (FileName == nullptr) {
-		error("LoadMonsterRaid: File name is NULL.\n");
-		throw "cannot load monster raid";
+// A raid of raids.toml, as LoadMonsterRaids read it, with the number of its
+// script (LoadScript), -1 for none.
+struct TRaid {
+	TRaidData Data;
+	int Script;
+};
+
+// The raids of raids.toml in the file's order (TAttackWave::Raid indexes it).
+static std::vector<TRaid> Raids;
+
+// A new wave of the raid (Wave counts from 0 in Raids[Raid].Data.Waves), its
+// message a new dynamic string (AddDynamicString; 0 for none), which the
+// destructor deletes.
+static TAttackWave *MakeAttackWave(int Raid, int Wave) {
+	const TRaidWaveData &W = Raids[Raid].Data.Waves[Wave];
+	TAttackWave *AttackWave = new TAttackWave;
+	AttackWave->x = W.x;
+	AttackWave->y = W.y;
+	AttackWave->z = W.z;
+	AttackWave->Spread = W.Spread;
+	AttackWave->Race = GetRaceByKey(W.Race.c_str());
+	AttackWave->MinCount = W.MinCount;
+	AttackWave->MaxCount = W.MaxCount;
+	AttackWave->Radius = W.Radius;
+	AttackWave->Lifetime = W.Lifetime;
+	AttackWave->Message = AddDynamicString(const_cast<char *>(W.Message.c_str()));
+	for (const TMonsterItemData &Item : W.Inventory) {
+		AttackWave->ExtraItems++;
+		TItemData &I = AttackWave->ExtraItem(AttackWave->ExtraItems);
+		I.Type = Item.Type;
+		I.Maximum = Item.Maximum;
+		I.Probability = Item.Chance;
 	}
-
-	if (Start < 0) {
-		if (Type == nullptr || Date == nullptr || Interval == nullptr || Duration == nullptr) {
-			error("LoadMonsterRaid: Pointers for return values are NULL.\n");
-			throw "cannot load monster raid";
-		}
-
-		*Date = 0;
-		*Interval = 0;
-		*Duration = 0;
-	} else {
-		print(1, "Scheduling raid %s for round %d.\n", FileName, Start);
-	}
-
-	TReadScriptFile Script;
-	Script.open(FileName);
-
-	Script.nextToken();
-	if (strcmp(Script.getIdentifier(), "description") == 0) {
-		Script.readSymbol('=');
-		Script.readString();
-		Script.nextToken();
-	}
-
-	if (strcmp(Script.getIdentifier(), "type") != 0) {
-		Script.error("type expected");
-	}
-
-	Script.readSymbol('=');
-	Script.readIdentifier();
-	if (Start < 0) {
-		*Type = strcmp(Script.getIdentifier(), "bigraid") == 0;
-	}
-
-	Script.readIdentifier();
-	if (strcmp(Script.getIdentifier(), "date") == 0) {
-		Script.readSymbol('=');
-		Script.readNumber();
-		if (Start < 0) {
-			*Date = Script.getNumber();
-		}
-	} else if (strcmp(Script.getIdentifier(), "interval") == 0) {
-		Script.readSymbol('=');
-		Script.readNumber();
-		if (Start < 0) {
-			*Interval = Script.getNumber();
-		}
-	} else {
-		Script.error("date or interval expected");
-	}
-
-	if (strcmp(Script.readIdentifier(), "delay") != 0) {
-		Script.error("delay expected");
-	}
-
-	while (Script.Token == IDENTIFIER) {
-		Script.readSymbol('=');
-		int Delay = Script.readNumber();
-		TAttackWave *AttackWave = new TAttackWave;
-
-		while (true) {
-			Script.nextToken();
-			if (Script.Token == ENDOFFILE) {
-				break;
-			}
-
-			if (Script.Token != IDENTIFIER) {
-				Script.error("identifier expected");
-			}
-
-			if (strcmp(Script.getIdentifier(), "delay") == 0) {
-				break;
-			}
-
-			char Ident[30];
-			strcpy(Ident, Script.getIdentifier());
-			Script.readSymbol('=');
-
-			if (strcmp(Ident, "location") == 0) {
-				Script.readString();
-			}
-
-			if (strcmp(Ident, "position") == 0) {
-				Script.readCoordinate(AttackWave->x, AttackWave->y, AttackWave->z);
-			}
-
-			if (strcmp(Ident, "spread") == 0) {
-				AttackWave->Spread = Script.readNumber();
-			}
-
-			if (strcmp(Ident, "race") == 0) {
-				AttackWave->Race = Script.readNumber();
-				if (!in(AttackWave->Race, 1, MAX_RACES - 1)) {
-					Script.error("illegal race number");
-				}
-			}
-
-			if (strcmp(Ident, "count") == 0) {
-				Script.readSymbol('(');
-				AttackWave->MinCount = Script.readNumber();
-				Script.readSymbol(',');
-				AttackWave->MaxCount = Script.readNumber();
-				Script.readSymbol(')');
-				if (AttackWave->MinCount > AttackWave->MaxCount) {
-					Script.error("mincount greater than maxcount");
-				}
-
-				if (AttackWave->MinCount < 0 || AttackWave->MaxCount <= 0) {
-					Script.error("illegal number of monsters");
-				}
-			}
-
-			if (strcmp(Ident, "radius") == 0) {
-				AttackWave->Radius = Script.readNumber();
-			}
-
-			if (strcmp(Ident, "lifetime") == 0) {
-				AttackWave->Lifetime = Script.readNumber();
-			}
-
-			if (strcmp(Ident, "message") == 0) {
-				AttackWave->Message = AddDynamicString(Script.readString());
-			}
-
-			if (strcmp(Ident, "inventory") == 0) {
-				Script.readSymbol('{');
-				do {
-					Script.readSymbol('(');
-					AttackWave->ExtraItems++;
-					TItemData &I = AttackWave->ExtraItem(AttackWave->ExtraItems);
-					I.Type = Script.readNumber();
-					Script.readSymbol(',');
-					I.Maximum = Script.readNumber();
-					Script.readSymbol(',');
-					I.Probability = Script.readNumber();
-					Script.readSymbol(')');
-				} while (Script.readSpecial() != '}');
-			}
-		}
-
-		if (AttackWave->x == 0) {
-			Script.error("position expected");
-		}
-
-		if (AttackWave->Race == -1) {
-			Script.error("race expected");
-		}
-
-		if (AttackWave->MaxCount == 0) {
-			Script.error("count expected");
-		}
-
-		if (Start < 0) {
-			int End;
-			if (AttackWave->Lifetime == 0) {
-				End = Delay + 3600;
-			} else {
-				End = Delay + AttackWave->Lifetime;
-			}
-
-			if (End > *Duration) {
-				*Duration = End;
-			}
-
-			delete AttackWave;
-		} else {
-			AttackWaveQueue.insert(Start + Delay, AttackWave);
-		}
-	}
-
-	Script.close();
+	AttackWave->Raid = Raid;
+	AttackWave->Wave = Wave + 1;
+	return AttackWave;
 }
 
+// Queues the waves of the raid to start in round Start, in their order, and
+// calls its onRaid.
+static void QueueRaid(int Raid, int Start) {
+	const TRaidData &R = Raids[Raid].Data;
+	print(1, "Scheduling raid %s for round %d.\n", R.Key.c_str(), Start);
+	for (int i = 0; i < static_cast<int>(R.Waves.size()); i++) {
+		TAttackWave *AttackWave = MakeAttackWave(Raid, i);
+		AttackWaveQueue.insert(Start + R.Waves[i].Delay, AttackWave);
+	}
+	RaidHook(Raids[Raid].Script, R.Key.c_str());
+}
+
+bool QueueMonsterRaid(const char *Key, int Start) {
+	if (Key == nullptr) {
+		return false;
+	}
+
+	for (int i = 0; i < static_cast<int>(Raids.size()); i++) {
+		if (Raids[i].Data.Key == Key) {
+			QueueRaid(i, Start);
+			return true;
+		}
+	}
+	return false;
+}
+
+// Each raid in the file's order: its duration (the latest end of a wave, a
+// wave without lifetime lasting 3600 seconds; each wave is made and deleted
+// for it, so its message takes a dynamic string number, which stays used
+// until CleanupDynamicStrings); then a dated raid is
+// queued if its date comes before the next reboot, and a raid with an
+// interval if its random draw falls before the reboot. Of the big raids drawn
+// only the one with the highest tie breaker is queued, after all others, and
+// none if a dated big raid was queued.
 void LoadMonsterRaids() {
 	time_t Now = static_cast<int32_t>(time(nullptr));
 	int Hour, Minute;
 	GetRealTime(Hour, Minute);
 	int Remaining = ((RebootTime - (Hour * 60 + Minute) + 1440) % 1440) * 60;
 
-	DIR *WorkDir = opendir(MONSTERPATH);
-	if (WorkDir == nullptr) {
-		error("LoadMonsterRaids: Subdirectory %s not found.\n", MONSTERPATH);
-		throw "Cannot load monster raids";
+	char FileName[4096];
+	snprintf(FileName, sizeof(FileName), "%s/raids.toml", DATAPATH);
+	std::vector<TRaidData> Data;
+	LoadRaids(FileName, MonsterRaces, Data);
+
+	Raids.clear();
+	for (TRaidData &Entry : Data) {
+		TRaid Raid;
+		Raid.Data = std::move(Entry);
+		Raid.Script = -1;
+		if (!Raid.Data.Script.empty()) {
+			Raid.Script = LoadScript(Raid.Data.Script.c_str(), Raid.Data.Where.c_str());
+		}
+		Raids.push_back(std::move(Raid));
 	}
 
-	dirent *DirEntry;
 	int TieBreaker = -1;
-	char BigRaidName[4096];
-	BigRaidName[0] = 0;
+	int BigRaid = -1;
 	int BigRaidDuration = 0;
 
-	while ((DirEntry = readdir(WorkDir)) != nullptr) {
-		char *s = DirEntry->d_name;
-		if (strlen(s) <= 4 || strncmp(s + strlen(s) - 4, ".evt", 4) != 0) {
-			continue;
+	for (int i = 0; i < static_cast<int>(Raids.size()); i++) {
+		const TRaidData &R = Raids[i].Data;
+		int Date = R.Date;
+		int Interval = R.Interval;
+		int Duration = 0;
+		for (int j = 0; j < static_cast<int>(R.Waves.size()); j++) {
+			TAttackWave *AttackWave = MakeAttackWave(i, j);
+			int End;
+			if (AttackWave->Lifetime == 0) {
+				End = R.Waves[j].Delay + 3600;
+			} else {
+				End = R.Waves[j].Delay + AttackWave->Lifetime;
+			}
+
+			if (End > Duration) {
+				Duration = End;
+			}
+
+			delete AttackWave;
 		}
-
-		char FileName[4096];
-		sprintf(FileName, "%s/%s", MONSTERPATH, s);
-
-		bool BigRaid;
-		int Date, Interval, Duration;
-		LoadMonsterRaid(FileName, -1, &BigRaid, &Date, &Interval, &Duration);
-		print(1, "Raid %s: Date %d, Interval %d, Duration %d\n", FileName, Date, Interval, Duration);
+		print(1, "Raid %s: Date %d, Interval %d, Duration %d\n", R.Key.c_str(), Date, Interval, Duration);
 
 		if (Date > 0 && in(Date, (int)Now, (int)(Now + Remaining))) {
-			LoadMonsterRaid(FileName, (int)(RoundNr + Date - Now), nullptr, nullptr, nullptr, nullptr);
-			if (BigRaid) {
-				BigRaidName[0] = 0;
+			QueueRaid(i, (int)(RoundNr + Date - Now));
+			if (R.Big) {
+				BigRaid = -1;
 				TieBreaker = 100;
 			}
 		}
 
 		if (Date == 0 && Duration <= Remaining && random(0, Interval - 1) < Remaining) {
-			if (BigRaid) {
+			if (R.Big) {
 				int NewTieBreaker = random(0, 99);
 				if (NewTieBreaker > TieBreaker) {
 					TieBreaker = NewTieBreaker;
-					strcpy(BigRaidName, FileName);
+					BigRaid = i;
 					BigRaidDuration = Duration;
 				}
 			} else {
-				LoadMonsterRaid(FileName, RoundNr + random(0, Remaining - Duration), nullptr, nullptr, nullptr, nullptr);
+				QueueRaid(i, RoundNr + random(0, Remaining - Duration));
 			}
 		}
 	}
 
-	closedir(WorkDir);
-
-	if (BigRaidName[0] != 0) {
-		LoadMonsterRaid(BigRaidName, RoundNr + random(0, Remaining - BigRaidDuration), nullptr, nullptr, nullptr, nullptr);
+	if (BigRaid != -1) {
+		QueueRaid(BigRaid, RoundNr + random(0, Remaining - BigRaidDuration));
 	}
 }
 
@@ -1964,7 +1658,10 @@ void ProcessMonsterRaids() {
 			}
 		}
 
+		int Raid = AttackWave->Raid;
+		int Wave = AttackWave->Wave;
 		delete AttackWave;
+		RaidWaveHook(Raids[Raid].Script, Raids[Raid].Data.Key.c_str(), Wave);
 	}
 }
 

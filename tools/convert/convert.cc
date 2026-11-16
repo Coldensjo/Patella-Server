@@ -63,6 +63,17 @@
 //     DATA_FOLDER/scripts/lib/npcs/<name>.lua. Run it on a folder of the
 //     file system the game ran on: its readdir order is the NPCs' order.
 //
+//   patella-convert monsters MON_FOLDER MONSTER_DB DATA_FOLDER
+//     The monster races, the raids and the monster homes: every .mon of
+//     MON_FOLDER (the installation's mon/) to DATA_FOLDER/monsters.toml, in
+//     the order of the race numbers; every .evt there, in the order readdir
+//     gives them as the game read them, to DATA_FOLDER/raids.toml, with their
+//     comments; MONSTER_DB (the installation's dat/monster.db) to
+//     DATA_FOLDER/monster_homes.toml. What the game read and ignored (an
+//     unknown key or flag, a wave's location, ...) is named on standard error.
+//     Run it on a folder of the file system the game ran on: its readdir
+//     order is the raids' order.
+//
 //   patella-convert usr-export CONFIG_TOML OUTPUT_FOLDER [CHARACTER_ID...]
 //     The player data the query manager has of the world's characters (or of
 //     the characters given), as player files (OUTPUT_FOLDER/NN/<id>.usr),
@@ -88,6 +99,7 @@
 #include <cstring>
 #include <exception>
 #include <string>
+#include <vector>
 
 #include "circles_dat.hh"
 #include "circles_writer.hh"
@@ -99,6 +111,9 @@
 #include "items_writer.hh"
 #include "map_dat.hh"
 #include "map_writer.hh"
+#include "mon_files.hh"
+#include "monsterdata.hh"
+#include "monsters_writer.hh"
 #include "npc_files.hh"
 #include "npcs_writer.hh"
 #include "moveuse_dat.hh"
@@ -123,6 +138,7 @@ static int Usage() {
 			"       patella-convert map MAP_DAT OUTPUT\n"
 			"       patella-convert conversion CONVERSION_LST OUTPUT\n"
 			"       patella-convert npcs NPC_FOLDER DATA_FOLDER\n"
+			"       patella-convert monsters MON_FOLDER MONSTER_DB DATA_FOLDER\n"
 			"       patella-convert usr-export CONFIG_TOML OUTPUT_FOLDER [CHARACTER_ID...]\n"
 			"       patella-convert usr-check [--read-only] CONFIG_TOML [USER_FOLDER]\n");
 	return 2;
@@ -255,6 +271,34 @@ static int ConvertNpcs(int argc, char **argv) {
 	return 0;
 }
 
+static int ConvertMonsters(int argc, char **argv) {
+	if (argc != 3 || (argv[0][0] == '-' && argv[0][1] != 0) || (argv[1][0] == '-' && argv[1][1] != 0)
+			|| (argv[2][0] == '-' && argv[2][1] != 0)) {
+		return Usage();
+	}
+
+	TMonsterFolder Folder;
+	ReadMonsterFolder(argv[0], Folder);
+	std::vector<TMonsterHomeData> Homes;
+	ReadMonsterHomes(argv[1], Folder.Races, Homes, Folder.Ignored);
+	for (const std::string &Text : Folder.Ignored) {
+		fprintf(stderr, "patella-convert: %s\n", Text.c_str());
+	}
+	WriteMonsterFiles(Folder, Homes, argv[2]);
+
+	// The files written are read back with the game's loaders, so a value the
+	// original game took but the loaders refuse is an error here, not at the
+	// game's start.
+	std::string Data = argv[2];
+	std::vector<TMonsterData> Races;
+	std::vector<TRaidData> Raids;
+	std::vector<TMonsterHomeData> HomesRead;
+	LoadMonsterRaces((Data + "/monsters.toml").c_str(), Races);
+	LoadRaids((Data + "/raids.toml").c_str(), Races, Raids);
+	LoadMonsterHomes((Data + "/monster_homes.toml").c_str(), Races, HomesRead);
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		return Usage();
@@ -290,6 +334,9 @@ int main(int argc, char **argv) {
 		}
 		if (strcmp(argv[1], "npcs") == 0) {
 			return ConvertNpcs(argc - 2, argv + 2);
+		}
+		if (strcmp(argv[1], "monsters") == 0) {
+			return ConvertMonsters(argc - 2, argv + 2);
 		}
 		if (strcmp(argv[1], "usr-export") == 0) {
 			return UsrExport(argc - 2, argv + 2);

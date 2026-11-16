@@ -1,13 +1,14 @@
 // test_scripting.cc: the Lua engine (scripting.cc) on its own. Loading scripts
 // and its errors, global handlers, the sandbox, require, result codes in both
 // directions and their RETURNVALUE_ names, the logging of other errors, the
-// calls a script makes, the objects, the Npcs, the ItemTypes, the Positions,
-// the constants, the core API (math.random, print, integer arithmetic), the
-// results of runNumber and runBoolean, the calls of an event's rules
-// (TScriptEvent), the message of a failed call (TScriptCall::failure), the
-// script environments, and a restart of the engine. The scripts are written
-// into a scratch folder that is removed at the end. Prints what failed; exits 1
-// on any failure, 0 when all pass.
+// calls a script makes, the objects, the Npcs, the Monsters, MonsterTypes and
+// Impacts, the ItemTypes, the Positions, the constants, the core API
+// (math.random, print, integer arithmetic), the results of runNumber and
+// runBoolean, the calls of an event's rules (TScriptEvent), the message of a
+// failed call (TScriptCall::failure), runCaught, the data values of addValue,
+// the hooks of the monsters and raids, the script environments, and a restart
+// of the engine. The scripts are written into a scratch folder that is removed
+// at the end. Prints what failed; exits 1 on any failure, 0 when all pass.
 
 #include <algorithm>
 #include <climits>
@@ -208,6 +209,70 @@ static std::string NpcTestNpcName(TScriptNpc Self) {
 	return "npc " + std::to_string(Self.ID);
 }
 
+// test.monsterId(monster): the ID of a Monster.
+static uint32_t TestMonsterId(TScriptMonster Monster) {
+	return Monster.ID;
+}
+
+// test.makeMonster(id): a Monster holding the ID.
+static TScriptMonster TestMakeMonster(uint32_t ID) {
+	return TScriptMonster{ID};
+}
+
+// monster:testMonsterName(): "monster <ID>", a method of Monster.
+static std::string MonsterTestMonsterName(TScriptMonster Self) {
+	return "monster " + std::to_string(Self.ID);
+}
+
+// test.makeMonsterType(race): a MonsterType holding the race number.
+static TScriptMonsterType TestMakeMonsterType(int Race) {
+	return TScriptMonsterType{Race};
+}
+
+// test.monsterTypeRace(monsterType): the race number of a MonsterType.
+static int TestMonsterTypeRace(TScriptMonsterType MonsterType) {
+	return MonsterType.Race;
+}
+
+// test.makeImpact(kind, actor, a, b, c, d): an Impact of the kind (a
+// TScriptImpactKind number) for the actor's ID, with the numbers a to d and
+// the colors 1, 2, 3, 4 for an outfit.
+static TScriptImpact TestMakeImpact(int Kind, TScriptCreature Actor, int a, int b, int c, int d) {
+	TScriptImpact Impact;
+	memset(&Impact, 0, sizeof(Impact));
+	Impact.Kind = static_cast<TScriptImpactKind>(Kind);
+	Impact.Actor = Actor.ID;
+	Impact.Values[0] = a;
+	Impact.Values[1] = b;
+	Impact.Values[2] = c;
+	Impact.Values[3] = d;
+	if (Impact.Kind == SCRIPT_IMPACT_OUTFIT) {
+		for (int i = 0; i < 4; i++) {
+			Impact.Colors[i] = static_cast<unsigned char>(i + 1);
+		}
+	}
+	return Impact;
+}
+
+// test.impactText(impact): "<kind> <actor> <a> <b> <c> <d> <colors>".
+static std::string TestImpactText(TScriptImpact Impact) {
+	std::string Text = std::to_string(static_cast<int>(Impact.Kind)) + " " + std::to_string(Impact.Actor);
+	for (int i = 0; i < 4; i++) {
+		Text += " " + std::to_string(Impact.Values[i]);
+	}
+	Text += " ";
+	for (int i = 0; i < 4; i++) {
+		Text += std::to_string(static_cast<int>(Impact.Colors[i]));
+	}
+	return Text;
+}
+
+// test.colors(colors): "<c1> <c2> <c3> <c4>" of an array of four colors.
+static std::string TestColors(TScriptColors Colors) {
+	return std::to_string(Colors.Values[0]) + " " + std::to_string(Colors.Values[1]) + " "
+			+ std::to_string(Colors.Values[2]) + " " + std::to_string(Colors.Values[3]);
+}
+
 // test.vocation(player): the player's Vocation.
 static TScriptVocation TestVocation(TScriptPlayer Player) {
 	return TScriptVocation{Player.ID};
@@ -293,8 +358,17 @@ static void RegisterTestAPI() {
 	API.set_function("makeItemType", Guarded(&TestMakeItemType));
 	API.set_function("npcId", Guarded(&TestNpcId));
 	API.set_function("makeNpc", Guarded(&TestMakeNpc));
+	API.set_function("monsterId", Guarded(&TestMonsterId));
+	API.set_function("makeMonster", Guarded(&TestMakeMonster));
+	API.set_function("makeMonsterType", Guarded(&TestMakeMonsterType));
+	API.set_function("monsterTypeRace", Guarded(&TestMonsterTypeRace));
+	API.set_function("makeImpact", Guarded(&TestMakeImpact));
+	API.set_function("impactText", Guarded(&TestImpactText));
+	API.set_function("colors", Guarded(&TestColors));
 	sol::table Npc = ScriptAPITable("Npc");
 	Npc.set_function("testNpcName", Guarded(&NpcTestNpcName));
+	sol::table Monster = ScriptAPITable("Monster");
+	Monster.set_function("testMonsterName", Guarded(&MonsterTestMonsterName));
 	sol::table ItemType = ScriptAPITable("ItemType");
 	ItemType.set_function("testDouble", Guarded(&ItemTypeTestDouble));
 	sol::table Creature = ScriptAPITable("Creature");
@@ -1399,6 +1473,373 @@ static void TestNpcs() {
 	CHECK(TakeErrors() == "");
 }
 
+// The Monster objects (a Creature with a method table of its own), the
+// MonsterTypes, the Impacts and the colors' arrays.
+static void TestMonsterObjects() {
+	WriteScript("monster_objects.lua",
+			"function onMonster(m, c, p, n, m2)\n"
+			"  print(m, test.makeMonsterType(12))\n"
+			"  return type(m) == 'userdata' and getmetatable(m) == false\n"
+			"    and tostring(m) == 'Monster 1073741830' and m == m2 and not rawequal(m, m2)\n"
+			"    and m == test.makeMonster(0x40000006) and m ~= test.makeMonster(0x40000007)\n"
+			"    and m ~= c and c == test.makeCreature(0x40000006) and m ~= n and m ~= p and m ~= 0x40000006\n"
+			"    and m:getId() == 0x40000006 and Creature.getId(m) == 0x40000006 and Monster.getId(m) == 0x40000006\n"
+			"    and m:testName() == 'creature 1073741830' and Monster.testName(m) == 'creature 1073741830'\n"
+			"    and m:testMonsterName() == 'monster 1073741830' and test.monsterId(m) == 0x40000006\n"
+			"    and test.creatureId(m) == 0x40000006 and test.optionalCreature(m) == 0x40000006\n"
+			"    and test.thing(m) == 'creature 1073741830'\n"
+			"    and tostring(test.makeMonsterType(12)) == 'MonsterType 12'\n"
+			"    and test.makeMonsterType(12) == test.makeMonsterType(12)\n"
+			"    and test.makeMonsterType(12) ~= test.makeMonsterType(13)\n"
+			"    and test.monsterTypeRace(test.makeMonsterType(12)) == 12 and getmetatable(test.makeMonsterType(1)) == false\n"
+			"end\n"
+			"function onImpact(m)\n"
+			"  local damage = test.makeImpact(0, m, 1, -20, 1, 0)\n"
+			"  local outfit = test.makeImpact(6, m, 35, 4000, 0, 0)\n"
+			"  print(damage, outfit)\n"
+			"  return type(damage) == 'userdata' and getmetatable(damage) == false\n"
+			"    and tostring(damage) == 'Impact damage' and tostring(test.makeImpact(7, m, 5, 2, 0, 0)) == 'Impact summon'\n"
+			"    and damage == test.makeImpact(0, m, 1, -20, 1, 0) and not rawequal(damage, test.makeImpact(0, m, 1, -20, 1, 0))\n"
+			"    and damage ~= test.makeImpact(0, m, 1, -21, 1, 0) and damage ~= test.makeImpact(1, m, 1, -20, 1, 0)\n"
+			"    and damage ~= test.makeImpact(0, test.makeCreature(9), 1, -20, 1, 0) and damage ~= outfit\n"
+			"    and test.impactText(damage) == '0 1073741830 1 -20 1 0 0000'\n"
+			"    and test.impactText(outfit) == '6 1073741830 35 4000 0 0 1234'\n"
+			"    and test.colors({1, 2, 255, -1}) == '1 2 255 -1'\n"
+			"end\n"
+			"function onRefused(i, m, c, p, n)\n"
+			"  local damage = test.makeImpact(0, m, 1, 2, 3, 4)\n"
+			"  local calls = {\n"
+			"    function() return test.monsterId(c) end,\n"
+			"    function() return test.monsterId(p) end,\n"
+			"    function() return test.monsterId(n) end,\n"
+			"    function() return test.monsterId(nil) end,\n"
+			"    function() return test.npcId(m) end,\n"
+			"    function() return test.playerId(m) end,\n"
+			"    function() return c:testMonsterName() end,\n"
+			"    function() return m:noSuchMethod() end,\n"
+			"    function() m.x = 1 end,\n"
+			"    function() return test.monsterTypeRace(m) end,\n"
+			"    function() return test.creatureId(test.makeMonsterType(3)) end,\n"
+			"    function() return test.impactText(m) end,\n"
+			"    function() return test.impactText({}) end,\n"
+			"    function() return test.creatureId(damage) end,\n"
+			"    function() damage.kind = 1 end,\n"
+			"    function() return damage:noSuchMethod() end,\n"
+			"    function() return test.colors({1, 2, 3}) end,\n"
+			"    function() return test.colors({1, 2, 3, 4, 5}) end,\n"
+			"    function() return test.colors({1, 2, 3.5, 4}) end,\n"
+			"    function() return test.colors({1, 2, '3', 4}) end,\n"
+			"    function() return test.colors(string) end,\n"
+			"    function() return test.colors(1234) end,\n"
+			"  }\n"
+			"  local ok, err = pcall(calls[i])\n"
+			"  test.record(tostring(err))\n"
+			"  return ok\n"
+			"end\n");
+	int Script = Load("monster_objects.lua");
+	TakeErrors();
+
+	Prints.clear();
+	TScriptCall Monsters(Script, "onMonster");
+	Monsters.addMonster(0x40000006u);
+	Monsters.addCreature(0x40000006u);
+	Monsters.addPlayer(7);
+	Monsters.addNpc(0x40000006u);
+	Monsters.addMonster(0x40000006u);
+	TOutcome Outcome = Run(Monsters, RUN_BOOLEAN);
+	CHECK(!Outcome.Thrown && Outcome.Boolean);
+	CHECK((Prints == std::vector<std::string>{"2:Monster 1073741830\tMonsterType 12\n"}));
+	CHECK(TakeErrors() == "");
+
+	Prints.clear();
+	TScriptCall Impacts(Script, "onImpact");
+	Impacts.addMonster(0x40000006u);
+	TOutcome ImpactOutcome = Run(Impacts, RUN_BOOLEAN);
+	CHECK(!ImpactOutcome.Thrown && ImpactOutcome.Boolean);
+	CHECK((Prints == std::vector<std::string>{"2:Impact damage\tImpact outfit\n"}));
+	CHECK(TakeErrors() == "");
+
+	const char *Refusals[] = {"Monster expected", "Monster expected", "Monster expected", "Monster expected",
+			"Npc expected", "Player expected", "unknown name 'Creature.testMonsterName'",
+			"unknown name 'Monster.noSuchMethod'", "Monster.x is read-only", "MonsterType expected",
+			"Creature expected", "Impact expected", "Impact expected", "Creature expected",
+			"Impact.kind is read-only", "unknown name 'Impact.noSuchMethod'", "array of four colors expected",
+			"array of four colors expected", "array of four colors expected", "array of four colors expected",
+			"array of four colors expected", "array of four colors expected"};
+	int Count = static_cast<int>(sizeof(Refusals) / sizeof(Refusals[0]));
+	for (int i = 1; i <= Count; i++) {
+		Records.clear();
+		TScriptCall Refused(Script, "onRefused");
+		Refused.addNumber(i);
+		Refused.addMonster(0x40000006u);
+		Refused.addCreature(0x40000006u);
+		Refused.addPlayer(7);
+		Refused.addNpc(0x40000006u);
+		TOutcome RefusedOutcome = Run(Refused, RUN_BOOLEAN);
+		CHECK(!RefusedOutcome.Thrown && !RefusedOutcome.Boolean);
+		if (RefusedOutcome.Thrown || RefusedOutcome.Boolean) {
+			fprintf(stderr, "  Monster refusal number %d was not refused\n", i);
+		}
+		CHECK(Records.size() == 1);
+		if (Records.size() == 1) {
+			CHECK_CONTAINS(Records[0], Refusals[i - 1]);
+		}
+	}
+	CHECK(TakeErrors() == "");
+}
+
+// addValue: numbers, texts, arrays and tables of a data file, nested, as Lua
+// values (new tables per call).
+static void TestValues() {
+	WriteScript("values.lua",
+			"local kept\n"
+			"function onValue(n, t, a, empty, spell, again)\n"
+			"  local fresh = kept == nil or not rawequal(kept, spell)\n"
+			"  kept = spell\n"
+			"  return n == -7 and type(n) == 'number' and t == 'fire\\0\\233' and type(a) == 'table'\n"
+			"    and #a == 3 and a[1] == 1 and a[2] == 'two' and a[3][1] == 3 and #a[3] == 1\n"
+			"    and type(empty) == 'table' and next(empty) == nil\n"
+			"    and spell.shape == 'victim' and spell.range == 7 and spell.one_in == 2147483647\n"
+			"    and spell.damage == -2147483648 and spell.outfit.id == 0 and spell.outfit.colors[4] == 255\n"
+			"    and #spell.outfit.colors == 4 and spell.missing == nil and spell ~= again\n"
+			"    and fresh\n"
+			"end\n");
+	int Script = Load("values.lua");
+	TakeErrors();
+
+	TScriptValue Number;
+	Number.Kind = TScriptValue::NUMBER;
+	Number.Number = -7;
+	TScriptValue Text;
+	Text.Kind = TScriptValue::TEXT;
+	Text.Text = std::string("fire\0\xe9", 6);
+	TScriptValue Three;
+	Three.Kind = TScriptValue::NUMBER;
+	Three.Number = 3;
+	TScriptValue Inner;
+	Inner.Kind = TScriptValue::ARRAY;
+	Inner.Elements.push_back(Three);
+	TScriptValue One;
+	One.Kind = TScriptValue::NUMBER;
+	One.Number = 1;
+	TScriptValue Two;
+	Two.Kind = TScriptValue::TEXT;
+	Two.Text = "two";
+	TScriptValue Array;
+	Array.Kind = TScriptValue::ARRAY;
+	Array.Elements = {One, Two, Inner};
+	TScriptValue Empty;
+	Empty.Kind = TScriptValue::TABLE;
+
+	auto Field = [](const char *Key, TScriptValue Value) {
+		return std::pair<std::string, TScriptValue>(Key, Value);
+	};
+	auto MakeNumber = [](int Value) {
+		TScriptValue Result;
+		Result.Kind = TScriptValue::NUMBER;
+		Result.Number = Value;
+		return Result;
+	};
+	TScriptValue Shape;
+	Shape.Kind = TScriptValue::TEXT;
+	Shape.Text = "victim";
+	TScriptValue Colors;
+	Colors.Kind = TScriptValue::ARRAY;
+	Colors.Elements = {MakeNumber(1), MakeNumber(2), MakeNumber(3), MakeNumber(255)};
+	TScriptValue Outfit;
+	Outfit.Kind = TScriptValue::TABLE;
+	Outfit.Fields = {Field("id", MakeNumber(0)), Field("colors", Colors)};
+	TScriptValue Spell;
+	Spell.Kind = TScriptValue::TABLE;
+	Spell.Fields = {Field("shape", Shape), Field("range", MakeNumber(7)), Field("one_in", MakeNumber(INT_MAX)),
+			Field("damage", MakeNumber(INT_MIN)), Field("outfit", Outfit)};
+
+	for (int Round = 0; Round < 2; Round++) {
+		TScriptCall Call(Script, "onValue");
+		Call.addValue(Number);
+		Call.addValue(Text);
+		Call.addValue(Array);
+		Call.addValue(Empty);
+		Call.addValue(Spell);
+		Call.addValue(Spell);
+		TOutcome Outcome = Run(Call, RUN_BOOLEAN);
+		CHECK(!Outcome.Thrown && Outcome.Boolean);
+	}
+	CHECK(TakeErrors() == "");
+}
+
+// runCaught: true for a call that ends, false for a non-result failure
+// (logged as run logs it, failure() gives its message), the result code a
+// handler raises thrown as run throws it.
+static void TestRunCaught() {
+	WriteScript("caught.lua",
+			"function onFail(n) error('failed ' .. n) end\n"
+			"function onResult() test.exhaust() end\n"
+			"function onErrorResult() Game.throwResult(RETURNVALUE_ERROR) end\n"
+			"function onFine(n) test.record('fine ' .. n) return 'ignored' end\n");
+	int Script = Load("caught.lua");
+	TakeErrors();
+
+	TScriptCall Fail(Script, "onFail");
+	Fail.addNumber(5);
+	bool Thrown = false;
+	bool Result = true;
+	try {
+		Result = Fail.runCaught();
+	} catch (RESULT) {
+		Thrown = true;
+	}
+	CHECK(!Thrown && !Result);
+	CHECK(Fail.failure() != nullptr && std::string(Fail.failure()) == "caught.lua:1: failed 5");
+	std::string Logged = TakeErrors();
+	CHECK_CONTAINS(Logged, "Script error in caught.lua (onFail): caught.lua:1: failed 5");
+	CHECK_CONTAINS(Logged, "stack traceback:");
+
+	TScriptCall Missing(Script, "onMissing");
+	Thrown = false;
+	Result = true;
+	try {
+		Result = Missing.runCaught();
+	} catch (RESULT) {
+		Thrown = true;
+	}
+	CHECK(!Thrown && !Result);
+	CHECK_CONTAINS(TakeErrors(), "Script error in caught.lua (onMissing): caught.lua has no function onMissing");
+
+	const char *ResultHandlers[] = {"onResult", "onErrorResult"};
+	RESULT Codes[] = {EXHAUSTED, ERROR};
+	for (int i = 0; i < 2; i++) {
+		TScriptCall Raised(Script, ResultHandlers[i]);
+		Thrown = false;
+		RESULT Code = NOERROR;
+		try {
+			Raised.runCaught();
+		} catch (RESULT r) {
+			Thrown = true;
+			Code = r;
+		}
+		CHECK(Thrown && Code == Codes[i]);
+		CHECK(Raised.failure() == nullptr);
+	}
+	CHECK(TakeErrors() == "");
+
+	Records.clear();
+	TScriptCall Fine(Script, "onFine");
+	Fine.addNumber(3);
+	Thrown = false;
+	Result = false;
+	try {
+		Result = Fine.runCaught();
+	} catch (RESULT) {
+		Thrown = true;
+	}
+	CHECK(!Thrown && Result && Fine.failure() == nullptr);
+	CHECK((Records == std::vector<std::string>{"fine 3"}));
+	CHECK(TakeErrors() == "");
+}
+
+// What a hook call threw: NOERROR for none.
+template<typename F>
+static RESULT HookThrown(F &&Hook) {
+	try {
+		Hook();
+	} catch (RESULT r) {
+		return r;
+	}
+	return NOERROR;
+}
+
+// The hooks: each calls its handler with its arguments (a creature of 0 as
+// nil), only when the script defines it, never for Script -1;
+// a failure is logged and the caller carries on; a result code is thrown.
+static void TestHooks() {
+	const char *Text =
+			"local function show(v)\n"
+			"  if v == nil then return 'nil' end\n"
+			"  return type(v) .. ':' .. tostring(v)\n"
+			"end\n"
+			"function onThink(monster) test.record('think ' .. show(monster)) end\n"
+			"function onHealthChange(monster, attacker, damage)\n"
+			"  test.record('health ' .. show(monster) .. ' ' .. show(attacker) .. ' ' .. show(damage))\n"
+			"end\n"
+			"function onTarget(monster, target) test.record('target ' .. show(monster) .. ' ' .. show(target)) end\n"
+			"function onDeath(monster, killer)\n"
+			"  test.record('death ' .. show(monster) .. ' ' .. show(killer))\n"
+			"end\n"
+			"function onRaid(raid) test.record('raid ' .. show(raid)) end\n"
+			"function onWave(raid, wave) test.record('wave ' .. show(raid) .. ' ' .. show(wave)) end\n";
+	WriteScript("monsters/full.lua", Text);
+	WriteScript("monsters/think_only.lua", "function onThink(monster) test.record('only ' .. tostring(monster)) end\n"
+			"onTarget = 'not a function'\n");
+	WriteScript("monsters/failing.lua",
+			"function onThink(monster) error('think failed') end\n"
+			"function onHealthChange(monster) test.exhaust() end\n"
+			"function onTarget(monster, target) test.record('after failure') end\n");
+	int Full = Load("monsters/full.lua");
+	int ThinkOnly = Load("monsters/think_only.lua");
+	int Failing = Load("monsters/failing.lua");
+	TakeErrors();
+
+	Records.clear();
+	CHECK(HookThrown([&] { MonsterThinkHook(Full, 0x40000010u); }) == NOERROR);
+	CHECK(HookThrown([&] { MonsterHealthChangeHook(Full, 0x40000010u, 7, 25); }) == NOERROR);
+	CHECK(HookThrown([&] { MonsterHealthChangeHook(Full, 0x40000010u, 0, 0); }) == NOERROR);
+	CHECK(HookThrown([&] { MonsterHealthChangeHook(Full, 0x40000010u, 0x40000011u, -3); }) == NOERROR);
+	CHECK(HookThrown([&] { MonsterTargetHook(Full, 0x40000010u, 8); }) == NOERROR);
+	CHECK(HookThrown([&] { MonsterTargetHook(Full, 0x40000010u, 0x40000012u); }) == NOERROR);
+	CHECK(HookThrown([&] { MonsterDeathHook(Full, 0x40000010u, 9); }) == NOERROR);
+	CHECK(HookThrown([&] { MonsterDeathHook(Full, 0x40000010u, 0); }) == NOERROR);
+	CHECK(HookThrown([&] { RaidHook(Full, "orc_raid"); }) == NOERROR);
+	CHECK(HookThrown([&] { RaidWaveHook(Full, "orc_raid", 3); }) == NOERROR);
+	std::vector<std::string> Expected = {
+		"think userdata:Monster 1073741840",
+		"health userdata:Monster 1073741840 userdata:Player 7 number:25",
+		"health userdata:Monster 1073741840 nil number:0",
+		"health userdata:Monster 1073741840 userdata:Creature 1073741841 number:-3",
+		"target userdata:Monster 1073741840 userdata:Player 8",
+		"target userdata:Monster 1073741840 userdata:Creature 1073741842",
+		"death userdata:Monster 1073741840 userdata:Player 9",
+		"death userdata:Monster 1073741840 nil",
+		"raid string:orc_raid",
+		"wave string:orc_raid number:3",
+	};
+	CHECK(Records == Expected);
+	if (Records != Expected) {
+		for (const std::string &Record : Records) {
+			fprintf(stderr, "  hook record: %s\n", Record.c_str());
+		}
+	}
+	CHECK(TakeErrors() == "");
+
+	// Only the handlers the script defines (a global that is no function is
+	// none), and nothing for Script -1.
+	Records.clear();
+	MonsterThinkHook(ThinkOnly, 0x40000010u);
+	MonsterHealthChangeHook(ThinkOnly, 0x40000010u, 7, 1);
+	MonsterTargetHook(ThinkOnly, 0x40000010u, 7);
+	MonsterDeathHook(ThinkOnly, 0x40000010u, 7);
+	RaidHook(ThinkOnly, "x");
+	RaidWaveHook(ThinkOnly, "x", 1);
+	MonsterThinkHook(-1, 0x40000010u);
+	MonsterHealthChangeHook(-1, 0x40000010u, 7, 1);
+	MonsterTargetHook(-1, 0x40000010u, 7);
+	MonsterDeathHook(-1, 0x40000010u, 7);
+	RaidHook(-1, "x");
+	RaidWaveHook(-1, "x", 1);
+	CHECK((Records == std::vector<std::string>{"only Monster 1073741840"}));
+	CHECK(TakeErrors() == "");
+
+	// A failure is logged and the caller goes on; a result code is thrown.
+	Records.clear();
+	CHECK(HookThrown([&] { MonsterThinkHook(Failing, 0x40000010u); }) == NOERROR);
+	CHECK_CONTAINS(TakeErrors(), "Script error in monsters/failing.lua (onThink): monsters/failing.lua:1: think failed");
+	CHECK(HookThrown([&] { MonsterHealthChangeHook(Failing, 0x40000010u, 7, 1); }) == EXHAUSTED);
+	CHECK(TakeErrors() == "");
+	CHECK(HookThrown([&] { MonsterTargetHook(Failing, 0x40000010u, 7); }) == NOERROR);
+	CHECK((Records == std::vector<std::string>{"after failure"}));
+	CHECK(TakeErrors() == "");
+}
+
 // The constructor of the ItemTypes in TestItemTypes: a negative number is
 // logged and gives 0, as ObjectType(id) does for a number that is no type.
 static int TestItemTypeConstructor(int TypeID) {
@@ -2070,6 +2511,10 @@ int main() {
 	TestRunResults();
 	TestObjects();
 	TestNpcs();
+	TestMonsterObjects();
+	TestValues();
+	TestRunCaught();
+	TestHooks();
 	TestPositions();
 	TestItemTypes();
 	TestEvents();

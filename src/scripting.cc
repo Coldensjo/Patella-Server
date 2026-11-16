@@ -1,11 +1,11 @@
 // scripting.cc: the Lua engine (scripting.hh, scripting_api.hh). One LuaJIT
 // state with the sandbox of rule 7, strict shared globals and API tables, the
 // core API (Game, print, debugPrint, math.random, the RETURNVALUE_
-// constants), the objects (Creature, Player, Npc, Item, Vocation, ItemType),
-// the Position,
-// the read-only constants, the restricted require, the loaded scripts with
-// their environments, and the calls of their handlers (TScriptCall,
-// TScriptEvent).
+// constants), the objects (Creature, Player, Npc, Monster, Item, Vocation,
+// ItemType, MonsterType), the Position, the Impact, the read-only constants,
+// the restricted require, the loaded scripts with their environments, the
+// calls of their handlers (TScriptCall, TScriptEvent) and the calls of the
+// monsters' and raids' hooks.
 //
 // The functions Lua calls (the core API, the metamethods, require, the message
 // handlers) use only Lua's C API and plain C data: they throw no C++ exception
@@ -57,6 +57,8 @@ static const char *const CONSTANTS = "patella.constants";
 static const char *const OBJECT_KINDS = "patella.object_kinds";
 // The metatable of the Positions.
 static const char *const POSITION_METATABLE = "patella.position";
+// The metatable of the Impacts.
+static const char *const IMPACT_METATABLE = "patella.impact";
 // The pcall message handler of the entry points (MessageHandler), made once
 // so that a call pushes it without allocating.
 static const char *const MESSAGE_HANDLER = "patella.message_handler";
@@ -758,11 +760,12 @@ static int ResultErrorIndex(lua_State *L) {
 
 // The class names of the kinds (TScriptObjectKind order).
 static const char *const ObjectKindNames[] = {nullptr, "Creature", "Player", "Item", "Vocation", "ItemType",
-		"Npc"};
+		"Npc", "Monster", "MonsterType"};
 
 // The registry keys of the kinds' metatables.
 static const char *const ObjectMetatables[] = {nullptr, "patella.object.Creature", "patella.object.Player",
-		"patella.object.Item", "patella.object.Vocation", "patella.object.ItemType", "patella.object.Npc"};
+		"patella.object.Item", "patella.object.Vocation", "patella.object.ItemType", "patella.object.Npc",
+		"patella.object.Monster", "patella.object.MonsterType"};
 
 static_assert(sizeof(ObjectKindNames) / sizeof(ObjectKindNames[0]) == LAST_SCRIPT_OBJECT_KIND + 1,
 		"ObjectKindNames must name every TScriptObjectKind");
@@ -810,14 +813,14 @@ void PushScriptCreature(lua_State *L, uint32_t ID) {
 }
 
 // Pushes the text of an object: "Creature 123", "Player 123", "Npc 123",
-// "Item 456", "Vocation of Player 123", "ItemType 123" (the type number as
-// the int it is, so "ItemType -1").
+// "Monster 123", "Item 456", "Vocation of Player 123", "ItemType 123" (the
+// type number as the int it is, so "ItemType -1"), "MonsterType 12".
 static void PushObjectText(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
 	char Text[64];
 	if (Kind == SCRIPT_VOCATION) {
 		snprintf(Text, sizeof(Text), "Vocation of Player %u", static_cast<unsigned>(Value));
-	} else if (Kind == SCRIPT_ITEMTYPE) {
-		snprintf(Text, sizeof(Text), "ItemType %d", static_cast<int>(Value));
+	} else if (Kind == SCRIPT_ITEMTYPE || Kind == SCRIPT_MONSTERTYPE) {
+		snprintf(Text, sizeof(Text), "%s %d", ObjectKindNames[Kind], static_cast<int>(Value));
 	} else {
 		snprintf(Text, sizeof(Text), "%s %u", ObjectKindNames[Kind], static_cast<unsigned>(Value));
 	}
@@ -839,10 +842,11 @@ static int ObjectEqual(lua_State *L) {
 	return 1;
 }
 
-// __index of the method table of a class derived from another (Player and Npc
-// from Creature): a method it lacks is read from the parent's method table
-// (raw, one level), and one neither has is the Lua error "unknown name
-// '<class>.<field>'". Upvalues: the class's name and the parent's table.
+// __index of the method table of a class derived from another (Player, Npc
+// and Monster from Creature): a method it lacks is read from the parent's
+// method table (raw, one level), and one neither has is the Lua error
+// "unknown name '<class>.<field>'". Upvalues: the class's name and the
+// parent's table.
 static int DerivedClassIndex(lua_State *L) {
 	lua_pushvalue(L, 2);
 	lua_rawget(L, lua_upvalueindex(2));
@@ -888,10 +892,11 @@ static void MakeClass(lua_State *L, TScriptObjectKind Kind, TScriptObjectKind Pa
 }
 
 // creature:getId(): the creature ID the object holds, also for a creature
-// that is gone. Argument: a Creature, a Player or an Npc. Returns the number.
+// that is gone. Argument: a Creature, a Player, an Npc or a Monster. Returns
+// the number.
 static int CreatureGetId(lua_State *L) {
 	TScriptObjectKind Kind = ScriptObjectKind(L, 1);
-	if (Kind != SCRIPT_CREATURE && Kind != SCRIPT_PLAYER && Kind != SCRIPT_NPC) {
+	if (Kind != SCRIPT_CREATURE && Kind != SCRIPT_PLAYER && Kind != SCRIPT_NPC && Kind != SCRIPT_MONSTER) {
 		return luaL_typerror(L, 1, "Creature");
 	}
 	lua_pushnumber(L, ScriptObjectValue(L, 1));
@@ -1053,6 +1058,132 @@ static void MakePosition(lua_State *L) {
 }
 
 // ---------------------------------------------------------------------------
+// The Impact (scripting_api.hh): a userdata of a TScriptImpact (plain data)
+// whose metatable reads methods from the API table Impact (so an unknown one is
+// "unknown name 'Impact.<field>'"), refuses writes, compares by value (__eq),
+// names it without an address (__tostring "Impact <kind>") and is hidden from
+// scripts (__metatable). No __gc.
+
+// The names of the impact kinds (TScriptImpactKind order), as the spells of
+// monsters.toml name them.
+static const char *const ImpactKindNames[] = {"damage", "field", "healing", "speed", "drunken", "strength",
+		"outfit", "summon"};
+
+static_assert(sizeof(ImpactKindNames) / sizeof(ImpactKindNames[0]) == LAST_SCRIPT_IMPACT_KIND + 1,
+		"ImpactKindNames must name every TScriptImpactKind");
+
+bool IsScriptImpact(lua_State *L, int Index) {
+	Index = AbsoluteIndex(L, Index);
+	if (lua_type(L, Index) != LUA_TUSERDATA || !lua_getmetatable(L, Index)) {
+		return false;
+	}
+	lua_getfield(L, LUA_REGISTRYINDEX, IMPACT_METATABLE);
+	bool Same = lua_rawequal(L, -1, -2) != 0;
+	lua_pop(L, 2);
+	return Same;
+}
+
+TScriptImpact GetScriptImpact(lua_State *L, int Index) {
+	TScriptImpact Impact;
+	memset(&Impact, 0, sizeof(Impact));
+	Impact.Kind = SCRIPT_IMPACT_DAMAGE;
+	if (IsScriptImpact(L, Index)) {
+		memcpy(&Impact, lua_touserdata(L, Index), sizeof(Impact));
+	}
+	return Impact;
+}
+
+void PushScriptImpact(lua_State *L, const TScriptImpact &Impact) {
+	assert(Impact.Kind >= SCRIPT_IMPACT_DAMAGE && Impact.Kind <= LAST_SCRIPT_IMPACT_KIND);
+	void *Data = lua_newuserdata(L, sizeof(Impact));
+	memcpy(Data, &Impact, sizeof(Impact));
+	lua_getfield(L, LUA_REGISTRYINDEX, IMPACT_METATABLE);
+	lua_setmetatable(L, -2);
+}
+
+// Pushes the text of the Impact at Index: "Impact <kind>" ("Impact damage").
+static void PushImpactText(lua_State *L, int Index) {
+	TScriptImpact Impact = GetScriptImpact(L, Index);
+	int Kind = static_cast<int>(Impact.Kind);
+	if (Kind >= SCRIPT_IMPACT_DAMAGE && Kind <= LAST_SCRIPT_IMPACT_KIND) {
+		lua_pushfstring(L, "Impact %s", ImpactKindNames[Kind]);
+	} else {
+		lua_pushfstring(L, "Impact %d", Kind);
+	}
+}
+
+// __eq of the Impacts: the same kind, actor, numbers and colors.
+static int ImpactEqual(lua_State *L) {
+	bool Equal = false;
+	if (IsScriptImpact(L, 1) && IsScriptImpact(L, 2)) {
+		TScriptImpact a = GetScriptImpact(L, 1);
+		TScriptImpact b = GetScriptImpact(L, 2);
+		Equal = a.Kind == b.Kind && a.Actor == b.Actor;
+		for (int i = 0; i < 4; i++) {
+			Equal = Equal && a.Values[i] == b.Values[i] && a.Colors[i] == b.Colors[i];
+		}
+	}
+	lua_pushboolean(L, Equal);
+	return 1;
+}
+
+// __tostring of the Impacts.
+static int ImpactToString(lua_State *L) {
+	PushImpactText(L, 1);
+	return 1;
+}
+
+// Makes the Impacts' metatable, its methods the API table Impact (made empty
+// here; RegisterMonsterAPI fills it).
+static void MakeImpact(lua_State *L) {
+	PushAPITable(L, "Impact");
+	luaL_newmetatable(L, IMPACT_METATABLE);
+	lua_pushvalue(L, -2);
+	lua_setfield(L, -2, "__index");
+	lua_pushstring(L, "Impact");
+	lua_pushcclosure(L, ReadOnlyNewIndex, 1);
+	lua_setfield(L, -2, "__newindex");
+	lua_pushcfunction(L, ImpactEqual);
+	lua_setfield(L, -2, "__eq");
+	lua_pushcfunction(L, ImpactToString);
+	lua_setfield(L, -2, "__tostring");
+	lua_pushboolean(L, 0);
+	lua_setfield(L, -2, "__metatable");
+	lua_pop(L, 2);
+}
+
+bool ReadScriptColors(lua_State *L, int Index, TScriptColors *Colors) {
+	Index = AbsoluteIndex(L, Index);
+	if (lua_type(L, Index) != LUA_TTABLE) {
+		return false;
+	}
+	int Values[4];
+	for (int i = 1; i <= 4; i++) {
+		lua_rawgeti(L, Index, i);
+		bool Integer = false;
+		if (lua_type(L, -1) == LUA_TNUMBER) {
+			double Value = lua_tonumber(L, -1);
+			Integer = Value >= INT_MIN && Value <= INT_MAX && Value == floor(Value);
+			Values[i - 1] = Integer ? static_cast<int>(Value) : 0;
+		}
+		lua_pop(L, 1);
+		if (!Integer) {
+			return false;
+		}
+	}
+	lua_rawgeti(L, Index, 5);
+	bool Longer = !lua_isnil(L, -1);
+	lua_pop(L, 1);
+	if (Longer) {
+		return false;
+	}
+	if (Colors != nullptr) {
+		memcpy(Colors->Values, Values, sizeof(Values));
+	}
+	return true;
+}
+
+// ---------------------------------------------------------------------------
 // The constants
 
 // Sets the shared global Name to the constant Value and records it in
@@ -1128,7 +1259,8 @@ const int SCRIPT_PRINT_LEVEL = 2;
 // newline, as Lua's print writes them, given to print(SCRIPT_PRINT_LEVEL,
 // "%s", Text) of utils.cc. Strings and numbers as tostring gives them,
 // booleans, nil, the objects ("Player 123"), the Positions ("Position(x, y,
-// z)") and result errors ("result RETURNVALUE_..."); a table, a function, a coroutine or any other userdata
+// z)"), Impacts ("Impact damage") and result errors ("result
+// RETURNVALUE_..."); a table, a function, a coroutine or any other userdata
 // is a Lua error, so no address is ever printed (rule 4). Calls no
 // metamethod. Returns nothing.
 static int LuaPrint(lua_State *L) {
@@ -1152,6 +1284,8 @@ static int LuaPrint(lua_State *L) {
 			PushObjectText(L, Kind, ScriptObjectValue(L, i));
 		} else if (IsScriptPosition(L, i)) {
 			PushPositionText(L, i);
+		} else if (IsScriptImpact(L, i)) {
+			PushImpactText(L, i);
 		} else if (IsResultError(L, i, &Code)) {
 			PushResultText(L, Code);
 		} else {
@@ -1387,6 +1521,8 @@ static void SetUpState(lua_State *L) {
 	MakeClass(L, SCRIPT_VOCATION, SCRIPT_NO_OBJECT, Equal);
 	MakeClass(L, SCRIPT_ITEMTYPE, SCRIPT_NO_OBJECT, Equal);
 	MakeClass(L, SCRIPT_NPC, SCRIPT_CREATURE, Equal);
+	MakeClass(L, SCRIPT_MONSTER, SCRIPT_CREATURE, Equal);
+	MakeClass(L, SCRIPT_MONSTERTYPE, SCRIPT_NO_OBJECT, Equal);
 	lua_pop(L, 1);
 	MakeItemTypeConstructor(L);
 	PushAPITable(L, ObjectKindNames[SCRIPT_CREATURE]);
@@ -1394,6 +1530,7 @@ static void SetUpState(lua_State *L) {
 	lua_setfield(L, -2, "getId");
 	lua_pop(L, 1);
 	MakePosition(L);
+	MakeImpact(L);
 
 	// Last, the shared globals become strict.
 	lua_newtable(L);
@@ -1607,12 +1744,57 @@ void RaiseError(lua_State *L, const char *Text) {
 	abort();
 }
 
-// The Type of a TScriptCall argument that is a Position (not a Lua type).
+// The Types of a TScriptCall argument that is a Position or a TScriptValue
+// (not Lua types).
 const int POSITION_ARGUMENT = -100;
+const int VALUE_ARGUMENT = -101;
+
+// Pushes Value as a Lua value (TScriptCall::addValue): a number, a string, an
+// array (a new table, Elements[0] at index 1) or a table of the fields (a new
+// table, the fields set raw). Needs one free stack slot; an array or table
+// whose filling finds no room on the stack (nesting far deeper than any data
+// file's) is pushed as nil.
+static void PushScriptValue(lua_State *L, const TScriptValue &Value) {
+	switch (Value.Kind) {
+	case TScriptValue::NUMBER:
+		lua_pushnumber(L, Value.Number);
+		break;
+	case TScriptValue::TEXT:
+		lua_pushlstring(L, Value.Text.data(), Value.Text.size());
+		break;
+	case TScriptValue::ARRAY:
+		if (!lua_checkstack(L, 3)) {
+			lua_pushnil(L);
+			break;
+		}
+		lua_createtable(L, static_cast<int>(Value.Elements.size()), 0);
+		for (size_t i = 0; i < Value.Elements.size(); i++) {
+			PushScriptValue(L, Value.Elements[i]);
+			lua_rawseti(L, -2, static_cast<int>(i) + 1);
+		}
+		break;
+	case TScriptValue::TABLE:
+		if (!lua_checkstack(L, 3)) {
+			lua_pushnil(L);
+			break;
+		}
+		lua_createtable(L, 0, static_cast<int>(Value.Fields.size()));
+		for (const std::pair<std::string, TScriptValue> &Field : Value.Fields) {
+			lua_pushlstring(L, Field.first.data(), Field.first.size());
+			PushScriptValue(L, Field.second);
+			lua_rawset(L, -3);
+		}
+		break;
+	default:
+		lua_pushnil(L);
+		break;
+	}
+}
 
 // An argument of a TScriptCall: its Lua type and value (LUA_TTABLE: an array
 // of the strings Strings; LUA_TUSERDATA: an object of the kind Kind holding
-// Object; POSITION_ARGUMENT: a Position of the coordinates Position).
+// Object; POSITION_ARGUMENT: a Position of the coordinates Position;
+// VALUE_ARGUMENT: the value Value).
 struct TScriptCall::TArgument {
 	int Type;
 	double Number;
@@ -1622,6 +1804,7 @@ struct TScriptCall::TArgument {
 	TScriptObjectKind Kind = SCRIPT_NO_OBJECT;
 	uint32_t Object = 0;
 	int Position[3] = {0, 0, 0};
+	TScriptValue Value;
 
 	// Pushes the value; an array as a new table, which takes one more stack
 	// slot while it is filled.
@@ -1639,6 +1822,9 @@ struct TScriptCall::TArgument {
 			break;
 		case POSITION_ARGUMENT:
 			PushScriptPosition(L, Position[0], Position[1], Position[2]);
+			break;
+		case VALUE_ARGUMENT:
+			PushScriptValue(L, Value);
 			break;
 		case LUA_TNUMBER:
 			lua_pushnumber(L, Number);
@@ -1690,9 +1876,9 @@ static unsigned FailureCount = 0;
 
 // Logs a non-result error of a handler call with error() as "Script error in
 // <script name> (<handler>): <Message>", each '%' of Message doubled (it
-// comes from Lua and reaches Log as part of the format string), records it
-// for TScriptCall::failure and throws ERROR.
-[[noreturn]] static void ScriptFailure(int Script, const char *Handler, const std::string &Message) {
+// comes from Lua and reaches Log as part of the format string), and records
+// it for TScriptCall::failure.
+static void LogScriptFailure(int Script, const char *Handler, const std::string &Message) {
 	const char *Name = "(no script)";
 	if (Script >= 0 && Script < static_cast<int>(Scripts.size())) {
 		Name = Scripts[Script].Name.c_str();
@@ -1700,15 +1886,22 @@ static unsigned FailureCount = 0;
 	error("Script error in %s (%s): %s\n", Name, Handler, DoublePercent(Message).c_str());
 	FailureText = Message.substr(0, Message.find("\nstack traceback:"));
 	FailureCount++;
+}
+
+// LogScriptFailure, then throws ERROR.
+[[noreturn]] static void ScriptFailure(int Script, const char *Handler, const std::string &Message) {
+	LogScriptFailure(Script, Handler, Message);
 	throw ERROR;
 }
 
 // Runs the call prepared on L's stack above Top (the message handler at Top +
 // 1, the handler, NumberOfArguments arguments), sets Result to the handler's
-// first result and leaves the stack at Top. Throws the result code the
-// handler raised as RESULT; any other failure goes to ScriptFailure.
-static void FinishCall(lua_State *L, int Top, int Script, const char *Handler, int NumberOfArguments,
-		TCallResult *Result) {
+// first result, leaves the stack at Top and returns true. Throws the result
+// code the handler raised as RESULT; any other failure goes to ScriptFailure,
+// or with Caught only to LogScriptFailure, and FinishCall returns false
+// (Result is then nil).
+static bool FinishCall(lua_State *L, int Top, int Script, const char *Handler, int NumberOfArguments,
+		TCallResult *Result, bool Caught = false) {
 	int Depth = RequireStackDepth;
 	ClearTracedError(L);
 	int Status = lua_pcall(L, NumberOfArguments, 1, Top + 1);
@@ -1724,13 +1917,21 @@ static void FinishCall(lua_State *L, int Top, int Script, const char *Handler, i
 		}
 		std::string Message = ErrorValueText(L, -1);
 		lua_settop(L, Top);
-		ScriptFailure(Script, Handler, Message);
+		if (!Caught) {
+			ScriptFailure(Script, Handler, Message);
+		}
+		LogScriptFailure(Script, Handler, Message);
+		Result->Type = LUA_TNIL;
+		Result->Number = 0;
+		Result->Boolean = false;
+		return false;
 	}
 
 	Result->Type = lua_type(L, -1);
 	Result->Number = Result->Type == LUA_TNUMBER ? lua_tonumber(L, -1) : 0;
 	Result->Boolean = Result->Type == LUA_TBOOLEAN && lua_toboolean(L, -1);
 	lua_settop(L, Top);
+	return true;
 }
 
 // Pushes the message handler and the handler Handler of the script Script on
@@ -1884,6 +2085,23 @@ void TScriptCall::addItem(uint32_t ObjectHandle) {
 	}
 }
 
+void TScriptCall::addMonster(uint32_t CreatureID) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = LUA_TUSERDATA;
+	Argument.Kind = SCRIPT_MONSTER;
+	Argument.Object = CreatureID;
+}
+
+void TScriptCall::addValue(const TScriptValue &Value) {
+	AssertMainThread();
+	assert(!Done);
+	TArgument &Argument = AppendArgument(Arguments, NumberOfArguments, Capacity);
+	Argument.Type = VALUE_ARGUMENT;
+	Argument.Value = Value;
+}
+
 void TScriptCall::addPosition(int x, int y, int z) {
 	AssertMainThread();
 	assert(!Done);
@@ -1925,6 +2143,31 @@ void TScriptCall::run() {
 	FailuresBefore = FailureCount;
 	TCallResult Result;
 	CallHandler(Script, Handler, Arguments, NumberOfArguments, &Result);
+}
+
+bool TScriptCall::runCaught() {
+	assert(ScriptingActive());
+	AssertMainThread();
+	assert(!Done);
+	if (Done) {
+		LogScriptFailure(Script, Handler, "the call has run already");
+		return false;
+	}
+	Done = true;
+	FailuresBefore = FailureCount;
+	int Top;
+	try {
+		Top = PrepareCall(Script, Handler, NumberOfArguments);
+	} catch (RESULT) {
+		// PrepareCall throws only through ScriptFailure, which has logged.
+		return false;
+	}
+	lua_State *L = State->lua_state();
+	for (int i = 0; i < NumberOfArguments; i++) {
+		Arguments[i].push(L);
+	}
+	TCallResult Result;
+	return FinishCall(L, Top, Script, Handler, NumberOfArguments, &Result, true);
 }
 
 int TScriptCall::runNumber() {
@@ -2038,4 +2281,69 @@ void TScriptEvent::run(int Script, const char *Handler) {
 	lua_pushvalue(L, Base + 3);
 	TCallResult Result;
 	FinishCall(L, Top, Script, Handler, 4, &Result);
+}
+
+// ---------------------------------------------------------------------------
+// The hooks of the monsters and raids (scripting.hh, "Hooks"). Each calls its
+// handler only when Script is a script (not -1) that defines it, with
+// runCaught: a failure is logged and the caller carries on, a result code is
+// thrown to the caller. The handlers' results are ignored.
+
+void MonsterThinkHook(int Script, uint32_t MonsterID) {
+	if (Script < 0 || !HasHandler(Script, "onThink")) {
+		return;
+	}
+	TScriptCall Call(Script, "onThink");
+	Call.addMonster(MonsterID);
+	Call.runCaught();
+}
+
+void MonsterHealthChangeHook(int Script, uint32_t MonsterID, uint32_t AttackerID, int Damage) {
+	if (Script < 0 || !HasHandler(Script, "onHealthChange")) {
+		return;
+	}
+	TScriptCall Call(Script, "onHealthChange");
+	Call.addMonster(MonsterID);
+	Call.addCreature(AttackerID);
+	Call.addNumber(Damage);
+	Call.runCaught();
+}
+
+void MonsterTargetHook(int Script, uint32_t MonsterID, uint32_t TargetID) {
+	if (Script < 0 || !HasHandler(Script, "onTarget")) {
+		return;
+	}
+	TScriptCall Call(Script, "onTarget");
+	Call.addMonster(MonsterID);
+	Call.addCreature(TargetID);
+	Call.runCaught();
+}
+
+void MonsterDeathHook(int Script, uint32_t MonsterID, uint32_t KillerID) {
+	if (Script < 0 || !HasHandler(Script, "onDeath")) {
+		return;
+	}
+	TScriptCall Call(Script, "onDeath");
+	Call.addMonster(MonsterID);
+	Call.addCreature(KillerID);
+	Call.runCaught();
+}
+
+void RaidHook(int Script, const char *RaidKey) {
+	if (Script < 0 || !HasHandler(Script, "onRaid")) {
+		return;
+	}
+	TScriptCall Call(Script, "onRaid");
+	Call.addString(RaidKey);
+	Call.runCaught();
+}
+
+void RaidWaveHook(int Script, const char *RaidKey, int Wave) {
+	if (Script < 0 || !HasHandler(Script, "onWave")) {
+		return;
+	}
+	TScriptCall Call(Script, "onWave");
+	Call.addString(RaidKey);
+	Call.addNumber(Wave);
+	Call.runCaught();
 }

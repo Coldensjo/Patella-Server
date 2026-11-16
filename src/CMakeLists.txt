@@ -32,6 +32,7 @@ add_executable(game
 	crplayer.cc
 	crnonpl.cc
 	npcdata.cc
+	monsterdata.cc
 	cract.cc
 	crcombat.cc
 	crskill.cc
@@ -50,6 +51,7 @@ add_executable(game
 	scripting_triggers.cc
 	scripting_items.cc
 	scripting_npcs.cc
+	scripting_monsters.cc
 )
 target_include_directories(game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # -Wno-write-strings: many prototypes take `char *` and are called with

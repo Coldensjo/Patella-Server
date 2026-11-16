@@ -1,18 +1,21 @@
 // crmain.hh: the functions and globals of crmain.cc: the creatures by ID
 // (HashList) and in a list each round goes through (CreatureList), the chains
 // of creatures per map block, the kill statistics, the races' values, the
-// loading of races and monster raids, and InitCr and ExitCr.
+// loading of races (monsters.toml) and monster raids (raids.toml), and InitCr
+// and ExitCr.
 
 #ifndef PATELLA_CRMAIN_HH
 #define PATELLA_CRMAIN_HH
 
 #include <cstdint>
+#include <vector>
 
 #include "containr.hh"
 
 struct Object;
 struct TAttackWave;
 struct TCreature;
+struct TMonsterData;
 struct TOutfit;
 
 // The size of the race tables (RaceData, KilledCreatures, KilledPlayers):
@@ -51,9 +54,20 @@ bool GetRaceNoParalyze(int Race);
 int GetRaceSummonCost(int Race);
 int GetRacePoison(int Race);
 bool GetRaceUnpushable(int Race);
-void LoadRace(char *FileName);
+// The race number of a race key ("demon"), 0 for an unknown key or nullptr.
+int GetRaceByKey(const char *Key);
+// The races as LoadRaces read them from monsters.toml, in the file's order
+// (LoadRaids and LoadMonsterHomes check race keys against them).
+const std::vector<TMonsterData> &GetMonsterRaces();
+// Fills RaceData from <DATAPATH>/monsters.toml, loads the races' scripts and
+// prepares their spells. Throws a const char * (a start error).
 void LoadRaces();
-void LoadMonsterRaid(char *FileName, int Start, bool *Type, int *Date, int *Interval, int *Duration);
+// Queues the waves of the raid Key (a key of raids.toml) to start in round
+// Start and calls its onRaid. Gives false, and does nothing, for an unknown
+// key.
+bool QueueMonsterRaid(const char *Key, int Start);
+// Reads <DATAPATH>/raids.toml, loads the raids' scripts and queues the raids
+// that come before the next reboot. Throws a const char * (a start error).
 void LoadMonsterRaids();
 void ProcessMonsterRaids();
 void InitCr();
