@@ -76,24 +76,26 @@
 // classes PascalCase, functions, methods and handlers camelCase, constants
 // UPPER_CASE globals. Values are 7.72's; what 7.72 lacks does not exist.
 //
-// Objects. Creature, Player (a Creature) and Item are classes whose objects
-// hold a creature ID or an object handle (rule 2); a Vocation holds its
-// player's creature ID. A creature ID is a Player when it is a player's
-// (below FIRST_NONPLAYER_CREATURE_ID), a Creature otherwise; nil stands
-// where the C++ code has no creature (nullptr). Two objects are equal (==)
-// when they are of the same class and hold the same ID or handle, so two
-// Vocation objects are equal only for the same player, not for two players
-// of the same vocation (compare their getId()). A method
-// is called as object:method(...); the classes' method tables are the
-// shared globals Creature, Player, Item and Vocation (Player's falls back to
-// Creature's). A creature that is gone gives, in a function that takes it,
-// what the C++ function does for nullptr; where the C++ function would
+// Objects. Creature, Player (a Creature), Npc (a Creature, phase 5) and Item
+// are classes whose objects hold a creature ID or an object handle (rule 2); a
+// Vocation holds its player's creature ID. A creature ID is a Player when it is
+// a player's (below FIRST_NONPLAYER_CREATURE_ID), a Creature otherwise; nil
+// stands where the C++ code has no creature (nullptr). Two objects are equal
+// (==) when they are of the same class and hold the same ID or handle, so two
+// Vocation objects are equal only for the same player, not for two players of
+// the same vocation (compare their getId()). A method is called as
+// object:method(...); the classes' method tables are the shared globals
+// Creature, Player, Npc, Item and Vocation (Player's and Npc's fall back to
+// Creature's). An NPC's creature ID is an Npc only where an NPC's script gets
+// its NPC (the handlers of phase 5); Game.getCreature and item:getCreature give
+// a Creature for it. A creature that is gone gives, in a function that takes
+// it, what the C++ function does for nullptr; where the C++ function would
 // dereference nullptr, the binding logs "<binding name>: Creature does not
 // exist." and raises ERROR instead. Where an object is expected, any other
-// value is a Lua argument error. An Item method may be called as a function
-// of the class with nil for self (Item.getId(nil)), and every Item parameter
-// takes nil; both stand for NONE, which the binding passes on to the C++
-// function unchecked (it logs and gives what the C++ gives for NONE).
+// value is a Lua argument error. An Item method may be called as a function of
+// the class with nil for self (Item.getId(nil)), and every Item parameter takes
+// nil; both stand for NONE, which the binding passes on to the C++ function
+// unchecked (it logs and gives what the C++ gives for NONE).
 //
 // Lua's view of the engine (the core API, bound by scripting.cc):
 //   math.random(m, n)       random(m, n) of utils.cc: m + rand() % (n - m +
@@ -172,8 +174,9 @@
 //   creature:getId()        the creature ID the object holds.
 // The areas' APIs follow, each bound by a Register...API function in a unit
 // of its own (scripting_api.hh). A string a binding passes on as a char * is
-// copied into a char[512] first, as CheckForSpell's SpellStr holds the
-// words; nil gives nullptr where the signature says "|nil". Each function
+// a copy: phase 2's bindings copy it into a char[512], as CheckForSpell's
+// SpellStr holds the words, the later ones copy it whole; nil gives nullptr
+// where the signature says "|nil". Each function
 // raises what the C++ function throws.
 //
 // Spells, runes and commands (phase 2; scripting_magic.cc, RegisterMagicAPI).
@@ -380,9 +383,9 @@
 //   player:getStorageValue(number) -> GetQuestValue(Number).
 //   player:setStorageValue(number, value) -> SetQuestValue(Number, Value).
 //   player:isHouseOwner(houseId) -> IsOwner(HouseID, pl).
-//   player:setStartPosition(position) -> what the action set_start did:
-//       Log("game", "Setting new start position for %s.\n", Name), the
-//       start coordinates set, SaveData().
+//   player:setStartPosition(position) -> the start coordinates set to
+//       position, SaveData() (the action set_start logs "Setting new start
+//       position for <name>." with Game.log first).
 //   player:sendTextMessage(mode, text) -> SendMessage(GetConnection(), Mode,
 //       "%s", Text).
 // Game, the map:
@@ -513,6 +516,188 @@
 // for every RIGHT of info.hh (RIGHT_UNLIMITED_CAPACITY, RIGHT_ZERO_CAPACITY,
 // RIGHT_OPEN_NAMEDOORS, ...).
 //
+// NPCs (phase 5; scripting_npcs.cc, RegisterNpcAPI). Each [[npc]] of
+// npcs.toml (the game's data folder; loaded in the file's order by InitNPCs,
+// crnonpl.cc) is one NPC and names its script (script = "npcs/<name>.lua").
+// TNPC keeps in C++ the stimuli, the walking, the conversation state (State,
+// Interlocutor, Topic, Price, Amount, TypeID, Data, LastTalk), the queue and
+// the trade helpers; where it called TBehaviourDatabase::react, it calls one
+// of the script's two global functions, which the loader requires:
+//   onCreatureSay(npc, creature, text, situation)
+//       react(Text, Situation) for a talk situation. TalkStimulus, a player's
+//       say near the NPC: NPC_SITUATION_ADDRESS (the NPC was free; before the
+//       call its to-do list is cleared, State is TALKING, the speaker the
+//       interlocutor and LastTalk this round), NPC_SITUATION_DEFAULT (the
+//       interlocutor talks; LastTalk is this round), NPC_SITUATION_BUSY
+//       (another player talks while the NPC talks or has a queue: the
+//       interlocutor is that player during the call and is set back after
+//       it). IdleStimulus, the first player of the queue:
+//       NPC_SITUATION_ADDRESSQUEUE, text the greeting it queued (State is
+//       TALKING, the interlocutor that player). npc is the NPC (an Npc),
+//       creature the interlocutor at the call (TScriptCall::addCreature), text
+//       the player's words.
+//   onCreatureDisappear(npc, creature)
+//       react("", VANISH): IdleStimulus when the interlocutor said nothing
+//       for 30 rounds, CreatureMoveStimulus when the interlocutor left the
+//       game or the NPC's reach (5 fields in x, 4 in y, another floor).
+// What the C++ code does around the call stays there (State IDLE after a
+// VANISH, the turn to the interlocutor after an ADDRESS, the queue's
+// order). A result code the function raises goes to the stimulus's caller
+// as one react passed on; any other error is logged and thrown as ERROR.
+// The converted scripts hold the NPC's rules and hand both calls to the
+// rule matcher, the module lib/npc.lua:
+//	local behaviour = require("lib.npc")
+//	local rules = behaviour.rules { <rule>, ... }
+//	function onCreatureSay(npc, creature, text, situation)
+//		behaviour.react(npc, rules, text, situation)
+//	end
+//	function onCreatureDisappear(npc, creature)
+//		behaviour.react(npc, rules, "", NPC_SITUATION_VANISH)
+//	end
+// A rule block (an .ndb file of the original) is the module
+// lib/npcs/<name>.lua; it returns behaviour.rules { ... }, and an NPC that
+// included it has that value among its rules where the include was.
+//
+// lib/npc.lua, the matcher (what react and evaluate of TBehaviourDatabase
+// did; the module returns a table of the following, which no script
+// changes):
+//   behaviour.rules(list) -> rules
+//       A rule list made of list, an array whose elements are rules and
+//       rule lists (a block's, put in place, so its rules count as the
+//       list's own in order: a previous in the first rule of a block names
+//       the rule before the block). Checks every element at load (a Lua
+//       error that names the rule's number for a wrong one). Two things the
+//       original's parser refused are allowed: an empty action list (no
+//       action, as nop) and a previous in an NPC's first rule (react logs
+//       "No previous pattern" when it runs).
+//   behaviour.react(npc, rules, text, situation)
+//       Matches text against the rules and runs the actions of the rule it
+//       chooses, as react did.
+// A rule is {{<condition>, ...}, {<action>, ...}} (the conditions may be
+// empty: the rule holds always, with 0 conditions). The elements, by the
+// names of the module (a converted script makes locals of those it uses,
+// local TOPIC = behaviour.TOPIC; the original's syntax in brackets):
+//   Conditions:
+//     a string                 a word the text must contain ("hello$"),
+//                              searched with Game.searchWord from where the
+//                              previous word or number ended.
+//     ADDRESS, BUSY, VANISH, MALE, FEMALE, KNIGHT, PALADIN, SORCERER,
+//     DRUID, PREMIUM, PROMOTED, PZBLOCK, NONPVP, PVPENFORCED
+//                              a property (ADDRESS also holds for
+//                              ADDRESSQUEUE).
+//     FORCE                    the rule is taken at once if the conditions
+//                              before it held (!).
+//     P1, P2, P3               the first, second or third number in the text
+//                              after the previous word or number (%1 to %3).
+//     eq(a, b), ne(a, b), lt(a, b), gt(a, b), le(a, b), ge(a, b)
+//                              a comparison of two values (=, <>, <, >, <=,
+//                              >=).
+//   Values (expressions; C++ ints):
+//     a number                 an integer, -2^31 to 2^31 - 1.
+//     P1, P2, P3, param(n)     the number a condition P1 to P3 took (%1 to
+//                              %3; param(n) for another n, which evaluate
+//                              refuses).
+//     TOPIC, PRICE, AMOUNT, TYPE, DATA
+//                              the NPC's conversation variables (Topic,
+//                              Price, Amount, Type, Data).
+//     LEVEL, MAGLEVEL, HP, BURNING, POISON
+//                              the interlocutor's skill (Level, MagLevel, HP;
+//                              Burning and Poison: the skill's timer).
+//     COUNTMONEY               the interlocutor's money (CountMoney).
+//     count(v), spellKnown(v), spellLevel(v), questValue(v), random(a, b)
+//                              (Count, SpellKnown, SpellLevel, QuestValue,
+//                              Random).
+//     add(a, b), sub(a, b), mul(a, b)
+//                              a + b, a - b, a * b, wrapping as C++ ints do.
+//   Actions:
+//     a string                 a text the NPC says (%N, %A, %P, %T).
+//     setTopic(v), setPrice(v), setAmount(v), setType(v), setData(v), setHp(v)
+//                              (Topic=, Price=, Amount=, Type=, Data=, HP=).
+//     burning(a, b), poison(a, b), setQuestValue(a, b)
+//     effectMe(v), effectOpp(v), profession(v), teachSpell(v), summon(v),
+//     create(v), delete(v)
+//     createMoney, deleteMoney, queue, idle, nop
+//     teleport(x, y, z), startPosition(x, y, z)
+//     previous                 the actions of the rule before, from its
+//                              first; the actions after previous do not run
+//                              (*).
+// A converted script makes its locals one per line, each name it uses once,
+// in this order: ADDRESS, BUSY, VANISH, MALE, FEMALE, KNIGHT, PALADIN,
+// SORCERER, DRUID, PREMIUM, PROMOTED, PZBLOCK, NONPVP, PVPENFORCED, FORCE,
+// P1, P2, P3, eq, ne, lt, gt, le, ge, param, TOPIC, PRICE, AMOUNT, TYPE,
+// DATA, LEVEL, MAGLEVEL, HP, BURNING, POISON, COUNTMONEY, count, spellKnown,
+// spellLevel, questValue, random, add, sub, mul, setTopic, setPrice,
+// setAmount, setType, setData, setHp, burning, poison, setQuestValue,
+// effectMe, effectOpp, profession, teachSpell, summon, create, delete,
+// createMoney, deleteMoney, queue, idle, nop, teleport, startPosition,
+// previous. data/scripts/npcs/cipfried.lua shows the form.
+//
+// The NPC's API (bindings of scripting_npcs.cc). Npc is a class of objects
+// that hold an NPC's creature ID (rule 2); its method table falls back to
+// Creature's, a TScriptCreature parameter takes an Npc, and an Npc equals
+// only an Npc of the same ID (tostring "Npc 123"). A method on an ID that is
+// no NPC's (gone, or another creature) logs "<binding name>: NPC does not
+// exist." and raises ERROR.
+//   npc:getInterlocutor() -> GetPlayer(Interlocutor) as a Player, nil for
+//       nullptr.
+//   npc:getTopic(), npc:getPrice(), npc:getAmount(), npc:getTypeId() ->
+//       Topic, Price, Amount, TypeID; npc:getData() -> (int)Data.
+//   npc:setTopic(v), npc:setPrice(v), npc:setAmount(v), npc:setTypeId(v) ->
+//       the same set to v; npc:setData(v) -> Data = (uint32_t)v.
+//   npc:getState() -> State; npc:setState(state) -> State = state (a state
+//       outside 0 to 6 is the binding's error).
+//   npc:setLastTalk(round) -> LastTalk = (uint32_t)round.
+//   npc:toDoWait(delay) -> ToDoWait(Delay); npc:toDoSay(text) ->
+//       ToDoTalk(TALK_SAY, nullptr, Text, false); npc:toDoChangeState(state)
+//       -> ToDoChangeState(State); npc:toDoStart() -> ToDoStart().
+//   npc:enqueue(player, text) -> Enqueue(player's ID, Text).
+//   npc:giveItems(type, amount) -> GiveTo(Type, Amount); npc:takeItems(type,
+//       amount) -> GetFrom(Type, Amount); npc:giveMoney(amount) ->
+//       GiveMoney(Amount); npc:takeMoney(amount) -> GetMoney(Amount): the
+//       trade helpers, with the interlocutor, Data and their log lines as
+//       before (type an object type number, made ObjectType(Type) as the C++
+//       call converted the int).
+// More creature and player methods:
+//   creature:getPosition() -> posx, posy, posz as a Position.
+//   creature:sendMagicEffect(effect) -> GraphicalEffect(GetCreatureObject(),
+//       Effect).
+//   creature:getHealth() -> Skills[SKILL_HITPOINTS]->Get();
+//       creature:setHealth(value) -> Skills[SKILL_HITPOINTS]->Set(Value).
+//   creature:die() -> Death().
+//   creature:setDamageOrigin(skill, origin|nil) -> FireDamageOrigin (skill
+//       SKILL_BURNING) or PoisonDamageOrigin (SKILL_POISON) = origin's
+//       creature ID, 0 for nil; another skill is the binding's error.
+//   player:getSex() -> Sex.
+//   player:isPzLocked() -> EarliestProtectionZoneRound > RoundNr.
+//   player:getItemCount(type, data) -> CountInventoryObjects(ID, Type,
+//       (uint32_t)Data).
+//   player:getMoney() -> CountInventoryMoney(ID).
+//   player:hasLearnedSpell(spell) -> SpellKnown(Spell);
+//       player:learnSpell(spell) -> LearnSpell(Spell) (spell numbers).
+//   player:setVocation(id) -> SetProfession((unsigned char)ID).
+//   player:setStartPosition(position) (phase 3's, above): the start
+//       coordinates set and SaveData(), what the NPC's StartPosition did.
+// Game and Magic:
+//   Game.searchWord(word, text, start) -> SearchForWord(Word, Text + start -
+//       1) of strings.cc, as the index of the match in text (1 for its first
+//       byte), nil for nullptr; Game.searchNumber(n, text, start) ->
+//       SearchForNumber(N, Text + start - 1) the same way. start counts from
+//       1 (below 1 is the binding's error); a start past the end of text
+//       (#text + 2 or more) searches the empty text after the end (react
+//       searched the bytes that followed the text in memory, another
+//       string's).
+//   Game.getWorldType() -> WorldType.
+//   Game.getRoundNumber() -> RoundNr.
+//   Game.log(name, text) -> Log(Name, "%s", Text).
+//   Magic.getSpellLevel(spell) -> GetSpellLevel(Spell).
+// Constants (7.72's values): NPC_SITUATION_DEFAULT 0, NPC_SITUATION_ADDRESS
+// 1, NPC_SITUATION_ADDRESSQUEUE 2, NPC_SITUATION_BUSY 3,
+// NPC_SITUATION_VANISH 4 (crnonpl.cc's SITUATION); NPC_STATE_SLEEPING 0,
+// NPC_STATE_IDLE 1, NPC_STATE_TALKING 3, NPC_STATE_LEAVING 4 (its STATE);
+// PLAYERSEX_MALE 1, PLAYERSEX_FEMALE 2 (cr.hh's SEX_, TFS's names);
+// WORLD_TYPE_PVP 0, WORLD_TYPE_NO_PVP 1, WORLD_TYPE_PVP_ENFORCED 2
+// (config.hh's NORMAL, NON_PVP, PVP_ENFORCED, TFS's names).
+//
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with
 // error() that comes from a script or from Lua (debugPrint, the script errors
@@ -576,20 +761,19 @@ void RequireHandler(int Script, const char *Handler, const char *Where);
 //	Call.run();
 // Arguments are numbers (ints, uint32_t, all exact in a double), booleans,
 // strings (copied; nullptr gives nil), arrays of strings (copied; a new Lua
-// table per call), the objects (a Player, a creature as a Creature or a
-// Player, an Item; a new object per call) and nil. run calls the handler
-// (which must exist: RequireHandler at load time; a missing one at run time
-// is a non-result error) and gives back nothing; runNumber and runBoolean
-// give its first result (a number that is not an integer, or not a
-// number/boolean, is a non-result error; nil gives 0 or false). When the
-// handler raises a result code, run throws it as RESULT; any other error is
-// logged with error() as "Script error in <script name> (<handler>):
-// <message>" and Lua's traceback on the following lines (taken where the
-// error was raised, also inside a module that require loaded; the handlers
-// call no metamethod of an error value, which is described by its type when
-// it is not a string or a number), and run throws ERROR. A TScriptCall is
-// run once. It holds no Lua references between its construction and run, so
-// it may be built and run anywhere in the main thread.
+// table per call), the objects (a Player, a creature as a Creature or a Player,
+// an Npc, an Item; a new object per call) and nil. run calls the handler (which
+// must exist: RequireHandler at load time; a missing one at run time is a
+// non-result error) and gives back nothing; runNumber and runBoolean give its
+// first result (a number that is not an integer, or not a number/boolean, is a
+// non-result error; nil gives 0 or false). When the handler raises a result
+// code, run throws it as RESULT; any other error is logged with error() as
+// "Script error in <script name> (<handler>): <message>" and Lua's traceback on
+// the following lines (taken where the error was raised, also inside a module
+// that require loaded; the handlers call no metamethod of an error value, which
+// is described by its type when it is not a string or a number), and run throws
+// ERROR. A TScriptCall is run once. It holds no Lua references between its
+// construction and run, so it may be built and run anywhere in the main thread.
 class TScriptCall {
 public:
 	TScriptCall(int Script, const char *Handler);
@@ -611,6 +795,8 @@ public:
 	// An Item object holding the object handle (Object::getObjectID); nil
 	// for 0 (NONE).
 	void addItem(uint32_t ObjectHandle);
+	// An Npc object holding the NPC's creature ID.
+	void addNpc(uint32_t CreatureID);
 	// A Position object (a new one per call).
 	void addPosition(int x, int y, int z);
 	void run();

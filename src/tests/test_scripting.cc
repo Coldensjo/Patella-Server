@@ -1,13 +1,13 @@
 // test_scripting.cc: the Lua engine (scripting.cc) on its own. Loading scripts
 // and its errors, global handlers, the sandbox, require, result codes in both
 // directions and their RETURNVALUE_ names, the logging of other errors, the
-// calls a script makes, the objects, the ItemTypes, the Positions, the constants, the core
-// API (math.random, print, integer arithmetic), the results of runNumber and
-// runBoolean, the calls of an event's rules (TScriptEvent), the message of a
-// failed call (TScriptCall::failure), the script environments, and a restart
-// of the engine. The
-// scripts are written into a scratch folder that is removed at the end.
-// Prints what failed; exits 1 on any failure, 0 when all pass.
+// calls a script makes, the objects, the Npcs, the ItemTypes, the Positions,
+// the constants, the core API (math.random, print, integer arithmetic), the
+// results of runNumber and runBoolean, the calls of an event's rules
+// (TScriptEvent), the message of a failed call (TScriptCall::failure), the
+// script environments, and a restart of the engine. The scripts are written
+// into a scratch folder that is removed at the end. Prints what failed; exits 1
+// on any failure, 0 when all pass.
 
 #include <algorithm>
 #include <climits>
@@ -193,6 +193,21 @@ static TScriptItem TestMakeItem(uint32_t Handle) {
 	return TScriptItem{Handle};
 }
 
+// test.npcId(npc): the ID of an Npc.
+static uint32_t TestNpcId(TScriptNpc Npc) {
+	return Npc.ID;
+}
+
+// test.makeNpc(id): an Npc holding the ID.
+static TScriptNpc TestMakeNpc(uint32_t ID) {
+	return TScriptNpc{ID};
+}
+
+// npc:testNpcName(): "npc <ID>", a method of Npc.
+static std::string NpcTestNpcName(TScriptNpc Self) {
+	return "npc " + std::to_string(Self.ID);
+}
+
 // test.vocation(player): the player's Vocation.
 static TScriptVocation TestVocation(TScriptPlayer Player) {
 	return TScriptVocation{Player.ID};
@@ -276,6 +291,10 @@ static void RegisterTestAPI() {
 	API.set_function("nestedEvent", Guarded(&TestNestedEvent));
 	API.set_function("itemTypeId", Guarded(&TestItemTypeId));
 	API.set_function("makeItemType", Guarded(&TestMakeItemType));
+	API.set_function("npcId", Guarded(&TestNpcId));
+	API.set_function("makeNpc", Guarded(&TestMakeNpc));
+	sol::table Npc = ScriptAPITable("Npc");
+	Npc.set_function("testNpcName", Guarded(&NpcTestNpcName));
 	sol::table ItemType = ScriptAPITable("ItemType");
 	ItemType.set_function("testDouble", Guarded(&ItemTypeTestDouble));
 	sol::table Creature = ScriptAPITable("Creature");
@@ -1303,6 +1322,83 @@ static void TestObjects() {
 	CHECK(TakeErrors() == "Creature.testHealth: Creature does not exist.\n");
 }
 
+// The Npcs: made by TScriptCall::addNpc and a binding; an Npc is a Creature
+// (its methods fall back to Creature's, a Creature parameter and an Item or
+// Creature parameter take it, creature:getId gives its ID), equal only to an
+// Npc of the same ID (not to the Creature of that ID), named "Npc <id>" by
+// tostring and print, read-only with a hidden metatable; what an Npc
+// parameter refuses.
+static void TestNpcs() {
+	WriteScript("npcs.lua",
+			"function onNpc(npc, c, p, npc2)\n"
+			"  print(npc)\n"
+			"  return type(npc) == 'userdata' and getmetatable(npc) == false\n"
+			"    and tostring(npc) == 'Npc 1073741825' and npc == npc2 and not rawequal(npc, npc2)\n"
+			"    and npc == test.makeNpc(0x40000001) and npc ~= test.makeNpc(0x40000002)\n"
+			"    and npc ~= c and c == test.makeCreature(0x40000001) and npc ~= p and npc ~= 0x40000001\n"
+			"    and npc:getId() == 0x40000001 and Creature.getId(npc) == 0x40000001 and Npc.getId(npc) == 0x40000001\n"
+			"    and npc:testName() == 'creature 1073741825' and Npc.testName(npc) == 'creature 1073741825'\n"
+			"    and npc:testNpcName() == 'npc 1073741825' and test.npcId(npc) == 0x40000001\n"
+			"    and test.creatureId(npc) == 0x40000001 and test.optionalCreature(npc) == 0x40000001\n"
+			"    and test.thing(npc) == 'creature 1073741825'\n"
+			"end\n"
+			"function onRefused(i, npc, c, p)\n"
+			"  local calls = {\n"
+			"    function() return test.npcId(c) end,\n"
+			"    function() return test.npcId(p) end,\n"
+			"    function() return test.npcId(test.makeItem(9)) end,\n"
+			"    function() return test.npcId(nil) end,\n"
+			"    function() return test.npcId({}) end,\n"
+			"    function() return test.playerId(npc) end,\n"
+			"    function() return test.itemHandle(npc) end,\n"
+			"    function() return c:testNpcName() end,\n"
+			"    function() return Npc.testNpcName(c) end,\n"
+			"    function() return npc:noSuchMethod() end,\n"
+			"    function() npc.x = 1 end,\n"
+			"    function() Npc.testNpcName = nil end,\n"
+			"  }\n"
+			"  local ok, err = pcall(calls[i])\n"
+			"  test.record(tostring(err))\n"
+			"  return ok\n"
+			"end\n");
+	int Script = Load("npcs.lua");
+	TakeErrors();
+
+	Prints.clear();
+	TScriptCall Npcs(Script, "onNpc");
+	Npcs.addNpc(0x40000001u);
+	Npcs.addCreature(0x40000001u);
+	Npcs.addPlayer(7);
+	Npcs.addNpc(0x40000001u);
+	TOutcome Outcome = Run(Npcs, RUN_BOOLEAN);
+	CHECK(!Outcome.Thrown && Outcome.Boolean);
+	CHECK((Prints == std::vector<std::string>{"2:Npc 1073741825\n"}));
+	CHECK(TakeErrors() == "");
+
+	const char *Refusals[] = {"Npc expected", "Npc expected", "Npc expected", "Npc expected", "Npc expected",
+			"Player expected", "Item expected", "unknown name 'Creature.testNpcName'", "Npc expected",
+			"unknown name 'Npc.noSuchMethod'", "Npc.x is read-only", "Npc.testNpcName is read-only"};
+	int Count = static_cast<int>(sizeof(Refusals) / sizeof(Refusals[0]));
+	for (int i = 1; i <= Count; i++) {
+		Records.clear();
+		TScriptCall Refused(Script, "onRefused");
+		Refused.addNumber(i);
+		Refused.addNpc(0x40000001u);
+		Refused.addCreature(0x40000001u);
+		Refused.addPlayer(7);
+		TOutcome RefusedOutcome = Run(Refused, RUN_BOOLEAN);
+		CHECK(!RefusedOutcome.Thrown && !RefusedOutcome.Boolean);
+		if (RefusedOutcome.Thrown || RefusedOutcome.Boolean) {
+			fprintf(stderr, "  Npc refusal number %d was not refused\n", i);
+		}
+		CHECK(Records.size() == 1);
+		if (Records.size() == 1) {
+			CHECK_CONTAINS(Records[0], Refusals[i - 1]);
+		}
+	}
+	CHECK(TakeErrors() == "");
+}
+
 // The constructor of the ItemTypes in TestItemTypes: a negative number is
 // logged and gives 0, as ObjectType(id) does for a number that is no type.
 static int TestItemTypeConstructor(int TypeID) {
@@ -1973,6 +2069,7 @@ int main() {
 	TestArithmetic();
 	TestRunResults();
 	TestObjects();
+	TestNpcs();
 	TestPositions();
 	TestItemTypes();
 	TestEvents();

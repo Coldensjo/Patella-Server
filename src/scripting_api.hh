@@ -24,7 +24,7 @@
 //
 // A binding's parameters are numbers (integral or floating types, bool),
 // strings (const char *, std::string), the objects below (TScriptCreature,
-// TScriptPlayer, TScriptItem, TScriptThing, TScriptVocation,
+// TScriptPlayer, TScriptNpc, TScriptItem, TScriptThing, TScriptVocation,
 // TScriptItemType), a Position (TScriptPosition) or sol::optional of those
 // ("|nil"); Guarded refuses any
 // other parameter type at compile
@@ -53,15 +53,14 @@
 // debug builds.
 sol::state &ScriptState();
 
-// An API table of the shared globals: the table behind Name's read-only
-// proxy, made empty and strict (reading a field it lacks is a Lua error
-// "unknown name '<Name>.<field>'"; writing one from a script is the error
-// "<Name>.<field> is read-only") when it is not there yet. The classes'
-// method tables (Creature, Player, Item, Vocation) are API tables too, made
-// by InitScripting. Registration functions add their bindings to the
-// returned table. Throws a const char * when Name is a shared global that is
-// not an API table (a library such as "string", a function, a constant), or
-// a name the sandbox removed.
+// An API table of the shared globals: the table behind Name's read-only proxy,
+// made empty and strict (reading a field it lacks is a Lua error "unknown name
+// '<Name>.<field>'"; writing one from a script is the error "<Name>.<field> is
+// read-only") when it is not there yet. The classes' method tables (Creature,
+// Player, Npc, Item, Vocation) are API tables too, made by InitScripting.
+// Registration functions add their bindings to the returned table. Throws a
+// const char * when Name is a shared global that is not an API table (a library
+// such as "string", a function, a constant), or a name the sandbox removed.
 sol::table ScriptAPITable(const char *Name);
 
 // Sets the shared global Name to the constant Value: scripts read it, and
@@ -84,9 +83,10 @@ void SetScriptConstant(const char *Name, int Value);
 // ERROR. The same conditions as RaiseResult; Text is copied first.
 [[noreturn]] void RaiseError(lua_State *L, const char *Text);
 
-// The objects (scripting.hh, "Objects"): a userdata holding a creature ID, an
-// object handle, for a Vocation its player's creature ID, or for an ItemType
-// an object type's number (an int, kept as its uint32_t bits).
+// The objects (scripting.hh, "Objects"): a userdata holding a creature ID
+// (a Creature, Player or Npc), an object handle, for a Vocation its player's
+// creature ID, or for an ItemType an object type's number (an int, kept as
+// its uint32_t bits).
 enum TScriptObjectKind {
 	SCRIPT_NO_OBJECT,
 	SCRIPT_CREATURE,
@@ -94,7 +94,11 @@ enum TScriptObjectKind {
 	SCRIPT_ITEM,
 	SCRIPT_VOCATION,
 	SCRIPT_ITEMTYPE,
+	SCRIPT_NPC,
 };
+
+// The last kind (the kinds are numbered from SCRIPT_NO_OBJECT, 0, on).
+const TScriptObjectKind LAST_SCRIPT_OBJECT_KIND = SCRIPT_NPC;
 
 // The kind of the value at Index: SCRIPT_NO_OBJECT for anything that is not
 // one of the objects. Calls no metamethod.
@@ -128,15 +132,21 @@ void GetScriptPosition(lua_State *L, int Index, int *x, int *y, int *z);
 void PushScriptPosition(lua_State *L, int x, int y, int z);
 
 // The parameter and result types of the objects. TScriptCreature takes a
-// Creature or a Player; TScriptPlayer only a Player; TScriptItem only an
-// Item; TScriptThing an Item, a Creature or a Player (for the C++ functions
-// that take an Object); TScriptVocation a Vocation; TScriptItemType an
-// ItemType.
+// Creature, a Player or an Npc (both are Creatures); TScriptPlayer only a
+// Player; TScriptNpc only an Npc; TScriptItem only an Item; TScriptThing an
+// Item, a Creature, a Player or an Npc (for the C++ functions that take an
+// Object); TScriptVocation a Vocation; TScriptItemType an ItemType. A
+// TScriptCreature result is nil for 0, a Player for a player's ID and a
+// Creature otherwise (PushScriptCreature), also for an NPC's ID.
 struct TScriptCreature {
 	uint32_t ID;
 };
 
 struct TScriptPlayer {
+	uint32_t ID;
+};
+
+struct TScriptNpc {
 	uint32_t ID;
 };
 
@@ -171,7 +181,9 @@ struct TScriptObjectType;
 
 template<>
 struct TScriptObjectType<TScriptCreature> {
-	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER; }
+	static bool accepts(TScriptObjectKind Kind) {
+		return Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER || Kind == SCRIPT_NPC;
+	}
 	static const char *expected() { return "Creature expected"; }
 	static TScriptCreature make(TScriptObjectKind, uint32_t Value) { return TScriptCreature{Value}; }
 	static void push(lua_State *L, const TScriptCreature &Value) { PushScriptCreature(L, Value.ID); }
@@ -186,6 +198,14 @@ struct TScriptObjectType<TScriptPlayer> {
 };
 
 template<>
+struct TScriptObjectType<TScriptNpc> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_NPC; }
+	static const char *expected() { return "Npc expected"; }
+	static TScriptNpc make(TScriptObjectKind, uint32_t Value) { return TScriptNpc{Value}; }
+	static void push(lua_State *L, const TScriptNpc &Value) { PushScriptObject(L, SCRIPT_NPC, Value.ID); }
+};
+
+template<>
 struct TScriptObjectType<TScriptItem> {
 	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_ITEM; }
 	static const char *expected() { return "Item expected"; }
@@ -196,7 +216,7 @@ struct TScriptObjectType<TScriptItem> {
 template<>
 struct TScriptObjectType<TScriptThing> {
 	static bool accepts(TScriptObjectKind Kind) {
-		return Kind == SCRIPT_ITEM || Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER;
+		return Kind == SCRIPT_ITEM || Kind == SCRIPT_CREATURE || Kind == SCRIPT_PLAYER || Kind == SCRIPT_NPC;
 	}
 	static const char *expected() { return "Item or Creature expected"; }
 	static TScriptThing make(TScriptObjectKind Kind, uint32_t Value) {
@@ -299,6 +319,7 @@ sol::optional<T> GetOptionalScriptObject(lua_State *L, int Index, sol::stack::re
 
 SCRIPT_OBJECT_TYPE(TScriptCreature)
 SCRIPT_OBJECT_TYPE(TScriptPlayer)
+SCRIPT_OBJECT_TYPE(TScriptNpc)
 SCRIPT_OBJECT_TYPE(TScriptItem)
 SCRIPT_OBJECT_TYPE(TScriptThing)
 SCRIPT_OBJECT_TYPE(TScriptVocation)
@@ -345,6 +366,7 @@ template<typename T>
 struct TScriptArgument : std::integral_constant<bool, std::is_arithmetic<T>::value
 		|| std::is_same<T, const char *>::value || std::is_same<T, std::string>::value
 		|| std::is_same<T, TScriptCreature>::value || std::is_same<T, TScriptPlayer>::value
+		|| std::is_same<T, TScriptNpc>::value
 		|| std::is_same<T, TScriptItem>::value || std::is_same<T, TScriptThing>::value
 		|| std::is_same<T, TScriptVocation>::value || std::is_same<T, TScriptItemType>::value
 		|| std::is_same<T, TScriptPosition>::value> {};
@@ -382,5 +404,6 @@ auto Guarded(R (*Function)(A...)) {
 void RegisterMagicAPI();
 void RegisterTriggerAPI();
 void RegisterItemAPI();
+void RegisterNpcAPI();
 
 #endif
