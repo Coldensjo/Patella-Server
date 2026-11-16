@@ -1,0 +1,92 @@
+-- npcs/oswald.lua: the behaviour of the NPC Oswald, converted from
+-- oswald.npc by patella-convert. The NPC is its [[npc]] entry in npcs.toml;
+-- lib/npc.lua matches and runs the rules below, in the order of the file
+-- (scripting.hh, "NPCs"). The comments are those of oswald.npc.
+--
+-- GIMUD - Graphical Interface Multi User Dungeon
+-- oswald.npc: Datenbank für Durin-Helfer Oswald
+
+local behaviour = require("lib.npc")
+local ADDRESS = behaviour.ADDRESS
+local BUSY = behaviour.BUSY
+local VANISH = behaviour.VANISH
+local FORCE = behaviour.FORCE
+local eq = behaviour.eq
+local lt = behaviour.lt
+local gt = behaviour.gt
+local TOPIC = behaviour.TOPIC
+local LEVEL = behaviour.LEVEL
+local setTopic = behaviour.setTopic
+local queue = behaviour.queue
+local idle = behaviour.idle
+local nop = behaviour.nop
+local previous = behaviour.previous
+
+local rules = behaviour.rules {
+	{{ADDRESS, "hi$", FORCE}, {"Oh, hello %N. What is it?"}},
+	{{ADDRESS, "hello$", FORCE}, {previous}},
+	{{ADDRESS, FORCE}, {idle}},
+	{{BUSY, "hi$", FORCE}, {"Be patient, draw a number, %N.", queue}},
+	{{BUSY, "hello$", FORCE}, {previous}},
+	{{BUSY, FORCE}, {nop}},
+	{{VANISH, FORCE}, {"Good bye, and don't come back too soon."}},
+
+	{{"bye", gt(LEVEL, 0)}, {"Finally!", idle}},
+	{{"farewell", gt(LEVEL, 0)}, {previous}},
+	{{"bye", lt(LEVEL, 2)}, {"Good bye, master %N. Have a nice day!", idle}},
+	{{"farewell", lt(LEVEL, 2)}, {previous}},
+	{{"how", "are", "you"}, {"If there weren't so many people harassing me, life could be great."}},
+	{{"sell"}, {"Hey, I am not a shopkeeper, I am an important man!"}},
+	{{"harassing"}, {"You need not ask me about that, you are perfect in that."}},
+	{{"job"}, {"I am honored to be the assistant of the great, the illustrious, the magnificent Durin!"}},
+	{{"durin"}, {"Just between you and me, he can be quite a tyrant."}},
+	{{"important"}, {"I am honored to be the assistant of the great, the illustrious, the magnificent Durin!"}},
+	{{"name"}, {"My name is Oswald, but let's proceed, I am a very busy man."}},
+	{{"time"}, {"It is nearly tea time, so please hurry!"}},
+	{{"help"}, {"I inform higher officials of your need... sometimes."}},
+	{{"monster"}, {"AHHHH!!! WHERE??? WHERE???", idle}},
+	{{"dungeon"}, {"If you want to see dungeons just don't pay your taxes."}},
+	{{"sewer"}, {"Our sewer system is very modern, but crowded with rats and wannabe heroes."}},
+	{{"assistant"}, {"I have a job of great responsibility, mostly I keep annoying persons away from my boss."}},
+	{{"annoying"}, {"You better don't ask, you wouldn't like the answer."}},
+	{{"thank", "you"}, {"You are... uhm... welcome. Are you finished already?"}},
+	{{"god"}, {"I think the gods are too busy to care about us mortals, hmm... that makes me feel godlike, too."}},
+	{{"king"}, {"Ah, yes, yes, hail to King Tibianus! Long live the king and so on..."}},
+	{{"sam"}, {"A simple shopkeeper with minor intelligence."}},
+	{{"benjamin"}, {"What do you expect from ex-soldiers? He is nuts! Hacked on the head far too often."}},
+	{{"gorn"}, {"He sells his scrolls far too expensive."}},
+	{{"quentin"}, {"I heard he was a ladies' man in younger days. In our days he is rumoured to wear women clothes now and then."}},
+	{{"bozo"}, {"Isn't he the artist formerly known as the prince?"}},
+	{{"rumour"}, {"You know a rumour? TELL ME! TELL ME! TELL ME!", setTopic(3)}},
+	{{"gossip"}, {previous}},
+	{{"news"}, {previous}},
+	{{"mud"}, {"I heared Sam dated a female mud-wrestler once."}},
+	{{"weapon"}, {"It's rumoured that Sam does not forge all weapons himself, but buys them from his cousin, who is married to a cyclops."}},
+	{{"magic"}, {"I overheard a conversation of officials, that magic will be forbidden soon."}},
+	{{"power"}, {"There are people who talk about a rebellion against King Tibianus."}},
+	{{"rebellion"}, {"There are people who talk about a rebellion against King Tibianus."}},
+	{{"spell"}, {"I was told sometimes that sorcerers are toasted by misfired spells of their own."}},
+	{{"muriel"}, {"He is rumoured to summon kinky demons to... well you know."}},
+	{{"elane"}, {"They say she killed over a dozen husbands already."}},
+	{{"marvik"}, {"Who knows what this old man is up to in his hideout when no one is watching?"}},
+	{{"gregor"}, {"I was told he lost a body part or two in duels... if you know what I mean."}},
+	{{"lugri"}, {"Some say he is Ferumbras in disguise."}},
+	{{"excalibug"}, {"It's beyond all doubt that certain sinister elements in our city have certain knowledge about this myth."}},
+	{{"chester"}, {"I never found any rumour concerning him, isn't that odd?"}},
+	{{"ardua"}, {"She's a bitch, trust me. She was the girlfriend of the evil Partos some time ago."}},
+	{{"partos"}, {"What a shame. He claimed to be the king of thiefs and was caught stealing some fruit."}},
+	{{"gamel"}, {"This man lives in the darkness like a rat and is also as handsome as one of them. He surely is up to no good and often consorts with sinister strangers."}},
+	{{"sinister", "strangers"}, {"Just last week a one eyed man, who had a room at Frodo's, met him in the middle of the night."}},
+	{{"goshnar"}, {"They say he isn't truly dead. He was... or is a necromant after all."}},
+	{{"necromant", "nectar"}, {"You are not the first one to ask about that. Am I the only one that preferes wine to such disgusting stuff?"}},
+
+	{{eq(TOPIC, 3)}, {"Fascinating! Absolutely fascinating!"}},
+}
+
+function onCreatureSay(npc, creature, text, situation)
+	behaviour.react(npc, rules, text, situation)
+end
+
+function onCreatureDisappear(npc, creature)
+	behaviour.react(npc, rules, "", NPC_SITUATION_VANISH)
+end
