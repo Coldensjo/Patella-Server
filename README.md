@@ -106,15 +106,18 @@ fields.
 
 The game runs Lua scripts with LuaJIT, from the folder `scripts` in its data
 folder: what the spells, runes and commands do, the trigger rules' conditions
-and actions, and the built-in uses of objects. `data/scripts/` holds them,
-`spells/` for the spells cast at once, `runes/` for the rune spells,
-`commands/` for the commands, `items/` for the uses of objects and `lib/` for
-the trigger library; copy it into the installation's data folder. The game
-loads the scripts `spells.toml`, `commands.toml`, `items.toml` and the trigger
-rules name when it starts, and stops with an error that names the file, line
-and column when one does not load. A script's handlers are global functions,
-`onCastSpell` for the spells and runes, `onSay` for the commands and `onUse`
-for the uses of objects, and the script returns nothing. The Lua API uses the names and style of The Forgotten Server (TFS):
+and actions, the built-in uses of objects and what the NPCs say and do.
+`data/scripts/` holds them, `spells/` for the spells cast at once, `runes/` for
+the rune spells, `commands/` for the commands, `items/` for the uses of
+objects, `npcs/` for the NPCs and `lib/` for the trigger library, the NPC rule
+matcher (`lib/npc.lua`) and the NPCs' shared rule blocks (`lib/npcs/`); copy it
+into the installation's data folder. The game loads the scripts
+`spells.toml`, `commands.toml`, `items.toml`, `npcs.toml` and the trigger rules
+name when it starts, and stops with an error that names the file, line and
+column when one does not load. A script's handlers are global functions,
+`onCastSpell` for the spells and runes, `onSay` for the commands, `onUse` for
+the uses of objects and `onCreatureSay` and `onCreatureDisappear` for the NPCs,
+and the script returns nothing. The Lua API uses the names and style of The Forgotten Server (TFS):
 camelCase functions and methods, PascalCase tables and classes, upper-case
 constants, with the values of 7.72, so scripts written for TFS need fewer
 changes; the handlers' arguments, the `Magic` and `Command` functions and the
@@ -136,6 +139,27 @@ conditions and actions are the functions of the trigger library,
 hands each rule at start; a rule may instead name a script of its own,
 `script = "triggers/<name>.lua"`, whose `onCheck` and `onRun` take the place of
 its conditions and actions.
+
+## NPCs
+
+The game reads the NPCs (name, sex, race, outfit, home, how far they walk and
+how fast, and the script of each) from `npcs.toml` in its data folder, and
+makes them in the order of the file, which gives them their creature IDs.
+What an NPC says and does is its script, `data/scripts/npcs/<name>.lua`: the
+rules of the original NPC file (the words the player's text must contain, the
+properties and values a rule tests, and the texts and actions of the rule that
+wins), which `lib/npc.lua` matches and runs as the original game did; the
+original's shared rule blocks (`.ndb` files: banks, post offices, traders) are
+the modules `lib/npcs/<name>.lua`, put in place where an NPC included them.
+`data/npcs.toml` and those scripts are the original installation's `npc/`
+folder converted with `patella-convert npcs npc data` (it writes
+`data/npcs.toml`, `data/scripts/npcs/` and `data/scripts/lib/npcs/`). The
+converter reads the folder in the order the file system gives, as the game
+did; the committed files were converted from the original installation on
+WSL's ext4, so their order is the one the original game has there. Copy them
+into the installation's data folder. The comments at the top of `npcs.toml`,
+`lib/npc.lua` and `src/scripting.hh` (section "NPCs") explain the fields, the
+rules and the API.
 
 ## Houses
 
