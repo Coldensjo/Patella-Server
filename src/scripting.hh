@@ -76,9 +76,10 @@
 // classes PascalCase, functions, methods and handlers camelCase, constants
 // UPPER_CASE globals. Values are 7.72's; what 7.72 lacks does not exist.
 //
-// Objects. Creature, Player (a Creature), Npc (a Creature, phase 5) and Item
-// are classes whose objects hold a creature ID or an object handle (rule 2); a
-// Vocation holds its player's creature ID. A creature ID is a Player when it is
+// Objects. Creature, Player (a Creature), Npc and Monster (Creatures, phases 5
+// and 6) and Item are classes whose objects hold a creature ID or an object
+// handle (rule 2); a Vocation holds its player's creature ID. A creature ID is
+// a Player when it is
 // a player's (below FIRST_NONPLAYER_CREATURE_ID), a Creature otherwise; nil
 // stands where the C++ code has no creature (nullptr). Two objects are equal
 // (==) when they are of the same class and hold the same ID or handle, so two
@@ -698,6 +699,140 @@
 // WORLD_TYPE_PVP 0, WORLD_TYPE_NO_PVP 1, WORLD_TYPE_PVP_ENFORCED 2
 // (config.hh's NORMAL, NON_PVP, PVP_ENFORCED, TFS's names).
 //
+// Monsters, raids and monster homes (phase 6; scripting_monsters.cc,
+// RegisterMonsterAPI; the data: monsterdata.{hh,cc}).
+// The races are data/monsters.toml ([[monster]], one per race), the raids
+// data/raids.toml ([[raid]] with its [[raid.wave]]s, in the order the original
+// game read mon/*.evt, which is the order in which their start rounds are
+// drawn) and the monster homes data/monster_homes.toml (one entry per home, in
+// monster.db's order). A race is named everywhere by its key, the name of its
+// original file without ".mon" ("demon", "illusion", "slime2"; the names that
+// players see are not unique); the loaders turn a key into the race number
+// (GetRaceByKey, crmain.hh) and an unknown key is a start error at its
+// position. The C++ code keeps the race data (RaceData, crinc.hh), the monster
+// AI (TMonster, crnonpl.cc), the raids' scheduling and waves (crmain.cc) and
+// the homes; what moves to Lua is the spell loop of TMonster::IdleStimulus.
+//
+// The monster spells. A race's spells are [[monster.spell]] entries, each a
+// table of keys: shape and impact (names of the library's shapes and impacts),
+// one_in (the spell is tried when Game.rand() % one_in == 0, at least 1) and
+// the keys of its shape and its impact:
+//   shape "actor"        effect                    (ActorShapeSpell)
+//   shape "victim"       range, animation, effect  (VictimShapeSpell)
+//   shape "origin"       radius, effect            (OriginShapeSpell)
+//   shape "destination"  range, animation, radius, effect
+//                                                  (DestinationShapeSpell)
+//   shape "angle"        angle, range, effect      (AngleShapeSpell)
+//   impact "damage"      damage_type, damage, variation
+//   impact "field"       field_type
+//   impact "healing"     amount, variation
+//   impact "speed"       percent, variation, duration
+//   impact "drunken"     strength, variation, duration
+//   impact "strength"    skills, percent, variation, duration
+//   impact "outfit"      outfit ({ id, colors = [4] } or { id = 0,
+//                        object_type }), duration
+//   impact "summon"      race (a key), maximum
+// (the original's Shape (p1, ...) -> Impact (q1, ...) : Delay, the parameters
+// in that order). The C++ loader knows none of these names: it hands every
+// spell to the spell library as a table (TScriptValue), and the library
+// checks it.
+// The spell library is the script lib/monsters.lua; LoadRaces (crmain.cc)
+// loads it (InitMonsterSpells) and calls its global functions:
+//   prepareSpell(race, spell)
+//       At start, for each spell of each race, in the order of monsters.toml
+//       and of the race's spells; race is the race number, spell the entry as
+//       a Lua table (numbers, strings, arrays, tables; the keys as in the
+//       file). A wrong spell (unknown shape or impact, a missing, unknown or
+//       wrong key, an unknown race key) is a Lua error, which the loader
+//       reports with the spell's position. The library keeps the prepared
+//       spells per race (rule 9: a cache).
+//   castSpells(monster, race, target)
+//       TMonster::IdleStimulus's spell loop, called at its place in
+//       IdleStimulus for a race with spells: monster the Monster, race its
+//       race number, target GetCreature(Target) at the call (a Creature, a
+//       Player, nil). For each
+//       spell in order: rand() % Delay, the flight check
+//       (the monster has no master, its hit points are at most the race's
+//       FleeThreshold, and random(1, 3) != 1: the spell is skipped), the
+//       impact (its ComputeDamage calls; a summon only for a monster without
+//       a master), and the shape when the impact is not aggressive or the
+//       monster's Target is neither 0 nor its Master (read at that moment),
+//       turning to target first for victim, destination and angle (victim
+//       and destination only with a target).
+//
+// Hooks. A race's or a raid's entry may name a script (script =
+// "monsters/<key>.lua", "raids/<key>.lua"); none of the converted entries
+// does. Its global functions are called where the C++ code reaches the
+// point, each only if the script defines it; their results are ignored (they
+// cannot refuse or change what the C++ does, but may use the API):
+//   onThink(monster)
+//       TMonster::IdleStimulus, after the checks of LockToDo, LoggingOut and
+//       the lifetime, before anything else.
+//   onHealthChange(monster, attacker, damage)
+//       TMonster::DamageStimulus, at its start: attacker the creature (nil
+//       for none), damage the damage it took.
+//   onTarget(monster, target)
+//       When the monster's Target becomes another creature (not 0), after
+//       it is set: target that creature.
+//   onDeath(monster, killer)
+//       When the monster dies (its hit points reach 0 in TCreature::Damage),
+//       after the C++ death handling at that point: killer the creature that
+//       was responsible (an attacker's master for a summon; nil for none).
+//       Its corpse does not exist yet (it is made when the dead monster is
+//       deleted).
+//   onRaid(raid)
+//       When a raid's waves are queued (at start for a raid that is
+//       scheduled, and by the start_monsterraid command): raid its key.
+//   onWave(raid, wave)
+//       ProcessMonsterRaids, after a wave's monsters and items are made: raid
+//       its key, wave the wave's number in the raid (1 for its first).
+// A script's failure in a hook, in castSpells or in an NPC's handler is
+// logged as every script error is and the game carries on
+// (TScriptCall::runCaught); a result code an API function raises goes to the
+// C++ caller.
+//
+// Monster: a class of objects that hold a monster's creature ID (rule 2);
+// its method table falls back to Creature's, a TScriptCreature parameter
+// takes a Monster, and a Monster equals only a Monster of the same ID
+// (tostring "Monster 123"). A method on an ID that is no monster's logs
+// "<binding name>: Monster does not exist." and raises ERROR.
+//   monster:getMasterId() -> Master (0 for none); monster:getTargetId() ->
+//       Target (0 for none): the raw IDs, also of a creature that is gone.
+//   monster:getType() -> MonsterType(Race).
+// MonsterType: an object holding a race number; MonsterType(key) or
+// MonsterType(number) makes one, nil for an unknown key or a number outside
+// 1 to MAX_RACES - 1 or of no race.
+//   monsterType:getId() -> the race number; monsterType:getKey() -> its key.
+//   monsterType:name() -> Name; monsterType:runHealth() -> FleeThreshold.
+// More creature methods:
+//   creature:turnTo(target) -> Rotate(TCreature *Target).
+// Impact: an object holding an impact of magic.hh, its actor's creature ID
+// and its numbers (no pointer: the C++ impact is made at the shape's call).
+//   Impact.damage(actor, damageType, power, allowDefense) -> TDamageImpact
+//   Impact.field(actor, fieldType) -> TFieldImpact
+//   Impact.healing(actor, power) -> THealingImpact
+//   Impact.speed(actor, percent, duration) -> TSpeedImpact
+//   Impact.drunken(actor, power, duration) -> TDrunkenImpact
+//   Impact.strength(actor, skills, percent, duration) -> TStrengthImpact
+//   Impact.outfit(actor, outfitId, colors, duration) -> TOutfitImpact, the
+//       outfit made as IdleStimulus made it (colors: an array of four
+//       numbers 0 to 255, the four bytes; for an object's outfit the object
+//       type in the first two, the other two 0).
+//   Impact.drunken logs a power above 6 and makes it 6 when the Impact is
+//   made, as TDrunkenImpact's constructor did where IdleStimulus made it.
+//   Impact.summon(actor, race, maximum) -> TSummonImpact (race a number).
+//   impact:isAggressive() -> isAggressive() of that impact (false only for
+//       healing). An Impact's tostring is "Impact <kind>" ("Impact damage").
+// Magic, the shapes (the impact made at the call, its actor resolved then;
+// actor gone: logged and ERROR):
+//   Magic.actorShapeSpell(actor, impact, effect)
+//   Magic.victimShapeSpell(actor, victim, range, animation, impact, effect)
+//   Magic.originShapeSpell(actor, radius, impact, effect)
+//   Magic.destinationShapeSpell(actor, victim, range, animation, radius,
+//       impact, effect)
+//   Magic.angleShapeSpell(actor, angle, range, impact, effect)
+// (ActorShapeSpell ... AngleShapeSpell of magic.cc).
+//
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with
 // error() that comes from a script or from Lua (debugPrint, the script errors
@@ -713,6 +848,9 @@
 #define PATELLA_SCRIPTING_HH
 
 #include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
 
 // Creates the Lua state with the sandbox and the core API, for the scripts
 // below Folder (a folder path without a trailing '/'; it need not exist until
@@ -753,6 +891,20 @@ bool HasHandler(int Script, const char *Handler);
 // (without "<Where>: " for nullptr) when the script lacks the handler. The
 // loaders call it for every handler their entries need.
 void RequireHandler(int Script, const char *Handler, const char *Where);
+
+// A value of a data file handed to a script as it is (a spell of
+// monsters.toml): a number (an int), a text (Latin-1), an array of values or
+// a table of keys and values (in the file's order). TScriptCall::addValue
+// makes it a Lua value: a number, a string, an array (index 1 first) or a
+// table.
+struct TScriptValue {
+	enum TKind { NUMBER, TEXT, ARRAY, TABLE };
+	TKind Kind = NUMBER;
+	int Number = 0;
+	std::string Text;
+	std::vector<TScriptValue> Elements;
+	std::vector<std::pair<std::string, TScriptValue>> Fields;
+};
 
 // A call of a script's handler, its arguments added in order:
 //	TScriptCall Call(Script, "onCastSpell");
@@ -799,7 +951,16 @@ public:
 	void addNpc(uint32_t CreatureID);
 	// A Position object (a new one per call).
 	void addPosition(int x, int y, int z);
+	// A Monster object holding the monster's creature ID.
+	void addMonster(uint32_t CreatureID);
+	// The value as a Lua value (TScriptValue, below; copied).
+	void addValue(const TScriptValue &Value);
 	void run();
+	// As run, for the calls whose failure the game survives (phase 6: the
+	// stimuli of NPCs and monsters, the hooks): gives false when the handler
+	// failed with a non-result error (logged as run logs it; failure() gives
+	// its message), true otherwise; a result code is thrown as run throws it.
+	bool runCaught();
 	int runNumber();
 	bool runBoolean();
 	// After a run that threw ERROR for a non-result error: that error's
@@ -852,5 +1013,28 @@ private:
 // error) when items.toml has no [[use]] and as LoadScript and RequireHandler
 // throw, with the position of the entry's script key.
 void InitItemUses();
+
+// Monsters (phase 6; scripting_monsters.cc). InitMonsterSpells loads the
+// spell library lib/monsters.lua and requires its prepareSpell and
+// castSpells; LoadRaces calls it once, before the first PrepareMonsterSpell.
+// PrepareMonsterSpell calls prepareSpell(Race, Spell) and throws a const char
+// * "<Where>: <the script's error>" when it fails (a start error).
+// CastMonsterSpells calls castSpells(monster, Race, target) (TargetID 0 or a
+// creature that is gone: target nil) with runCaught. Each throws ERROR
+// (logged) when the engine is not active.
+void InitMonsterSpells();
+void PrepareMonsterSpell(int Race, const TScriptValue &Spell, const char *Where);
+void CastMonsterSpells(uint32_t MonsterID, int Race, uint32_t TargetID);
+
+// The hooks (above): Script is the race's or raid's script (-1: none, and the
+// call does nothing); a handler the script lacks is not called. Each runs with
+// runCaught; a result code goes to the caller. A creature argument of 0 is
+// nil. They are in scripting.cc (the engine's tests call them).
+void MonsterThinkHook(int Script, uint32_t MonsterID);
+void MonsterHealthChangeHook(int Script, uint32_t MonsterID, uint32_t AttackerID, int Damage);
+void MonsterTargetHook(int Script, uint32_t MonsterID, uint32_t TargetID);
+void MonsterDeathHook(int Script, uint32_t MonsterID, uint32_t KillerID);
+void RaidHook(int Script, const char *RaidKey);
+void RaidWaveHook(int Script, const char *RaidKey, int Wave);
 
 #endif

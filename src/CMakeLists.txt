@@ -32,6 +32,7 @@ add_executable(game
 	crplayer.cc
 	crnonpl.cc
 	npcdata.cc
+	monsterdata.cc
 	cract.cc
 	crcombat.cc
 	crskill.cc
