@@ -297,26 +297,34 @@ private:
 int GetFlagByName(char *Name);
 int GetTypeAttributeByName(char *Name);
 // Reads the items.toml file FileName: the object types ([[item]]) and the
-// list of built-in uses ([[use]], UseEntries). Throws a const char *
-// "<file>:<line>:<column>: <what>" for what is wrong with it, and as
-// TomlParseFile does for a file that is not there or not TOML.
+// list of built-in uses ([[use]], UseEntries). The converter's load (the game
+// reads the file through ItemsReloadPart, InitObjects): the types the file
+// defines are filled anew in ObjectTypes, which grows to hold them, the other
+// entries stay as they are; their names and descriptions are static strings;
+// the meanings they give are added to SpecialObjects (one it has already is an
+// error). Throws a const char * "<file>:<line>:<column>: <what>" for what is
+// wrong with it, and as TomlParseFile does for a file that is not there or not
+// TOML; nothing changes then.
 void LoadItems(const char *FileName);
-// LoadItems of DATAPATH/items.toml.
-void LoadObjects();
 // Reads the conversion.toml file FileName into NewType: the type number of
 // each old group and number it gives (NewType[Group * 256 + Number]), -1 for
 // the others, then the game's own: 0/0 to 0/10 keep their numbers (no type
 // and the body containers) and 250/0 is the creature, as the game's old
 // LoadConversionList did from conversion.lst. Throws a const char *
 // "<file>:<line>:<column>: <what>" for what is wrong with it, and as
-// TomlParseFile does for a file that is not there or not TOML.
+// TomlParseFile does for a file that is not there or not TOML; NewType stays
+// as it was then.
 void LoadConversions(const char *FileName);
-// LoadConversions of DATAPATH/conversion.toml.
-void LoadConversionList();
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number);
 bool ObjectTypeExists(int TypeID);
 ObjectType GetSpecialObject(SPECIALMEANING Meaning);
 ObjectType GetObjectTypeByName(char *SearchName, bool Movable);
+// Reads DATAPATH's items.toml and conversion.toml at start: the steps of
+// ItemsReloadPart (reload.hh) one after the other. The types items.toml
+// defines fill ObjectTypes, the other entries up to the highest type number
+// (ObjectTypeExists; at least 5000) are zero; SpecialObjects, UseEntries
+// (ScriptNumber -1 until InitItemUses), NewType and DefinedObjectTypes as the
+// files give them. A reload replaces them all at once (ItemsReloadPart).
 void InitObjects();
 
 // An entry of the list [[use]] of items.toml (scripting.hh, "Built-in uses of
@@ -332,10 +340,16 @@ struct TUseEntry {
 	int ScriptNumber;
 };
 
-// The entries of [[use]] in the order of items.toml, as the last LoadItems
-// read them; none when the file has no [[use]] (the game refuses to start
-// then, InitItemUses; the converter's tests read files without it).
+// The entries of [[use]] in the order of items.toml, as the last LoadItems or
+// InitObjects (or reload) read them; none when the file has no [[use]] (the
+// game refuses to start then, InitItemUses, and a reload refuses the file; the
+// converter's tests read files without it).
 extern std::vector<TUseEntry> UseEntries;
+
+// Which type numbers (0 to 65535) the game's items.toml defines, as
+// InitObjects or the last reload installed them; empty before (and in the
+// converter). A reload refuses a file that lacks one of them.
+extern std::vector<bool> DefinedObjectTypes;
 
 extern char FlagNames[FLAGS][20];
 extern char TypeAttributeNames[TYPEATTRIBUTES][30];

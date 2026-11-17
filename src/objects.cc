@@ -5,15 +5,21 @@
 // (UseEntries, the [[use]] of items.toml), and the conversion of an old group and
 // number to a type number, loaded from conversion.toml (data/conversion.toml
 // in the repository, converted from the original conversion.lst by
-// tools/convert).
+// tools/convert). The game reads both files through ItemsReloadPart
+// (reload.hh), at start and in a reload.
 
 #include "tomlfile.hh"
 
+#include <algorithm>
+#include <atomic>
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "config.hh"
@@ -21,6 +27,7 @@
 #include "objects.hh"
 #include "containr.hh"
 #include "mudinc.hh"
+#include "reload.hh"
 #include "strings.hh"
 #include "utils.hh"
 
@@ -485,6 +492,20 @@ vector<TObjectType> ObjectTypes(0, 5000, 1000);
 
 ObjectType SpecialObjects[SPECIALMEANINGS];
 int NewType[65536];
+std::vector<bool> DefinedObjectTypes;
+
+// The highest type number (ObjectTypeExists, ObjectType::setTypeID,
+// GetObjectTypeByName): -1 stands for ObjectTypes.high(), as the converter's
+// loaders (LoadItems, which grows the table) leave it; ItemsReloadPart sets
+// it before it grows the table and installs the bound of the data it read
+// (uninstall puts the old value back), since the table cannot shrink.
+// The reader thread reads it (ObjectTypeExists) while a reload writes it.
+static std::atomic<int> ObjectTypesBound{-1};
+
+static int HighestTypeID() {
+	int Bound = ObjectTypesBound.load(std::memory_order_relaxed);
+	return Bound >= 0 ? Bound : ObjectTypes.high();
+}
 
 int GetFlagByName(char *Name) {
 	for (int i = 0; i < FLAGS; i++) {
@@ -530,14 +551,62 @@ static int GetTypeAttributeByKey(const std::string &Key) {
 	return -1;
 }
 
-// The name or the description of an [[item]] as a static string, or nullptr
-// when the entry has none.
-static const char *ReadObjectText(const toml::table &Entry, const char *Key) {
+// The data of items.toml and conversion.toml as one read gives it, before it
+// becomes the game's: ItemsReloadPart's staged data (and, once installed, the
+// game's data it keeps aside); LoadItems and LoadConversions copy theirs into
+// the game's tables.
+struct TItemsData {
+	// The type entries by number, from 0 to the highest type items.toml
+	// defines (the part makes it the new bound): a defined type filled from
+	// its [[item]], the others zero (no name, no flags), as the start leaves
+	// an entry no [[item]] fills.
+	std::vector<TObjectType> Types;
+	// Which type numbers items.toml defines (0 to MAX_TYPEID).
+	std::vector<bool> Defined;
+	// The number of the type of each special meaning, 0 for none (made an
+	// ObjectType only within the bound that holds the type).
+	int Special[SPECIALMEANINGS] = {};
+	// The list [[use]], in the file's order (ScriptNumber -1).
+	std::vector<TUseEntry> Uses;
+	// The names and descriptions Types points to (a deque, so that they never
+	// move).
+	std::deque<std::string> Texts;
+	// conversion.toml's table, NewType's 65536 entries.
+	std::vector<int> Conversions;
+	// Whether the types are checked against the game's (a reload): ReadItem
+	// refuses a change of the flags FixedFlags.
+	bool Compare = false;
+};
+
+// The names and descriptions of the game's types (ObjectTypes points to them):
+// ItemsReloadPart's texts, freed with the types a reload replaces.
+static std::deque<std::string> ObjectTexts;
+
+// The flags of a type a reload may not change (reload.hh): those that give its
+// objects their instance attributes (InstanceAttributeFlags, CHEST also for
+// CONTENT; an object keeps its attributes by position, AttributeOffsets) and
+// those that give their order on a field (GetObjectPriority, map.cc).
+static const FLAG FixedFlags[] = {
+	BANK, CLIP, BOTTOM, TOP,
+	CONTAINER, CHEST, CUMULATIVE, KEY, KEYDOOR, LEVELDOOR, QUESTDOOR, RUNE, TEXT, LIQUIDCONTAINER, LIQUIDPOOL,
+	TELEPORTABSOLUTE, MAGICFIELD, EXPIRE, EXPIRESTOP, WEAROUT,
+};
+
+// Whether the entry Type has the flag Flag (as ObjectType::getFlag reads it).
+static bool HasFlag(const TObjectType &Type, int Flag) {
+	unsigned char b = static_cast<unsigned char>(1 << (Flag % 8));
+	return (Type.Flags[Flag / 8] & b) == b;
+}
+
+// The name or the description of an [[item]], kept in Texts, or nullptr when
+// the entry has none.
+static const char *ReadObjectText(const toml::table &Entry, const char *Key, std::deque<std::string> &Texts) {
 	static char Text[MAX_OBJECT_TEXT_LENGTH + 1];
 	if (!TomlGetString(Entry, Key, Text, sizeof(Text))) {
 		return nullptr;
 	}
-	return AddStaticString(Text);
+	Texts.emplace_back(Text);
+	return Texts.back().c_str();
 }
 
 // The index of the name Node gives in the keys of Named. Key is the
@@ -575,10 +644,11 @@ static uint32_t ReadNamedValue(const TNamedAttribute &Named, const std::string &
 	return Value;
 }
 
-// One [[item]] of items.toml. The type's entry in ObjectTypes is filled anew
-// from its name, description, flags and attributes, as a TypeID of objects.srv
-// did. Defined notes the types filled so far.
-static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
+// One [[item]] of items.toml, into Data. The type's entry in Data.Types is
+// filled anew from its name, description, flags and attributes, as a TypeID
+// of objects.srv did, and a meaning it gives goes to Data.Special.
+// Data.Defined notes the types filled so far.
+static void ReadItem(const toml::node &Node, TItemsData &Data) {
 	if (!Node.is_table()) {
 		TomlError(Node.source(), "an entry of item must be a table");
 	}
@@ -591,12 +661,15 @@ static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
 
 	int TypeID = -1;
 	TomlGetNumber(Entry, "id", TypeID, 0, MAX_TYPEID);
-	if (Defined[TypeID]) {
+	if (Data.Defined[TypeID]) {
 		TomlError(Entry.get("id")->source(), "type %d is defined twice", TypeID);
 	}
-	Defined[TypeID] = true;
+	Data.Defined[TypeID] = true;
 
-	TObjectType &Type = ObjectTypes(TypeID);
+	if (static_cast<int>(Data.Types.size()) <= TypeID) {
+		Data.Types.resize(TypeID + 1);
+	}
+	TObjectType &Type = Data.Types[TypeID];
 	Type.Name = nullptr;
 	Type.Description = nullptr;
 	memset(Type.Flags, 0, sizeof(Type.Flags));
@@ -607,8 +680,8 @@ static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
 		Type.AttributeOffsets[i] = -1;
 	}
 
-	Type.Name = ReadObjectText(Entry, "name");
-	Type.Description = ReadObjectText(Entry, "description");
+	Type.Name = ReadObjectText(Entry, "name", Data.Texts);
+	Type.Description = ReadObjectText(Entry, "description", Data.Texts);
 
 	if (const toml::array *Flags = TomlGetArray(Entry, "flags")) {
 		for (const toml::node &FlagNode : *Flags) {
@@ -624,11 +697,22 @@ static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
 		}
 	}
 
+	// A reload keeps the flags FixedFlags of a type the game has.
+	if (Data.Compare && DefinedObjectTypes[TypeID]) {
+		const TObjectType &Live = ObjectTypes(TypeID);
+		for (FLAG Flag : FixedFlags) {
+			if (HasFlag(Type, Flag) != HasFlag(Live, Flag)) {
+				TomlError(Entry.get("id")->source(), "type %d: the flag %s %s; a reload cannot change it (it gives "
+						"the type's objects their attributes or their place on a field)", TypeID, FlagKeys[Flag],
+						HasFlag(Type, Flag) ? "is new" : "is gone");
+			}
+		}
+	}
+
 	// The instance attributes the flags give an object of the type, in their
 	// order.
 	for (int Offset = 0, i = 0; i < INSTANCEATTRIBUTES; i++) {
-		if (ObjectType(TypeID).getFlag(InstanceAttributeFlags[i])
-				|| (i == CONTENT && ObjectType(TypeID).getFlag(CHEST))) {
+		if (HasFlag(Type, InstanceAttributeFlags[i]) || (i == CONTENT && HasFlag(Type, CHEST))) {
 			Type.AttributeOffsets[i] = Offset;
 			Offset++;
 		}
@@ -659,12 +743,26 @@ static void ReadItem(const toml::node &Node, std::vector<bool> &Defined) {
 			// The names of meaning are those of 1 to SPECIALMEANINGS - 1.
 			if (Attribute == MEANING) {
 				int Meaning = static_cast<int>(Type.Attributes[MEANING]);
-				if (SpecialObjects[Meaning] != ObjectType(0)) {
+				if (Data.Special[Meaning] != 0) {
 					TomlError(Pair.second.source(), "meaning %d is already the one of type %d", Meaning,
-							SpecialObjects[Meaning].getTypeID());
+							Data.Special[Meaning]);
 				}
-				SpecialObjects[Meaning] = ObjectType(TypeID);
+				Data.Special[Meaning] = TypeID;
 			}
+		}
+	}
+
+	// A reload keeps or raises an existing container type's CAPACITY: its
+	// containers may hold as many objects as it gives (the game never makes a
+	// container one with fewer slots, Change in operate.cc). A CHEST without
+	// CONTAINER has no limit (CheckContainerCapacity and CheckContainerPlace
+	// skip it), so its CAPACITY may change.
+	if (Data.Compare && DefinedObjectTypes[TypeID] && HasFlag(Type, CONTAINER)) {
+		uint32_t LiveCapacity = ObjectTypes(TypeID).Attributes[CAPACITY];
+		if (Type.Attributes[CAPACITY] < LiveCapacity) {
+			TomlError(Entry.get("id")->source(), "type %d: the capacity %u is lower than %u; a reload cannot lower "
+					"a container type's capacity (its containers may hold more)", TypeID, Type.Attributes[CAPACITY],
+					LiveCapacity);
 		}
 	}
 }
@@ -704,8 +802,8 @@ static bool ValidUseScript(const std::string &Name) {
 
 // One [[use]] of items.toml: flag, a flag as [[item]] names them, and
 // script, the script that handles the use; both needed, no other keys.
-// Appended to UseEntries.
-static void ReadUse(const toml::node &Node) {
+// Appended to Uses.
+static void ReadUse(const toml::node &Node, std::vector<TUseEntry> &Uses) {
 	if (!Node.is_table()) {
 		TomlError(Node.source(), "an entry of use must be a table");
 	}
@@ -745,32 +843,59 @@ static void ReadUse(const toml::node &Node) {
 	char Position[4096 + 64];
 	snprintf(Position, sizeof(Position), "%s:%u:%u", Where.path != nullptr ? Where.path->c_str() : "(unknown file)",
 			Where.begin.line, Where.begin.column);
-	UseEntries.push_back(TUseEntry{static_cast<FLAG>(Flag), Name, Position, -1});
+	Uses.push_back(TUseEntry{static_cast<FLAG>(Flag), Name, Position, -1});
 }
 
-void LoadItems(const char *FileName) {
+// Reads the items.toml file FileName into Data: Types (as far as the highest
+// type it defines), Defined, Special (added to what the caller set there),
+// Uses and Texts. Throws as LoadItems.
+static void ReadItemsFile(const char *FileName, TItemsData &Data) {
 	toml::table Items = TomlParseFile(FileName);
 	TomlCheckKeys(Items, "the top level", {"item", "use"});
 
-	std::vector<bool> Defined(MAX_TYPEID + 1, false);
+	Data.Defined.assign(MAX_TYPEID + 1, false);
 	if (const toml::array *Entries = TomlGetArray(Items, "item")) {
 		for (const toml::node &Node : *Entries) {
-			ReadItem(Node, Defined);
+			ReadItem(Node, Data);
 		}
 	}
 
-	UseEntries.clear();
+	Data.Uses.clear();
 	if (const toml::array *Entries = TomlGetArray(Items, "use")) {
 		for (const toml::node &Node : *Entries) {
-			ReadUse(Node);
+			ReadUse(Node, Data.Uses);
 		}
 	}
 }
 
-void LoadObjects() {
-	char FileName[4096];
-	sprintf(FileName, "%s/items.toml", DATAPATH);
-	LoadItems(FileName);
+// The converter's load: the types the file defines are filled anew in
+// ObjectTypes (the table grows to hold them; the other entries stay as they
+// are), their names and descriptions as static strings, the meanings they give
+// are added to SpecialObjects (a meaning SpecialObjects has already is an
+// error), and UseEntries becomes the file's list.
+void LoadItems(const char *FileName) {
+	TItemsData Data;
+	for (int Meaning = 0; Meaning < SPECIALMEANINGS; Meaning++) {
+		Data.Special[Meaning] = SpecialObjects[Meaning].getTypeID();
+	}
+	ReadItemsFile(FileName, Data);
+
+	for (int TypeID = 0; TypeID < static_cast<int>(Data.Types.size()); TypeID++) {
+		if (!Data.Defined[TypeID]) {
+			continue;
+		}
+		const TObjectType &Read = Data.Types[TypeID];
+		TObjectType &Type = ObjectTypes(TypeID);
+		Type = Read;
+		Type.Name = Read.Name != nullptr ? AddStaticString(Read.Name) : nullptr;
+		Type.Description = Read.Description != nullptr ? AddStaticString(Read.Description) : nullptr;
+	}
+	for (int Meaning = 0; Meaning < SPECIALMEANINGS; Meaning++) {
+		if (Data.Special[Meaning] != SpecialObjects[Meaning].getTypeID()) {
+			SpecialObjects[Meaning] = ObjectType(Data.Special[Meaning]);
+		}
+	}
+	UseEntries = std::move(Data.Uses);
 }
 
 // An old group or number, a key of conversion.toml: 0 to 255, in decimal
@@ -787,10 +912,10 @@ static int ReadOldNumber(const toml::key &Key, const char *What) {
 	return atoi(Text.c_str());
 }
 
-void LoadConversions(const char *FileName) {
-	for (int i = 0; i < 65536; i++) {
-		NewType[i] = -1;
-	}
+// Reads the conversion.toml file FileName into Table (NewType's 65536
+// entries, as LoadConversions describes them). Throws as LoadConversions.
+static void ReadConversionsFile(const char *FileName, std::vector<int> &Table) {
+	Table.assign(65536, -1);
 
 	toml::table File = TomlParseFile(FileName);
 	TomlCheckKeys(File, "the top level", {"group"});
@@ -814,23 +939,23 @@ void LoadConversions(const char *FileName) {
 					TomlError(Entry.second.source(), "the type of %d/%d must lie between 1 and %d", Group, Number,
 							CONVERSION_TYPES - 1);
 				}
-				NewType[Group * 256 + Number] = static_cast<int>(Type);
+				Table[Group * 256 + Number] = static_cast<int>(Type);
 			}
 		}
 	}
 
 	// No type (0) and the body containers keep their numbers, in group 0.
 	for (int i = 0; i <= LAST_BODY_POSITION; i++) {
-		NewType[i] = i;
+		Table[i] = i;
 	}
 
-	NewType[250 * 256 + 0] = TYPEID_CREATURE;
+	Table[250 * 256 + 0] = TYPEID_CREATURE;
 }
 
-void LoadConversionList() {
-	char FileName[4096];
-	sprintf(FileName, "%s/conversion.toml", DATAPATH);
-	LoadConversions(FileName);
+void LoadConversions(const char *FileName) {
+	std::vector<int> Table;
+	ReadConversionsFile(FileName, Table);
+	std::copy(Table.begin(), Table.end(), NewType);
 }
 
 ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
@@ -843,7 +968,7 @@ ObjectType GetNewObjectType(unsigned char Group, unsigned char Number) {
 }
 
 void ObjectType::setTypeID(int _TypeID) {
-	if (!in(_TypeID, ObjectTypes.low(), ObjectTypes.high())) {
+	if (!in(_TypeID, ObjectTypes.low(), HighestTypeID())) {
 		error("ObjectType::setTypeID: Invalid type %d.\n", _TypeID);
 		_TypeID = 0;
 	}
@@ -893,7 +1018,7 @@ int ObjectType::getAttributeOffset(INSTANCEATTRIBUTE Attribute) {
 }
 
 bool ObjectTypeExists(int TypeID) {
-	return in(TypeID, ObjectTypes.low(), ObjectTypes.high());
+	return in(TypeID, ObjectTypes.low(), HighestTypeID());
 }
 
 ObjectType GetSpecialObject(SPECIALMEANING Meaning) {
@@ -920,7 +1045,7 @@ ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
 	snprintf(Pattern, sizeof(Pattern), " %s ", SearchName);
 
 	ObjectType BestType(0);
-	for (int TypeID = ObjectType(TYPEID_CREATURE).getTypeID() + 1; TypeID <= ObjectTypes.high(); TypeID++) {
+	for (int TypeID = ObjectType(TYPEID_CREATURE).getTypeID() + 1; TypeID <= HighestTypeID(); TypeID++) {
 		ObjectType Type(TypeID);
 		if (Movable && Type.getFlag(UNMOVE)) {
 			continue;
@@ -949,7 +1074,208 @@ ObjectType GetObjectTypeByName(char *SearchName, bool Movable) {
 	return BestType;
 }
 
+namespace {
+
+// The part of a reload for items.toml (the types, their special meanings, the
+// list [[use]]) and conversion.toml (reload.hh). The start uses it as well
+// (InitObjects), with nothing to compare with.
+class TItemsReloadPart : public TReloadPart {
+public:
+	const char *name() const override { return "items"; }
+	void read() override;
+	void install() override;
+	void loadScripts() override {}
+	void finish() override;
+	void uninstall() override;
+	void discard() override;
+	std::string summary() const override { return Summary; }
+private:
+	// What read staged; after install the game's data it replaced.
+	TItemsData Staged;
+	// ObjectTypesBound before install.
+	int OldBound = -1;
+	std::string Summary;
+};
+
+// The text of a refusal of read that names no place in a file.
+char ItemsError[4096 + 512];
+
+[[noreturn]] void RefuseItems(const char *Format, ...) __attribute__((format(printf, 1, 2)));
+
+void RefuseItems(const char *Format, ...) {
+	va_list Arguments;
+	va_start(Arguments, Format);
+	vsnprintf(ItemsError, sizeof(ItemsError), Format, Arguments);
+	va_end(Arguments);
+	throw static_cast<const char *>(ItemsError);
+}
+
+// Whether two names or descriptions are the same text (nullptr: none).
+bool SameText(const char *a, const char *b) {
+	if (a == nullptr || b == nullptr) {
+		return a == b;
+	}
+	return strcmp(a, b) == 0;
+}
+
+void TItemsReloadPart::read() {
+	discard();
+	char ItemsFile[4096 + 32];
+	char ConversionFile[4096 + 32];
+	snprintf(ItemsFile, sizeof(ItemsFile), "%s/items.toml", DATAPATH);
+	snprintf(ConversionFile, sizeof(ConversionFile), "%s/conversion.toml", DATAPATH);
+
+	// The game has types when the start (or a reload) installed them.
+	bool Reload = !DefinedObjectTypes.empty();
+	Staged.Compare = Reload;
+	ReadItemsFile(ItemsFile, Staged);
+
+	if (Reload) {
+		for (int TypeID = 0; TypeID <= MAX_TYPEID; TypeID++) {
+			if (DefinedObjectTypes[TypeID] && !Staged.Defined[TypeID]) {
+				RefuseItems("%s: type %d is gone; a reload cannot remove or renumber an object type", ItemsFile,
+						TypeID);
+			}
+		}
+		// Every object of the type keeps the meaning it has (a gold coin
+		// counts as money): a meaning stays with its type.
+		for (int Meaning = 1; Meaning < SPECIALMEANINGS; Meaning++) {
+			int Live = SpecialObjects[Meaning].getTypeID();
+			const char *Key = MeaningKeys[Meaning] != nullptr ? MeaningKeys[Meaning] : "?";
+			if (Live != 0 && Staged.Special[Meaning] == 0) {
+				RefuseItems("%s: the meaning %s (%d) of type %d is gone; a reload cannot remove a special meaning",
+						ItemsFile, Key, Meaning, Live);
+			}
+			if (Live != 0 && Staged.Special[Meaning] != Live) {
+				RefuseItems("%s: the meaning %s (%d) of type %d belongs to type %d; a reload cannot move a special "
+						"meaning (the objects of type %d would lose it)", ItemsFile, Key, Meaning, Live,
+						Staged.Special[Meaning], Live);
+			}
+		}
+		// The start refuses it as well, in InitItemUses (scripting_items.cc).
+		if (Staged.Uses.empty()) {
+			RefuseItems("%s: the list [[use]] is missing (the built-in uses of objects need it)", ItemsFile);
+		}
+	}
+
+	ReadConversionsFile(ConversionFile, Staged.Conversions);
+
+	// The new bound: the highest type defined, at least the game's bound (as
+	// the table, which only grows, gave it). The undefined entries up to it
+	// are zero.
+	int Bound = std::max(HighestTypeID(), static_cast<int>(Staged.Types.size()) - 1);
+	Staged.Types.resize(Bound + 1);
+
+	char Text[256];
+	if (Reload) {
+		int Changed = 0;
+		int Added = 0;
+		for (int TypeID = 0; TypeID <= MAX_TYPEID; TypeID++) {
+			if (!Staged.Defined[TypeID]) {
+				continue;
+			}
+			if (!DefinedObjectTypes[TypeID]) {
+				Added++;
+				continue;
+			}
+			const TObjectType &New = Staged.Types[TypeID];
+			const TObjectType &Old = ObjectTypes(TypeID);
+			if (!SameText(New.Name, Old.Name) || !SameText(New.Description, Old.Description)
+					|| memcmp(New.Flags, Old.Flags, sizeof(New.Flags)) != 0
+					|| memcmp(New.Attributes, Old.Attributes, sizeof(New.Attributes)) != 0) {
+				Changed++;
+			}
+		}
+		int ConversionsChanged = 0;
+		for (int i = 0; i < 65536; i++) {
+			if (Staged.Conversions[i] != NewType[i]) {
+				ConversionsChanged++;
+			}
+		}
+		snprintf(Text, sizeof(Text), "items.toml: %d types changed, %d added, %d uses; conversion.toml: %d entries "
+				"changed", Changed, Added, static_cast<int>(Staged.Uses.size()), ConversionsChanged);
+	} else {
+		int Types = static_cast<int>(std::count(Staged.Defined.begin(), Staged.Defined.end(), true));
+		int Conversions = static_cast<int>(65536
+				- std::count(Staged.Conversions.begin(), Staged.Conversions.end(), -1));
+		snprintf(Text, sizeof(Text), "items.toml: %d types, %d uses; conversion.toml: %d entries", Types,
+				static_cast<int>(Staged.Uses.size()), Conversions);
+	}
+	Summary = Text;
+
+	// The table grows here, so that install takes no memory; ObjectTypesBound
+	// keeps the bound it gave (the same value), and the entries the table
+	// gains, above the bound, are zero.
+	if (ObjectTypesBound.load(std::memory_order_relaxed) < 0) {
+		ObjectTypesBound.store(HighestTypeID(), std::memory_order_relaxed);
+	}
+	int High = ObjectTypes.high();
+	ObjectTypes(Bound);
+	for (int TypeID = High + 1; TypeID <= Bound; TypeID++) {
+		memset(static_cast<void *>(&ObjectTypes(TypeID)), 0, sizeof(TObjectType));
+	}
+}
+
+void TItemsReloadPart::install() {
+	OldBound = ObjectTypesBound.load(std::memory_order_relaxed);
+	int Bound = static_cast<int>(Staged.Types.size()) - 1;
+	for (int TypeID = 0; TypeID <= Bound; TypeID++) {
+		std::swap(ObjectTypes(TypeID), Staged.Types[TypeID]);
+	}
+	ObjectTypesBound.store(Bound, std::memory_order_relaxed);
+	DefinedObjectTypes.swap(Staged.Defined);
+	ObjectTexts.swap(Staged.Texts);
+	// Within the new bound, which holds the new and the old types.
+	for (int Meaning = 0; Meaning < SPECIALMEANINGS; Meaning++) {
+		int Old = SpecialObjects[Meaning].getTypeID();
+		SpecialObjects[Meaning] = ObjectType(Staged.Special[Meaning]);
+		Staged.Special[Meaning] = Old;
+	}
+	UseEntries.swap(Staged.Uses);
+	std::swap_ranges(NewType, NewType + 65536, Staged.Conversions.begin());
+}
+
+void TItemsReloadPart::uninstall() {
+	int Bound = static_cast<int>(Staged.Types.size()) - 1;
+	for (int TypeID = 0; TypeID <= Bound; TypeID++) {
+		std::swap(ObjectTypes(TypeID), Staged.Types[TypeID]);
+	}
+	DefinedObjectTypes.swap(Staged.Defined);
+	ObjectTexts.swap(Staged.Texts);
+	// Still within the new bound; the old one comes back after.
+	for (int Meaning = 0; Meaning < SPECIALMEANINGS; Meaning++) {
+		int New = SpecialObjects[Meaning].getTypeID();
+		SpecialObjects[Meaning] = ObjectType(Staged.Special[Meaning]);
+		Staged.Special[Meaning] = New;
+	}
+	ObjectTypesBound.store(OldBound, std::memory_order_relaxed);
+	UseEntries.swap(Staged.Uses);
+	std::swap_ranges(NewType, NewType + 65536, Staged.Conversions.begin());
+}
+
+void TItemsReloadPart::finish() {
+	// The data kept aside: the replaced types and their texts.
+	Staged = TItemsData();
+}
+
+void TItemsReloadPart::discard() {
+	Staged = TItemsData();
+}
+
+} // namespace
+
+TReloadPart &ItemsReloadPart() {
+	static TItemsReloadPart Part;
+	return Part;
+}
+
+// The start: the part's steps one after the other, with nothing to compare
+// with (the bound, the table, the special objects, the list [[use]] and
+// NewType as LoadItems and LoadConversions of DATAPATH's files left them).
 void InitObjects() {
-	LoadObjects();
-	LoadConversionList();
+	TReloadPart &Part = ItemsReloadPart();
+	Part.read();
+	Part.install();
+	Part.loadScripts();
+	Part.finish();
 }
