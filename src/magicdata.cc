@@ -204,6 +204,7 @@ const char *const RightNames[NUMBER_OF_RIGHTS] = {
 	"CHANGE_SKILLS",
 	"CLEANUP_FIELDS",
 	"NO_STATISTICS",
+	"RELOAD_SCRIPTS",
 };
 
 // The flags of a spell as spells.toml names them, by their bit in
@@ -507,6 +508,7 @@ TCommandRightChecks GetCommandRightChecks(int SpellNr) {
 		case SPELL_CLEAR_QUEST_VALUES:
 		case SPELL_KILL_ALL_CREATURES:
 		case SPELL_START_MONSTERRAID:
+		case SPELL_RELOAD_SCRIPTS:
 			return {1, {""}};
 		default:
 			return {0, {}};

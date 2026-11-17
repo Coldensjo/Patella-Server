@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "magicdata.hh"
+#include "commands_reference.hh"
 #include "spells_reference.hh"
 #include "tomlwrite.hh"
 
@@ -176,7 +177,7 @@ static void CheckSpell(int SpellNr, int KnownFlags) {
 				|| Spell.RuneGr != 0)) {
 		throw "a command (al or om) with a level, mana, soul points, flags or a rune, which commands.toml cannot hold";
 	}
-	if (GetReferenceScriptName(SpellNr) == nullptr) {
+	if (GetReferenceScriptName(SpellNr) == nullptr && GetOwnCommandScriptName(SpellNr) == nullptr) {
 		throw "a spell number without a script name (a SPELL_ constant in spells_reference.hh), which spells.toml "
 				"and commands.toml refuse";
 	}
@@ -184,6 +185,9 @@ static void CheckSpell(int SpellNr, int KnownFlags) {
 
 std::string SpellScript(int SpellNr) {
 	const char *Name = GetReferenceScriptName(SpellNr);
+	if (Name == nullptr) {
+		Name = GetOwnCommandScriptName(SpellNr);
+	}
 	if (Name == nullptr) {
 		throw "a spell number without a script name (a SPELL_ constant in spells_reference.hh), which spells.toml "
 				"and commands.toml refuse";
@@ -253,6 +257,9 @@ static std::string CommandsHeader() {
 	Text += "# needs and which script does what it does: a Lua file in the scripts folder\n";
 	Text += "# (data/scripts/ in the repository). An unknown key or right, or a value of\n";
 	Text += "# the wrong type, is an error.\n";
+	Text += "#\n";
+	Text += "# Command 103 (Reload Scripts) reloads the scripts and the data while the game\n";
+	Text += "# runs; patella-convert adds it to the commands of the spell table.\n";
 	Text += "#\n";
 	Text += "# Each [[command]] is one command:\n";
 	Text += "#   number  The command number, 1 to 255, each at most once and none of a\n";

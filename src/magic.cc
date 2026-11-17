@@ -73,7 +73,7 @@ static void AddWords(TScriptCall &Call, char (*SpellStr)[512], int LastWord) {
 
 static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool Peaceful);
 
-static_assert(NUMBER_OF_RIGHTS == NO_STATISTICS + 1, "RightNames names every right");
+static_assert(NUMBER_OF_RIGHTS == RELOAD_SCRIPTS + 1, "RightNames names every right");
 
 // Whether the player CharacterID has the right that commands.toml gives the
 // right check Check of the command SpellNr (COMMAND_RIGHT, or one of the

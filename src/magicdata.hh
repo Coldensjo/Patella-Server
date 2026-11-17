@@ -83,6 +83,9 @@ const int SPELL_LEVITATE_GAMEMASTER = 99;
 const int SPELL_CLEAR_QUEST_VALUES = 100;
 const int SPELL_KILL_ALL_CREATURES = 101;
 const int SPELL_START_MONSTERRAID = 102;
+// Ours, not the original's: the command that reloads the scripts and the data
+// (reload.hh), whose right Command.reloadScripts checks.
+const int SPELL_RELOAD_SCRIPTS = 103;
 
 // The longest name of a spell (TSpellList's Comment) spells.toml and
 // commands.toml may give.
@@ -90,7 +93,7 @@ const int MAX_SPELL_NAME_LENGTH = 30;
 
 // The rights (RIGHT in info.hh), 0 to NUMBER_OF_RIGHTS - 1, which
 // commands.toml names by RightNames.
-const int NUMBER_OF_RIGHTS = 82;
+const int NUMBER_OF_RIGHTS = 83;
 
 // The rights a command checks, at most MAX_COMMAND_RIGHTS (CommandRight). A
 // command checks one right, COMMAND_RIGHT, which it needs to do anything;

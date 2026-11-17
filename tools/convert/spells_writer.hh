@@ -13,8 +13,9 @@
 std::string SpellWords(const unsigned char *Syllable);
 
 // The script spells.toml or commands.toml gives the entry SpellNr of the
-// game's SpellList: its script name (GetReferenceScriptName) in the folder of
-// its class, "spells/" for ex and ut, "runes/" for ad and "commands/" for al
+// game's SpellList: its script name (GetReferenceScriptName, or
+// GetOwnCommandScriptName for a command that is ours) in the folder of its
+// class, "spells/" for ex and ut, "runes/" for ad and "commands/" for al
 // and om, with ".lua" ("spells/light_healing.lua"). Throws a const char * for
 // a number without a script name.
 std::string SpellScript(int SpellNr);

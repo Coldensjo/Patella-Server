@@ -3,7 +3,8 @@
 // TALKTYPE_ constants, and the Event functions: each calls the handler of
 // every listed script that defines it, in the file's order, with its
 // arguments; onSay's true stops the rest; a failure is logged and the next
-// script runs; a result code goes to the caller. The scripts and files are
+// script runs; a result code goes to the caller; the events part of a reload
+// (EventsReloadPart) with a new state. The scripts and files are
 // written into a scratch folder that is removed at the end. Prints what
 // failed; exits 1 on any failure, 0 when all pass.
 
@@ -20,6 +21,7 @@
 #include "info.hh"
 #include "utils.hh"
 #include "scripting_api.hh"
+#include "reload.hh"
 
 namespace fs = std::filesystem;
 
@@ -403,6 +405,81 @@ static void TestErrors() {
 	CHECK(InitError("") == "");
 }
 
+// The events part of a reload (EventsReloadPart): read stages the list and
+// says what changed, install and loadScripts change nothing the Event
+// functions use, finish makes the new lists theirs; a failure undone with
+// uninstall and discard leaves the old lists and the old state working.
+static void TestReloadPart() {
+	CHECK(InitError("[[event]]\nscript = \"events/all.lua\"\n\n[[event]]\nscript = \"events/login.lua\"\n") == "");
+	TReloadPart &Part = EventsReloadPart();
+	CHECK(std::string(Part.name()) == "events");
+
+	// A reload to bang.lua and all.lua, all steps.
+	WriteFile("events.toml", "[[event]]\nscript = \"events/bang.lua\"\n\n[[event]]\nscript = \"events/all.lua\"\n");
+	Part.read();
+	CHECK(Part.summary() == "events.toml: 2 listed, 1 added, 1 removed");
+	Part.install();
+	BeginScriptReload();
+	RegisterTestAPI();
+	RegisterEventAPI();
+	Part.loadScripts();
+	Part.finish();
+	CommitScriptReload();
+	Records.clear();
+	CHECK(EventSay(7, "!x", 1));
+	EventLogin(7);
+	CHECK_RECORDS({"bang say !x", "all login userdata:Player 7"});
+	CHECK(TakeErrors() == "");
+
+	// A script that fails to load: undone, the lists and the state as before.
+	WriteFile("events.toml", "[[event]]\nscript = \"events/login.lua\"\n\n[[event]]\nscript = \"events/broken.lua\"\n");
+	Part.read();
+	CHECK(Part.summary() == "events.toml: 2 listed, 2 added, 2 removed");
+	Part.install();
+	BeginScriptReload();
+	RegisterTestAPI();
+	RegisterEventAPI();
+	std::string Error;
+	try {
+		Part.loadScripts();
+	} catch (const char *Text) {
+		Error = Text;
+	}
+	CHECK_CONTAINS(Error, EventsFile() + ":5:1: ");
+	CHECK_CONTAINS(Error, "events/broken.lua:");
+	Part.uninstall();
+	Part.discard();
+	DiscardScriptReload();
+	Records.clear();
+	CHECK(EventSay(7, "!y", 1));
+	EventLogin(7);
+	CHECK_RECORDS({"bang say !y", "all login userdata:Player 7"});
+	CHECK(TakeErrors() == "");
+
+	// A file that fails to read: discarded, nothing changed; the next read
+	// compares with the list in use.
+	WriteFile("events.toml", "[[event]]\nscript = \"events/all.lua\"\n\n[[event]]\nscript = \"events/all.lua\"\n");
+	Error.clear();
+	try {
+		Part.read();
+	} catch (const char *Text) {
+		Error = Text;
+	}
+	CHECK_CONTAINS(Error, "is listed twice");
+	Part.discard();
+	WriteFile("events.toml", "[[event]]\nscript = \"events/all.lua\"\n");
+	Part.read();
+	CHECK(Part.summary() == "events.toml: 1 listed, 0 added, 1 removed");
+	Part.discard();
+	Records.clear();
+	CHECK(EventSay(7, "!z", 1));
+	CHECK_RECORDS({"bang say !z"});
+
+	// InitEvents is the part's steps: an empty file leaves no lists.
+	CHECK(InitError("") == "");
+	CheckNothingCalled();
+}
+
 int main() {
 	const char *Temporary = getenv("TMPDIR");
 	std::string Template = std::string(Temporary != nullptr && Temporary[0] != 0 ? Temporary : "/tmp")
@@ -434,6 +511,8 @@ int main() {
 	TestErrors();
 	// Every call left Lua's stack as it found it.
 	CHECK(lua_gettop(ScriptState().lua_state()) == BaseTop);
+	TestReloadPart();
+	CHECK(lua_gettop(ScriptState().lua_state()) == 0);
 
 	ExitScripting();
 	SetErrorFunction(nullptr);

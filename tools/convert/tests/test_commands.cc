@@ -226,7 +226,7 @@ static void TestRoundTrips(const fs::path &Folder) {
 	});
 	CHECK(Toml.find("\n[[command]]\nnumber = 35\nname = \"Get Item\"\nwords = \"alevo para\"\n"
 			"right = \"PREMIUM_ACCOUNT\"\nscript = \"commands/get_item.lua\"\n\n") != std::string::npos);
-	CHECK(Toml.find("words = \"omana para\"\nright = \"NO_STATISTICS\"\nscript = \"commands/kick_player.lua\"\n")
+	CHECK(Toml.find("words = \"omana para\"\nright = \"RELOAD_SCRIPTS\"\nscript = \"commands/kick_player.lua\"\n")
 			!= std::string::npos);
 	CHECK(Toml.find("name = \"a \\\"quoted\\\" back\\\\slash \xc3\xa4\xc3\xb6\xc3\xbc\xc3\x9f\"\n")
 			!= std::string::npos);
@@ -245,11 +245,26 @@ static void TestRoundTrips(const fs::path &Folder) {
 	Toml = RoundTrip(Folder, "empty", []() {});
 	CHECK(Toml.find("\n[[command]]\n") == std::string::npos);
 
-	// The reference table with the rights the code checked.
-	RoundTrip(Folder, "reference", []() {
+	// The reference table with the rights the code checked, and the commands
+	// that are ours after the original's.
+	Toml = RoundTrip(Folder, "reference", []() {
 		InitReferenceSpells();
 		InitReferenceCommandRights();
 	});
+	CHECK(Toml.find("number = 102\nname = \"Start Monsterraid\"\n") < Toml.find("number = 103\n"));
+	CHECK(Toml.find("\n[[command]]\nnumber = 103\nname = \"Reload Scripts\"\nwords = \"omevo gran cogni\"\n"
+			"right = \"RELOAD_SCRIPTS\"\nscript = \"commands/reload_scripts.lua\"\n") != std::string::npos);
+	CHECK(Toml.find("# Command 103 (Reload Scripts) reloads the scripts and the data while the game\n")
+			!= std::string::npos);
+
+	// Number 103 with words of another class is no command of ours: it has no
+	// script name.
+	std::string Other = Convert([]() {
+		SetWords(SpellList[SPELL_RELOAD_SCRIPTS], {"al", "evo", "gran", "cogni"});
+		SpellList[SPELL_RELOAD_SCRIPTS].Comment = "Reload Scripts";
+		CommandRight[SPELL_RELOAD_SCRIPTS][COMMAND_RIGHT] = NUMBER_OF_RIGHTS - 1;
+	});
+	CHECK(Other.find("error: a spell number without a script name") == 0);
 }
 
 // What a conversion refuses.

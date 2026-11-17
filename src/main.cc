@@ -51,6 +51,7 @@
 #include "main.hh"
 #include "scripting.hh"
 #include "scripting_api.hh"
+#include "reload.hh"
 
 // The length of a round (RoundNr) in milliseconds. AdvanceGame also runs the
 // skills, the cron system and the creatures once a round, 250, 500 and 750
@@ -120,6 +121,7 @@ void AdvanceGame(int Delay) {
 		ProcessReaderThreadReplies(RefreshSector, SendMails);
 		ProcessWriterThreadReplies();
 		ProcessCommand();
+		ProcessScriptReload();
 
 		int Brightness, Color;
 		GetAmbiente(Brightness, Color);

@@ -1,5 +1,6 @@
 // scripting_events.cc: the game events (scripting.hh, "Game events"). InitEvents
-// reads the ordered list of event scripts of events.toml and loads them; the
+// reads the ordered list of event scripts of events.toml and loads them, with
+// the steps of the events part of a reload (EventsReloadPart, reload.hh); the
 // Event functions call the handlers onLogin, onLogout, onDeath, onAdvance and
 // onSay of every listed script that defines them, in the file's order.
 // RegisterEventAPI registers the TALKTYPE_ constants; InitAll calls it after
@@ -25,6 +26,7 @@
 #include "info.hh"
 #include "operate.hh"
 #include "scripting_api.hh"
+#include "reload.hh"
 
 // The longest script name of an [[event]]: the longest LoadScript takes.
 static const int MAX_EVENT_SCRIPT_LENGTH = 256;
@@ -160,47 +162,152 @@ static TEventEntry ReadEvent(const toml::node &Node) {
 	return TEventEntry{Name, Position(Where)};
 }
 
-// The text InitEvents throws for a script named twice.
-static std::string EventError;
+// The events part of a reload (reload.hh) and of the start (InitEvents):
+// read parses events.toml into the staged list; install makes it the list in
+// use (Lua reads none of it, so nothing else changes); loadScripts loads its
+// scripts into the current engine and builds the staged handler lists; finish
+// makes them HandlerScripts; uninstall gives back the list in use before;
+// discard forgets what is staged.
+class TEventsReloadPart : public TReloadPart {
+public:
+	const char *name() const override {
+		return "events";
+	}
+	void read() override;
+	void install() override;
+	void loadScripts() override;
+	void finish() override;
+	void uninstall() override;
+	void discard() override;
+	std::string summary() const override {
+		return Summary;
+	}
 
-void InitEvents(const char *FileName) {
-	toml::table File = TomlParseFile(FileName);
+	// Forgets every list and the file (ExitEvents).
+	void forget() {
+		Entries.clear();
+		discard();
+		FileName.clear();
+	}
+
+	// The file read reads (InitEvents sets it).
+	std::string FileName;
+
+private:
+	// The list in use (whose scripts HandlerScripts holds), and the list read
+	// (after install: the list in use before).
+	std::vector<TEventEntry> Entries;
+	std::vector<TEventEntry> StagedEntries;
+	// The handler lists loadScripts builds.
+	std::vector<int> StagedHandlers[NUMBER_OF_EVENT_HANDLERS];
+	// The text read throws for a script named twice.
+	std::string Error;
+	// What the last read changed.
+	std::string Summary;
+};
+
+void TEventsReloadPart::read() {
+	toml::table File = TomlParseFile(FileName.c_str());
 	TomlCheckKeys(File, "the top level", {"event"});
 
-	std::vector<TEventEntry> Entries;
+	std::vector<TEventEntry> Read;
 	if (const toml::array *List = TomlGetArray(File, "event")) {
 		for (const toml::node &Node : *List) {
 			TEventEntry Entry = ReadEvent(Node);
-			for (const TEventEntry &Earlier : Entries) {
+			for (const TEventEntry &Earlier : Read) {
 				if (Earlier.Script == Entry.Script) {
-					EventError = Entry.Where + ": script \"" + Entry.Script + "\" is listed twice (first at "
+					Error = Entry.Where + ": script \"" + Entry.Script + "\" is listed twice (first at "
 							+ Earlier.Where + ")";
-					throw EventError.c_str();
+					throw Error.c_str();
 				}
 			}
-			Entries.push_back(Entry);
+			Read.push_back(Entry);
 		}
 	}
 
-	// The lists change only when every script has loaded.
-	std::vector<int> Scripts[NUMBER_OF_EVENT_HANDLERS];
+	int Added = 0;
+	for (const TEventEntry &Entry : Read) {
+		bool Old = false;
+		for (const TEventEntry &Earlier : Entries) {
+			Old = Old || Earlier.Script == Entry.Script;
+		}
+		Added += Old ? 0 : 1;
+	}
+	int Kept = static_cast<int>(Read.size()) - Added;
+	int Removed = static_cast<int>(Entries.size()) - Kept;
+	Summary = "events.toml: " + std::to_string(Read.size()) + " listed, " + std::to_string(Added) + " added, "
+			+ std::to_string(Removed) + " removed";
+	StagedEntries.swap(Read);
+}
+
+void TEventsReloadPart::install() {
+	Entries.swap(StagedEntries);
+}
+
+void TEventsReloadPart::loadScripts() {
+	for (int Handler = 0; Handler < NUMBER_OF_EVENT_HANDLERS; Handler++) {
+		StagedHandlers[Handler].clear();
+	}
 	for (const TEventEntry &Entry : Entries) {
 		int Script = LoadScript(Entry.Script.c_str(), Entry.Where.c_str());
 		for (int Handler = 0; Handler < NUMBER_OF_EVENT_HANDLERS; Handler++) {
 			if (HasHandler(Script, HandlerNames[Handler])) {
-				Scripts[Handler].push_back(Script);
+				StagedHandlers[Handler].push_back(Script);
 			}
 		}
 	}
+}
+
+void TEventsReloadPart::finish() {
 	for (int Handler = 0; Handler < NUMBER_OF_EVENT_HANDLERS; Handler++) {
-		HandlerScripts[Handler].swap(Scripts[Handler]);
+		HandlerScripts[Handler].swap(StagedHandlers[Handler]);
+		StagedHandlers[Handler].clear();
 	}
+	StagedEntries.clear();
+}
+
+void TEventsReloadPart::uninstall() {
+	Entries.swap(StagedEntries);
+}
+
+void TEventsReloadPart::discard() {
+	StagedEntries.clear();
+	for (int Handler = 0; Handler < NUMBER_OF_EVENT_HANDLERS; Handler++) {
+		StagedHandlers[Handler].clear();
+	}
+}
+
+static TEventsReloadPart EventsPart;
+
+TReloadPart &EventsReloadPart() {
+	return EventsPart;
+}
+
+// The part's steps one after the other; a failure leaves the lists as they
+// were (uninstall, discard) and is thrown on.
+void InitEvents(const char *FileName) {
+	EventsPart.FileName = FileName;
+	bool Installed = false;
+	try {
+		EventsPart.read();
+		EventsPart.install();
+		Installed = true;
+		EventsPart.loadScripts();
+	} catch (const char *) {
+		if (Installed) {
+			EventsPart.uninstall();
+		}
+		EventsPart.discard();
+		throw;
+	}
+	EventsPart.finish();
 }
 
 void ExitEvents() {
 	for (int Handler = 0; Handler < NUMBER_OF_EVENT_HANDLERS; Handler++) {
 		HandlerScripts[Handler].clear();
 	}
+	EventsPart.forget();
 }
 
 // Runs the call of a notify-only handler: a failure is logged (runCaught), and
