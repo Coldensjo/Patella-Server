@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "config.hh"
@@ -37,6 +38,7 @@
 #include "npcdata.hh"
 #include "monsterdata.hh"
 #include "scripting.hh"
+#include "reload.hh"
 #include "crnonpl.hh"
 
 // How a monster chooses its target (TRaceData::Strategy, the chance of each
@@ -288,6 +290,17 @@ void TNonplayer::DelInList() {
 	error("TNonplayer::DelInList: Creature not found.\n");
 }
 
+// The NPCs' scripts, for the reload, in the order the NPCs were made (that
+// of their creature IDs): each NPC that got a creature ID, with its script's
+// name and the position of its entry's script key (npcs.toml is read only at
+// start).
+struct TNPCScriptRecord {
+	uint32_t ID;
+	std::string Script;
+	std::string Where;
+};
+static std::vector<TNPCScriptRecord> NPCScripts;
+
 // Made from Entry, an entry of npcs.toml, in the order the old constructor
 // took the keys of an .npc file; the script is loaded (and its handlers
 // required) where the behaviour database was parsed, before the checks of the
@@ -329,6 +342,7 @@ TNPC::TNPC(const TNPCData &Entry) : QueuedPlayers(0, 9, 10), QueuedAddresses(0, 
 
 	this->OrgOutfit = this->Outfit;
 	this->SetID(0);
+	NPCScripts.push_back({this->ID, Entry.Script, Entry.Where});
 	this->SetInList();
 	if (!this->SetOnMap()) {
 		print(1, "WARNING: Cannot place NPC '%s'.\n", this->Name);
@@ -1679,6 +1693,79 @@ void InitNPCs() {
 	}
 }
 
+// The NPC of the creature ID, nullptr when it is gone.
+static TNPC *LivingNPC(uint32_t ID) {
+	TCreature *cr = GetCreature(ID);
+	return cr != nullptr && cr->Type == NPC ? static_cast<TNPC *>(cr) : nullptr;
+}
+
+// The NPC scripts part (reload.hh): each living NPC's script, loaded into the
+// current engine in the order the NPCs were made, both handlers required as
+// at start; finish gives each NPC its new script number. Nothing is read or
+// installed (npcs.toml is read only at start; the NPCs keep their data and
+// their conversation). The start loads the scripts in TNPC's constructor.
+class TNPCScriptsPart : public TReloadPart {
+public:
+	const char *name() const override {
+		return "NPC scripts";
+	}
+
+	void read() override {
+	}
+
+	void install() override {
+	}
+
+	void loadScripts() override {
+		StagedScripts.assign(NPCScripts.size(), -1);
+		Loaded = 0;
+		for (size_t i = 0; i < NPCScripts.size(); i++) {
+			const TNPCScriptRecord &Record = NPCScripts[i];
+			if (LivingNPC(Record.ID) == nullptr) {
+				continue;
+			}
+			int Script = LoadScript(Record.Script.c_str(), Record.Where.c_str());
+			RequireHandler(Script, "onCreatureSay", Record.Where.c_str());
+			RequireHandler(Script, "onCreatureDisappear", Record.Where.c_str());
+			StagedScripts[i] = Script;
+			Loaded++;
+		}
+	}
+
+	void finish() override {
+		for (size_t i = 0; i < NPCScripts.size() && i < StagedScripts.size(); i++) {
+			TNPC *npc = LivingNPC(NPCScripts[i].ID);
+			if (StagedScripts[i] != -1 && npc != nullptr) {
+				npc->ScriptNumber = StagedScripts[i];
+			}
+		}
+		StagedScripts.clear();
+	}
+
+	void uninstall() override {
+	}
+
+	void discard() override {
+		StagedScripts.clear();
+	}
+
+	std::string summary() const override {
+		char Text[100];
+		snprintf(Text, sizeof(Text), "NPC scripts: %d NPCs", Loaded);
+		return Text;
+	}
+
+private:
+	std::vector<int> StagedScripts;
+	int Loaded = 0;
+};
+
+static TNPCScriptsPart NPCScriptsPart;
+
+TReloadPart &NpcScriptsReloadPart() {
+	return NPCScriptsPart;
+}
+
 void InitNonplayer() {
 	print(1, "Initializing Nonplayers ...\n");
 	FirstFreeNonplayer = 0;
@@ -1694,4 +1781,5 @@ void ExitNonplayer() {
 			delete np;
 		}
 	}
+	NPCScripts.clear();
 }

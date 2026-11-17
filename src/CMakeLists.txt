@@ -96,6 +96,13 @@ target_include_directories(game_test_items_reload PRIVATE ${CMAKE_CURRENT_SOURCE
 target_link_libraries(game_test_items_reload PRIVATE game_flags tomlplusplus Threads::Threads)
 add_test(NAME game_items_reload COMMAND game_test_items_reload --data ${PROJECT_SOURCE_DIR}/data)
 
+# game_test_monsterreload: the reload's checks of monsterdata.cc (refusals,
+# changes), on files written in a scratch folder.
+add_executable(game_test_monsterreload tests/test_monsterreload.cc monsterdata.cc tomlfile.cc utils.cc)
+target_include_directories(game_test_monsterreload PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(game_test_monsterreload PRIVATE game_flags tomlplusplus sol2)
+add_test(NAME game_monsterreload COMMAND game_test_monsterreload)
+
 # game_test_triggers_reload: the staged trigger tables (triggersdata.cc); it
 # links convert_common (tools/convert), which compiles triggersdata.cc with
 # the units it needs (objects.cc, map.cc, ...) and the converter's stubs.

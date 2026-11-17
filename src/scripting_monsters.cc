@@ -412,6 +412,12 @@ static void MagicAngleShapeSpell(TScriptCreature Actor, int Angle, int Range, TS
 // The script number of lib/monsters.lua (InitMonsterSpells), -1 before.
 static int MonsterSpellLibrary = -1;
 
+// Its number in the state a reload loads (InitMonsterSpells while
+// ScriptReloadActive), which PrepareMonsterSpell uses until
+// CommitMonsterSpells makes it live or DiscardMonsterSpells forgets it; -1
+// for none.
+static int StagedMonsterSpellLibrary = -1;
+
 // The text of the last start error PrepareMonsterSpell threw.
 static std::string MonsterSpellError;
 
@@ -426,9 +432,21 @@ static void CheckScriptingActive(const char *Function) {
 
 void InitMonsterSpells() {
 	CheckScriptingActive("InitMonsterSpells");
-	MonsterSpellLibrary = LoadScript("lib/monsters.lua", nullptr);
-	RequireHandler(MonsterSpellLibrary, "prepareSpell", nullptr);
-	RequireHandler(MonsterSpellLibrary, "castSpells", nullptr);
+	int &Library = ScriptReloadActive() ? StagedMonsterSpellLibrary : MonsterSpellLibrary;
+	Library = LoadScript("lib/monsters.lua", nullptr);
+	RequireHandler(Library, "prepareSpell", nullptr);
+	RequireHandler(Library, "castSpells", nullptr);
+}
+
+void CommitMonsterSpells() {
+	if (StagedMonsterSpellLibrary != -1) {
+		MonsterSpellLibrary = StagedMonsterSpellLibrary;
+		StagedMonsterSpellLibrary = -1;
+	}
+}
+
+void DiscardMonsterSpells() {
+	StagedMonsterSpellLibrary = -1;
 }
 
 // Throws "<Where>: <What>" as a const char * (a start error, as the TOML
@@ -448,10 +466,11 @@ void InitMonsterSpells() {
 
 void PrepareMonsterSpell(int Race, const TScriptValue &Spell, const char *Where) {
 	CheckScriptingActive("PrepareMonsterSpell");
-	if (MonsterSpellLibrary < 0) {
+	int Library = ScriptReloadActive() ? StagedMonsterSpellLibrary : MonsterSpellLibrary;
+	if (Library < 0) {
 		ThrowMonsterSpellError(Where, "the spell library lib/monsters.lua is not loaded");
 	}
-	TScriptCall Call(MonsterSpellLibrary, "prepareSpell");
+	TScriptCall Call(Library, "prepareSpell");
 	Call.addNumber(Race);
 	Call.addValue(Spell);
 	try {

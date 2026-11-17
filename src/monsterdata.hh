@@ -173,4 +173,23 @@ void LoadRaids(const char *FileName, const std::vector<TMonsterData> &Races, std
 void LoadMonsterHomes(const char *FileName, const std::vector<TMonsterData> &Races,
 		std::vector<TMonsterHomeData> &Homes);
 
+// The reload's checks (reload.hh), on races and raids read again (New) and
+// the live ones (Old). CheckRacesReload throws a const char * (valid until
+// its next call) for a race number of Old that New lacks ("<FileName>: race
+// number <n> (\"<key>\") is gone; ...") and for one whose key changed ("<the
+// new entry's position>: race number <n> had the key ..."); at start Old is
+// empty. CompareRaces and CompareRaids count the entries of New that Old
+// lacks (Added; races by number, raids by key), those of both that differ in
+// anything but their positions in the file (Changed), and those of Old that
+// New lacks (Removed).
+struct TReloadChanges {
+	int Added = 0;
+	int Changed = 0;
+	int Removed = 0;
+};
+void CheckRacesReload(const char *FileName, const std::vector<TMonsterData> &Old,
+		const std::vector<TMonsterData> &New);
+TReloadChanges CompareRaces(const std::vector<TMonsterData> &Old, const std::vector<TMonsterData> &New);
+TReloadChanges CompareRaids(const std::vector<TRaidData> &Old, const std::vector<TRaidData> &New);
+
 #endif

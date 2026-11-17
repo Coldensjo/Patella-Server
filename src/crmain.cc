@@ -41,6 +41,7 @@
 #include "monsterdata.hh"
 #include "scripting.hh"
 #include "crmain.hh"
+#include "reload.hh"
 
 // The width and height in fields of a block of FirstChainCreature, which
 // chains the creatures in each block (two blocks per sector side, see InitCr).
@@ -145,6 +146,59 @@ void ProcessCreatures() {
 			// index, so the index is processed again.
 			delete cr;
 			i--;
+		}
+	}
+}
+
+// Whether the skill deltas the worn SKILLBOOST objects of the player pl give,
+// summed as TCreature::NotifyChangeInventory sums them (an object it skips
+// skipped here, without its log line), differ from the deltas pl has. A
+// negative skill number counts as a change (NotifyChangeInventory does not
+// reject it).
+static bool SkillBoostsChanged(TCreature *pl) {
+	int NewDelta[MAX_SKILLS] = {};
+	for (int b = FIRST_BODY_POSITION; b <= LAST_BODY_POSITION; b++) {
+		Object Obj = GetBodyObject(pl->ID, b);
+		if (Obj == NONE || !Obj.getFlag(SKILLBOOST) || !Obj.getFlag(CLOTHES)
+				|| (int)Obj.getAttribute(BODYPOSITION) != b) {
+			continue;
+		}
+
+		int SkillNr = Obj.getAttribute(SKILLNUMBER);
+		if (SkillNr < 0) {
+			return true;
+		}
+		if (SkillNr > MAX_SKILLS - 1) {
+			continue;
+		}
+
+		int Delta = Obj.getAttribute(SKILLMODIFICATION);
+		if (Delta >= 0x8000) {
+			Delta -= 0x10000;
+		}
+		NewDelta[SkillNr] += Delta;
+	}
+
+	for (int i = 0; i < MAX_SKILLS; i++) {
+		if (pl->Skills[i]->GetDAct() != NewDelta[i]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void RefreshCreaturesAfterReload() {
+	for (int i = 0; i < FirstFreeCreature; i++) {
+		TCreature *cr = CreatureList(i);
+		if (cr == nullptr || !cr->GetCreatureObject().exists()) {
+			continue;
+		}
+
+		// What NotifyChangeInventory does first, and all it does for a
+		// monster or an NPC: DelayAttack only when a slot changed.
+		cr->Combat.CheckCombatValues();
+		if (cr->Type == PLAYER && SkillBoostsChanged(cr)) {
+			cr->NotifyChangeInventory();
 		}
 	}
 }
@@ -1251,7 +1305,8 @@ bool GetRaceUnpushable(int Race) {
 	return RaceData[Race].Unpushable;
 }
 
-// The races of monsters.toml as LoadRaces read them, and their numbers by key.
+// The races of monsters.toml as the races part installed them, and their
+// numbers by key.
 static std::vector<TMonsterData> MonsterRaces;
 static std::map<std::string, int> RaceNumbers;
 
@@ -1268,20 +1323,17 @@ const std::vector<TMonsterData> &GetMonsterRaces() {
 	return MonsterRaces;
 }
 
-// The text of a start error LoadRace throws, which lives on after the throw.
+// The text of a start error BuildRace throws, which lives on after the throw.
 static char RaceErrorString[4096 + 512];
 
-// Fills the race of Entry (an entry of monsters.toml, checked by its loader):
-// its skills and talk in the entry's order, each text of talk a dynamic string
-// (AddDynamicString); Spells gets only the number of its spells (the spell
-// library prepares them, LoadRaces). Then its script is loaded. Throws a
+// Fills the race R (a new entry) from Entry (an entry of monsters.toml,
+// checked by its loader): its skills and talk in the entry's order, each
+// text of talk a dynamic string (AddDynamicString); Spells gets only the
+// number of its spells (the spell library prepares them, the races part's
+// loadScripts), Script stays -1 (loadScripts loads the script). Throws a
 // const char * "<file>:<line>:<column>: unknown skill name ..." for a skill
-// GetSkillByName does not know, and what LoadScript throws.
-static void LoadRace(const TMonsterData &Entry) {
-	print(1, "Loading race data of %s from %s...\n", Entry.Key.c_str(), Entry.Where.c_str());
-
-	int Race = Entry.Number;
-	TRaceData &R = RaceData[Race];
+// GetSkillByName does not know.
+static void BuildRace(const TMonsterData &Entry, TRaceData &R) {
 	// The loader checked the lengths: a key of at most MAX_MONSTER_KEY_LENGTH,
 	// a name of at most 29 and an article of at most 2 characters.
 	strcpy(R.Key, Entry.Key.c_str());
@@ -1385,29 +1437,149 @@ static void LoadRace(const TMonsterData &Entry) {
 	}
 
 	R.Spells = static_cast<int>(Entry.Spells.size());
+}
 
-	if (!Entry.Script.empty()) {
-		R.Script = LoadScript(Entry.Script.c_str(), Entry.Where.c_str());
+// Exchanges two entries of race data by their raw bytes, as containr.hh's
+// vector moves its elements when it grows: TRaceData's vectors hold their
+// elements on the heap and nothing points into an entry, so each entry takes
+// the other's vectors with their elements.
+static void SwapRaceData(TRaceData &a, TRaceData &b) {
+	unsigned char Help[sizeof(TRaceData)];
+	memcpy(Help, (void *)&a, sizeof(TRaceData));
+	memcpy((void *)&a, (void *)&b, sizeof(TRaceData));
+	memcpy((void *)&b, Help, sizeof(TRaceData));
+}
+
+// The races part (reload.hh): monsters.toml, the races' scripts and the
+// spell library lib/monsters.lua. The other set of race data (OtherRaceData,
+// OtherRaces, OtherNumbers) is the staged one until install, the old one from
+// install to finish, and the staged one again after uninstall; forget frees
+// it with its talk lines' dynamic strings. Living monsters hold their race
+// number and read RaceData when they act, so they take the new data at once
+// (what they copied when they were made stays).
+class TRacesPart : public TReloadPart {
+public:
+	// Set by LoadRaces: the start logs a line per race.
+	bool Starting = false;
+
+	const char *name() const override {
+		return "races";
 	}
+
+	void read() override {
+		forget();
+		try {
+			char FileName[4096];
+			snprintf(FileName, sizeof(FileName), "%s/monsters.toml", DATAPATH);
+			LoadMonsterRaces(FileName, OtherRaces);
+			CheckRacesReload(FileName, MonsterRaces, OtherRaces);
+			Changes = CompareRaces(MonsterRaces, OtherRaces);
+			OtherRaceData = new TRaceData[MAX_RACES];
+			for (const TMonsterData &Entry : OtherRaces) {
+				OtherNumbers[Entry.Key] = Entry.Number;
+				if (Starting) {
+					print(1, "Loading race data of %s from %s...\n", Entry.Key.c_str(), Entry.Where.c_str());
+				}
+				BuildRace(Entry, OtherRaceData[Entry.Number]);
+			}
+		} catch (...) {
+			forget();
+			throw;
+		}
+	}
+
+	void install() override {
+		exchange();
+	}
+
+	void loadScripts() override {
+		StagedScripts.assign(MAX_RACES, -1);
+		for (const TMonsterData &Entry : MonsterRaces) {
+			if (!Entry.Script.empty()) {
+				StagedScripts[Entry.Number] = LoadScript(Entry.Script.c_str(), Entry.Where.c_str());
+			}
+		}
+
+		InitMonsterSpells();
+		for (const TMonsterData &Entry : MonsterRaces) {
+			for (size_t i = 0; i < Entry.Spells.size(); i++) {
+				PrepareMonsterSpell(Entry.Number, Entry.Spells[i], Entry.SpellWhere[i].c_str());
+			}
+		}
+	}
+
+	void finish() override {
+		for (const TMonsterData &Entry : MonsterRaces) {
+			RaceData[Entry.Number].Script = StagedScripts[Entry.Number];
+		}
+		CommitMonsterSpells();
+		forget();
+	}
+
+	void uninstall() override {
+		exchange();
+	}
+
+	void discard() override {
+		DiscardMonsterSpells();
+		forget();
+	}
+
+	std::string summary() const override {
+		char Text[200];
+		snprintf(Text, sizeof(Text), "monsters.toml: %d races, %d changed, %d added",
+				static_cast<int>(MonsterRaces.size()), Changes.Changed, Changes.Added);
+		return Text;
+	}
+
+private:
+	TRaceData *OtherRaceData = nullptr;
+	std::vector<TMonsterData> OtherRaces;
+	std::map<std::string, int> OtherNumbers;
+	std::vector<int> StagedScripts;
+	TReloadChanges Changes;
+
+	// Exchanges the live race data with the other set.
+	void exchange() {
+		for (int Race = 0; Race < MAX_RACES; Race++) {
+			SwapRaceData(RaceData[Race], OtherRaceData[Race]);
+		}
+		MonsterRaces.swap(OtherRaces);
+		RaceNumbers.swap(OtherNumbers);
+	}
+
+	// Frees the other set of race data, deleting its talk lines' dynamic
+	// strings, and forgets the staged script numbers.
+	void forget() {
+		if (OtherRaceData != nullptr) {
+			for (int Race = 0; Race < MAX_RACES; Race++) {
+				TRaceData &R = OtherRaceData[Race];
+				for (int i = 1; i <= R.Talks; i++) {
+					DeleteDynamicString(R.Talk(i));
+				}
+			}
+			delete[] OtherRaceData;
+			OtherRaceData = nullptr;
+		}
+		OtherRaces.clear();
+		OtherNumbers.clear();
+		StagedScripts.clear();
+	}
+};
+
+static TRacesPart RacesPart;
+
+TReloadPart &RacesReloadPart() {
+	return RacesPart;
 }
 
 void LoadRaces() {
-	char FileName[4096];
-	snprintf(FileName, sizeof(FileName), "%s/monsters.toml", DATAPATH);
-	LoadMonsterRaces(FileName, MonsterRaces);
-
-	RaceNumbers.clear();
-	for (const TMonsterData &Entry : MonsterRaces) {
-		RaceNumbers[Entry.Key] = Entry.Number;
-		LoadRace(Entry);
-	}
-
-	InitMonsterSpells();
-	for (const TMonsterData &Entry : MonsterRaces) {
-		for (size_t i = 0; i < Entry.Spells.size(); i++) {
-			PrepareMonsterSpell(Entry.Number, Entry.Spells[i], Entry.SpellWhere[i].c_str());
-		}
-	}
+	RacesPart.Starting = true;
+	RacesPart.read();
+	RacesPart.install();
+	RacesPart.loadScripts();
+	RacesPart.finish();
+	RacesPart.Starting = false;
 }
 
 TAttackWave::TAttackWave() : ExtraItem(1, 5, 5) {
@@ -1422,7 +1594,6 @@ TAttackWave::TAttackWave() : ExtraItem(1, 5, 5) {
 	Lifetime = 0;
 	Message = 0;
 	ExtraItems = 0;
-	Raid = -1;
 	Wave = 0;
 }
 
@@ -1432,15 +1603,25 @@ TAttackWave::~TAttackWave() {
 	}
 }
 
-// A raid of raids.toml, as LoadMonsterRaids read it, with the number of its
+// A raid of raids.toml, as the raids part read it, with the number of its
 // script (LoadScript), -1 for none.
 struct TRaid {
 	TRaidData Data;
 	int Script;
 };
 
-// The raids of raids.toml in the file's order (TAttackWave::Raid indexes it).
+// The raids of raids.toml in the file's order.
 static std::vector<TRaid> Raids;
+
+// The index in Raids of the raid Key, -1 for none.
+static int FindRaid(const char *Key) {
+	for (int i = 0; i < static_cast<int>(Raids.size()); i++) {
+		if (Raids[i].Data.Key == Key) {
+			return i;
+		}
+	}
+	return -1;
+}
 
 // A new wave of the raid (Wave counts from 0 in Raids[Raid].Data.Waves), its
 // message a new dynamic string (AddDynamicString; 0 for none), which the
@@ -1465,7 +1646,7 @@ static TAttackWave *MakeAttackWave(int Raid, int Wave) {
 		I.Maximum = Item.Maximum;
 		I.Probability = Item.Chance;
 	}
-	AttackWave->Raid = Raid;
+	AttackWave->Raid = Raids[Raid].Data.Key;
 	AttackWave->Wave = Wave + 1;
 	return AttackWave;
 }
@@ -1487,44 +1668,119 @@ bool QueueMonsterRaid(const char *Key, int Start) {
 		return false;
 	}
 
-	for (int i = 0; i < static_cast<int>(Raids.size()); i++) {
-		if (Raids[i].Data.Key == Key) {
-			QueueRaid(i, Start);
-			return true;
-		}
+	int Raid = FindRaid(Key);
+	if (Raid == -1) {
+		return false;
 	}
-	return false;
+	QueueRaid(Raid, Start);
+	return true;
 }
 
-// Each raid in the file's order: its duration (the latest end of a wave, a
-// wave without lifetime lasting 3600 seconds; each wave is made and deleted
-// for it, so its message takes a dynamic string number, which stays used
-// until CleanupDynamicStrings); then a dated raid is
-// queued if its date comes before the next reboot, and a raid with an
-// interval if its random draw falls before the reboot. Of the big raids drawn
-// only the one with the highest tie breaker is queued, after all others, and
-// none if a dated big raid was queued.
+// The raids part (reload.hh): raids.toml (its race keys checked against the
+// installed races) and the raids' scripts. OtherRaids is the staged set until
+// install, the old one from install to finish, and the staged one again
+// after uninstall. Waves already queued keep their data; their hooks find
+// the raid by its key when they come (ProcessMonsterRaids). Only the start
+// schedules raids (LoadMonsterRaids).
+class TRaidsPart : public TReloadPart {
+public:
+	const char *name() const override {
+		return "raids";
+	}
+
+	void read() override {
+		forget();
+		char FileName[4096];
+		snprintf(FileName, sizeof(FileName), "%s/raids.toml", DATAPATH);
+		std::vector<TRaidData> Data;
+		LoadRaids(FileName, MonsterRaces, Data);
+
+		std::vector<TRaidData> Old;
+		for (const TRaid &Raid : Raids) {
+			Old.push_back(Raid.Data);
+		}
+		Changes = CompareRaids(Old, Data);
+
+		for (TRaidData &Entry : Data) {
+			TRaid Raid;
+			Raid.Data = std::move(Entry);
+			Raid.Script = -1;
+			OtherRaids.push_back(std::move(Raid));
+		}
+	}
+
+	void install() override {
+		Raids.swap(OtherRaids);
+	}
+
+	void loadScripts() override {
+		StagedScripts.assign(Raids.size(), -1);
+		for (size_t i = 0; i < Raids.size(); i++) {
+			const TRaidData &R = Raids[i].Data;
+			if (!R.Script.empty()) {
+				StagedScripts[i] = LoadScript(R.Script.c_str(), R.Where.c_str());
+			}
+		}
+	}
+
+	void finish() override {
+		for (size_t i = 0; i < Raids.size(); i++) {
+			Raids[i].Script = StagedScripts[i];
+		}
+		forget();
+	}
+
+	void uninstall() override {
+		Raids.swap(OtherRaids);
+	}
+
+	void discard() override {
+		forget();
+	}
+
+	std::string summary() const override {
+		char Text[200];
+		snprintf(Text, sizeof(Text), "raids.toml: %d raids, %d changed, %d added, %d removed",
+				static_cast<int>(Raids.size()), Changes.Changed, Changes.Added, Changes.Removed);
+		return Text;
+	}
+
+private:
+	std::vector<TRaid> OtherRaids;
+	std::vector<int> StagedScripts;
+	TReloadChanges Changes;
+
+	void forget() {
+		OtherRaids.clear();
+		StagedScripts.clear();
+	}
+};
+
+static TRaidsPart RaidsPart;
+
+TReloadPart &RaidsReloadPart() {
+	return RaidsPart;
+}
+
+// The raids part's steps one after the other; then each raid in the file's
+// order: its duration (the latest end of a wave, a wave without lifetime
+// lasting 3600 seconds; each wave is made and deleted for it, so its message
+// takes a dynamic string number, which stays used until
+// CleanupDynamicStrings); then a dated raid is queued if its date comes
+// before the next reboot, and a raid with an interval if its random draw
+// falls before the reboot. Of the big raids drawn only the one with the
+// highest tie breaker is queued, after all others, and none if a dated big
+// raid was queued.
 void LoadMonsterRaids() {
 	time_t Now = static_cast<int32_t>(time(nullptr));
 	int Hour, Minute;
 	GetRealTime(Hour, Minute);
 	int Remaining = ((RebootTime - (Hour * 60 + Minute) + 1440) % 1440) * 60;
 
-	char FileName[4096];
-	snprintf(FileName, sizeof(FileName), "%s/raids.toml", DATAPATH);
-	std::vector<TRaidData> Data;
-	LoadRaids(FileName, MonsterRaces, Data);
-
-	Raids.clear();
-	for (TRaidData &Entry : Data) {
-		TRaid Raid;
-		Raid.Data = std::move(Entry);
-		Raid.Script = -1;
-		if (!Raid.Data.Script.empty()) {
-			Raid.Script = LoadScript(Raid.Data.Script.c_str(), Raid.Data.Where.c_str());
-		}
-		Raids.push_back(std::move(Raid));
-	}
+	RaidsPart.read();
+	RaidsPart.install();
+	RaidsPart.loadScripts();
+	RaidsPart.finish();
 
 	int TieBreaker = -1;
 	int BigRaid = -1;
@@ -1665,10 +1921,13 @@ void ProcessMonsterRaids() {
 			}
 		}
 
-		int Raid = AttackWave->Raid;
+		// The raid's hook by its key, as the raids are now (none for a raid
+		// a reload removed).
+		std::string RaidKey = AttackWave->Raid;
 		int Wave = AttackWave->Wave;
 		delete AttackWave;
-		RaidWaveHook(Raids[Raid].Script, Raids[Raid].Data.Key.c_str(), Wave);
+		int Raid = FindRaid(RaidKey.c_str());
+		RaidWaveHook(Raid != -1 ? Raids[Raid].Script : -1, RaidKey.c_str(), Wave);
 	}
 }
 
