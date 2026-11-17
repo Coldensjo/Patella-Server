@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iterator>
+#include <map>
 #include <set>
 #include <string>
 #include <utility>
@@ -589,4 +590,155 @@ void LoadMonsterHomes(const char *FileName, const std::vector<TMonsterData> &Rac
 			Homes.push_back(ReadHome(Node, Keys));
 		}
 	}
+}
+
+// The text of the last error CheckRacesReload threw.
+static std::string RaceReloadError;
+
+void CheckRacesReload(const char *FileName, const std::vector<TMonsterData> &Old,
+		const std::vector<TMonsterData> &New) {
+	std::map<int, const TMonsterData *> NewByNumber;
+	for (const TMonsterData &Race : New) {
+		NewByNumber[Race.Number] = &Race;
+	}
+	for (const TMonsterData &Race : Old) {
+		auto Found = NewByNumber.find(Race.Number);
+		if (Found == NewByNumber.end()) {
+			RaceReloadError = std::string(FileName) + ": race number " + std::to_string(Race.Number) + " (\""
+					+ Race.Key + "\") is gone; a race number may not be removed or renumbered";
+			throw RaceReloadError.c_str();
+		}
+		if (Found->second->Key != Race.Key) {
+			RaceReloadError = Found->second->Where + ": race number " + std::to_string(Race.Number)
+					+ " had the key \"" + Race.Key + "\", now \"" + Found->second->Key
+					+ "\"; a race's key may not change";
+			throw RaceReloadError.c_str();
+		}
+	}
+}
+
+static bool SameValue(const TScriptValue &a, const TScriptValue &b) {
+	if (a.Kind != b.Kind || a.Number != b.Number || a.Text != b.Text || a.Elements.size() != b.Elements.size()
+			|| a.Fields.size() != b.Fields.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < a.Elements.size(); i++) {
+		if (!SameValue(a.Elements[i], b.Elements[i])) {
+			return false;
+		}
+	}
+	for (size_t i = 0; i < a.Fields.size(); i++) {
+		if (a.Fields[i].first != b.Fields[i].first || !SameValue(a.Fields[i].second, b.Fields[i].second)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool SameItems(const std::vector<TMonsterItemData> &a, const std::vector<TMonsterItemData> &b) {
+	if (a.size() != b.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < a.size(); i++) {
+		if (a[i].Type != b[i].Type || a[i].Maximum != b[i].Maximum || a[i].Chance != b[i].Chance) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Whether two races are the same but for their positions in the file.
+static bool SameRace(const TMonsterData &a, const TMonsterData &b) {
+	if (a.Key != b.Key || a.Number != b.Number || a.Name != b.Name || a.Article != b.Article
+			|| a.Outfit.OutfitID != b.Outfit.OutfitID
+			|| memcmp(a.Outfit.Colors, b.Outfit.Colors, sizeof(a.Outfit.Colors)) != 0 || a.Corpse != b.Corpse
+			|| a.FemaleCorpse != b.FemaleCorpse || a.Blood != b.Blood || a.Experience != b.Experience
+			|| a.SummonCost != b.SummonCost || a.FleeThreshold != b.FleeThreshold || a.Attack != b.Attack
+			|| a.Defend != b.Defend || a.Armor != b.Armor || a.Poison != b.Poison || a.LoseTarget != b.LoseTarget
+			|| !std::equal(std::begin(a.Strategy), std::end(a.Strategy), std::begin(b.Strategy))
+			|| a.Flags != b.Flags || a.Talk != b.Talk || !SameItems(a.Inventory, b.Inventory) || a.Script != b.Script
+			|| a.Skills.size() != b.Skills.size() || a.Spells.size() != b.Spells.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < a.Skills.size(); i++) {
+		const TMonsterSkillData &x = a.Skills[i];
+		const TMonsterSkillData &y = b.Skills[i];
+		if (x.Skill != y.Skill || x.Actual != y.Actual || x.Minimum != y.Minimum || x.Maximum != y.Maximum
+				|| x.NextLevel != y.NextLevel || x.FactorPercent != y.FactorPercent || x.AddLevel != y.AddLevel) {
+			return false;
+		}
+	}
+	for (size_t i = 0; i < a.Spells.size(); i++) {
+		if (!SameValue(a.Spells[i], b.Spells[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// Whether two raids are the same but for their positions in the file.
+static bool SameRaid(const TRaidData &a, const TRaidData &b) {
+	if (a.Key != b.Key || a.Description != b.Description || a.Big != b.Big || a.Interval != b.Interval
+			|| a.Date != b.Date || a.Script != b.Script || a.Waves.size() != b.Waves.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < a.Waves.size(); i++) {
+		const TRaidWaveData &x = a.Waves[i];
+		const TRaidWaveData &y = b.Waves[i];
+		if (x.Delay != y.Delay || x.x != y.x || x.y != y.y || x.z != y.z || x.Spread != y.Spread
+				|| x.Race != y.Race || x.MinCount != y.MinCount || x.MaxCount != y.MaxCount
+				|| x.Radius != y.Radius || x.Lifetime != y.Lifetime || x.Message != y.Message
+				|| x.Location != y.Location || !SameItems(x.Inventory, y.Inventory)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+TReloadChanges CompareRaces(const std::vector<TMonsterData> &Old, const std::vector<TMonsterData> &New) {
+	TReloadChanges Changes;
+	std::map<int, const TMonsterData *> OldByNumber;
+	for (const TMonsterData &Race : Old) {
+		OldByNumber[Race.Number] = &Race;
+	}
+	std::set<int> NewNumbers;
+	for (const TMonsterData &Race : New) {
+		NewNumbers.insert(Race.Number);
+		auto Found = OldByNumber.find(Race.Number);
+		if (Found == OldByNumber.end()) {
+			Changes.Added++;
+		} else if (!SameRace(*Found->second, Race)) {
+			Changes.Changed++;
+		}
+	}
+	for (const TMonsterData &Race : Old) {
+		if (NewNumbers.count(Race.Number) == 0) {
+			Changes.Removed++;
+		}
+	}
+	return Changes;
+}
+
+TReloadChanges CompareRaids(const std::vector<TRaidData> &Old, const std::vector<TRaidData> &New) {
+	TReloadChanges Changes;
+	std::map<std::string, const TRaidData *> OldByKey;
+	for (const TRaidData &Raid : Old) {
+		OldByKey[Raid.Key] = &Raid;
+	}
+	std::set<std::string> NewKeys;
+	for (const TRaidData &Raid : New) {
+		NewKeys.insert(Raid.Key);
+		auto Found = OldByKey.find(Raid.Key);
+		if (Found == OldByKey.end()) {
+			Changes.Added++;
+		} else if (!SameRaid(*Found->second, Raid)) {
+			Changes.Changed++;
+		}
+	}
+	for (const TRaidData &Raid : Old) {
+		if (NewKeys.count(Raid.Key) == 0) {
+			Changes.Removed++;
+		}
+	}
+	return Changes;
 }

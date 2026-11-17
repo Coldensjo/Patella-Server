@@ -83,6 +83,9 @@ const int SPELL_LEVITATE_GAMEMASTER = 99;
 const int SPELL_CLEAR_QUEST_VALUES = 100;
 const int SPELL_KILL_ALL_CREATURES = 101;
 const int SPELL_START_MONSTERRAID = 102;
+// Ours, not the original's: the command that reloads the scripts and the data
+// (reload.hh), whose right Command.reloadScripts checks.
+const int SPELL_RELOAD_SCRIPTS = 103;
 
 // The longest name of a spell (TSpellList's Comment) spells.toml and
 // commands.toml may give.
@@ -90,7 +93,7 @@ const int MAX_SPELL_NAME_LENGTH = 30;
 
 // The rights (RIGHT in info.hh), 0 to NUMBER_OF_RIGHTS - 1, which
 // commands.toml names by RightNames.
-const int NUMBER_OF_RIGHTS = 82;
+const int NUMBER_OF_RIGHTS = 83;
 
 // The rights a command checks, at most MAX_COMMAND_RIGHTS (CommandRight). A
 // command checks one right, COMMAND_RIGHT, which it needs to do anything;
@@ -128,9 +131,6 @@ struct TCircle {
 // "<file>:<line>:<column>: <what>" for what is wrong with it.
 void LoadSpells(const char *FileName);
 
-// LoadSpells of spells.toml in the data folder (DATAPATH).
-void InitSpells();
-
 // The right checks of a command: their names in commands.toml, by their
 // index in CommandRight, or none. Names[0] is "" for a command that checks
 // only COMMAND_RIGHT, whose right commands.toml gives as a string.
@@ -160,15 +160,51 @@ int GetRightByName(const char *Name);
 // const char * "<file>:<line>:<column>: <what>" for what is wrong with it.
 void LoadCommands(const char *FileName);
 
-// LoadCommands of commands.toml in the data folder (DATAPATH).
-void InitCommands();
-
 // Fills Circle from the circles.toml file FileName. Throws a const char *
 // "<file>:<line>:<column>: <what>" for what is wrong with it.
 void LoadCircles(const char *FileName);
 
-// LoadCircles of circles.toml in the data folder (DATAPATH).
-void InitCircles();
+// The reload (phase 8; reload.hh, magic.cc's MagicReloadPart): a second set
+// of the tables above (SpellList, CommandRight, Circle and the scripts'
+// names), the staged set, which a reload fills while the live set stays as it
+// is, and which then changes places with it.
+//
+// ReadStagedMagicData empties the staged set and reads the circles.toml,
+// spells.toml and commands.toml files (in this order) into it as LoadCircles,
+// LoadSpells and LoadCommands read them into the live set, with their checks
+// (the commands' against the staged spells). It refuses a spell or command
+// number the live set has and the staged set has not: throws a const char *
+// "<file>: <spell or command> <number> (<name>) is gone ..." (<file> the
+// spells or commands file, by its class in the live set). The names of the
+// spells and commands are static strings (AddStaticString, never freed): a
+// name that an earlier read (any loader's, the start's included) made already
+// takes that string again, so that reloads add static strings only for names
+// not seen before. At start no name was read before, so every name is a new
+// static string, in the file's order, as LoadSpells and LoadCommands make
+// them. Throws as the loaders do; the staged set may then be filled in part
+// (ClearStagedMagicData empties it).
+void ReadStagedMagicData(const char *CirclesFile, const char *SpellsFile, const char *CommandsFile);
+
+// Swaps the staged set and the live set, entry by entry (the install of a
+// reload, and its uninstall after it).
+void SwapStagedMagicData();
+
+// Empties the staged set: every spell empty, every right check NO_RIGHT,
+// every script none, every circle without fields.
+void ClearStagedMagicData();
+
+// What the staged set changes against the live set, number by number: the
+// spells (classes ad, ex and ut) and commands (al and om) whose entry
+// differs (words, name, values, flags, rune, rights or script) or is new, and
+// whether a circle differs.
+struct TMagicChanges {
+	int SpellsChanged;
+	int SpellsAdded;
+	int CommandsChanged;
+	int CommandsAdded;
+	bool CirclesChanged;
+};
+TMagicChanges CompareStagedMagicData();
 
 extern char SpellSyllable[MAX_SYLLABLES][6];
 extern TSpellList SpellList[MAX_SPELLS];

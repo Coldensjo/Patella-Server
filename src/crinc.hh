@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 
 #include "objects.hh"
 #include "dbfuncs.hh"
@@ -90,7 +91,8 @@ struct TRaceData {
 extern TRaceData RaceData[512];
 extern priority_queue<uint32_t, uint32_t> ToDoQueue;
 
-// Raid is the raid's index among the loaded raids (crmain.cc), Wave the
+// Raid is the key of the wave's raid (raids.toml), by which its hooks find
+// the raid when the wave comes (a raid gone by a reload has none), Wave the
 // wave's number in the raid (1 for its first).
 struct TAttackWave {
 	TAttackWave();
@@ -107,7 +109,7 @@ struct TAttackWave {
 	uint32_t Message;
 	int ExtraItems;
 	vector<TItemData> ExtraItem;
-	int Raid;
+	std::string Raid;
 	int Wave;
 };
 

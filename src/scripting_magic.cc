@@ -56,6 +56,7 @@
 #include "magicdata.hh"
 #include "utils.hh"
 #include "scripting_api.hh"
+#include "reload.hh"
 
 // The size of a word's copy: CheckForSpell's SpellStr entries.
 const int WORD_SIZE = 512;
@@ -619,6 +620,30 @@ static void CommandBanishCharacter(TScriptCreature Actor, std::string Name, int 
 	BanishCharacter(GetCreature(Actor.ID), NameWord.Text, Number, ReasonWord.Text);
 }
 
+// Command.reloadScripts(actor) -> boolean: RequestScriptReload(actor's ID),
+// for a player with the right commands.toml gives the command Reload Scripts
+// (its COMMAND_RIGHT, checked as CheckCommandRight of magic.cc checks the
+// other commands' rights; a command without a right logs it and counts as
+// not given); false when a reload is asked for already. A creature that is
+// not a player or lacks the right asks for nothing and gives true, as the
+// other commands do nothing without their right. nullptr: checked (logged,
+// ERROR).
+static bool CommandReloadScripts(TScriptCreature Actor) {
+	TCreature *cr = ExistingCreature(Actor.ID, "Command.reloadScripts");
+	if (cr->Type != PLAYER) {
+		return true;
+	}
+	int Right = CommandRight[SPELL_RELOAD_SCRIPTS][COMMAND_RIGHT];
+	if (Right == NO_RIGHT) {
+		error("Command.reloadScripts: Command %d has no right for check %d.\n", SPELL_RELOAD_SCRIPTS, COMMAND_RIGHT);
+		return true;
+	}
+	if (!CheckRight(cr->ID, static_cast<RIGHT>(Right))) {
+		return true;
+	}
+	return RequestScriptReload(cr->ID);
+}
+
 // ---------------------------------------------------------------------------
 // Game, the classes' methods, ItemType
 
@@ -866,6 +891,7 @@ void RegisterMagicAPI() {
 	Command.set_function("deleteCharacter", Guarded(&CommandDeleteCharacter));
 	Command.set_function("ipBanishment", Guarded(&CommandIPBanishment));
 	Command.set_function("banishCharacter", Guarded(&CommandBanishCharacter));
+	Command.set_function("reloadScripts", Guarded(&CommandReloadScripts));
 
 	sol::table Game = ScriptAPITable("Game");
 	Game.set_function("toInt", Guarded(&GameToInt));

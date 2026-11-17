@@ -888,6 +888,24 @@
 // 7, TALKTYPE_PLAYER_ANSWER 8, TALKTYPE_ANONYMOUS_BROADCAST 13,
 // TALKTYPE_ANONYMOUS_CHANNELCALL 14, TALKTYPE_ANONYMOUS_MESSAGE 15.
 //
+// Reload (phase 8; reload.hh, reload.cc). A gamemaster with the right
+// RELOAD_SCRIPTS reloads the scripts and most data files while the game runs
+// (reload.hh says what, how and what is refused). The engine keeps one
+// current state; a reload builds a second one and makes it current
+// (BeginScriptReload), loads every script into it, and then closes the old
+// one (CommitScriptReload) or throws the new one away
+// (DiscardScriptReload). Script numbers are those of the current state.
+// What a script leaves in its globals and module caches is gone after a
+// reload (rule 9). The command's binding:
+//   Command.reloadScripts(actor) -> boolean
+//       The reload command (commands/reload_scripts.lua): asks for a reload
+//       by actor (a Player; RequestScriptReload), done by the main loop
+//       after the command; false when one is asked already. It checks the
+//       command's right (commands.toml's entry) as CheckCommandRight does
+//       for the other commands: without it, or for an actor that is no
+//       player, it asks nothing and gives true.
+// Constants: RIGHT_RELOAD_SCRIPTS (with the other RIGHT_ constants).
+//
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with
 // error() that comes from a script or from Lua (debugPrint, the script errors
@@ -1082,6 +1100,13 @@ void InitItemUses();
 // creature that is gone: target nil) with runCaught. Each throws ERROR
 // (logged) when the engine is not active.
 void InitMonsterSpells();
+// The reload's end of the spell library (phase 8): while a reload is active
+// (ScriptReloadActive) InitMonsterSpells keeps the library's number staged
+// and PrepareMonsterSpell uses it; CommitMonsterSpells makes it live (the
+// races part's finish; nothing without a staged number),
+// DiscardMonsterSpells forgets it.
+void CommitMonsterSpells();
+void DiscardMonsterSpells();
 void PrepareMonsterSpell(int Race, const TScriptValue &Spell, const char *Where);
 void CastMonsterSpells(uint32_t MonsterID, int Race, uint32_t TargetID);
 
@@ -1111,5 +1136,19 @@ void EventLogout(uint32_t PlayerID);
 void EventDeath(uint32_t PlayerID, uint32_t KillerID);
 void EventAdvance(uint32_t PlayerID, int Skill, int OldLevel, int NewLevel);
 bool EventSay(uint32_t PlayerID, const char *Text, int Mode);
+
+// Reload (phase 8). BeginScriptReload makes a new state, set up as
+// InitScripting sets one up (the sandbox and the core API; the caller then
+// runs the Register*API functions on it) with no script loaded, and makes it
+// current; the old state stays as it is. It throws a const char * when Lua
+// cannot make the state or a reload has begun already. CommitScriptReload
+// closes the old state; DiscardScriptReload closes the new one and makes the
+// old one current again. ScriptReloadActive: whether a reload has begun and
+// is not committed or discarded. All in the main thread, with no script
+// running.
+void BeginScriptReload();
+void CommitScriptReload();
+void DiscardScriptReload();
+bool ScriptReloadActive();
 
 #endif

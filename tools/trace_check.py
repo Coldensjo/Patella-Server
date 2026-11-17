@@ -2,7 +2,12 @@ r"""Prove that a change keeps the game's behaviour: the packet traces of two bui
 
 Usage, from any folder (the checkout is the one this file is in), on Windows or in WSL:
   python -I tools/trace_check.py [<old> [<new>]] [--scenario NAME] [--stop-round N] [--seed S] [--install PATH]
-                                 [--port N] [--qm-port N] [--shm KEY]
+                                 [--port N] [--qm-port N] [--shm KEY] [--stall-old ROUND:MS]
+
+--stall-old ROUND:MS makes the old build's main loop wait MS milliseconds at ProcessCommand in round ROUND. A reload
+(scenario reload) stalls the new build's main loop for as long as it takes, which shifts the next creature movement
+(one longer step instead of several); with the old build stalled as long in the same round, the two runs can be
+compared: take ROUND and the time from the new run's log ("Reload ... done in N ms" and the lag line after it).
 
 <old> is a commit, faithful when left out. <new> is a commit too; left out, it is the working tree (as in
 tools/repro_check.py: the files `git add -A` would commit).
@@ -32,7 +37,10 @@ What it does, in WSL Ubuntu-24.04:
      cast every spell and make and use every rune, CASTER_RIGHTS; and the door opener 900009 'Testi Iota', male, who
      may open every name door, DOOR_RIGHTS; and the talkers 900010 to 900013, 'Testj Kappa' to 'Testm Nu', male,
      with NO_BANISHMENT and TELEPORT_TO_COORDINATE, TALKER_RIGHTS; none may have a player file or player data) and
-     starts the build's query manager. A build whose query manager keeps the player data (its database has the table
+     starts the build's query manager. The gamemaster 'Teste Epsilon' also gets the right RELOAD_SCRIPTS (the command
+     Reload Scripts of the scenario reload) from a tree whose query manager knows it (its querymanager/src/protocol.cc
+     names it; faithful's does not, and its seed refuses a right it does not know); the rights from 82 on never reach
+     the client, so the other scenarios do not see it. A build whose query manager keeps the player data (its database has the table
      player_data) gets them from the player files with the seed, which imports them; the copy's usr/ is then removed,
      so the run also shows that its game no longer reads or writes player files. The game runs with HOME set to the
      copy, so it reads the copy's config.toml (or .tibia). The copy gets the check's RSA key (repro_check's key
@@ -129,6 +137,12 @@ DOOR_RIGHTS = ["OPEN_NAMEDDOORS", "TELEPORT_TO_COORDINATE"]
 # NPC, which mutes a player without NO_BANISHMENT after a few lines (TPlayer::RecordTalk: one line in 2.5 seconds, four
 # in a row); they go to their NPC by Move to coordinates.
 TALKER_RIGHTS = ["NO_BANISHMENT", "TELEPORT_TO_COORDINATE"]
+
+# The right of the command Reload Scripts (scenario reload) and the account that gets it from a tree whose query
+# manager knows the right (reload_right): the gamemaster 'Teste Epsilon', who goes to a field of its own by Move to
+# coordinates to give the command.
+RELOAD_RIGHT = "RELOAD_SCRIPTS"
+RELOAD_ACCOUNT = 900005
 
 # Account, password, sex, character name and rights.
 TEST_ACCOUNTS = [
@@ -448,10 +462,11 @@ def stored_player_data(db, character):
 		connection.close()
 
 
-def seed(binary, db, game, world, port, log_file):
-	"""Seeds the database from the copy and adds the test accounts, as compare.sh does. The output (it names player
-	files) goes to log_file only; the lines with the counts of the player files and player data are logged. Returns
-	the IDs of the new characters, one per test account."""
+def seed(binary, db, game, world, port, log_file, reload_right):
+	"""Seeds the database from the copy and adds the test accounts, as compare.sh does, RELOAD_ACCOUNT with
+	RELOAD_RIGHT too when reload_right. The output (it names player files) goes to log_file only; the lines with the
+	counts of the player files and player data are logged. Returns the IDs of the new characters, one per test
+	account."""
 	with open(log_file, "w") as f:
 		if subprocess.run([binary, "--db", db, "--game-root", game, "--port", str(port)], stdout=f,
 				stderr=subprocess.STDOUT, check=False).returncode != 0:
@@ -462,6 +477,8 @@ def seed(binary, db, game, world, port, log_file):
 				log("    seed: " + line.rstrip("\n"))
 	characters = []
 	for account, password, sex, name, rights in TEST_ACCOUNTS:
+		if reload_right and account == RELOAD_ACCOUNT:
+			rights = rights + [RELOAD_RIGHT]
 		result = subprocess.run([binary, "--db", db, "--add-account", str(account), "--password", password, "--world",
 			world, "--sex", str(sex), "--new-character", name] + [a for right in rights for a in ("--right", right)],
 			stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
@@ -504,7 +521,7 @@ def saved_characters(binaries, game, db, characters, out):
 
 
 # The library the game runs with (LD_PRELOAD, see the comment at the top, step 3): rand() of the main thread is the
-# C library's, that of any other thread draws from a sequence of its own.
+# C library's, that of any other thread draws from a sequence of its own; patella_stall is the wait of --stall-old.
 RAND_SHIM = r"""
 #define _GNU_SOURCE
 #include <dlfcn.h>
@@ -512,6 +529,17 @@ RAND_SHIM = r"""
 #include <stdlib.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <time.h>
+
+/* Waits ms milliseconds of the monotonic clock, signals delivered meanwhile (--stall-old). */
+void patella_stall(int ms) {
+	struct timespec start, now, step = {0, 1000000};
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	do {
+		nanosleep(&step, NULL);
+		clock_gettime(CLOCK_MONOTONIC, &now);
+	} while ((now.tv_sec - start.tv_sec) * 1000 + (now.tv_nsec - start.tv_nsec) / 1000000 < ms);
+}
 
 static unsigned int OtherSeed = 1;
 static pthread_mutex_t OtherLock = PTHREAD_MUTEX_INITIALIZER;
@@ -577,7 +605,7 @@ def game_cpu_at_stop(console):
 	return (times["utime"] + times["stime"]) / os.sysconf("SC_CLK_TCK")
 
 
-def gdb_script(seed_value, stop_round, rand_shim):
+def gdb_script(seed_value, stop_round, rand_shim, stall=None):
 	"""The gdb commands of compare.sh's SCENARIO and STOPROUND mode (breakpoint 2 is the one of the stop round), the
 	game run with rand_shim (build_rand_shim) preloaded."""
 	return "\n".join([
@@ -606,6 +634,16 @@ def gdb_script(seed_value, stop_round, rand_shim):
 		'printf "@@ROUND %u@@\\n", RoundNr',
 		"continue",
 		"end",
+	] + ([
+		# --stall-old: the main loop waits MS milliseconds in round ROUND at ProcessCommand, where the other
+		# build's AdvanceGame runs a reload (ProcessScriptReload), as long as that reload took.
+		"break ProcessCommand if RoundNr == %d" % stall[0],
+		"commands",
+		"silent",
+		"call (void) patella_stall(%d)" % stall[1],
+		"continue",
+		"end",
+	] if stall else []) + [
 		"set environment LD_PRELOAD %s" % rand_shim,
 		"run nofork",
 		"quit",
@@ -671,9 +709,9 @@ def key_file_path(game):
 	return path
 
 
-def run(side, build, data, options, key, root):
-	"""One run of a build, with data the tree's data/ folder (None: none). Returns its result: {"ok", "boot",
-	"scenario", "exit"}."""
+def run(side, build, data, options, key, root, reload_right):
+	"""One run of a build, with data the tree's data/ folder (None: none); reload_right: whether its query manager
+	knows RELOAD_RIGHT. Returns its result: {"ok", "boot", "scenario", "exit"}."""
 	out = os.path.join(root, side)
 	game = os.path.join(root, "game")
 	db = os.path.join(root, "querymanager.sqlite")
@@ -699,7 +737,10 @@ def run(side, build, data, options, key, root):
 		log("  %s: runtime copy with %s; the check's RSA key in %s" % (side, layout,
 			os.path.relpath(key_file, os.path.realpath(game))))
 		characters = seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world,
-			options["port"], os.path.join(out, "seed.log"))
+			options["port"], os.path.join(out, "seed.log"), reload_right)
+		if reload_right:
+			log("  %s: the query manager knows the right %s: account %d has it" % (side, RELOAD_RIGHT,
+				RELOAD_ACCOUNT))
 		if has_player_data(db):
 			shutil.rmtree(os.path.join(game, "usr"))
 			log("  %s: the database keeps the player data; usr/ removed from the copy" % side)
@@ -716,7 +757,11 @@ def run(side, build, data, options, key, root):
 			raise CheckError("%s: the query manager did not start; see %s" % (side, os.path.join(out, "qm.stderr")))
 		script = os.path.join(out, "gdb.cmd")
 		with open(script, "w") as f:
-			f.write(gdb_script(options["seed"], options["stop_round"], build_rand_shim(out)))
+			stall = None
+			if side == "old" and options.get("stall_old"):
+				stall = [int(v) for v in options["stall_old"].split(":")]
+				log("  %s: a stall of %d ms at ProcessCommand of round %d (--stall-old)" % (side, stall[1], stall[0]))
+			f.write(gdb_script(options["seed"], options["stop_round"], build_rand_shim(out), stall))
 		console = os.path.join(out, "console")
 		with open(console, "wb") as f:
 			gdb = subprocess.Popen(["gdb", "-q", "-batch", "-x", script, "--args", os.path.join(binaries, "src", "game")],
@@ -863,7 +908,7 @@ def trace(arguments, data):
 			log("trace_check: running %s, %s" % (side, arguments[side]["label"]))
 			folder = os.path.join(trees, side, "data")
 			results[side] = run(side, arguments[side]["dir"], folder if os.path.isdir(folder) else None, options, key,
-				root)
+				root, arguments[side]["reload_right"])
 		import difflib
 		sys.path.insert(0, TRACE_TOOLS)
 		import compare_traces
@@ -925,6 +970,15 @@ def trace(arguments, data):
 WORKERS = {"trace": trace}
 
 
+def knows_reload_right(tree):
+	"""Whether the tree's query manager knows RELOAD_RIGHT: its querymanager/src/protocol.cc names it."""
+	try:
+		source = repro_check.git("show", "%s:querymanager/src/protocol.cc" % tree)
+	except CheckError:
+		return False
+	return ('"%s"' % RELOAD_RIGHT) in source
+
+
 def data_archive(trees):
 	"""A tar of the data/ folders of the trees ({side: tree}), as <side>/data/...; a tree without one adds nothing."""
 	buffer = io.BytesIO()
@@ -956,12 +1010,13 @@ def main(argv):
 	parser.add_argument("--port", type=int, default=17171)
 	parser.add_argument("--qm-port", type=int, default=17173)
 	parser.add_argument("--shm", type=int, default=17011)
+	parser.add_argument("--stall-old", default=None, metavar="ROUND:MS")
 	args = parser.parse_args(argv)
 	if len(args.commits) > 2:
 		parser.print_usage(sys.stderr)
 		return 2
 	options = {"scenario": args.scenario, "stop_round": args.stop_round, "seed": args.seed, "install": args.install,
-		"port": args.port, "qm_port": args.qm_port, "shm": args.shm}
+		"port": args.port, "qm_port": args.qm_port, "shm": args.shm, "stall_old": args.stall_old}
 	check_options(options)
 	who = "trace_check"
 	old_tree, old_label = repro_check.resolve(args.commits[0] if args.commits else "faithful")
@@ -974,7 +1029,8 @@ def main(argv):
 			log("%s: %s and %s are the same tree: both runs use the same build, so this proves only that the runs "
 				"repeat" % (who, old_label, new_label))
 		return repro_check.call_worker(__file__, WORKERS, "trace", {"options": options,
-			"old": {"dir": old_dir, "label": old_label}, "new": {"dir": new_dir, "label": new_label}},
+			"old": {"dir": old_dir, "label": old_label, "reload_right": knows_reload_right(old_tree)},
+			"new": {"dir": new_dir, "label": new_label, "reload_right": knows_reload_right(new_tree)}},
 			data_archive({"old": old_tree, "new": new_tree}))["code"]
 
 

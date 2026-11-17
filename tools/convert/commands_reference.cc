@@ -2,8 +2,11 @@
 // (commands_reference.hh), which the reference commands.toml is written with.
 // Each command function of magic.cc called CheckRight with one of these
 // rights where it now calls CheckCommandRight with the command and the check.
+// After them the commands that are ours, not the original code's (Reload
+// Scripts), with their rights and scripts.
 
 #include <cstdint>
+#include <cstring>
 
 #include "objects.hh"
 #include "map.hh"
@@ -59,4 +62,28 @@ void InitReferenceCommandRights() {
 	// KillAllMonsters and StartMonsterraid.
 	CommandRight[SPELL_KILL_ALL_CREATURES][COMMAND_RIGHT] = CREATE_MONSTERS;
 	CommandRight[SPELL_START_MONSTERRAID][COMMAND_RIGHT] = CREATE_MONSTERS;
+
+	// Ours, not the original code's: Reload Scripts, which reloads the
+	// scripts and the data while the game runs (reload.hh).
+	TSpellList &Reload = SpellList[SPELL_RELOAD_SCRIPTS];
+	memset(&Reload, 0, sizeof(Reload));
+	const char *const ReloadWords[] = {"om", "evo", "gran", "cogni"};
+	int Count = 0;
+	for (const char *Word : ReloadWords) {
+		for (int i = 1; i < MAX_SYLLABLES; i++) {
+			if (strcmp(Word, SpellSyllable[i]) == 0) {
+				Reload.Syllable[Count++] = static_cast<unsigned char>(i);
+				break;
+			}
+		}
+	}
+	Reload.Comment = "Reload Scripts";
+	CommandRight[SPELL_RELOAD_SCRIPTS][COMMAND_RIGHT] = RELOAD_SCRIPTS;
+}
+
+const char *GetOwnCommandScriptName(int SpellNr) {
+	if (SpellNr == SPELL_RELOAD_SCRIPTS && SpellList[SpellNr].Syllable[0] == SYLLABLE_OM) {
+		return "reload_scripts";
+	}
+	return nullptr;
 }

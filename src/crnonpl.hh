@@ -84,8 +84,10 @@ private:
 	vector<uint32_t> QueuedPlayers;
 	vector<uint32_t> QueuedAddresses;
 	int QueueLength;
-	// The NPC's script (LoadScript's number).
+	// The NPC's script (LoadScript's number; the reload's NPC scripts part
+	// gives it the reloaded script's).
 	int ScriptNumber;
+	friend class TNPCScriptsPart;
 };
 
 void StartMonsterhomeTimer(int nr);

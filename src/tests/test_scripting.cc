@@ -6,9 +6,10 @@
 // (math.random, print, integer arithmetic), the results of runNumber and
 // runBoolean, the calls of an event's rules (TScriptEvent), the message of a
 // failed call (TScriptCall::failure), runCaught, the data values of addValue,
-// the hooks of the monsters and raids, the script environments, and a restart
-// of the engine. The scripts are written into a scratch folder that is removed
-// at the end. Prints what failed; exits 1 on any failure, 0 when all pass.
+// the hooks of the monsters and raids, the script environments, the second
+// state of a reload, and a restart of the engine. The scripts are written into
+// a scratch folder that is removed at the end. Prints what failed; exits 1 on
+// any failure, 0 when all pass.
 
 #include <algorithm>
 #include <climits>
@@ -2437,6 +2438,135 @@ static void TestPercent() {
 	CHECK(Thrown.find("7% bad") == std::string::npos);
 }
 
+// The engine's second state (phase 8): BeginScriptReload makes a new state,
+// set up as InitScripting sets one up and current, with no script; the old
+// one stays as it was; DiscardScriptReload goes back to it and
+// CommitScriptReload closes it. The modules, the globals of the scripts and
+// the API tables are the state's own.
+static void TestReload() {
+	CHECK(!ScriptReloadActive());
+	// Commit and Discard without a reload change nothing (they assert in a
+	// debug build, so only a release build tries them).
+#ifdef NDEBUG
+	CommitScriptReload();
+	DiscardScriptReload();
+	CHECK(!ScriptReloadActive());
+#endif
+
+	WriteScript("reload_counter.lua",
+			"local lib = require('lib.reload_module')\n"
+			"calls = 0\n"
+			"function onCount() calls = calls + 1 return calls * 100 + lib.loads end\n");
+	WriteScript("lib/reload_module.lua", "test.count()\nreturn {loads = 1}\n");
+	sol::state *OldState = &ScriptState();
+	int OldTop = lua_gettop(OldState->lua_state());
+	CountCalls = 0;
+	int OldCounter = Load("reload_counter.lua");
+	CHECK(CountCalls == 1);
+	CHECK(Call(OldCounter, "onCount", RUN_NUMBER).Number == 101);
+	int OldGood = LoadScript("good.lua", nullptr);
+
+	// Begin: a new current state with no script; the API is set up as at
+	// start (the core API, the classes, the constants) but for what the
+	// caller registers.
+	srand(7);
+	int First = rand();
+	srand(7);
+	BeginScriptReload();
+	CHECK(rand() == First);
+	CHECK(ScriptReloadActive());
+	CHECK(ScriptingActive());
+	CHECK(&ScriptState() != OldState);
+	CHECK(lua_gettop(ScriptState().lua_state()) == 0);
+	// Not a second time.
+	bool Refused = false;
+	try {
+		BeginScriptReload();
+	} catch (const char *Text) {
+		Refused = true;
+		CHECK_CONTAINS(Text, "BeginScriptReload: a reload has begun already");
+	}
+	CHECK(Refused);
+	CHECK(ScriptReloadActive());
+
+	// The new state lacks the test API until it is registered.
+	CHECK_CONTAINS(LoadError("reload_counter.lua"), "unknown name 'test'");
+	CHECK(TakeErrors() == "");
+	RegisterTestAPI();
+	// The modules are the new state's: lib.reload_module runs again.
+	CountCalls = 0;
+	int NewCounter = Load("reload_counter.lua");
+	CHECK(NewCounter == 0);
+	CHECK(CountCalls == 1);
+	CHECK(ScriptName(NewCounter) != nullptr && strcmp(ScriptName(NewCounter), "reload_counter.lua") == 0);
+	CHECK(Call(NewCounter, "onCount", RUN_NUMBER).Number == 101);
+	CHECK(Call(NewCounter, "onCount", RUN_NUMBER).Number == 201);
+	CHECK(!HasHandler(NewCounter, "onA"));
+	CHECK(Load("good.lua") == 1);
+	CHECK(HasHandler(1, "onA"));
+
+	// Discard: the old state is current again, as it was.
+	DiscardScriptReload();
+	CHECK(!ScriptReloadActive());
+	CHECK(&ScriptState() == OldState);
+	CHECK(lua_gettop(OldState->lua_state()) == OldTop);
+	CHECK(LoadScript("reload_counter.lua", nullptr) == OldCounter);
+	CHECK(LoadScript("good.lua", nullptr) == OldGood);
+	CHECK(Call(OldCounter, "onCount", RUN_NUMBER).Number == 201);
+
+	// Begin and commit: the new state replaces the old one for good.
+	BeginScriptReload();
+	RegisterTestAPI();
+	CountCalls = 0;
+	NewCounter = Load("reload_counter.lua");
+	CHECK(NewCounter == 0);
+	CHECK(CountCalls == 1);
+	CommitScriptReload();
+	CHECK(!ScriptReloadActive());
+	CHECK(ScriptingActive());
+	CHECK(&ScriptState() != OldState);
+	CHECK(Call(NewCounter, "onCount", RUN_NUMBER).Number == 101);
+	CHECK(LoadScript("reload_counter.lua", nullptr) == NewCounter);
+	// Set up as at start: the core API, the classes, the constants, and what
+	// was registered.
+	WriteScript("reload_plain.lua", "function onType()\n"
+			"  test.record(type(Game) .. ' ' .. RETURNVALUE_NOTPOSSIBLE .. ' ' .. type(test) .. ' '\n"
+			"    .. CONST_ME_FIREAREA .. ' ' .. tostring(Position(1, 2, 3)) .. ' ' .. math.random(5, 5))\n"
+			"end\n");
+	int Plain = Load("reload_plain.lua");
+	Records.clear();
+	CHECK(!Call(Plain, "onType", RUN).Thrown);
+	CHECK(Records.size() == 1 && Records[0] == "userdata 1 userdata 7 Position(1, 2, 3) 5");
+	CHECK(TakeErrors() == "");
+
+	// A failure in the new state is logged with the new state's names, and
+	// failure() sees it (the failures are counted for both states).
+	WriteScript("reload_fail.lua", "function onFail() error('new state') end\n");
+	int Fail = Load("reload_fail.lua");
+	TScriptCall FailCall(Fail, "onFail");
+	CHECK(!FailCall.runCaught());
+	CHECK(FailCall.failure() != nullptr && std::string(FailCall.failure()) == "reload_fail.lua:1: new state");
+	CHECK_CONTAINS(TakeErrors(), "Script error in reload_fail.lua (onFail): reload_fail.lua:1: new state");
+
+	// ExitScripting during a reload closes both states.
+	BeginScriptReload();
+	CHECK(ScriptReloadActive());
+	ExitScripting();
+	CHECK(!ScriptingActive());
+	CHECK(!ScriptReloadActive());
+	bool Inactive = false;
+	try {
+		BeginScriptReload();
+	} catch (const char *Text) {
+		Inactive = true;
+		CHECK_CONTAINS(Text, "BeginScriptReload: the scripting engine is not active");
+	}
+	CHECK(Inactive);
+	InitScripting(Folder.c_str());
+	RegisterTestAPI();
+	CHECK(Load("reload_counter.lua") == 0);
+}
+
 static void TestRestart() {
 	CHECK(ScriptingActive());
 	bool Thrown = false;
@@ -2526,6 +2656,7 @@ int main() {
 	TestPercent();
 	// Every call left Lua's stack as it found it.
 	CHECK(lua_gettop(ScriptState().lua_state()) == BaseTop);
+	TestReload();
 	TestRestart();
 
 	ExitScripting();

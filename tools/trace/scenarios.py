@@ -2164,3 +2164,156 @@ def homes(ctx):
 
 	h.logout()
 	s(4)
+
+
+# The scenario reload: the command Reload Scripts ("omevo gran cogni", ours;
+# src/reload.hh) given while the game runs, with the same kinds of actions
+# before and after it. The gamemaster e (Teste Epsilon; trace_check.py gives it
+# the right RELOAD_SCRIPTS from a tree whose query manager knows it) says the
+# words alone at the depot of Thais, out of sight of the others and of any
+# NPC. A tree that has the command does the reload after the command's round
+# (AdvanceGame, after ProcessCommand) and tells e the result; faithful knows
+# no such spell (CheckForSpell finds none and returns 0), so there e just says
+# the words. Everything else must be the same: a reload of unchanged files
+# changes nothing in the game. The caster h fights an orc shaman (spells) and
+# an orc (melee) on open grass, casts two spells, makes and uses a rune, sets
+# off a trigger rule (the panda teddy), looks at a ham and eats it (an item
+# use), before and after the reload; after it the orc made before the reload
+# and one made after it are killed and their corpses opened. The door opener
+# i (Move to coordinates) talks to Tandros, a conversation that runs across
+# the reload: a topic set before it (the price of two sudden death runes) is
+# answered after it.
+RELOAD_WORDS = "omevo gran cogni"
+RELOAD_E = (32352, 32227, 7)        # the field south of a depot tile in Thais (DEPOT_STAND)
+LIGHT_HEALING_WORDS = "exura"
+LIGHT_WORDS = "utevo lux"
+ORC_SHAMAN = "orc shaman"
+ORC = "orc"
+
+
+def reload_play(ctx, give_command=None, after=None):
+	"""The scenario reload (see the comment above). give_command(ctx, s, who)
+	gives the command instead of e's one say of the words (who: the clients
+	by key); after(ctx, s, who) adds steps after the actions that follow the
+	reload, before the logouts. Returns the step of e's words."""
+	s = Steps(ctx)
+	ctx.at(0)
+	who = {}
+	for key in ("h", "e", "i"):
+		who[key] = ctx.login(key)
+		s(2)
+	h, e, i = who["h"], who["e"], who["i"]
+	free_hands(s, h)
+	s(1)
+	teleport(s, e, RELOAD_E, "e alone at the depot of Thais, out of sight of the others")
+	teleport(s, i, TANDROS_E, "i in front of Tandros' counter")
+	teleport(s, h, CASTER_SPOT, "open grass, for the monsters")
+	summon_wild(ctx, s, h, ORC_SHAMAN)
+	orc = summon_wild(ctx, s, h, ORC)
+
+	def note(c, what):
+		c.note("=== " + what)
+
+	def say(c, text, what, k=2):
+		note(c, what)
+		c.say(text)
+		s(k)
+
+	def get(tid, what):
+		say(h, "alevo %d" % tid, "Get Item: " + what, 1)
+
+	def actions(when):
+		"""h's actions, the same before and after the reload."""
+		say(h, LIGHT_HEALING_WORDS, "%s: Light Healing" % when)
+		say(h, LIGHT_WORDS, "%s: Light" % when)
+		get(BLANK_RUNE, "%s: a blank rune into the right hand" % when)
+		say(h, "adura vita", "%s: the Ultimate Healing Rune made" % when)
+		note(h, "%s: the Ultimate Healing Rune on h" % when)
+		h.use_with(HAND, UH_RUNE, 0, h.pos, CREATURE, 0)
+		s(3)
+		get(PANDA_TEDDY, "%s: a panda teddy" % when)
+		note(h, "%s: the panda teddy says Hug me (trigger rule Use/Fun)" % when)
+		h.use(HAND, PANDA_TEDDY, 0)
+		s(2)
+		note(h, "%s: the panda teddy onto the field west of h" % when)
+		h.move(HAND, PANDA_TEDDY, 0, offset(CASTER_SPOT, -1, 0), 1)
+		s(1)
+		get(HAM, "%s: a ham" % when)
+		note(h, "%s: h looks at the ham in its hand (name, weight)" % when)
+		h.look(*HAND)
+		s(1)
+		note(h, "%s: h eats the ham (item use, items/food.lua)" % when)
+		h.use(HAND, HAM, 0)
+		s(2)
+
+	# Before the reload: h's actions while the monsters fight it; i greets
+	# Tandros and asks for a price (Topic=99).
+	say(i, "hello", "before: i greets Tandros: Be greeted, student of the arcane.", 1)
+	actions("before")
+	say(i, "2 sudden death runes", "before: i asks for two sudden death runes: Topic=99, Price=650", 3)
+	note(h, "the monsters fight h")
+	s(4)
+
+	# The reload.
+	words = s.n
+	if give_command is None:
+		say(e, RELOAD_WORDS, "Reload Scripts: the reload after this round (faithful: e says the words)", 3)
+	else:
+		give_command(ctx, s, who)
+
+	# After the reload: the conversation goes on (Topic=99 kept), h's
+	# actions again while the monsters, made before the reload, fight it.
+	say(i, "yes", "after: i says yes to Topic=99 without the money: Sorry, you don't have enough gold.", 3)
+	actions("after")
+	say(i, "bye", "after: i says bye: Farewell.", 2)
+
+	# The orc made before the reload killed (Kill All Creatures, within 2
+	# fields) and its corpse opened, then one made after the reload.
+	def kill_orc(what):
+		m = h.mark()
+		for _ in range(2):
+			say(h, "alito mas res", "Kill All Creatures: %s" % what, 2)
+		corpse, _ = find_corpse(ctx, h, m, ORC_CORPSE)
+		ctx.check(corpse is not None, "reload: no corpse of %s" % what)
+		if corpse is None:
+			return
+		teleport(s, h, corpse, "onto the corpse of %s" % what)
+		note(h, "the corpse of %s opened: what it carried" % what)
+		m = h.mark()
+		h.use(corpse, ORC_CORPSE, 0, 1)
+		s(2)
+		ctx.check(h.wait_text(r"^Container nr=1 ", m, 0) is not None, "reload: the corpse of %s did not open" % what)
+		note(h, "the corpse closed")
+		h.close_container(1)
+		s(1)
+		teleport(s, h, CASTER_SPOT, "back to the open grass")
+
+	ctx.check(orc is not None, "reload: no orc made before the reload")
+	kill_orc("the orc made before the reload")
+	summon_wild(ctx, s, h, ORC)
+	kill_orc("an orc made after the reload")
+	if after is not None:
+		after(ctx, s, who)
+
+	note(e, "a ping, so that the game keeps the idle connection")
+	e.ping()
+	s(1)
+	for key in ("i", "e", "h"):
+		who[key].logout()
+		s(1)
+	s(3)
+	return words
+
+
+@scenario()
+def reload(ctx):
+	"""Reload Scripts by the gamemaster e in the middle of the game (see the
+	comment above): before and after it h fights an orc shaman and an orc,
+	casts Light Healing and Light, makes and uses an Ultimate Healing Rune,
+	uses a panda teddy (a trigger rule), looks at a ham and eats it; i talks
+	to Tandros across the reload (a topic set before it, answered after it);
+	after it the orc made before the reload and one made after it are killed
+	and their corpses opened. Against faithful (no such command: e says the
+	words) only e's trace may differ, at the words and the reload's result.
+	It ends at step 100 (round 120): run it with --stop-round 130."""
+	reload_play(ctx)

@@ -5,7 +5,8 @@
 // WEAPON_, SPECIAL_, RIGHT_, the blessings' quests, MAX_QUESTS,
 // MAX_OPEN_CONTAINERS, LAST_BODY_POSITION). RegisterItemAPI binds them; InitAll
 // calls it after RegisterTriggerAPI. InitItemUses loads the scripts of the
-// list, after InitObjects has read it; Use (operate.cc) calls them.
+// list, after InitObjects has read it, through ItemUsesReloadPart, which a
+// reload uses too (reload.hh); Use (operate.cc) calls them.
 //
 // What every binding here does alike (as in scripting_triggers.cc):
 //  - An Item parameter, self included, is an Item object or nil; the binding
@@ -37,6 +38,7 @@
 #include <cstdio>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "config.hh"
 #include "objects.hh"
@@ -55,6 +57,7 @@
 #include "time.hh"
 #include "triggers.hh"
 #include "utils.hh"
+#include "reload.hh"
 #include "scripting_api.hh"
 
 // The object an Item parameter names: Object(handle), NONE for nil.
@@ -569,6 +572,7 @@ static constexpr TItemConstant RightConstants[] = {
 	RIGHT_CONSTANT(CHANGE_SKILLS),
 	RIGHT_CONSTANT(CLEANUP_FIELDS),
 	RIGHT_CONSTANT(NO_STATISTICS),
+	RIGHT_CONSTANT(RELOAD_SCRIPTS),
 };
 #undef RIGHT_CONSTANT
 
@@ -603,7 +607,7 @@ static_assert(SpecialConstants[NUMBER_OF_SPECIAL_CONSTANTS - 1].Value == SPECIAL
 static_assert(sizeof(RightConstants) / sizeof(RightConstants[0]) == NUMBER_OF_RIGHTS,
 		"RightConstants must name every RIGHT");
 static_assert(NumberedInOrder(RightConstants), "RightConstants must be in the order of the numbers of RIGHT");
-static_assert(NO_STATISTICS == NUMBER_OF_RIGHTS - 1, "NUMBER_OF_RIGHTS must follow the last RIGHT");
+static_assert(RELOAD_SCRIPTS == NUMBER_OF_RIGHTS - 1, "NUMBER_OF_RIGHTS must follow the last RIGHT");
 
 void RegisterItemAPI() {
 	SetItemTypeConstructor(&ItemTypeNumber);
@@ -664,17 +668,73 @@ void RegisterItemAPI() {
 	}
 }
 
-// The text InitItemUses throws for a missing list.
-static std::string UseError;
+namespace {
 
-void InitItemUses() {
+// The part of a reload for the scripts of the list [[use]] (reload.hh): the
+// entries are the items part's (ItemsReloadPart, installed before), so read,
+// install and uninstall have nothing to do; loadScripts loads each entry's
+// script into the current engine and finish makes the numbers the entries'.
+// The start uses it as well (InitItemUses).
+class TItemUsesReloadPart : public TReloadPart {
+public:
+	const char *name() const override { return "item uses"; }
+	void read() override { Numbers.clear(); }
+	void install() override {}
+	void loadScripts() override;
+	void finish() override;
+	void uninstall() override {}
+	void discard() override { Numbers.clear(); }
+	std::string summary() const override;
+private:
+	// The script number of each entry of UseEntries, in its order.
+	std::vector<int> Numbers;
+};
+
+// The text loadScripts throws for a missing list.
+std::string UseError;
+
+void TItemUsesReloadPart::loadScripts() {
+	// A reload's items part refuses such a file before; this is the start's
+	// refusal.
 	if (UseEntries.empty()) {
 		UseError = std::string(DATAPATH) + "/items.toml: the list [[use]] is missing (the built-in uses of objects "
 				"need it)";
 		throw UseError.c_str();
 	}
-	for (TUseEntry &Entry : UseEntries) {
-		Entry.ScriptNumber = LoadScript(Entry.Script.c_str(), Entry.Where.c_str());
-		RequireHandler(Entry.ScriptNumber, "onUse", Entry.Where.c_str());
+	Numbers.clear();
+	Numbers.reserve(UseEntries.size());
+	for (const TUseEntry &Entry : UseEntries) {
+		int Number = LoadScript(Entry.Script.c_str(), Entry.Where.c_str());
+		RequireHandler(Number, "onUse", Entry.Where.c_str());
+		Numbers.push_back(Number);
 	}
+}
+
+void TItemUsesReloadPart::finish() {
+	for (size_t i = 0; i < UseEntries.size() && i < Numbers.size(); i++) {
+		UseEntries[i].ScriptNumber = Numbers[i];
+	}
+	Numbers.clear();
+}
+
+std::string TItemUsesReloadPart::summary() const {
+	return "[[use]]: " + std::to_string(UseEntries.size()) + " scripts";
+}
+
+} // namespace
+
+TReloadPart &ItemUsesReloadPart() {
+	static TItemUsesReloadPart Part;
+	return Part;
+}
+
+// The start: the part's steps one after the other (the scripts loaded in the
+// order of the list, each entry's number set when finish runs, after the
+// last).
+void InitItemUses() {
+	TReloadPart &Part = ItemUsesReloadPart();
+	Part.read();
+	Part.install();
+	Part.loadScripts();
+	Part.finish();
 }

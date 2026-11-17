@@ -1,8 +1,8 @@
-// triggers.cc: the events that run the trigger rules. LoadTriggers
-// (triggersdata.cc) reads triggers.toml into one rule database per event type
-// (use, multi-use, movement, collision and separation); InitTriggers hands
-// each rule's conditions and actions to the trigger library
-// (data/scripts/lib/triggers.lua, scripting.hh "Trigger rules") and loads the
+// triggers.cc: the events that run the trigger rules. InitTriggers, and a
+// reload (TriggersReloadPart), have triggersdata.cc read triggers.toml into
+// one rule database per event type (use, multi-use, movement, collision and
+// separation), hand each rule's conditions and actions to the trigger library
+// (data/scripts/lib/triggers.lua, scripting.hh "Trigger rules") and load the
 // rules' own scripts; HandleEvent tries the rules of an event in order and
 // stops at the first that holds, whose actions the library has run. Also
 // here: the object functions those actions use, depot boxes, mail (a stamped
@@ -44,6 +44,7 @@
 #include "scripting.hh"
 #include "triggers.hh"
 #include "triggersdata.hh"
+#include "reload.hh"
 
 struct TDelayedMail {
 	uint32_t CharacterID;
@@ -62,18 +63,26 @@ static int TriggerLibrary = -1;
 
 // The rules' filters, by rule number (TTriggerRule::Number; entry 0 unused):
 // the library's getRuleFilter, the type obj1 must have for the rule to hold,
-// 0 for a rule without one (and for a rule with a script). Set at start.
+// 0 for a rule without one (and for a rule with a script). Set at start and
+// by a reload.
 static std::vector<int> RuleFilters;
+
+// What PrepareTriggerRules gives, until TriggersReloadPart's finish makes it
+// TriggerLibrary, the Number of each of TriggerScripts (by its index) and
+// RuleFilters.
+static int StagedTriggerLibrary = -1;
+static std::vector<int> StagedScriptNumbers;
+static std::vector<int> StagedRuleFilters;
 
 vector<TDelayedMail> DelayedMail(0, 10, 10);
 int DelayedMails;
 
 // ChangeObject, LoadDepotBox, SaveDepotBox, SendMail, UseContainer, UseObject,
 // UseObjects, MovementEvent, SeparationEvent and CollisionEvent
-// throw RESULT; InitTriggers throws const char * (LoadTriggers', LoadScript's,
-// RequireHandler's and its own for the trigger library's errors). None has an
-// exception specification (C++17 has no dynamic ones), so an exception of
-// another type passes to the caller.
+// throw RESULT; InitTriggers throws const char * (the reading's of
+// triggers.toml, LoadScript's, RequireHandler's and its own for the trigger
+// library's errors). None has an exception specification (C++17 has no
+// dynamic ones), so an exception of another type passes to the caller.
 
 Object CreateObject(Object Con, ObjectType Type, uint32_t Value) {
 again:
@@ -979,34 +988,39 @@ static void RunPreparation(TScriptCall &Call, const std::string &Where) {
 	}
 }
 
-// Loads the trigger library and hands it every rule's conditions and actions
-// in the order of triggers.toml (prepareCondition, prepareAction); loads the
-// scripts the rules name and checks their handlers; then asks the library for
-// every rule's filter (getRuleFilter, RuleFilters). Throws a const char * for
-// what fails, with the place of the entry in triggers.toml where there is
-// one.
+// Loads the trigger library into the current engine and hands it every rule's
+// conditions and actions in the order of triggers.toml (prepareCondition,
+// prepareAction); loads the scripts the rules name and checks their handlers;
+// then asks the library for every rule's filter (getRuleFilter). The rules are
+// the live ones (those a reload has installed); the library's number, the
+// scripts' numbers and the filters go to StagedTriggerLibrary,
+// StagedScriptNumbers and StagedRuleFilters. Throws a const char * for what
+// fails, with the place of the entry in triggers.toml where there is one.
 static void PrepareTriggerRules() {
-	TriggerLibrary = LoadScript("lib/triggers.lua", nullptr);
-	RequireHandler(TriggerLibrary, "prepareCondition", nullptr);
-	RequireHandler(TriggerLibrary, "prepareAction", nullptr);
-	RequireHandler(TriggerLibrary, "evaluateRule", nullptr);
-	RequireHandler(TriggerLibrary, "getRuleFilter", nullptr);
+	StagedTriggerLibrary = LoadScript("lib/triggers.lua", nullptr);
+	int Library = StagedTriggerLibrary;
+	RequireHandler(Library, "prepareCondition", nullptr);
+	RequireHandler(Library, "prepareAction", nullptr);
+	RequireHandler(Library, "evaluateRule", nullptr);
+	RequireHandler(Library, "getRuleFilter", nullptr);
 
+	StagedScriptNumbers.assign(TriggerScripts.size(), -1);
 	for (size_t k = 0; k < TriggerRules.size(); k++) {
 		const TTriggerRuleEntry &Entry = TriggerRules[k];
 		TTriggerRule &Rule = TriggerDatabases[Entry.Event].Rules(Entry.Rule);
 		if (Rule.Script >= 0) {
-			TTriggerScript &Script = TriggerScripts[static_cast<size_t>(Rule.Script)];
-			Script.Number = LoadScript(Script.Name.c_str(), Script.Where.c_str());
-			RequireHandler(Script.Number, "onCheck", Script.Where.c_str());
-			RequireHandler(Script.Number, "onRun", Script.Where.c_str());
+			const TTriggerScript &Script = TriggerScripts[static_cast<size_t>(Rule.Script)];
+			int Number = LoadScript(Script.Name.c_str(), Script.Where.c_str());
+			StagedScriptNumbers[static_cast<size_t>(Rule.Script)] = Number;
+			RequireHandler(Number, "onCheck", Script.Where.c_str());
+			RequireHandler(Number, "onRun", Script.Where.c_str());
 			continue;
 		}
 
 		for (int i = Rule.FirstCondition; i <= Rule.LastCondition; i++) {
 			TTriggerCondition &Condition = TriggerConditions(i);
 			const TTriggerSignature &Signature = ConditionSignatures[Condition.Condition];
-			TScriptCall Call(TriggerLibrary, "prepareCondition");
+			TScriptCall Call(Library, "prepareCondition");
 			Call.addNumber(Rule.Number);
 			Call.addString(Signature.Key);
 			Call.addBoolean(Condition.Modifier == MODIFIER_INVERT);
@@ -1017,7 +1031,7 @@ static void PrepareTriggerRules() {
 		for (int i = Rule.FirstAction; i <= Rule.LastAction; i++) {
 			TTriggerAction &Action = TriggerActions(i);
 			const TTriggerSignature &Signature = ActionSignatures[Action.Action];
-			TScriptCall Call(TriggerLibrary, "prepareAction");
+			TScriptCall Call(Library, "prepareAction");
 			Call.addNumber(Rule.Number);
 			Call.addString(Signature.Key);
 			AddTriggerParameters(Call, Signature, Action.Parameters);
@@ -1025,7 +1039,7 @@ static void PrepareTriggerRules() {
 		}
 	}
 
-	RuleFilters.assign(TriggerRules.size() + 1, 0);
+	StagedRuleFilters.assign(TriggerRules.size() + 1, 0);
 	for (size_t k = 0; k < TriggerRules.size(); k++) {
 		const TTriggerRuleEntry &Entry = TriggerRules[k];
 		TTriggerRule &Rule = TriggerDatabases[Entry.Event].Rules(Entry.Rule);
@@ -1034,7 +1048,7 @@ static void PrepareTriggerRules() {
 		}
 
 		std::string Where = "lib/triggers.lua: getRuleFilter of rule " + std::to_string(Rule.Number);
-		TScriptCall Call(TriggerLibrary, "getRuleFilter");
+		TScriptCall Call(Library, "getRuleFilter");
 		Call.addNumber(Rule.Number);
 		int Filter;
 		try {
@@ -1049,15 +1063,95 @@ static void PrepareTriggerRules() {
 		if (Filter < 0) {
 			ThrowTriggerError(Where, "gave " + std::to_string(Filter) + ", not a type or 0");
 		}
-		RuleFilters[static_cast<size_t>(Rule.Number)] = Filter;
+		StagedRuleFilters[static_cast<size_t>(Rule.Number)] = Filter;
 	}
 }
 
+namespace {
+
+// The triggers part of the reload (reload.hh): triggers.toml, staged by
+// triggersdata.cc (ReadStagedTriggerRules), the trigger library and the rules'
+// scripts (PrepareTriggerRules). The rules' texts are dynamic strings; those
+// of the rules a reload replaces are deleted when it is done (finish), those
+// of a reload that fails when it is undone (discard).
+class TTriggersReloadPart : public TReloadPart {
+public:
+	const char *name() const override {
+		return "triggers";
+	}
+
+	void read() override {
+		char FileName[4096];
+		snprintf(FileName, sizeof(FileName), "%s/triggers.toml", DATAPATH);
+		ReadStagedTriggerRules(FileName);
+		Changes = CompareStagedTriggerRules();
+	}
+
+	void install() override {
+		SwapStagedTriggerRules();
+	}
+
+	void loadScripts() override {
+		PrepareTriggerRules();
+	}
+
+	void finish() override {
+		TriggerLibrary = StagedTriggerLibrary;
+		for (size_t k = 0; k < TriggerScripts.size(); k++) {
+			TriggerScripts[k].Number = StagedScriptNumbers[k];
+		}
+		RuleFilters.swap(StagedRuleFilters);
+		ForgetStagedNumbers();
+		ClearStagedTriggerRules();
+	}
+
+	void uninstall() override {
+		SwapStagedTriggerRules();
+	}
+
+	void discard() override {
+		ClearStagedTriggerRules();
+		ForgetStagedNumbers();
+	}
+
+	std::string summary() const override {
+		char Text[128];
+		snprintf(Text, sizeof(Text), "triggers.toml: %d rules changed, %d added, %d removed", Changes.Changed,
+				Changes.Added, Changes.Removed);
+		return Text;
+	}
+
+private:
+	static void ForgetStagedNumbers() {
+		StagedTriggerLibrary = -1;
+		StagedScriptNumbers.clear();
+		StagedRuleFilters.clear();
+	}
+
+	TTriggerChanges Changes = {0, 0, 0};
+};
+
+} // namespace
+
+TReloadPart &TriggersReloadPart() {
+	static TTriggersReloadPart Part;
+	return Part;
+}
+
+// At start the part reads triggers.toml (the rules' texts made dynamic
+// strings in the file's order) between the log lines "Loading trigger rules"
+// and "Trigger rules read", then loads the library and the scripts.
 void InitTriggers() {
-	NumberOfTriggerConditions = 0;
-	NumberOfTriggerActions = 0;
-	LoadTriggers();
-	PrepareTriggerRules();
+	TReloadPart &Part = TriggersReloadPart();
+	print(1, "Loading trigger rules ...\n");
+	Part.read();
+	Part.install();
+	print(1, "Trigger rules read with %d/%d/%d/%d/%d rules.\n",
+			TriggerDatabases[EVENT_USE].NumberOfRules, TriggerDatabases[EVENT_MULTIUSE].NumberOfRules,
+			TriggerDatabases[EVENT_MOVEMENT].NumberOfRules, TriggerDatabases[EVENT_COLLISION].NumberOfRules,
+			TriggerDatabases[EVENT_SEPARATION].NumberOfRules);
+	Part.loadScripts();
+	Part.finish();
 	DelayedMails = 0;
 }
 
