@@ -5,7 +5,9 @@
 // ItemType, MonsterType), the Position, the Impact, the read-only constants,
 // the restricted require, the loaded scripts with their environments, the
 // calls of their handlers (TScriptCall, TScriptEvent) and the calls of the
-// monsters' and raids' hooks.
+// monsters' and raids' hooks. A reload (phase 8) makes a second state, set up
+// as the first, current until it is committed or discarded
+// (BeginScriptReload); everything works on the current one.
 //
 // The functions Lua calls (the core API, the metamethods, require, the message
 // handlers) use only Lua's C API and plain C data: they throw no C++ exception
@@ -74,15 +76,29 @@ struct TScript {
 	int Environment;
 };
 
-static sol::state *State = nullptr;
+// One engine: a Lua state set up by SetUpState and what is loaded into it.
+struct TEngine {
+	sol::state *State = nullptr;
+	// The loaded scripts; a script's number is its index.
+	std::vector<TScript> Scripts;
+	// The number of modules require is loading now: the entries 1 to
+	// RequireStackDepth of the registry's REQUIRE_STACK.
+	int RequireStackDepth = 0;
+};
+
+// The current engine, on which every function of the engine works (nullptr
+// before InitScripting and after ExitScripting), and, from
+// BeginScriptReload to CommitScriptReload or DiscardScriptReload, the engine
+// the reload's new current one is to replace (nullptr otherwise).
+static TEngine *Engine = nullptr;
+static TEngine *ReplacedEngine = nullptr;
+// Shared by both engines of a reload: the main thread, the scripts folder,
+// the text of the last const char * thrown, and (below) the function
+// ItemType(id) calls and the failures of handler calls.
 static pthread_t MainThread;
 static std::string Folder;
-static std::vector<TScript> Scripts;
 // The text of the last const char * thrown by LoadScript or RequireHandler.
 static std::string ErrorText;
-// The number of modules require is loading now: the entries 1 to
-// RequireStackDepth of the registry's REQUIRE_STACK.
-static int RequireStackDepth = 0;
 
 // The scripts' names of RESULT (info.hh), RETURNVALUE_ and TFS's name where
 // it means the same (RETURNVALUE_NOTPOSSIBLE is NOTACCESSIBLE), our own
@@ -182,7 +198,7 @@ static_assert(ResultNamesInOrder(), "ResultNames must be in the order of the num
 // InitScripting (rule 1), while it is active. The entry points that need an
 // active engine assert ScriptingActive before this.
 static inline void AssertMainThread() {
-	assert(State == nullptr || pthread_equal(pthread_self(), MainThread));
+	assert(Engine == nullptr || pthread_equal(pthread_self(), MainThread));
 }
 
 // Text with each '%' doubled, for the texts that reach error() (and so Log)
@@ -651,7 +667,7 @@ static int LuaRequire(lua_State *L) {
 	lua_pop(L, 1);
 
 	lua_getfield(L, LUA_REGISTRYINDEX, REQUIRE_STACK); // 3: the modules being loaded
-	int Depth = RequireStackDepth;
+	int Depth = Engine->RequireStackDepth;
 	for (int i = 1; i <= Depth; i++) {
 		lua_rawgeti(L, 3, i);
 		bool Same = strcmp(lua_tostring(L, -1), Name) == 0;
@@ -684,13 +700,13 @@ static int LuaRequire(lua_State *L) {
 	lua_insert(L, 4);                                  // 4: the message handler, 5: the module
 	lua_pushstring(L, Name);
 	lua_rawseti(L, 3, Depth + 1);
-	RequireStackDepth = Depth + 1;
+	Engine->RequireStackDepth = Depth + 1;
 	// An error recorded before is not this module's.
 	ClearTracedError(L);
 	int Status = lua_pcall(L, 0, 1, 4);                // 5: what the module returned, or the error
 	lua_pushnil(L);
 	lua_rawseti(L, 3, Depth + 1);
-	RequireStackDepth = Depth;
+	Engine->RequireStackDepth = Depth;
 	if (Status != 0) {
 		return lua_error(L);
 	}
@@ -1549,54 +1565,109 @@ static int ProtectedSetUpState(lua_State *L) {
 	return 0;
 }
 
-void InitScripting(const char *Folder) {
-	if (State != nullptr) {
-		throw "InitScripting: the scripting engine is active already";
-	}
+// Makes a new engine: a Lua state set up by SetUpState, no script loaded.
+// Throws a const char * "<Function>: Lua cannot create its state" or
+// "<Function>: Lua cannot set up its state: <message>"; nothing is left then.
+static TEngine *MakeEngine(const char *Function) {
 	// sol::state uses the state luaL_newstate gives without checking it (a
 	// null state would crash), so Lua is asked for one first.
 	lua_State *Probe = luaL_newstate();
 	if (Probe == nullptr) {
-		throw "InitScripting: Lua cannot create its state";
+		ThrowError(nullptr, std::string(Function) + ": Lua cannot create its state");
 	}
 	lua_close(Probe);
 	sol::state *NewState = nullptr;
 	try {
 		NewState = new sol::state();
 	} catch (const std::exception &) {
-		throw "InitScripting: Lua cannot create its state";
+		ThrowError(nullptr, std::string(Function) + ": Lua cannot create its state");
 	}
-	// Set up in a protected call; on failure the half-made state is closed
-	// and the engine stays inactive, so InitScripting may be tried again.
+	// Set up in a protected call; on failure the half-made state is closed.
 	lua_State *L = NewState->lua_state();
 	if (lua_cpcall(L, ProtectedSetUpState, nullptr) != 0) {
 		std::string Message = ErrorValueText(L, -1);
 		delete NewState;
-		ThrowError(nullptr, "InitScripting: Lua cannot set up its state: " + Message);
+		ThrowError(nullptr, std::string(Function) + ": Lua cannot set up its state: " + Message);
 	}
 	lua_settop(L, 0);
+	TEngine *NewEngine = new TEngine;
+	NewEngine->State = NewState;
+	return NewEngine;
+}
+
+// Closes the engine's state and forgets the engine.
+static void CloseEngine(TEngine *Closed) {
+	delete Closed->State;
+	delete Closed;
+}
+
+void InitScripting(const char *Folder) {
+	if (Engine != nullptr) {
+		throw "InitScripting: the scripting engine is active already";
+	}
+	// On failure the engine stays inactive, so InitScripting may be tried
+	// again.
+	TEngine *NewEngine = MakeEngine("InitScripting");
 	MainThread = pthread_self();
 	::Folder = Folder;
-	Scripts.clear();
-	RequireStackDepth = 0;
-	State = NewState;
+	Engine = NewEngine;
 }
 
 void ExitScripting() {
-	if (State == nullptr) {
+	if (Engine == nullptr) {
 		return;
 	}
 	AssertMainThread();
-	delete State;
-	State = nullptr;
-	Scripts.clear();
+	if (ReplacedEngine != nullptr) {
+		CloseEngine(ReplacedEngine);
+		ReplacedEngine = nullptr;
+	}
+	CloseEngine(Engine);
+	Engine = nullptr;
 	Folder.clear();
-	RequireStackDepth = 0;
 	ItemTypeConstructor = nullptr;
 }
 
 bool ScriptingActive() {
-	return State != nullptr;
+	return Engine != nullptr;
+}
+
+void BeginScriptReload() {
+	AssertMainThread();
+	if (Engine == nullptr) {
+		throw "BeginScriptReload: the scripting engine is not active";
+	}
+	if (ReplacedEngine != nullptr) {
+		throw "BeginScriptReload: a reload has begun already";
+	}
+	TEngine *NewEngine = MakeEngine("BeginScriptReload");
+	ReplacedEngine = Engine;
+	Engine = NewEngine;
+}
+
+void CommitScriptReload() {
+	AssertMainThread();
+	assert(ReplacedEngine != nullptr);
+	if (ReplacedEngine == nullptr) {
+		return;
+	}
+	CloseEngine(ReplacedEngine);
+	ReplacedEngine = nullptr;
+}
+
+void DiscardScriptReload() {
+	AssertMainThread();
+	assert(ReplacedEngine != nullptr);
+	if (ReplacedEngine == nullptr) {
+		return;
+	}
+	CloseEngine(Engine);
+	Engine = ReplacedEngine;
+	ReplacedEngine = nullptr;
+}
+
+bool ScriptReloadActive() {
+	return ReplacedEngine != nullptr;
 }
 
 int LoadScript(const char *Name, const char *Where) {
@@ -1608,13 +1679,13 @@ int LoadScript(const char *Name, const char *Where) {
 	if (Name == nullptr || !ValidScriptName(Name)) {
 		ThrowError(Where, std::string("script name '") + (Name != nullptr ? Name : "") + "' is not allowed");
 	}
-	for (size_t i = 0; i < Scripts.size(); i++) {
-		if (Scripts[i].Name == Name) {
+	for (size_t i = 0; i < Engine->Scripts.size(); i++) {
+		if (Engine->Scripts[i].Name == Name) {
 			return static_cast<int>(i);
 		}
 	}
 
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	int Top = lua_gettop(L);
 	lua_pushcfunction(L, MessageHandler);
 	if (!LoadChunk(L, Name)) {
@@ -1627,12 +1698,12 @@ int LoadScript(const char *Name, const char *Where) {
 	lua_insert(L, -2);
 	lua_pushvalue(L, -2);
 	lua_setfenv(L, -2);
-	int Depth = RequireStackDepth;
+	int Depth = Engine->RequireStackDepth;
 	ClearTracedError(L);
 	int Status = lua_pcall(L, 0, LUA_MULTRET, Top + 1);
 	ClearTracedError(L);
 	// require takes its modules off the stack whether they fail or not.
-	assert(RequireStackDepth == Depth);
+	assert(Engine->RequireStackDepth == Depth);
 	(void) Depth;
 	if (Status != 0) {
 		std::string Message = ErrorValueText(L, -1);
@@ -1648,24 +1719,24 @@ int LoadScript(const char *Name, const char *Where) {
 	lua_settop(L, Top + 2);
 	int Environment = luaL_ref(L, LUA_REGISTRYINDEX);
 	lua_settop(L, Top);
-	Scripts.push_back(TScript{Name, Environment});
-	return static_cast<int>(Scripts.size()) - 1;
+	Engine->Scripts.push_back(TScript{Name, Environment});
+	return static_cast<int>(Engine->Scripts.size()) - 1;
 }
 
 const char *ScriptName(int Script) {
 	AssertMainThread();
-	assert(Script >= 0 && Script < static_cast<int>(Scripts.size()));
-	if (Script < 0 || Script >= static_cast<int>(Scripts.size())) {
+	assert(Engine != nullptr && Script >= 0 && Script < static_cast<int>(Engine->Scripts.size()));
+	if (Engine == nullptr || Script < 0 || Script >= static_cast<int>(Engine->Scripts.size())) {
 		return nullptr;
 	}
-	return Scripts[Script].Name.c_str();
+	return Engine->Scripts[Script].Name.c_str();
 }
 
 // Pushes the handler Handler of the script Script (a raw field of its
 // environment, its global of that name, so no metamethod runs and no shared
 // global counts), or nil when there is none.
 static void PushHandler(lua_State *L, int Script, const char *Handler) {
-	lua_rawgeti(L, LUA_REGISTRYINDEX, Scripts[Script].Environment);
+	lua_rawgeti(L, LUA_REGISTRYINDEX, Engine->Scripts[Script].Environment);
 	lua_pushstring(L, Handler);
 	lua_rawget(L, -2);
 	lua_remove(L, -2);
@@ -1674,11 +1745,11 @@ static void PushHandler(lua_State *L, int Script, const char *Handler) {
 bool HasHandler(int Script, const char *Handler) {
 	assert(ScriptingActive());
 	AssertMainThread();
-	assert(Script >= 0 && Script < static_cast<int>(Scripts.size()));
-	if (!ScriptingActive() || Script < 0 || Script >= static_cast<int>(Scripts.size())) {
+	assert(Script >= 0 && Script < static_cast<int>(Engine->Scripts.size()));
+	if (!ScriptingActive() || Script < 0 || Script >= static_cast<int>(Engine->Scripts.size())) {
 		return false;
 	}
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	PushHandler(L, Script, Handler);
 	bool Result = lua_isfunction(L, -1);
 	lua_pop(L, 1);
@@ -1697,7 +1768,7 @@ void RequireHandler(int Script, const char *Handler, const char *Where) {
 sol::state &ScriptState() {
 	assert(ScriptingActive());
 	AssertMainThread();
-	return *State;
+	return *Engine->State;
 }
 
 sol::table ScriptAPITable(const char *Name) {
@@ -1706,7 +1777,7 @@ sol::table ScriptAPITable(const char *Name) {
 	if (!ScriptingActive()) {
 		throw "ScriptAPITable: the scripting engine is not active";
 	}
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	PushAPITable(L, Name);
 	sol::table Table(L, -1);
 	lua_pop(L, 1);
@@ -1719,7 +1790,7 @@ void SetScriptConstant(const char *Name, int Value) {
 	if (!ScriptingActive()) {
 		throw "SetScriptConstant: the scripting engine is not active";
 	}
-	if (!SetConstant(State->lua_state(), Name, Value)) {
+	if (!SetConstant(Engine->State->lua_state(), Name, Value)) {
 		ThrowError(nullptr, std::string("SetScriptConstant: the name ") + Name + " is taken or removed by the sandbox");
 	}
 }
@@ -1880,8 +1951,8 @@ static unsigned FailureCount = 0;
 // it for TScriptCall::failure.
 static void LogScriptFailure(int Script, const char *Handler, const std::string &Message) {
 	const char *Name = "(no script)";
-	if (Script >= 0 && Script < static_cast<int>(Scripts.size())) {
-		Name = Scripts[Script].Name.c_str();
+	if (Engine != nullptr && Script >= 0 && Script < static_cast<int>(Engine->Scripts.size())) {
+		Name = Engine->Scripts[Script].Name.c_str();
 	}
 	error("Script error in %s (%s): %s\n", Name, Handler, DoublePercent(Message).c_str());
 	FailureText = Message.substr(0, Message.find("\nstack traceback:"));
@@ -1902,12 +1973,12 @@ static void LogScriptFailure(int Script, const char *Handler, const std::string 
 // (Result is then nil).
 static bool FinishCall(lua_State *L, int Top, int Script, const char *Handler, int NumberOfArguments,
 		TCallResult *Result, bool Caught = false) {
-	int Depth = RequireStackDepth;
+	int Depth = Engine->RequireStackDepth;
 	ClearTracedError(L);
 	int Status = lua_pcall(L, NumberOfArguments, 1, Top + 1);
 	ClearTracedError(L);
 	// require takes its modules off the stack whether they fail or not.
-	assert(RequireStackDepth == Depth);
+	assert(Engine->RequireStackDepth == Depth);
 	(void) Depth;
 	if (Status != 0) {
 		int Code;
@@ -1944,11 +2015,11 @@ static int PrepareCall(int Script, const char *Handler, int NumberOfArguments) {
 	if (!ScriptingActive()) {
 		ScriptFailure(Script, Handler, "the scripting engine is not active");
 	}
-	if (Script < 0 || Script >= static_cast<int>(Scripts.size())) {
+	if (Script < 0 || Script >= static_cast<int>(Engine->Scripts.size())) {
 		ScriptFailure(Script, Handler, "there is no script number " + std::to_string(Script));
 	}
 
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	int Top = lua_gettop(L);
 	if (!lua_checkstack(L, NumberOfArguments + 3)) {
 		ScriptFailure(Script, Handler, "too many arguments");
@@ -1957,7 +2028,7 @@ static int PrepareCall(int Script, const char *Handler, int NumberOfArguments) {
 	PushHandler(L, Script, Handler);
 	if (!lua_isfunction(L, -1)) {
 		lua_settop(L, Top);
-		ScriptFailure(Script, Handler, Scripts[Script].Name + " has no function " + Handler);
+		ScriptFailure(Script, Handler, Engine->Scripts[Script].Name + " has no function " + Handler);
 	}
 	return Top;
 }
@@ -1969,7 +2040,7 @@ template<typename T>
 static void CallHandler(int Script, const char *Handler, const T *Arguments, int NumberOfArguments,
 		TCallResult *Result) {
 	int Top = PrepareCall(Script, Handler, NumberOfArguments);
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	for (int i = 0; i < NumberOfArguments; i++) {
 		Arguments[i].push(L);
 	}
@@ -1988,7 +2059,7 @@ static std::string ResultValueText(const TCallResult &Result) {
 	if (Result.Type == LUA_TBOOLEAN) {
 		return Result.Boolean ? "true" : "false";
 	}
-	return std::string("a ") + lua_typename(State->lua_state(), Result.Type);
+	return std::string("a ") + lua_typename(Engine->State->lua_state(), Result.Type);
 }
 
 TScriptCall::TScriptCall(int Script, const char *Handler) :
@@ -2162,7 +2233,7 @@ bool TScriptCall::runCaught() {
 		// PrepareCall throws only through ScriptFailure, which has logged.
 		return false;
 	}
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	for (int i = 0; i < NumberOfArguments; i++) {
 		Arguments[i].push(L);
 	}
@@ -2188,7 +2259,7 @@ bool TScriptCall::runCaughtBoolean(bool &Value) {
 		// PrepareCall throws only through ScriptFailure, which has logged.
 		return false;
 	}
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	for (int i = 0; i < NumberOfArguments; i++) {
 		Arguments[i].push(L);
 	}
@@ -2266,7 +2337,7 @@ TScriptEvent::TScriptEvent(const char *Event, uint32_t User, uint32_t Obj1, uint
 		error("TScriptEvent: the scripting engine is not active.\n");
 		throw ERROR;
 	}
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	Base = lua_gettop(L);
 	if (!lua_checkstack(L, 3)) {
 		error("TScriptEvent: no room on Lua's stack.\n");
@@ -2280,7 +2351,7 @@ TScriptEvent::TScriptEvent(const char *Event, uint32_t User, uint32_t Obj1, uint
 TScriptEvent::~TScriptEvent() {
 	AssertMainThread();
 	if (ScriptingActive()) {
-		lua_settop(State->lua_state(), Base);
+		lua_settop(Engine->State->lua_state(), Base);
 	}
 }
 
@@ -2289,7 +2360,7 @@ bool TScriptEvent::check(int Script, const char *Handler, int Rule) {
 	AssertMainThread();
 	int NumberOfArguments = Rule > 0 ? 5 : 4;
 	int Top = PrepareCall(Script, Handler, NumberOfArguments);
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	if (Rule > 0) {
 		lua_pushinteger(L, Rule);
 	}
@@ -2312,7 +2383,7 @@ void TScriptEvent::run(int Script, const char *Handler) {
 	assert(ScriptingActive());
 	AssertMainThread();
 	int Top = PrepareCall(Script, Handler, 4);
-	lua_State *L = State->lua_state();
+	lua_State *L = Engine->State->lua_state();
 	lua_pushstring(L, Event);
 	lua_pushvalue(L, Base + 1);
 	lua_pushvalue(L, Base + 2);
