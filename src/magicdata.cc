@@ -6,7 +6,11 @@
 // rights of the commands, from commands.toml; the scripts the entries of
 // spells.toml and commands.toml name (their key script), which magic.cc loads;
 // and the circles, loaded from circles.toml (data/circles.toml, converted from
-// the original circles.dat by tools/convert).
+// the original circles.dat by tools/convert). The game reads the three files
+// into a staged set of these tables, which then changes places with the live
+// one (ReadStagedMagicData, SwapStagedMagicData), at start and on a reload;
+// the converter reads them into the live tables (LoadCircles, LoadSpells,
+// LoadCommands).
 
 #include "tomlfile.hh"
 
@@ -14,9 +18,9 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "config.hh"
 #include "magicdata.hh"
 #include "strings.hh"
 
@@ -81,6 +85,37 @@ TCircle Circle[MAX_CIRCLES];
 // "<file>:<line>:<column>"; both empty for none.
 static std::string SpellScript[MAX_SPELLS];
 static std::string SpellScriptPosition[MAX_SPELLS];
+
+// The staged set of the reload (ReadStagedMagicData): the same tables.
+static TSpellList StagedSpellList[MAX_SPELLS];
+static int StagedCommandRight[MAX_SPELLS][MAX_COMMAND_RIGHTS];
+static TCircle StagedCircle[MAX_CIRCLES];
+static std::string StagedSpellScript[MAX_SPELLS];
+static std::string StagedSpellScriptPosition[MAX_SPELLS];
+
+// The tables a read fills: the live set or the staged set.
+struct TMagicTables {
+	TSpellList *Spells;
+	int (*Rights)[MAX_COMMAND_RIGHTS];
+	TCircle *Circles;
+	std::string *Scripts;
+	std::string *ScriptPositions;
+	// A spell's name may take one of SpellNames[0] to
+	// SpellNames[ReusableNames - 1] again (ReadStagedMagicData); 0 for the
+	// loaders of the live set.
+	size_t ReusableNames;
+};
+
+static TMagicTables LiveTables() {
+	return {SpellList, CommandRight, Circle, SpellScript, SpellScriptPosition, 0};
+}
+
+// Every name of a spell or command the reads have made a static string of
+// (AddStaticString), in the order made.
+static std::vector<const char *> SpellNames;
+
+// The text of the error ReadStagedMagicData throws itself.
+static char MagicDataError[512];
 
 // The longest script name the key script may give.
 const int MAX_SCRIPT_NAME_LENGTH = 255;
@@ -288,9 +323,10 @@ static bool ValidScriptName(const std::string &Name) {
 // Reads the key script of the entry of SpellNr, a script name below Folder
 // ("spells/", "runes/" or "commands/"); What names the entry's kind in the
 // error text. No key: the entry has no script.
-static void ReadScript(const toml::table &Entry, int SpellNr, const char *Folder, const char *What) {
-	SpellScript[SpellNr].clear();
-	SpellScriptPosition[SpellNr].clear();
+static void ReadScript(const toml::table &Entry, int SpellNr, const char *Folder, const char *What,
+		const TMagicTables &Tables) {
+	Tables.Scripts[SpellNr].clear();
+	Tables.ScriptPositions[SpellNr].clear();
 	auto Found = Entry.find("script");
 	if (Found == Entry.end()) {
 		return;
@@ -315,8 +351,21 @@ static void ReadScript(const toml::table &Entry, int SpellNr, const char *Folder
 	char Position[4096 + 64];
 	snprintf(Position, sizeof(Position), "%s:%u:%u", Where.path != nullptr ? Where.path->c_str() : "(unknown file)",
 			Where.begin.line, Where.begin.column);
-	SpellScript[SpellNr] = Name;
-	SpellScriptPosition[SpellNr] = Position;
+	Tables.Scripts[SpellNr] = Name;
+	Tables.ScriptPositions[SpellNr] = Position;
+}
+
+// The static string of a spell's or command's name: one an earlier read made
+// with the same text (Tables.ReusableNames), or a new one.
+static const char *SpellName(const char *Name, const TMagicTables &Tables) {
+	for (size_t i = 0; i < Tables.ReusableNames; i++) {
+		if (strcmp(SpellNames[i], Name) == 0) {
+			return SpellNames[i];
+		}
+	}
+	const char *Text = AddStaticString(Name);
+	SpellNames.push_back(Text);
+	return Text;
 }
 
 // Reads an integer of Min..Max under Key into Value, which stays 0 when there
@@ -330,7 +379,7 @@ static void ReadNumber(const toml::table &Table, const char *Key, T &Value, int 
 
 // One [[spell]] of spells.toml. Defined notes the spell numbers filled so
 // far.
-static void ReadSpell(const toml::node &Node, bool *Defined) {
+static void ReadSpell(const toml::node &Node, bool *Defined, const TMagicTables &Tables) {
 	if (!Node.is_table()) {
 		TomlError(Node.source(), "an entry of spell must be a table");
 	}
@@ -351,25 +400,25 @@ static void ReadSpell(const toml::node &Node, bool *Defined) {
 	}
 	Defined[SpellNr] = true;
 
-	TSpellList &Spell = SpellList[SpellNr];
+	TSpellList &Spell = Tables.Spells[SpellNr];
 	memset(&Spell, 0, sizeof(TSpellList));
 
 	char Name[MAX_SPELL_NAME_LENGTH + 1];
 	TomlGetString(Entry, "name", Name, sizeof(Name));
-	Spell.Comment = AddStaticString(Name);
+	Spell.Comment = SpellName(Name, Tables);
 
 	ReadWords(Entry, Spell.Syllable, false);
 	for (int Other = 1; Other < MAX_SPELLS; Other++) {
 		if (Other != SpellNr && Defined[Other]
-				&& memcmp(SpellList[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
+				&& memcmp(Tables.Spells[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
 			TomlError(Entry.get("words")->source(), "these words are already the ones of spell %d", Other);
 		}
 	}
 
 	if (Spell.Syllable[0] == SYLLABLE_AD) {
-		ReadScript(Entry, SpellNr, "runes/", "a rune spell (class ad)");
+		ReadScript(Entry, SpellNr, "runes/", "a rune spell (class ad)", Tables);
 	} else {
-		ReadScript(Entry, SpellNr, "spells/", "a spell of the class ex or ut");
+		ReadScript(Entry, SpellNr, "spells/", "a spell of the class ex or ut", Tables);
 	}
 
 	ReadNumber(Entry, "level", Spell.Level, 0, USHRT_MAX);
@@ -409,13 +458,14 @@ static void ReadSpell(const toml::node &Node, bool *Defined) {
 	}
 }
 
-void LoadSpells(const char *FileName) {
+// LoadSpells into Tables.
+static void ReadSpells(const char *FileName, const TMagicTables &Tables) {
 	for (int i = 1; i < MAX_SPELLS; i++) {
-		memset(&SpellList[i], 0, sizeof(TSpellList));
+		memset(&Tables.Spells[i], 0, sizeof(TSpellList));
 	}
 	for (int i = 0; i < MAX_SPELLS; i++) {
-		SpellScript[i].clear();
-		SpellScriptPosition[i].clear();
+		Tables.Scripts[i].clear();
+		Tables.ScriptPositions[i].clear();
 	}
 
 	toml::table Spells = TomlParseFile(FileName);
@@ -424,15 +474,13 @@ void LoadSpells(const char *FileName) {
 	bool Defined[MAX_SPELLS] = {};
 	if (const toml::array *Entries = TomlGetArray(Spells, "spell")) {
 		for (const toml::node &Node : *Entries) {
-			ReadSpell(Node, Defined);
+			ReadSpell(Node, Defined, Tables);
 		}
 	}
 }
 
-void InitSpells() {
-	char FileName[4096];
-	sprintf(FileName, "%s/spells.toml", DATAPATH);
-	LoadSpells(FileName);
+void LoadSpells(const char *FileName) {
+	ReadSpells(FileName, LiveTables());
 }
 
 TCommandRightChecks GetCommandRightChecks(int SpellNr) {
@@ -505,7 +553,7 @@ static int ReadRight(const toml::node &Node, const char *What) {
 // The rights of a command under right: a string for a command that checks
 // one right, a table by the names of its checks for one that checks more,
 // and nothing for one that checks none.
-static void ReadCommandRights(const toml::table &Entry, int SpellNr) {
+static void ReadCommandRights(const toml::table &Entry, int SpellNr, const TMagicTables &Tables) {
 	TCommandRightChecks Checks = GetCommandRightChecks(SpellNr);
 	const toml::node *Node = Entry.get("right");
 	if (Checks.Count == 0) {
@@ -519,7 +567,7 @@ static void ReadCommandRights(const toml::table &Entry, int SpellNr) {
 	}
 
 	if (Checks.Names[0][0] == 0) {
-		CommandRight[SpellNr][COMMAND_RIGHT] = ReadRight(*Node, "right");
+		Tables.Rights[SpellNr][COMMAND_RIGHT] = ReadRight(*Node, "right");
 		return;
 	}
 
@@ -543,13 +591,13 @@ static void ReadCommandRights(const toml::table &Entry, int SpellNr) {
 		if (Check == nullptr) {
 			TomlError(Node->source(), "right of command %d needs %s", SpellNr, Checks.Names[i]);
 		}
-		CommandRight[SpellNr][i] = ReadRight(*Check, Checks.Names[i]);
+		Tables.Rights[SpellNr][i] = ReadRight(*Check, Checks.Names[i]);
 	}
 }
 
 // One [[command]] of commands.toml. Defined notes the command numbers filled
 // so far.
-static void ReadCommand(const toml::node &Node, bool *Defined) {
+static void ReadCommand(const toml::node &Node, bool *Defined, const TMagicTables &Tables) {
 	if (!Node.is_table()) {
 		TomlError(Node.source(), "an entry of command must be a table");
 	}
@@ -567,35 +615,36 @@ static void ReadCommand(const toml::node &Node, bool *Defined) {
 	if (Defined[SpellNr]) {
 		TomlError(Entry.get("number")->source(), "command %d is defined twice", SpellNr);
 	}
-	if (SpellList[SpellNr].Syllable[0] != 0) {
+	if (Tables.Spells[SpellNr].Syllable[0] != 0) {
 		TomlError(Entry.get("number")->source(), "%d is the number of a spell in spells.toml", SpellNr);
 	}
 	Defined[SpellNr] = true;
 
-	TSpellList &Spell = SpellList[SpellNr];
+	TSpellList &Spell = Tables.Spells[SpellNr];
 	memset(&Spell, 0, sizeof(TSpellList));
 
 	char Name[MAX_SPELL_NAME_LENGTH + 1];
 	TomlGetString(Entry, "name", Name, sizeof(Name));
-	Spell.Comment = AddStaticString(Name);
+	Spell.Comment = SpellName(Name, Tables);
 
 	ReadWords(Entry, Spell.Syllable, true);
 	for (int Other = 1; Other < MAX_SPELLS; Other++) {
-		if (Other != SpellNr && SpellList[Other].Syllable[0] != 0
-				&& memcmp(SpellList[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
+		if (Other != SpellNr && Tables.Spells[Other].Syllable[0] != 0
+				&& memcmp(Tables.Spells[Other].Syllable, Spell.Syllable, sizeof(Spell.Syllable)) == 0) {
 			TomlError(Entry.get("words")->source(), "these words are already the ones of %s %d",
 					Defined[Other] ? "command" : "spell", Other);
 		}
 	}
 
-	ReadCommandRights(Entry, SpellNr);
-	ReadScript(Entry, SpellNr, "commands/", "a command");
+	ReadCommandRights(Entry, SpellNr, Tables);
+	ReadScript(Entry, SpellNr, "commands/", "a command", Tables);
 }
 
-void LoadCommands(const char *FileName) {
+// LoadCommands into Tables.
+static void ReadCommands(const char *FileName, const TMagicTables &Tables) {
 	for (int i = 0; i < MAX_SPELLS; i++) {
 		for (int j = 0; j < MAX_COMMAND_RIGHTS; j++) {
-			CommandRight[i][j] = NO_RIGHT;
+			Tables.Rights[i][j] = NO_RIGHT;
 		}
 	}
 
@@ -605,22 +654,22 @@ void LoadCommands(const char *FileName) {
 	bool Defined[MAX_SPELLS] = {};
 	if (const toml::array *Entries = TomlGetArray(Commands, "command")) {
 		for (const toml::node &Node : *Entries) {
-			ReadCommand(Node, Defined);
+			ReadCommand(Node, Defined, Tables);
 		}
 	}
 }
 
-void InitCommands() {
-	char FileName[4096];
-	sprintf(FileName, "%s/commands.toml", DATAPATH);
-	LoadCommands(FileName);
+void LoadCommands(const char *FileName) {
+	ReadCommands(FileName, LiveTables());
 }
 
 // The most rows circles.toml may have (and fields in a row): the size
 // circles.dat allowed.
 const int MAX_CIRCLE_ROWS = 21;
 
-void LoadCircles(const char *FileName) {
+// LoadCircles into Tables.
+static void ReadCircles(const char *FileName, const TMagicTables &Tables) {
+	TCircle *Circle = Tables.Circles;
 	for (int i = 0; i < MAX_CIRCLES; i++) {
 		memset(&Circle[i], 0, sizeof(TCircle));
 	}
@@ -678,8 +727,95 @@ void LoadCircles(const char *FileName) {
 	}
 }
 
-void InitCircles() {
-	char FileName[4096];
-	sprintf(FileName, "%s/circles.toml", DATAPATH);
-	LoadCircles(FileName);
+void LoadCircles(const char *FileName) {
+	ReadCircles(FileName, LiveTables());
+}
+
+void ReadStagedMagicData(const char *CirclesFile, const char *SpellsFile, const char *CommandsFile) {
+	ClearStagedMagicData();
+	TMagicTables Staged = {StagedSpellList, StagedCommandRight, StagedCircle, StagedSpellScript,
+			StagedSpellScriptPosition, SpellNames.size()};
+	ReadCircles(CirclesFile, Staged);
+	ReadSpells(SpellsFile, Staged);
+	ReadCommands(CommandsFile, Staged);
+
+	for (int i = 1; i < MAX_SPELLS; i++) {
+		int Class = SpellList[i].Syllable[0];
+		if (Class == 0 || StagedSpellList[i].Syllable[0] != 0) {
+			continue;
+		}
+		bool Command = Class == SYLLABLE_AL || Class == SYLLABLE_OM;
+		snprintf(MagicDataError, sizeof(MagicDataError),
+				"%s: %s %d (%s) is gone; a reload cannot remove or renumber a spell or command",
+				Command ? CommandsFile : SpellsFile, Command ? "command" : "spell", i,
+				SpellList[i].Comment != nullptr ? SpellList[i].Comment : "");
+		throw MagicDataError;
+	}
+}
+
+void SwapStagedMagicData() {
+	for (int i = 0; i < MAX_SPELLS; i++) {
+		std::swap(SpellList[i], StagedSpellList[i]);
+		for (int j = 0; j < MAX_COMMAND_RIGHTS; j++) {
+			std::swap(CommandRight[i][j], StagedCommandRight[i][j]);
+		}
+		SpellScript[i].swap(StagedSpellScript[i]);
+		SpellScriptPosition[i].swap(StagedSpellScriptPosition[i]);
+	}
+	for (int i = 0; i < MAX_CIRCLES; i++) {
+		std::swap(Circle[i], StagedCircle[i]);
+	}
+}
+
+void ClearStagedMagicData() {
+	for (int i = 0; i < MAX_SPELLS; i++) {
+		memset(&StagedSpellList[i], 0, sizeof(TSpellList));
+		for (int j = 0; j < MAX_COMMAND_RIGHTS; j++) {
+			StagedCommandRight[i][j] = NO_RIGHT;
+		}
+		StagedSpellScript[i].clear();
+		StagedSpellScriptPosition[i].clear();
+	}
+	for (int i = 0; i < MAX_CIRCLES; i++) {
+		memset(&StagedCircle[i], 0, sizeof(TCircle));
+	}
+}
+
+// Whether the entry SpellNr of the staged set differs from the live one.
+static bool StagedSpellDiffers(int SpellNr) {
+	const TSpellList &Old = SpellList[SpellNr];
+	const TSpellList &New = StagedSpellList[SpellNr];
+	if (memcmp(Old.Syllable, New.Syllable, sizeof(Old.Syllable)) != 0 || Old.RuneGr != New.RuneGr
+			|| Old.RuneNr != New.RuneNr || Old.Level != New.Level || Old.RuneLevel != New.RuneLevel
+			|| Old.Flags != New.Flags || Old.Mana != New.Mana || Old.SoulPoints != New.SoulPoints
+			|| Old.Amount != New.Amount) {
+		return true;
+	}
+	if (strcmp(Old.Comment != nullptr ? Old.Comment : "", New.Comment != nullptr ? New.Comment : "") != 0) {
+		return true;
+	}
+	for (int j = 0; j < MAX_COMMAND_RIGHTS; j++) {
+		if (CommandRight[SpellNr][j] != StagedCommandRight[SpellNr][j]) {
+			return true;
+		}
+	}
+	return SpellScript[SpellNr] != StagedSpellScript[SpellNr];
+}
+
+TMagicChanges CompareStagedMagicData() {
+	TMagicChanges Changes = {0, 0, 0, 0, false};
+	for (int i = 1; i < MAX_SPELLS; i++) {
+		int Class = StagedSpellList[i].Syllable[0];
+		if (Class == 0) {
+			continue;
+		}
+		bool Command = Class == SYLLABLE_AL || Class == SYLLABLE_OM;
+		if (SpellList[i].Syllable[0] == 0) {
+			(Command ? Changes.CommandsAdded : Changes.SpellsAdded)++;
+		} else if (StagedSpellDiffers(i)) {
+			(Command ? Changes.CommandsChanged : Changes.SpellsChanged)++;
+		}
+	}
+	Changes.CirclesChanged = memcmp(Circle, StagedCircle, sizeof(Circle)) != 0;
+	return Changes;
 }

@@ -1,17 +1,21 @@
 // triggersdata.cc: the trigger rules (triggersdata.hh): the schema of
 // triggers.toml, the tables the game keeps the rules in and their loader,
 // which reads triggers.toml (data/triggers.toml in the repository, converted
-// from the original moveuse.dat by tools/convert).
+// from the original moveuse.dat by tools/convert). The game reads the file
+// into a staged set of the tables, which then changes places with the live
+// one (ReadStagedTriggerRules, SwapStagedTriggerRules), at start and on a
+// reload; the converter reads it into the live tables (LoadTriggerRules).
 
 #include "tomlfile.hh"
 
 #include <climits>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <utility>
 
 #include "script.hh"
-#include "config.hh"
 #include "objects.hh"
 #include "map.hh"
 #include "info.hh"
@@ -29,6 +33,43 @@ std::vector<TTriggerRuleEntry> TriggerRules;
 std::vector<TTriggerScript> TriggerScripts;
 std::vector<std::string> TriggerConditionPlaces;
 std::vector<std::string> TriggerActionPlaces;
+std::vector<uint32_t> TriggerTexts;
+
+// The staged set of the reload (ReadStagedTriggerRules): the same tables.
+static vector<TTriggerCondition> StagedConditions(1, 1000, 1000);
+static int StagedNumberOfConditions;
+static vector<TTriggerAction> StagedActions(1, 1000, 1000);
+static int StagedNumberOfActions;
+static TTriggerDatabase StagedDatabases[NUMBER_OF_EVENT_TYPES];
+static std::vector<TTriggerRuleEntry> StagedRules;
+static std::vector<TTriggerScript> StagedScripts;
+static std::vector<std::string> StagedConditionPlaces;
+static std::vector<std::string> StagedActionPlaces;
+static std::vector<uint32_t> StagedTexts;
+
+// The tables a read fills: the live set or the staged set.
+struct TTriggerTables {
+	vector<TTriggerCondition> &Conditions;
+	int &NumberOfConditions;
+	vector<TTriggerAction> &Actions;
+	int &NumberOfActions;
+	TTriggerDatabase *Databases;
+	std::vector<TTriggerRuleEntry> &Rules;
+	std::vector<TTriggerScript> &Scripts;
+	std::vector<std::string> &ConditionPlaces;
+	std::vector<std::string> &ActionPlaces;
+	std::vector<uint32_t> &Texts;
+};
+
+static TTriggerTables LiveTables() {
+	return {TriggerConditions, NumberOfTriggerConditions, TriggerActions, NumberOfTriggerActions, TriggerDatabases,
+			TriggerRules, TriggerScripts, TriggerConditionPlaces, TriggerActionPlaces, TriggerTexts};
+}
+
+static TTriggerTables StagedTables() {
+	return {StagedConditions, StagedNumberOfConditions, StagedActions, StagedNumberOfActions, StagedDatabases,
+			StagedRules, StagedScripts, StagedConditionPlaces, StagedActionPlaces, StagedTexts};
+}
 
 const TTriggerSignature ConditionSignatures[NUMBER_OF_CONDITION_TYPES] = {
 	{"is_position", 2, {PARAMETER_OBJECT, PARAMETER_COORDINATE}},
@@ -271,8 +312,10 @@ static void ReadTriple(const toml::node &Node, const char *What, int *Values, in
 }
 
 // One parameter of the type Type from Node into Parameter. What names it in
-// the error text ("argument 2 of is_type").
-static void ReadParameter(const toml::node &Node, ParameterType Type, const char *What, int &Parameter) {
+// the error text ("argument 2 of is_type"). A text's dynamic string is noted
+// in Texts.
+static void ReadParameter(const toml::node &Node, ParameterType Type, const char *What, int &Parameter,
+		std::vector<uint32_t> &Texts) {
 	int Values[3];
 	switch (Type) {
 		case PARAMETER_OBJECT:
@@ -324,7 +367,11 @@ static void ReadParameter(const toml::node &Node, ParameterType Type, const char
 			if (static_cast<int>(Text.size()) > MAX_TRIGGER_TEXT_LENGTH) {
 				TomlError(Node.source(), "%s is longer than %d characters", What, MAX_TRIGGER_TEXT_LENGTH);
 			}
-			Parameter = static_cast<int>(AddDynamicString(Text.data()));
+			uint32_t Number = AddDynamicString(Text.data());
+			if (Number != 0) {
+				Texts.push_back(Number);
+			}
+			Parameter = static_cast<int>(Number);
 			break;
 		}
 		case PARAMETER_COMPARISON:
@@ -335,9 +382,11 @@ static void ReadParameter(const toml::node &Node, ParameterType Type, const char
 
 // The entry Node of conditions or actions (List names it, Kind names one of
 // its types): checks its keys against Keys, finds its type by name among
-// Count signatures and reads its args into Parameters. Returns the type.
+// Count signatures and reads its args into Parameters (its texts noted in
+// Texts). Returns the type.
 static int ReadEntry(const toml::node &Node, const char *List, const char *Kind,
-		std::initializer_list<const char *> Keys, const TTriggerSignature *Signatures, int Count, int *Parameters) {
+		std::initializer_list<const char *> Keys, const TTriggerSignature *Signatures, int Count, int *Parameters,
+		std::vector<uint32_t> &Texts) {
 	const toml::table *Entry = Node.as_table();
 	if (Entry == nullptr) {
 		TomlError(Node.source(), "an entry of %s must be a table", List);
@@ -370,7 +419,8 @@ static int ReadEntry(const toml::node &Node, const char *List, const char *Kind,
 	}
 	for (int i = 0; i < Signature.NumberOfParameters; i++) {
 		std::string Argument = "argument " + std::to_string(i + 1) + " of " + Signature.Key;
-		ReadParameter(*Args->get(static_cast<size_t>(i)), Signature.Parameters[i], Argument.c_str(), Parameters[i]);
+		ReadParameter(*Args->get(static_cast<size_t>(i)), Signature.Parameters[i], Argument.c_str(), Parameters[i],
+				Texts);
 	}
 	return Type;
 }
@@ -399,8 +449,8 @@ static const toml::array &ReadList(const toml::table &Rule, const char *Key) {
 	return *List;
 }
 
-// One [[rule]] of triggers.toml.
-static void ReadRule(const toml::node &Node) {
+// One [[rule]] of triggers.toml, into Tables.
+static void ReadRule(const toml::node &Node, const TTriggerTables &Tables) {
 	const toml::table *Rule = Node.as_table();
 	if (Rule == nullptr) {
 		TomlError(Node.source(), "an entry of rule must be a table");
@@ -440,36 +490,36 @@ static void ReadRule(const toml::node &Node) {
 				TomlError(List->source(), "a rule with script has no %s", Key);
 			}
 		}
-		TTriggerDatabase &Database = TriggerDatabases[EventType];
+		TTriggerDatabase &Database = Tables.Databases[EventType];
 		Database.NumberOfRules++;
 		TTriggerRule &Entry = Database.Rules(Database.NumberOfRules);
-		Entry.FirstCondition = NumberOfTriggerConditions + 1;
-		Entry.LastCondition = NumberOfTriggerConditions;
-		Entry.FirstAction = NumberOfTriggerActions + 1;
-		Entry.LastAction = NumberOfTriggerActions;
-		Entry.Script = static_cast<int>(TriggerScripts.size());
-		TriggerScripts.push_back(TTriggerScript{Name, Place(Script->source()), -1});
-		TriggerRules.push_back(TTriggerRuleEntry{EventType, Database.NumberOfRules});
-		Entry.Number = static_cast<int>(TriggerRules.size());
+		Entry.FirstCondition = Tables.NumberOfConditions + 1;
+		Entry.LastCondition = Tables.NumberOfConditions;
+		Entry.FirstAction = Tables.NumberOfActions + 1;
+		Entry.LastAction = Tables.NumberOfActions;
+		Entry.Script = static_cast<int>(Tables.Scripts.size());
+		Tables.Scripts.push_back(TTriggerScript{Name, Place(Script->source()), -1});
+		Tables.Rules.push_back(TTriggerRuleEntry{EventType, Database.NumberOfRules});
+		Entry.Number = static_cast<int>(Tables.Rules.size());
 		return;
 	}
 
 	const toml::array &Conditions = ReadList(*Rule, "conditions");
 	const toml::array &Actions = ReadList(*Rule, "actions");
 
-	TTriggerDatabase &Database = TriggerDatabases[EventType];
+	TTriggerDatabase &Database = Tables.Databases[EventType];
 	Database.NumberOfRules++;
 	TTriggerRule &Entry = Database.Rules(Database.NumberOfRules);
-	TriggerRules.push_back(TTriggerRuleEntry{EventType, Database.NumberOfRules});
-	Entry.Number = static_cast<int>(TriggerRules.size());
+	Tables.Rules.push_back(TTriggerRuleEntry{EventType, Database.NumberOfRules});
+	Entry.Number = static_cast<int>(Tables.Rules.size());
 	Entry.Script = -1;
-	Entry.FirstCondition = NumberOfTriggerConditions + 1;
+	Entry.FirstCondition = Tables.NumberOfConditions + 1;
 	for (const toml::node &ConditionNode : Conditions) {
-		NumberOfTriggerConditions++;
-		SetPlace(TriggerConditionPlaces, NumberOfTriggerConditions, Place(ConditionNode.source()));
-		TTriggerCondition &Condition = TriggerConditions(NumberOfTriggerConditions);
+		Tables.NumberOfConditions++;
+		SetPlace(Tables.ConditionPlaces, Tables.NumberOfConditions, Place(ConditionNode.source()));
+		TTriggerCondition &Condition = Tables.Conditions(Tables.NumberOfConditions);
 		int Type = ReadEntry(ConditionNode, "conditions", "condition", {"name", "args", "negate", "ignore_result"},
-				ConditionSignatures, NUMBER_OF_CONDITION_TYPES, Condition.Parameters);
+				ConditionSignatures, NUMBER_OF_CONDITION_TYPES, Condition.Parameters, Tables.Texts);
 		Condition.Condition = static_cast<ConditionType>(Type);
 		const toml::table &Table = *ConditionNode.as_table();
 		bool Negate = ReadBoolean(Table, "negate");
@@ -479,33 +529,39 @@ static void ReadRule(const toml::node &Node) {
 		}
 		Condition.Modifier = Negate ? MODIFIER_INVERT : IgnoreResult ? MODIFIER_TRUE : MODIFIER_NORMAL;
 	}
-	Entry.LastCondition = NumberOfTriggerConditions;
+	Entry.LastCondition = Tables.NumberOfConditions;
 
-	Entry.FirstAction = NumberOfTriggerActions + 1;
+	Entry.FirstAction = Tables.NumberOfActions + 1;
 	for (const toml::node &ActionNode : Actions) {
-		NumberOfTriggerActions++;
-		SetPlace(TriggerActionPlaces, NumberOfTriggerActions, Place(ActionNode.source()));
-		TTriggerAction &Action = TriggerActions(NumberOfTriggerActions);
+		Tables.NumberOfActions++;
+		SetPlace(Tables.ActionPlaces, Tables.NumberOfActions, Place(ActionNode.source()));
+		TTriggerAction &Action = Tables.Actions(Tables.NumberOfActions);
 		int Type = ReadEntry(ActionNode, "actions", "action", {"name", "args"}, ActionSignatures,
-				NUMBER_OF_ACTION_TYPES, Action.Parameters);
+				NUMBER_OF_ACTION_TYPES, Action.Parameters, Tables.Texts);
 		Action.Action = static_cast<ActionType>(Type);
 	}
-	Entry.LastAction = NumberOfTriggerActions;
+	Entry.LastAction = Tables.NumberOfActions;
 }
 
-void ReadTriggerRules(const toml::table &File) {
+// ReadTriggerRules into Tables.
+static void ReadRules(const toml::table &File, const TTriggerTables &Tables) {
 	for (int i = 0; i < NUMBER_OF_EVENT_TYPES; i++) {
-		TriggerDatabases[i].NumberOfRules = 0;
+		Tables.Databases[i].NumberOfRules = 0;
 	}
-	TriggerRules.clear();
-	TriggerScripts.clear();
+	Tables.Rules.clear();
+	Tables.Scripts.clear();
+	Tables.Texts.clear();
 
 	TomlCheckKeys(File, "the top level", {"rule"});
 	if (const toml::array *Rules = TomlGetArray(File, "rule")) {
 		for (const toml::node &Node : *Rules) {
-			ReadRule(Node);
+			ReadRule(Node, Tables);
 		}
 	}
+}
+
+void ReadTriggerRules(const toml::table &File) {
+	ReadRules(File, LiveTables());
 }
 
 void LoadTriggerRules(const char *FileName) {
@@ -513,13 +569,127 @@ void LoadTriggerRules(const char *FileName) {
 	ReadTriggerRules(File);
 }
 
-void LoadTriggers() {
-	char FileName[4096];
-	print(1, "Loading trigger rules ...\n");
-	sprintf(FileName, "%s/triggers.toml", DATAPATH);
-	LoadTriggerRules(FileName);
-	print(1, "Trigger rules read with %d/%d/%d/%d/%d rules.\n",
-			TriggerDatabases[EVENT_USE].NumberOfRules, TriggerDatabases[EVENT_MULTIUSE].NumberOfRules,
-			TriggerDatabases[EVENT_MOVEMENT].NumberOfRules, TriggerDatabases[EVENT_COLLISION].NumberOfRules,
-			TriggerDatabases[EVENT_SEPARATION].NumberOfRules);
+void ReadStagedTriggerRules(const char *FileName) {
+	ClearStagedTriggerRules();
+	try {
+		toml::table File = TomlParseFile(FileName);
+		ReadRules(File, StagedTables());
+	} catch (...) {
+		ClearStagedTriggerRules();
+		throw;
+	}
+}
+
+// Swaps two of the project's containers (containr.hh), which have neither a
+// copy nor a swap, by their raw bytes, as their growth moves their elements:
+// each takes the other's entries and memory.
+template<class T>
+static void SwapContainers(T &A, T &B) {
+	unsigned char Help[sizeof(T)];
+	memcpy(Help, static_cast<void *>(&A), sizeof(T));
+	memcpy(static_cast<void *>(&A), static_cast<void *>(&B), sizeof(T));
+	memcpy(static_cast<void *>(&B), Help, sizeof(T));
+}
+
+void SwapStagedTriggerRules() {
+	SwapContainers(TriggerConditions, StagedConditions);
+	std::swap(NumberOfTriggerConditions, StagedNumberOfConditions);
+	SwapContainers(TriggerActions, StagedActions);
+	std::swap(NumberOfTriggerActions, StagedNumberOfActions);
+	for (int i = 0; i < NUMBER_OF_EVENT_TYPES; i++) {
+		SwapContainers(TriggerDatabases[i].Rules, StagedDatabases[i].Rules);
+		std::swap(TriggerDatabases[i].NumberOfRules, StagedDatabases[i].NumberOfRules);
+	}
+	TriggerRules.swap(StagedRules);
+	TriggerScripts.swap(StagedScripts);
+	TriggerConditionPlaces.swap(StagedConditionPlaces);
+	TriggerActionPlaces.swap(StagedActionPlaces);
+	TriggerTexts.swap(StagedTexts);
+}
+
+void ClearStagedTriggerRules() {
+	for (uint32_t Number : StagedTexts) {
+		DeleteDynamicString(Number);
+	}
+	StagedTexts.clear();
+	StagedNumberOfConditions = 0;
+	StagedNumberOfActions = 0;
+	for (int i = 0; i < NUMBER_OF_EVENT_TYPES; i++) {
+		StagedDatabases[i].NumberOfRules = 0;
+	}
+	StagedRules.clear();
+	StagedScripts.clear();
+	StagedConditionPlaces.clear();
+	StagedActionPlaces.clear();
+}
+
+// Whether the parameters of a condition or action of Signature differ in the
+// live set (Old) and the staged set (New); a text by its content.
+static bool ParametersDiffer(const TTriggerSignature &Signature, const int *Old, const int *New) {
+	for (int i = 0; i < Signature.NumberOfParameters; i++) {
+		if (Signature.Parameters[i] == PARAMETER_TEXT) {
+			const char *OldText = GetDynamicString(static_cast<uint32_t>(Old[i]));
+			const char *NewText = GetDynamicString(static_cast<uint32_t>(New[i]));
+			if (strcmp(OldText != nullptr ? OldText : "", NewText != nullptr ? NewText : "") != 0) {
+				return true;
+			}
+		} else if (Old[i] != New[i]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Whether rule k + 1 of the file differs in the live set and the staged set.
+static bool StagedRuleDiffers(size_t k) {
+	const TTriggerRuleEntry &OldEntry = TriggerRules[k];
+	const TTriggerRuleEntry &NewEntry = StagedRules[k];
+	if (OldEntry.Event != NewEntry.Event) {
+		return true;
+	}
+	TTriggerRule &Old = TriggerDatabases[OldEntry.Event].Rules(OldEntry.Rule);
+	TTriggerRule &New = StagedDatabases[NewEntry.Event].Rules(NewEntry.Rule);
+	if ((Old.Script >= 0) != (New.Script >= 0)) {
+		return true;
+	}
+	if (Old.Script >= 0) {
+		return TriggerScripts[static_cast<size_t>(Old.Script)].Name
+				!= StagedScripts[static_cast<size_t>(New.Script)].Name;
+	}
+	if (Old.LastCondition - Old.FirstCondition != New.LastCondition - New.FirstCondition
+			|| Old.LastAction - Old.FirstAction != New.LastAction - New.FirstAction) {
+		return true;
+	}
+	for (int i = 0; i <= Old.LastCondition - Old.FirstCondition; i++) {
+		const TTriggerCondition &OldCondition = TriggerConditions(Old.FirstCondition + i);
+		const TTriggerCondition &NewCondition = StagedConditions(New.FirstCondition + i);
+		if (OldCondition.Modifier != NewCondition.Modifier || OldCondition.Condition != NewCondition.Condition
+				|| ParametersDiffer(ConditionSignatures[OldCondition.Condition], OldCondition.Parameters,
+						NewCondition.Parameters)) {
+			return true;
+		}
+	}
+	for (int i = 0; i <= Old.LastAction - Old.FirstAction; i++) {
+		const TTriggerAction &OldAction = TriggerActions(Old.FirstAction + i);
+		const TTriggerAction &NewAction = StagedActions(New.FirstAction + i);
+		if (OldAction.Action != NewAction.Action
+				|| ParametersDiffer(ActionSignatures[OldAction.Action], OldAction.Parameters, NewAction.Parameters)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+TTriggerChanges CompareStagedTriggerRules() {
+	TTriggerChanges Changes = {0, 0, 0};
+	size_t Old = TriggerRules.size();
+	size_t New = StagedRules.size();
+	for (size_t k = 0; k < Old && k < New; k++) {
+		if (StagedRuleDiffers(k)) {
+			Changes.Changed++;
+		}
+	}
+	Changes.Added = New > Old ? static_cast<int>(New - Old) : 0;
+	Changes.Removed = Old > New ? static_cast<int>(Old - New) : 0;
+	return Changes;
 }

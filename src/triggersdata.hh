@@ -9,6 +9,7 @@
 #ifndef PATELLA_TRIGGERSDATA_HH
 #define PATELLA_TRIGGERSDATA_HH
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -220,12 +221,13 @@ struct TTriggerRuleEntry {
 // their order: each rule becomes the next rule of its event's database, its
 // conditions and actions are appended to TriggerConditions and
 // TriggerActions after the ones there, and its texts are added as dynamic
-// strings in their order. Records each rule in TriggerRules, each script in
-// TriggerScripts and the place of each condition and action in
-// TriggerConditionPlaces and TriggerActionPlaces. Empties the databases,
-// TriggerRules and TriggerScripts first, as the game's old LoadDataBase
-// emptied the databases; InitTriggers sets the condition and action counts
-// to 0. Throws a const char * "<file>:<line>:<column>: <what>" for what is
+// strings in their order (their numbers also in TriggerTexts). Records each
+// rule in TriggerRules, each script in TriggerScripts and the place of each
+// condition and action in TriggerConditionPlaces and TriggerActionPlaces.
+// Empties the databases, TriggerRules, TriggerScripts and TriggerTexts first
+// (without deleting the dynamic strings), as the game's old LoadDataBase
+// emptied the databases; the caller sets the condition and action counts to
+// 0. Throws a const char * "<file>:<line>:<column>: <what>" for what is
 // wrong with it. The object types must be loaded: a type a rule names must
 // exist.
 void ReadTriggerRules(const toml::table &File);
@@ -233,9 +235,41 @@ void ReadTriggerRules(const toml::table &File);
 // ReadTriggerRules of the triggers.toml file FileName.
 void LoadTriggerRules(const char *FileName);
 
-// LoadTriggerRules of triggers.toml in the data folder (DATAPATH), with the
-// log lines of the game's old LoadDataBase.
-void LoadTriggers();
+// The reload (phase 8; reload.hh, triggers.cc's TriggersReloadPart): a second
+// set of the tables below (the conditions and actions with their counts, the
+// databases, TriggerRules, TriggerScripts, the places and TriggerTexts), the
+// staged set, which a reload fills while the live set stays as it is, and
+// which then changes places with it.
+//
+// ReadStagedTriggerRules empties the staged set (ClearStagedTriggerRules) and
+// reads the triggers.toml file FileName into it as LoadTriggerRules reads into
+// the live set, with its checks (a type must exist among the object types
+// loaded) and its texts made dynamic strings in the file's order. When it
+// throws (as LoadTriggerRules), it has emptied the staged set again, its texts
+// deleted.
+void ReadStagedTriggerRules(const char *FileName);
+
+// Swaps the staged set and the live set (the install of a reload, and its
+// uninstall after it). The project's containers (containr.hh), which have no
+// copy and no swap, change places by their raw bytes, so that each set keeps
+// its entries and its memory.
+void SwapStagedTriggerRules();
+
+// Empties the staged set: deletes the dynamic strings of its texts
+// (TriggerTexts' of that set), sets its counts to 0 and empties its lists.
+// The containers keep their memory.
+void ClearStagedTriggerRules();
+
+// What the staged set changes against the live set, by the rules' numbers in
+// the file: rules that are in both and differ (event, script, the conditions
+// and actions with their arguments, a text by its content), rules only the
+// staged set has (added) and rules only the live set has (removed).
+struct TTriggerChanges {
+	int Changed;
+	int Added;
+	int Removed;
+};
+TTriggerChanges CompareStagedTriggerRules();
 
 extern vector<TTriggerCondition> TriggerConditions;
 extern int NumberOfTriggerConditions;
@@ -252,5 +286,8 @@ extern std::vector<TTriggerScript> TriggerScripts;
 // TriggerActions (entry 0 unused).
 extern std::vector<std::string> TriggerConditionPlaces;
 extern std::vector<std::string> TriggerActionPlaces;
+// The dynamic strings the texts of the rules are (AddDynamicString, 0 for an
+// empty text left out), in the order made.
+extern std::vector<uint32_t> TriggerTexts;
 
 #endif

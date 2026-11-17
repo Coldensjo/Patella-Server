@@ -39,6 +39,7 @@
 #include <sstream>
 #include "houses.hh"
 #include "scripting.hh"
+#include "reload.hh"
 
 // CheckSpellbook, CheckAccount, CheckLevel, CheckRuneLevel, CheckRing,
 // CheckAffectedPlayers, SpendManaAndSoulPoints and every spell function from
@@ -51,9 +52,9 @@
 const int MAX_SUMMONS = 2;
 
 // The scripts of the spells and commands by number, -1 for none
-// (LoadSpellScripts): CastScript for the classes ex and ut (CastSpell),
-// UseScript for ad (UseMagicItem), SayScript for al and om
-// (CharacterRightSpell, AccountRightSpell).
+// (LoadSpellScripts, made live by MagicReloadPart's finish): CastScript for
+// the classes ex and ut (CastSpell), UseScript for ad (UseMagicItem),
+// SayScript for al and om (CharacterRightSpell, AccountRightSpell).
 static int CastScript[MAX_SPELLS];
 static int UseScript[MAX_SPELLS];
 static int SayScript[MAX_SPELLS];
@@ -3626,11 +3627,21 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 	}
 }
 
+// The script numbers LoadSpellScripts gives, until MagicReloadPart's finish
+// makes them CastScript, UseScript and SayScript.
+static int StagedCastScript[MAX_SPELLS];
+static int StagedUseScript[MAX_SPELLS];
+static int StagedSayScript[MAX_SPELLS];
+
 // Loads the script of every spell and command that has one (magicdata's
-// GetSpellScript) and checks its handler: onCastSpell for the classes ex, ut
-// and ad, onSay for al and om. Throws a const char * as LoadScript and
-// RequireHandler do.
+// GetSpellScript, of the live tables) into the current engine and checks its
+// handler: onCastSpell for the classes ex, ut and ad, onSay for al and om;
+// their numbers go to StagedCastScript, StagedUseScript and StagedSayScript.
+// Throws a const char * as LoadScript and RequireHandler do.
 static void LoadSpellScripts() {
+	int *CastScript = StagedCastScript;
+	int *UseScript = StagedUseScript;
+	int *SayScript = StagedSayScript;
 	for (int i = 0; i < MAX_SPELLS; i++) {
 		CastScript[i] = -1;
 		UseScript[i] = -1;
@@ -3666,11 +3677,89 @@ static void LoadSpellScripts() {
 	}
 }
 
+namespace {
+
+// The magic part of the reload (reload.hh): circles.toml, spells.toml and
+// commands.toml, staged by magicdata.cc (ReadStagedMagicData), and the
+// scripts of the spells and commands (LoadSpellScripts). What refers to a
+// spell or command keeps its number, which a reload may not take away; a
+// spell's name is a static string, which a reload takes again where the
+// text is the same (ReadStagedMagicData).
+class TMagicReloadPart : public TReloadPart {
+public:
+	const char *name() const override {
+		return "magic";
+	}
+
+	void read() override {
+		char CirclesFile[4096];
+		char SpellsFile[4096];
+		char CommandsFile[4096];
+		snprintf(CirclesFile, sizeof(CirclesFile), "%s/circles.toml", DATAPATH);
+		snprintf(SpellsFile, sizeof(SpellsFile), "%s/spells.toml", DATAPATH);
+		snprintf(CommandsFile, sizeof(CommandsFile), "%s/commands.toml", DATAPATH);
+		ReadStagedMagicData(CirclesFile, SpellsFile, CommandsFile);
+		Changes = CompareStagedMagicData();
+	}
+
+	void install() override {
+		SwapStagedMagicData();
+	}
+
+	void loadScripts() override {
+		LoadSpellScripts();
+	}
+
+	void finish() override {
+		memcpy(CastScript, StagedCastScript, sizeof(CastScript));
+		memcpy(UseScript, StagedUseScript, sizeof(UseScript));
+		memcpy(SayScript, StagedSayScript, sizeof(SayScript));
+		ClearStagedMagicData();
+	}
+
+	void uninstall() override {
+		SwapStagedMagicData();
+	}
+
+	void discard() override {
+		ClearStagedMagicData();
+		for (int i = 0; i < MAX_SPELLS; i++) {
+			StagedCastScript[i] = -1;
+			StagedUseScript[i] = -1;
+			StagedSayScript[i] = -1;
+		}
+	}
+
+	std::string summary() const override {
+		char Text[256];
+		snprintf(Text, sizeof(Text),
+				"spells.toml: %d spells changed, %d added; commands.toml: %d commands changed, %d added; "
+				"circles.toml: %s",
+				Changes.SpellsChanged, Changes.SpellsAdded, Changes.CommandsChanged, Changes.CommandsAdded,
+				Changes.CirclesChanged ? "changed" : "unchanged");
+		return Text;
+	}
+
+private:
+	TMagicChanges Changes = {0, 0, 0, 0, false};
+};
+
+} // namespace
+
+TReloadPart &MagicReloadPart() {
+	static TMagicReloadPart Part;
+	return Part;
+}
+
+// At start the part reads circles.toml, spells.toml and commands.toml in this
+// order (the names made static strings in the files' order) and loads the
+// scripts by spell number.
 void InitMagic() {
-	InitCircles();
-	InitSpells();
-	InitCommands();
-	LoadSpellScripts();
+	TReloadPart &Part = MagicReloadPart();
+	Part.read();
+	Part.install();
+	Part.loadScripts();
+	Part.finish();
 	InitLog("banish");
 }
 
@@ -3724,7 +3813,6 @@ static void CreateField(int x, int y, int z, int FieldType, uint32_t Owner, bool
 // CreateField report a failure by throwing a RESULT (CharacterRightSpell,
 // AccountRightSpell, CastSpell and UseMagicItem also the one a script's
 // handler raises, through TScriptCall), and InitMagic by throwing a const
-// char * (from InitCircles, InitSpells, InitCommands and the loading of the
-// scripts). They have no
-// exception specification (C++17 has none), so an exception of another type
-// passes to the caller too.
+// char * (from reading circles.toml, spells.toml and commands.toml and from
+// the loading of the scripts). They have no exception specification (C++17
+// has none), so an exception of another type passes to the caller too.

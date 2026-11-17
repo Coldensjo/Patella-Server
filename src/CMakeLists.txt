@@ -87,3 +87,10 @@ add_executable(game_test_events tests/test_events.cc scripting_events.cc scripti
 target_include_directories(game_test_events PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(game_test_events PRIVATE game_flags tomlplusplus sol2)
 add_test(NAME game_events COMMAND game_test_events)
+
+# game_test_triggers_reload: the staged trigger tables (triggersdata.cc); it
+# links convert_common (tools/convert), which compiles triggersdata.cc with
+# the units it needs (objects.cc, map.cc, ...) and the converter's stubs.
+add_executable(game_test_triggers_reload tests/test_triggers_reload.cc)
+target_link_libraries(game_test_triggers_reload PRIVATE game_flags convert_common)
+add_test(NAME game_triggers_reload COMMAND game_test_triggers_reload)
