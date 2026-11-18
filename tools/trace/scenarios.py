@@ -21,9 +21,15 @@ CLUB = 3270
 BAG = 2853
 
 
-def scenario(start_round=20):
+def scenario(start_round=20, houses=None, stop_round=None):
+	"""A scenario; houses: {house id: client key}, the houses trace_check.py
+	makes the test characters of those keys the owners of for the run;
+	stop_round: the round trace_check.py stops the game at when its
+	--stop-round is not given (None: its default)."""
 	def deco(f):
 		f.start_round = start_round
+		f.houses = houses or {}
+		f.stop_round = stop_round
 		SCENARIOS[f.__name__] = f
 		return f
 	return deco
@@ -55,6 +61,27 @@ class Steps:
 		self.n += k
 		self.ctx.at(self.n)
 		return self.n
+
+
+class KeepAlive(Steps):
+	"""Steps whose clients (a dict, filled as they log in) each send a ping
+	every 20 rounds. The game pings a client that sent nothing for 30 rounds,
+	at the start of a round (TConnection::Process), and a trace may show that
+	ping on either side of the round's note; a client's ping changes nothing
+	but that time (ResetTimer)."""
+
+	def __init__(self, ctx, clients):
+		Steps.__init__(self, ctx)
+		self.clients = clients
+
+	def __call__(self, k=2):
+		before = self.n
+		n = Steps.__call__(self, k)
+		if n // 20 != before // 20:
+			for c in self.clients.values():
+				if not c.closed:
+					c.ping()
+		return n
 
 
 def movement(ctx, s, a, b):
@@ -353,12 +380,14 @@ COMMANDS = [
 ]
 
 
-@scenario()
+@scenario(stop_round=290)
 def commands(ctx):
 	"""The commands of commands.toml, said by a player without rights (a)
 	and by five gamemasters (c to g), each with some of the rights the
 	commands check (trace_check.py GM_RIGHTS), so that every right check
-	answers some of them and not the others."""
+	answers some of them and not the others. The branches the words of
+	COMMANDS do not reach are the scenario commands2. It ends at step 263
+	(round 283); trace_check.py stops it at round 290 (stop_round)."""
 	s = Steps(ctx)
 	ctx.at(0)
 	keys = ["a", "c", "d", "e", "f", "g"]
@@ -366,20 +395,234 @@ def commands(ctx):
 	for key in keys:
 		who[key] = ctx.login(key)
 		s(2)
-	# Each character in rounds of its own, three commands a round, so that
-	# the order in which the game takes them is the same in both runs.
-	for i in range(0, len(COMMANDS), 3):
+	# One command a round: the game takes a player's talk in the player's
+	# next action (TCreature::ToDoTalk), and a second talk before it clears
+	# the first (ToDoAdd). Each character in rounds of its own, so that the
+	# order in which the game takes them is the same in both runs.
+	for text, what in COMMANDS:
 		for key in keys:
 			c = who[key]
-			for text, what in COMMANDS[i:i + 3]:
-				c.note("=== " + what)
-				c.say(text)
+			c.note("=== " + what)
+			c.say(text)
 			s(1)
 	s(2)
+	# A logout ends the connection at the start of the next round; two rounds
+	# apart, the next step's round note does not race it.
 	for key in keys:
 		who[key].logout()
-		s(1)
+		s(2)
 	s(3)
+
+
+# The scenario commands2: the branches the words of COMMANDS do not reach,
+# each by a character with the right it checks (c to g, trace_check.py
+# GM_RIGHTS; h and i, CASTER_RIGHTS and DOOR_RIGHTS), one command a round (see
+# the scenario commands). Numbers past the int range show which conversion a
+# command uses: Get Item, Create Gold and Move to coordinates take the low 32
+# bits (atoi, sscanf), Change Data the low 32 bits of a long, the skill and
+# quest commands clamp to the int range.
+# The house 20306 (Theater Avenue 6c, Carlin; the original owners.dat does
+# not list it, trace_check.py gives it to h): its door, an open name door with
+# an empty list, the field north of it (the house's exit) and two fields in it.
+COMMAND_HOUSE = 20306
+HOUSE_DOOR = (32376, 31795, 7)
+HOUSE_EXIT = (32376, 31794, 7)
+HOUSE_H = (32376, 31796, 7)             # south of the door
+HOUSE_I = (32376, 31797, 7)             # south of HOUSE_H
+# An open key door (1633) in the cellar north of the temple of Rookgaard.
+KEY_DOOR_OPEN = (32095, 32186, 8)
+GOLD = 3031
+WOODEN_CHAIR = "wooden chair"           # movable, not takeable (2358)
+CLOSED_NAME_DOOR = 1638                 # not movable
+LATIN1_RACE = "R\xc4T"                  # a race name with a Latin-1 letter: no race
+# The raid halloweenhare in upper case: a hare near Rookgaard, one near
+# Kazordoon, and a broadcast.
+HARE_RAID = "HALLOWEENHARE"
+
+
+@scenario(houses={COMMAND_HOUSE: "h"})
+def commands2(ctx):
+	"""The branches of the commands the scenario commands does not reach
+	(see the comment above): Move fastest and slow, to coordinates relative
+	to the own field, in brackets and past the int range, to a mark; Get
+	Item by name, refused counts and types, numbers past the int range;
+	Change Data on an object of each kind and on a key door; Get (Skill)
+	Experience left alone; Teleport to Friend, Retrieve Friend and Temple
+	Teleport to oneself, by an ambiguous name and to a player; Create Gold;
+	every word of Change Profession; invalid and clamped quest numbers;
+	Levitate down (refused: the temple has a floor in front of g); races and
+	raids in upper case and with Latin-1 letters, a raid started; Desintegrate
+	facing each direction; the house commands in the house 20306, which
+	trace_check.py gives to h for the run (houses); Kick Player last. It ends
+	at step 168 (round 188), before the default stop round 232."""
+	who = {}
+	s = KeepAlive(ctx, who)
+	ctx.at(0)
+	for key in "acdefghi":
+		who[key] = ctx.login(key)
+		s(2)
+	command_branches(ctx, s, who)
+	# a was kicked out (Kick Player, the last branch).
+	for key in "cdefghi":
+		who[key].logout()
+		s(2)
+	s(3)
+
+
+def command_branches(ctx, s, who):
+	"""The steps of the scenario commands2 after the logins."""
+	a, c, d, e, f, g, h, i = (who[key] for key in "acdefghi")
+
+	def says(p, lines, k=1):
+		"""p says each (text, note), one a round; k rounds after the last."""
+		for n, (text, what) in enumerate(lines):
+			p.note("=== " + what)
+			p.say(text)
+			s(k if n == len(lines) - 1 else 1)
+
+	def move(p, src, tid, dest, what, count=1):
+		p.note("=== " + what)
+		p.move(src, tid, 0, dest, count)
+		s(1)
+
+	# Move: the other speeds, coordinates relative to the own field and in
+	# brackets, numbers past the int range, a mark.
+	says(c, [("alani fastest", "Move fastest: MODIFY_GOSTRENGTH"), ("alani SLOW", "Move slow, in upper case")])
+	says(e, [("alani 0,-1,0", "Move to coordinates relative to the own field (y < 1): one north")], 2)
+	says(e, [("alani [%d,%d,%d]" % offset(TEMPLE, 0, 2), "Move to coordinates in brackets")], 2)
+	says(e, [("alani 99999999999,1,7", "Move to coordinates: x past the int range (its low 32 bits are on no map): "
+		"Invalid coordinates."), ("alani 4294967296,0,0", "Move to coordinates: x 2^32 is 0 (low 32 bits): relative, "
+		"a free field next to the own one")], 2)
+	says(c, [("alani rookgaard", "Move to a mark (in lower case): Rookgaard, north of the temple")], 2)
+
+	# Get Item: by name, the count refusals, numbers it refuses.
+	says(c, [("alevo torch", "Get Item by a name: the torch (the names are kept without their article)"),
+		("alevo apple", "Get Item by a word of a name: the first type whose name has it"),
+		('alevo "a torch"', "Get Item by a name with its article: no such takeable object"),
+		('alevo "%s" 2' % WOODEN_CHAIR, "Get Item: two of an object that cannot be taken: refused")])
+	says(c, [("alevo %d 0" % GOLD, "Get Item: count 0: refused"), ("alevo %d 101" % GOLD, "Get Item: count 101: "
+		"refused"), ("alevo %d" % CLOSED_NAME_DOOR, "Get Item: a type that cannot be moved: no such takeable object")])
+	says(c, [("alevo 50", "Get Item: a type number up to 99 (creatures): no such takeable object"),
+		("alevo 99999", "Get Item: no such type"), ("alevo 3264 2", "Get Item: two swords (not cumulative)")])
+	says(c, [("alevo %d" % (2 ** 32 + TORCH), "Get Item: 2^32 + 2920 is the torch 2920 (low 32 bits)"),
+		("alevo %d %d" % (GOLD, 2 ** 32 + 1), "Get Item: count 2^32 + 1 is 1 (low 32 bits): one gold coin")])
+
+	# Change Data: h with its hands free, then an object of each kind in the
+	# right hand, put into the bag after.
+	free_hands(s, h)
+	says(h, [("aleta 5", "Change Data: nothing in the hands, no key door on the field: nothing")])
+	says(h, [("alevo %d 10" % GOLD, "Get Item: ten gold coins into the right hand")])
+	says(h, [("aleta 50", "Change Data: the amount of the coins"), ("aleta 0", "Change Data: amount 0: can't change"),
+		("aleta 101", "Change Data: amount 101: can't change")])
+	says(h, [("aleta %d" % (2 ** 32 + 40), "Change Data: 2^32 + 40 is 40 (low 32 bits)")])
+	move(h, HAND, GOLD, BAG_FIRST, "the coins into the bag", 40)
+	says(h, [("alevo %d" % UH_RUNE, "Get Item: an Ultimate Healing Rune")])
+	says(h, [("aleta 5", "Change Data: the rune's charges"), ("aleta 100", "Change Data: 100 charges: can't change")])
+	move(h, HAND, UH_RUNE, BAG_FIRST, "the rune into the bag")
+	says(h, [("alevo %d" % VIAL, "Get Item: a vial")])
+	says(h, [("aleta 0", "Change Data: the vial's liquid, 0 too"), ("aleta 5", "Change Data: the vial's liquid")])
+	move(h, HAND, VIAL, BAG_FIRST, "the vial into the bag")
+	says(h, [("alevo %d" % SILVER_KEY, "Get Item: a silver key")])
+	says(h, [("aleta 1234", "Change Data: the key's number"), ("aleta 0", "Change Data: key number 0: can't change")])
+	move(h, HAND, SILVER_KEY, BAG_FIRST, "the key into the bag")
+	says(h, [("alevo %d" % TORCH, "Get Item: a torch")])
+	says(h, [("aleta 5", "Change Data: a torch: can't change")])
+	move(h, HAND, TORCH, BAG_FIRST, "the torch into the bag")
+	teleport(s, h, KEY_DOOR_OPEN, "onto an open key door")
+	says(h, [("aleta 77", "Change Data: the key door on the own field: its number"), ("aleta 0", "Change Data: the "
+		"key door, number 0: can't change")])
+	# h waits in its house (Carlin, no monsters in sight, unlike the cellar).
+	teleport(s, h, HOUSE_H, "into h's house")
+
+	# Get Experience and Get Skill Experience: what they leave alone.
+	says(d, [("alevo cogni 0", "Get Experience 0: nothing"), ("alevo cogni -5", "Get Experience -5: nothing"),
+		("alevo cogni 99 1", "Get Skill Experience: skill 99 out of range: nothing")])
+	says(d, [("alevo cogni -1 1", "Get Skill Experience: skill -1: nothing"), ("alevo cogni 1 0", "Get Skill "
+		"Experience: 0: nothing"), ("alevo cogni 1 -3", "Get Skill Experience: -3: nothing")])
+	says(d, [("alevo cogni %d 1" % (2 ** 32 + 1), "Get Skill Experience: skill 2^32 + 1 is clamped to the int range: "
+		"out of range, nothing")])
+
+	# Teleport to Friend: to oneself, an ambiguous name, a name of any case,
+	# a unique beginning of a name.
+	says(d, [('alani sio "Testd Delta"', "Teleport to Friend: to oneself"), ('alani sio "Test~"', "Teleport to "
+		"Friend: the beginning of several names: ambiguous")])
+	says(d, [('alani sio "testa alpha"', "Teleport to Friend: to a (the name in lower case); a banish.log line")], 2)
+	says(d, [('alani sio "Testa~"', "Teleport to Friend: to a by the beginning of its name; a banish.log line")], 2)
+
+	# Retrieve Friend and Temple Teleport.
+	says(f, [('alliber sio "Testf Zeta"', "Retrieve Friend: oneself, onto a free field next to it")], 2)
+	says(f, [('alliber sio "Test~"', "Retrieve Friend: ambiguous")])
+	says(f, [('alliber sio "Testa Alpha"', "Retrieve Friend: a next to f")], 2)
+	says(f, [('omani "Test~"', "Temple Teleport: ambiguous")])
+	says(f, [('omani "Testa Alpha"', "Temple Teleport: a to its temple; a banish.log line")], 2)
+
+	# Create Gold: each kind of coin, too much, a number past the int range.
+	says(e, [("alevo vis 150", "Create Gold 150: a platinum and 50 gold coins"), ("alevo vis 12345", "Create Gold "
+		"12345: a crystal, 23 platinum and 45 gold coins"), ("alevo vis 1000001", "Create Gold 1000001: refused")])
+	says(e, [("alevo vis %d" % (2 ** 32 + 100), "Create Gold 2^32 + 100 is 100 (low 32 bits): a platinum coin")])
+
+	# Change Profession or Sex: every word.
+	says(f, [("aleta vita none", "Change Profession: none"), ("aleta vita promote", "Change Profession: promote "
+		"without a profession: nothing"), ("aleta vita knight", "Change Profession: knight")])
+	says(f, [("aleta vita promote", "Change Profession: promote"), ("aleta vita promote", "Change Profession: promote "
+		"again: nothing"), ("aleta vita paladin", "Change Profession: paladin")])
+	says(f, [("aleta vita sorcerer", "Change Profession: sorcerer"), ("aleta vita druid", "Change Profession: druid"),
+		("aleta vita female", "Change Profession or Sex: female")])
+	says(f, [("aleta vita MALE", "Change Profession or Sex: male, in upper case"), ("aleta vita wizard",
+		"Change Profession: an unknown word: nothing")])
+
+	# Quest values: set and get, invalid numbers, numbers past the int range.
+	says(e, [("aleta cogni 7 42", "Set Quest Value 7 to 42"), ("aliva cogni 7", "Get Quest Value 7: 42"),
+		("aliva cogni 500", "Get Quest Value 500: invalid quest number")])
+	says(e, [("aliva cogni -1", "Get Quest Value -1: invalid"), ("aleta cogni 500 1", "Set Quest Value 500: invalid"),
+		("aleta cogni %d 5" % (2 ** 32 + 7), "Set Quest Value 2^32 + 7: clamped to the int range: invalid")])
+	says(e, [("aleta cogni 8 %d" % 2 ** 32, "Set Quest Value 8 to 2^32: clamped to 2147483647"),
+		("aliva cogni 8", "Get Quest Value 8")])
+
+	# Levitate down.
+	says(g, [("alani hur down", "Levitate Gamemaster down")], 2)
+
+	# Races and raids by names in upper case and with Latin-1 letters; the rat
+	# killed.
+	says(f, [("alevo res RAT", "Summon Wild Creature: a rat, the name in upper case")])
+	says(f, [("alevo res %s" % LATIN1_RACE, "Summon Wild Creature: a name with a Latin-1 letter: no such race"),
+		("alevo mas res %s\xc9" % HARE_RAID[:-1], "Start Monsterraid: a name with a Latin-1 letter: no such raid")])
+	says(f, [("alevo mas res %s" % HARE_RAID, "Start Monsterraid: halloweenhare, the name in upper case")])
+	says(f, [("alito mas res", "Kill All Creatures: the rat")], 2)
+
+	# Desintegrate Spell facing each direction; north first, onto d's torch.
+	p = d.pos
+	move(d, LEFT, TORCH, offset(p, 0, -1), "d's torch onto the field north of it")
+	for direction in ("n", "e", "s", "w"):
+		d.note("=== turn %s" % direction)
+		d.turn(direction)
+		s(1)
+		says(d, [("alito tera", "Desintegrate Spell facing %s" % direction)])
+
+	# The house commands in h's house: by i, who is neither owner nor
+	# subowner (refused), by h (the lists, the door), Kick Guest by i
+	# (refused), by h (i out), of oneself (i out), of a player in no house.
+	teleport(s, i, HOUSE_I, "into h's house")
+	says(i, [("aleta sio", "Invite Guests: i is not the owner: refused"), ("aleta som", "Invite Subowners: refused")])
+	says(h, [("aleta som", "Invite Subowners: the owner: the list (empty)"), ("aleta sio", "Invite Guests: the owner, "
+		"premium: the list (empty)")])
+	h.note("=== turn n, to the door")
+	h.turn("n")
+	s(1)
+	says(h, [("aleta grav", "Edit Door: the door north of the owner: its list")])
+	says(i, [('alana sio "Testh Theta"', "Kick Guest: i kicks the owner: refused")])
+	says(h, [('alana sio "Testi Iota"', "Kick Guest: the owner kicks i out of the house")], 2)
+	i.note("=== turn s, to the door")
+	i.turn("s")
+	s(1)
+	says(i, [("aleta grav", "Edit Door: i is not the tenant: refused"), ('alana sio "Testa Alpha"', "Kick Guest: a is "
+		"in no house: refused")])
+	teleport(s, i, HOUSE_I, "into h's house again")
+	says(i, [('alana sio "Testi Iota"', "Kick Guest: i kicks itself out of the house")], 2)
+
+	# Kick Player, last: a leaves the game.
+	says(e, [('omana "Testa Alpha"', "Kick Player: a; a banish.log line")], 2)
+	ctx.check(a.wait_closed(5), "commands: a was not kicked out")
 
 
 # The scenarios spells and runes: the caster h ('Testh Theta', trace_check.py
@@ -2029,7 +2272,7 @@ def raids(ctx):
 	the second with a message, 60 seconds apart), the Halloween Hare (two
 	waves at once, a message), the rats of Rookgaard (nine waves at 1 and 3
 	seconds), the orc with an inventory (its corpse opened). It ends at step
-	81 (round 101): run it with --stop-round 110."""
+	82 (round 102): run it with --stop-round 110."""
 	s = Steps(ctx)
 	ctx.at(0)
 	h = ctx.login("h")
@@ -2091,8 +2334,10 @@ def raids(ctx):
 	ctx.check(h.wait_text("^Message .*Ab'Dendriel", m, 0) is not None, "raids: no message of the second wolf wave")
 	fight(s, h, "the wolves of both waves", 6)
 
+	# A logout ends the connection at the start of the next round; two rounds
+	# apart, the next step's round note does not race it.
 	c.logout()
-	s(1)
+	s(2)
 	h.logout()
 	s(4)
 
