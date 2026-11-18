@@ -8,12 +8,14 @@
 // Fills the game's CommandRight (magicdata.hh) with the rights the code named
 // in each right check of a command, and NO_RIGHT everywhere else; then adds
 // the commands that are ours to SpellList, with their rights: 103 Reload
-// Scripts ("omevo gran cogni", RELOAD_SCRIPTS).
+// Scripts ("omevo gran cogni", RELOAD_SCRIPTS) and 104 Online List ("aliva
+// mas", ONLINE_LIST).
 void InitReferenceCommandRights();
 
-// The script name of a command that is ours ("reload_scripts", without the
-// folder and ".lua", as GetReferenceScriptName gives them), or nullptr: its
-// number with words of its class (om for Reload Scripts) in SpellList; any
+// The script name of a command that is ours ("reload_scripts",
+// "online_list", without the folder and ".lua", as GetReferenceScriptName
+// gives them), or nullptr: its number with words of its class (om for Reload
+// Scripts, al for Online List) in SpellList; any
 // other entry of that number (a spell, a command of the other class) has no
 // script name.
 const char *GetOwnCommandScriptName(int SpellNr);

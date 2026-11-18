@@ -259,7 +259,8 @@ static std::string CommandsHeader() {
 	Text += "# the wrong type, is an error.\n";
 	Text += "#\n";
 	Text += "# Command 103 (Reload Scripts) reloads the scripts and the data while the game\n";
-	Text += "# runs; patella-convert adds it to the commands of the spell table.\n";
+	Text += "# runs, command 104 (Online List) tells the caster the names of the players\n";
+	Text += "# online; patella-convert adds them to the commands of the spell table.\n";
 	Text += "#\n";
 	Text += "# Each [[command]] is one command:\n";
 	Text += "#   number  The command number, 1 to 255, each at most once and none of a\n";

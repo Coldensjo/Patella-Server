@@ -556,6 +556,7 @@ int TQueryManagerConnection::loginGame(uint32_t AccountID, char *PlayerName, cha
 			if (strcmp(RightName, "CLEANUP_FIELDS") == 0) Right = CLEANUP_FIELDS;
 			if (strcmp(RightName, "NO_STATISTICS") == 0) Right = NO_STATISTICS;
 			if (strcmp(RightName, "RELOAD_SCRIPTS") == 0) Right = RELOAD_SCRIPTS;
+			if (strcmp(RightName, "ONLINE_LIST") == 0) Right = ONLINE_LIST;
 			if (strcmp(RightName, "KEEP_CHARACTER") == 0) Right = -2;
 			if (strcmp(RightName, "EXTRA_CHARACTER") == 0) Right = -2;
 			if (strcmp(RightName, "ENTER_HOUSES") == 0) Right = ENTER_HOUSES;

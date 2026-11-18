@@ -4,10 +4,11 @@
 // below) called CheckRight with one of these rights where the command's script
 // now checks the command and the check (player:hasCommandRight,
 // CheckCommandRight). After them the commands that are ours, not the original
-// code's (Reload Scripts), with their rights and scripts.
+// code's (Reload Scripts, Online List), with their rights and scripts.
 
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 
 #include "objects.hh"
 #include "map.hh"
@@ -15,6 +16,24 @@
 #include "magicdata.hh"
 
 #include "commands_reference.hh"
+
+// Puts the command SpellNr that is ours into SpellList: its words (the class
+// syllable and each further one, by SpellSyllable), its name and its right.
+static void AddOwnCommand(int SpellNr, std::initializer_list<const char *> Words, const char *Comment, int Right) {
+	TSpellList &Spell = SpellList[SpellNr];
+	memset(&Spell, 0, sizeof(Spell));
+	int Count = 0;
+	for (const char *Word : Words) {
+		for (int i = 1; i < MAX_SYLLABLES; i++) {
+			if (strcmp(Word, SpellSyllable[i]) == 0) {
+				Spell.Syllable[Count++] = static_cast<unsigned char>(i);
+				break;
+			}
+		}
+	}
+	Spell.Comment = Comment;
+	CommandRight[SpellNr][COMMAND_RIGHT] = Right;
+}
 
 void InitReferenceCommandRights() {
 	for (int i = 0; i < MAX_SPELLS; i++) {
@@ -65,26 +84,18 @@ void InitReferenceCommandRights() {
 	CommandRight[SPELL_START_MONSTERRAID][COMMAND_RIGHT] = CREATE_MONSTERS;
 
 	// Ours, not the original code's: Reload Scripts, which reloads the
-	// scripts and the data while the game runs (reload.hh).
-	TSpellList &Reload = SpellList[SPELL_RELOAD_SCRIPTS];
-	memset(&Reload, 0, sizeof(Reload));
-	const char *const ReloadWords[] = {"om", "evo", "gran", "cogni"};
-	int Count = 0;
-	for (const char *Word : ReloadWords) {
-		for (int i = 1; i < MAX_SYLLABLES; i++) {
-			if (strcmp(Word, SpellSyllable[i]) == 0) {
-				Reload.Syllable[Count++] = static_cast<unsigned char>(i);
-				break;
-			}
-		}
-	}
-	Reload.Comment = "Reload Scripts";
-	CommandRight[SPELL_RELOAD_SCRIPTS][COMMAND_RIGHT] = RELOAD_SCRIPTS;
+	// scripts and the data while the game runs (reload.hh), and Online List,
+	// which tells the caster the names of the players online.
+	AddOwnCommand(SPELL_RELOAD_SCRIPTS, {"om", "evo", "gran", "cogni"}, "Reload Scripts", RELOAD_SCRIPTS);
+	AddOwnCommand(SPELL_ONLINE_LIST, {"al", "iva", "mas"}, "Online List", ONLINE_LIST);
 }
 
 const char *GetOwnCommandScriptName(int SpellNr) {
 	if (SpellNr == SPELL_RELOAD_SCRIPTS && SpellList[SpellNr].Syllable[0] == SYLLABLE_OM) {
 		return "reload_scripts";
+	}
+	if (SpellNr == SPELL_ONLINE_LIST && SpellList[SpellNr].Syllable[0] == SYLLABLE_AL) {
+		return "online_list";
 	}
 	return nullptr;
 }

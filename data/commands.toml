@@ -9,7 +9,8 @@
 # the wrong type, is an error.
 #
 # Command 103 (Reload Scripts) reloads the scripts and the data while the game
-# runs; patella-convert adds it to the commands of the spell table.
+# runs, command 104 (Online List) tells the caster the names of the players
+# online; patella-convert adds them to the commands of the spell table.
 #
 # Each [[command]] is one command:
 #   number  The command number, 1 to 255, each at most once and none of a
@@ -59,7 +60,7 @@
 #   ZERO_CAPACITY, ATTACK_EVERYWHERE, NO_ATTACK, NO_RUNES, NO_LOGOUT_BLOCK,
 #   GAMEMASTER_OUTFIT, ILLUMINATE, CHANGE_PROFESSION, IGNORED_BY_MONSTERS,
 #   SHOW_KEYHOLE_NUMBERS, CREATE_OBJECTS, CREATE_MONEY, CREATE_MONSTERS,
-#   CHANGE_SKILLS, CLEANUP_FIELDS, NO_STATISTICS, RELOAD_SCRIPTS
+#   CHANGE_SKILLS, CLEANUP_FIELDS, NO_STATISTICS, RELOAD_SCRIPTS, ONLINE_LIST
 
 [[command]]
 number = 34
@@ -290,3 +291,10 @@ name = "Reload Scripts"
 words = "omevo gran cogni"
 right = "RELOAD_SCRIPTS"
 script = "commands/reload_scripts.lua"
+
+[[command]]
+number = 104
+name = "Online List"
+words = "aliva mas"
+right = "ONLINE_LIST"
+script = "commands/online_list.lua"

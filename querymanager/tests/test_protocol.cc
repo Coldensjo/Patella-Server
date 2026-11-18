@@ -168,10 +168,11 @@ static void testCatalogue() {
 
 	size_t rights = 0;
 	rightNames(rights);
-	CHECK(rights == 112);
+	CHECK(rights == 113);
 	CHECK(isKnownRight("PREMIUM_ACCOUNT"));
 	CHECK(isKnownRight("OPEN_NAMEDDOORS"));
 	CHECK(isKnownRight("RELOAD_SCRIPTS"));
+	CHECK(isKnownRight("ONLINE_LIST"));
 	CHECK(!isKnownRight("premium_account"));
 	CHECK(!isKnownRight(""));
 }

@@ -872,6 +872,8 @@
 //       for the other commands: without it, or for an actor that is no
 //       player, it asks nothing and gives true.
 // Constants: RIGHT_RELOAD_SCRIPTS (with the other RIGHT_ constants).
+// RIGHT_ONLINE_LIST gives the command Online List (104, "aliva mas",
+// commands/online_list.lua, ours), which tells the caster who is online.
 //
 // Commands in Lua (phase 9; scripting_commands.cc, RegisterCommandAPI,
 // which RegisterMagicAPI calls). Every command script of
@@ -922,6 +924,8 @@
 //   Game.identifyPlayer(name, exactMatch, ignoreGamemasters) -> result,
 //       player: IdentifyPlayer of crplayer.cc on a copy of name: result 0
 //       with the Player, -1 (not online) or -2 (ambiguous) with nil.
+//   Game.getPlayers() -> an array of the Players online (PlayerList's
+//       order, gamemasters with NO_STATISTICS too; Online List, ours).
 //   Game.searchFreeField(position, distance, houseId, jump) -> Position or
 //       nil: SearchFreeField(x, y, z, Distance, HouseID, Jump) (houseId 0 to
 //       65535; 65535 any field).
