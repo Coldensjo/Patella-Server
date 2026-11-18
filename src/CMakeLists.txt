@@ -48,6 +48,7 @@ add_executable(game
 	rsakeyfile.cc
 	scripting.cc
 	scripting_magic.cc
+	scripting_commands.cc
 	scripting_triggers.cc
 	scripting_items.cc
 	scripting_npcs.cc
@@ -88,6 +89,14 @@ add_executable(game_test_events tests/test_events.cc scripting_events.cc scripti
 target_include_directories(game_test_events PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(game_test_events PRIVATE game_flags tomlplusplus sol2)
 add_test(NAME game_events COMMAND game_test_events)
+
+# game_test_commands: the commands' API (scripting_commands.cc) on the engine,
+# with stubs of the game functions it calls; with --scripts, lib/commands.lua
+# of data/scripts against the C library (sscanf, strLower, int addition).
+add_executable(game_test_commands tests/test_commands.cc scripting_commands.cc scripting.cc utils.cc mudinc.cc)
+target_include_directories(game_test_commands PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(game_test_commands PRIVATE game_flags sol2)
+add_test(NAME game_commands COMMAND game_test_commands --scripts ${PROJECT_SOURCE_DIR}/data/scripts)
 
 # game_test_reload: the reload's driver (reload.cc) with parts of the test's
 # own: the order of the steps, failures in read and loadScripts, a second

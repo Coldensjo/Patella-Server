@@ -2,12 +2,12 @@
 // state with the sandbox of rule 7, strict shared globals and API tables, the
 // core API (Game, print, debugPrint, math.random, the RETURNVALUE_
 // constants), the objects (Creature, Player, Npc, Monster, Item, Vocation,
-// ItemType, MonsterType), the Position, the Impact, the read-only constants,
-// the restricted require, the loaded scripts with their environments, the
-// calls of their handlers (TScriptCall, TScriptEvent) and the calls of the
-// monsters' and raids' hooks. A reload (phase 8) makes a second state, set up
-// as the first, current until it is committed or discarded
-// (BeginScriptReload); everything works on the current one.
+// ItemType, MonsterType, House), the Position, the Impact, the read-only
+// constants, the restricted require, the loaded scripts with their
+// environments, the calls of their handlers (TScriptCall, TScriptEvent) and
+// the calls of the monsters' and raids' hooks. A reload (phase 8) makes a
+// second state, set up as the first, current until it is committed or
+// discarded (BeginScriptReload); everything works on the current one.
 //
 // The functions Lua calls (the core API, the metamethods, require, the message
 // handlers) use only Lua's C API and plain C data: they throw no C++ exception
@@ -765,23 +765,24 @@ static int ResultErrorIndex(lua_State *L) {
 }
 
 // ---------------------------------------------------------------------------
-// The objects: a userdata of one uint32_t (a creature ID of a Creature, Player
-// or Npc, an object handle, a Vocation's player ID, or an ItemType's type
-// number, an int kept as its bits) whose metatable is its class's (no __gc, so
-// it is trivially destructible and the collector runs no code). The metatable
-// reads methods from the class's method table, an API table (so an unknown
-// method is "unknown name '<class>.<method>'"), refuses writes, compares by
-// kind and value (__eq), names the object without an address (__tostring) and
-// is hidden from scripts (__metatable).
+// The objects: a userdata of one uint32_t (a creature ID of a Creature,
+// Player, Npc or Monster, an object handle, a Vocation's player ID, an
+// ItemType's type number, an int kept as its bits, a MonsterType's race
+// number or a House's house number) whose metatable is its class's (no __gc,
+// so it is trivially destructible and the collector runs no code). The
+// metatable reads methods from the class's method table, an API table (so an
+// unknown method is "unknown name '<class>.<method>'"), refuses writes,
+// compares by kind and value (__eq), names the object without an address
+// (__tostring) and is hidden from scripts (__metatable).
 
 // The class names of the kinds (TScriptObjectKind order).
 static const char *const ObjectKindNames[] = {nullptr, "Creature", "Player", "Item", "Vocation", "ItemType",
-		"Npc", "Monster", "MonsterType"};
+		"Npc", "Monster", "MonsterType", "House"};
 
 // The registry keys of the kinds' metatables.
 static const char *const ObjectMetatables[] = {nullptr, "patella.object.Creature", "patella.object.Player",
 		"patella.object.Item", "patella.object.Vocation", "patella.object.ItemType", "patella.object.Npc",
-		"patella.object.Monster", "patella.object.MonsterType"};
+		"patella.object.Monster", "patella.object.MonsterType", "patella.object.House"};
 
 static_assert(sizeof(ObjectKindNames) / sizeof(ObjectKindNames[0]) == LAST_SCRIPT_OBJECT_KIND + 1,
 		"ObjectKindNames must name every TScriptObjectKind");
@@ -830,7 +831,8 @@ void PushScriptCreature(lua_State *L, uint32_t ID) {
 
 // Pushes the text of an object: "Creature 123", "Player 123", "Npc 123",
 // "Monster 123", "Item 456", "Vocation of Player 123", "ItemType 123" (the
-// type number as the int it is, so "ItemType -1"), "MonsterType 12".
+// type number as the int it is, so "ItemType -1"), "MonsterType 12", "House
+// 7".
 static void PushObjectText(lua_State *L, TScriptObjectKind Kind, uint32_t Value) {
 	char Text[64];
 	if (Kind == SCRIPT_VOCATION) {
@@ -946,23 +948,45 @@ static int ItemTypeNew(lua_State *L) {
 	return 1;
 }
 
-// Makes the shared global ItemType callable: ItemType(id) (ItemTypeNew). The
-// class (MakeClass) must exist.
-static void MakeItemTypeConstructor(lua_State *L) {
-	lua_pushstring(L, ObjectKindNames[SCRIPT_ITEMTYPE]);
+// Makes the shared global Name, the proxy of an API table, callable: Name(...)
+// calls Constructor with the proxy as argument 1.
+static void MakeCallable(lua_State *L, const char *Name, lua_CFunction Constructor) {
+	lua_pushstring(L, Name);
 	lua_rawget(L, LUA_GLOBALSINDEX);
 	lua_getmetatable(L, -1);
-	lua_pushcfunction(L, ItemTypeNew);
+	lua_pushcfunction(L, Constructor);
 	lua_setfield(L, -2, "__call");
 	lua_pop(L, 2);
 }
 
+// House(id), the __call of the shared global House (the proxy of the class's
+// method table, argument 1, which is dropped): a new House holding the house
+// number id, for id FIRST_SCRIPT_HOUSE to LAST_SCRIPT_HOUSE (an unsigned
+// short of the C++ code, 0 being no house); nil for any other int. Whether a
+// house of that number exists is not checked here (the functions that take a
+// House check it, as the C++ functions do). Any other number of arguments, or
+// an id that is not an int, is a Lua error.
+static int HouseNew(lua_State *L) {
+	if (lua_gettop(L) != 2) {
+		return luaL_error(L, "House: one argument expected (id)");
+	}
+	lua_remove(L, 1);
+	int HouseID = CheckInt(L, 1);
+	if (HouseID < FIRST_SCRIPT_HOUSE || HouseID > LAST_SCRIPT_HOUSE) {
+		lua_pushnil(L);
+	} else {
+		PushScriptObject(L, SCRIPT_HOUSE, static_cast<uint32_t>(HouseID));
+	}
+	return 1;
+}
+
 // ---------------------------------------------------------------------------
 // The Position: a userdata of three ints (x, y, z) whose metatable gives the
-// fields x, y and z (any other field is the Lua error "unknown name
-// 'Position.<field>'"), refuses writes, compares by value (__eq), names it
-// without an address (__tostring "Position(x, y, z)") and is hidden from
-// scripts (__metatable). No __gc.
+// fields x, y and z and the methods of the API table Position (any other field
+// is the Lua error "unknown name 'Position.<field>'"), refuses writes, compares
+// by value (__eq), names it without an address (__tostring "Position(x, y,
+// z)") and is hidden from scripts (__metatable). No __gc. The shared global
+// Position is the method table's proxy, callable as the constructor.
 
 bool IsScriptPosition(lua_State *L, int Index) {
 	Index = AbsoluteIndex(L, Index);
@@ -1000,12 +1024,14 @@ static void PushPositionText(lua_State *L, int Index) {
 	lua_pushfstring(L, "Position(%d, %d, %d)", x, y, z);
 }
 
-// Position(x, y, z): a new Position. Arguments: three ints. Returns it. Any
-// other number of arguments is a Lua error.
+// Position(x, y, z), the __call of the shared global Position (the proxy of
+// the method table, argument 1, which is dropped): a new Position. Arguments:
+// three ints. Returns it. Any other number of arguments is a Lua error.
 static int PositionNew(lua_State *L) {
-	if (lua_gettop(L) != 3) {
+	if (lua_gettop(L) != 4) {
 		return luaL_error(L, "Position: three arguments expected (x, y, z)");
 	}
+	lua_remove(L, 1);
 	int x = CheckInt(L, 1);
 	int y = CheckInt(L, 2);
 	int z = CheckInt(L, 3);
@@ -1013,7 +1039,8 @@ static int PositionNew(lua_State *L) {
 	return 1;
 }
 
-// __index of the Positions: position.x, .y, .z.
+// __index of the Positions: position.x, .y, .z, and the methods of the API
+// table Position, its upvalue (read raw).
 static int PositionIndex(lua_State *L) {
 	int x, y, z;
 	GetScriptPosition(L, 1, &x, &y, &z);
@@ -1031,6 +1058,11 @@ static int PositionIndex(lua_State *L) {
 			lua_pushinteger(L, z);
 			return 1;
 		}
+	}
+	lua_pushvalue(L, 2);
+	lua_rawget(L, lua_upvalueindex(1));
+	if (!lua_isnil(L, -1)) {
+		return 1;
 	}
 	return luaL_error(L, "unknown name 'Position.%s'", PushKeyText(L, 2));
 }
@@ -1054,10 +1086,14 @@ static int PositionToString(lua_State *L) {
 	return 1;
 }
 
-// Makes the Positions' metatable and the shared global Position.
+// Makes the Positions' metatable and the shared global Position, the proxy of
+// the API table Position (made empty here; RegisterCommandAPI adds its
+// methods), callable as the constructor.
 static void MakePosition(lua_State *L) {
+	PushAPITable(L, "Position");
 	luaL_newmetatable(L, POSITION_METATABLE);
-	lua_pushcfunction(L, PositionIndex);
+	lua_pushvalue(L, -2);
+	lua_pushcclosure(L, PositionIndex, 1);
 	lua_setfield(L, -2, "__index");
 	lua_pushstring(L, "Position");
 	lua_pushcclosure(L, ReadOnlyNewIndex, 1);
@@ -1068,9 +1104,8 @@ static void MakePosition(lua_State *L) {
 	lua_setfield(L, -2, "__tostring");
 	lua_pushboolean(L, 0);
 	lua_setfield(L, -2, "__metatable");
-	lua_pop(L, 1);
-	lua_pushcfunction(L, PositionNew);
-	lua_setfield(L, LUA_GLOBALSINDEX, "Position");
+	lua_pop(L, 2);
+	MakeCallable(L, "Position", PositionNew);
 }
 
 // ---------------------------------------------------------------------------
@@ -1361,6 +1396,19 @@ static int GameImod(lua_State *L) {
 	return 1;
 }
 
+// Game.atoi(text): atoi(Text) of the C library, as the C++ code called it on a
+// word (glibc on 64 bits: (int)strtol(Text, nullptr, 10), the low 32 bits of
+// the long, so "4294967297" gives 1 and a number beyond the long's range -1 or
+// 0). Argument: a string (a number is refused, as the bindings' string
+// parameters refuse one). Returns the int.
+static int GameAtoi(lua_State *L) {
+	if (lua_type(L, 1) != LUA_TSTRING) {
+		return luaL_typerror(L, 1, "string");
+	}
+	lua_pushinteger(L, atoi(lua_tostring(L, 1)));
+	return 1;
+}
+
 // Game.print(level, text): print(Level, "%s", Text) of utils.cc. Arguments:
 // an int and a string. Returns nothing.
 static int GamePrint(lua_State *L) {
@@ -1417,6 +1465,7 @@ static const TCoreFunction GameFunctions[] = {
 	{"rand", GameRand},
 	{"idiv", GameIdiv},
 	{"imod", GameImod},
+	{"atoi", GameAtoi},
 	{"print", GamePrint},
 	{"throwResult", GameThrowResult},
 	{"getResultOf", GameGetResultOf},
@@ -1539,8 +1588,10 @@ static void SetUpState(lua_State *L) {
 	MakeClass(L, SCRIPT_NPC, SCRIPT_CREATURE, Equal);
 	MakeClass(L, SCRIPT_MONSTER, SCRIPT_CREATURE, Equal);
 	MakeClass(L, SCRIPT_MONSTERTYPE, SCRIPT_NO_OBJECT, Equal);
+	MakeClass(L, SCRIPT_HOUSE, SCRIPT_NO_OBJECT, Equal);
 	lua_pop(L, 1);
-	MakeItemTypeConstructor(L);
+	MakeCallable(L, ObjectKindNames[SCRIPT_ITEMTYPE], ItemTypeNew);
+	MakeCallable(L, ObjectKindNames[SCRIPT_HOUSE], HouseNew);
 	PushAPITable(L, ObjectKindNames[SCRIPT_CREATURE]);
 	lua_pushcfunction(L, CreatureGetId);
 	lua_setfield(L, -2, "getId");
