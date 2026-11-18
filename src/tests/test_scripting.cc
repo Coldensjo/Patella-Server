@@ -2,8 +2,9 @@
 // and its errors, global handlers, the sandbox, require, result codes in both
 // directions and their RETURNVALUE_ names, the logging of other errors, the
 // calls a script makes, the objects, the Npcs, the Monsters, MonsterTypes and
-// Impacts, the ItemTypes, the Positions, the constants, the core API
-// (math.random, print, integer arithmetic), the results of runNumber and
+// Impacts, the ItemTypes, the Houses, the Positions and their methods, the
+// constants, the core API (math.random, print, integer arithmetic,
+// Game.atoi), the results of runNumber and
 // runBoolean, the calls of an event's rules (TScriptEvent), the message of a
 // failed call (TScriptCall::failure), runCaught, the data values of addValue,
 // the hooks of the monsters and raids, the script environments, the second
@@ -325,6 +326,26 @@ static TScriptPosition TestMakePosition(int x, int y, int z) {
 	return TScriptPosition{x, y, z};
 }
 
+// position:testSum(): x + y + z, a method of Position.
+static int PositionTestSum(TScriptPosition Self) {
+	return Self.x + Self.y + Self.z;
+}
+
+// test.makeHouse(id): a House holding id as it is.
+static TScriptHouse TestMakeHouse(int ID) {
+	return TScriptHouse{ID};
+}
+
+// test.houseId(house): the house number of a House.
+static int TestHouseId(TScriptHouse House) {
+	return House.ID;
+}
+
+// house:testDouble(): twice the house number, a method of House.
+static int HouseTestDouble(TScriptHouse Self) {
+	return 2 * Self.ID;
+}
+
 // The script test.nestedEvent calls, set by TestEvents.
 static int NestedEventScript = -1;
 
@@ -366,6 +387,12 @@ static void RegisterTestAPI() {
 	API.set_function("makeImpact", Guarded(&TestMakeImpact));
 	API.set_function("impactText", Guarded(&TestImpactText));
 	API.set_function("colors", Guarded(&TestColors));
+	API.set_function("makeHouse", Guarded(&TestMakeHouse));
+	API.set_function("houseId", Guarded(&TestHouseId));
+	sol::table House = ScriptAPITable("House");
+	House.set_function("testDouble", Guarded(&HouseTestDouble));
+	sol::table Position = ScriptAPITable("Position");
+	Position.set_function("testSum", Guarded(&PositionTestSum));
 	sol::table Npc = ScriptAPITable("Npc");
 	Npc.set_function("testNpcName", Guarded(&NpcTestNpcName));
 	sol::table Monster = ScriptAPITable("Monster");
@@ -2022,6 +2049,204 @@ static void TestPositions() {
 	CHECK(!NilOutcome.Thrown && NilOutcome.Boolean);
 }
 
+// Position's methods (the API table Position): a method a binding adds is
+// called on a Position and through the table; the shared global Position is
+// the table's proxy, callable, read-only; a constructor's argument errors name
+// the script's argument numbers.
+static void TestPositionMethods() {
+	WriteScript("position_methods.lua",
+			"function onMethod(p)\n"
+			"  return p:testSum() == 6 and Position.testSum(p) == 6 and Position(10, 20, 7):testSum() == 37\n"
+			"    and type(Position) == 'userdata' and getmetatable(Position) == false and p.x == 1 and p.z == 3\n"
+			"end\n"
+			"function onRefused(i, p, item)\n"
+			"  local calls = {\n"
+			"    function() return p:noSuchMethod() end,\n"
+			"    function() Position.testSum = nil end,\n"
+			"    function() return Position.x end,\n"
+			"    function() return Position('1', 2, 3) end,\n"
+			"    function() return Position(1, 2, 'z') end,\n"
+			"    function() return Position.testSum(item) end,\n"
+			"    function() return p.testSum2 end,\n"
+			"  }\n"
+			"  local ok, err = pcall(calls[i])\n"
+			"  test.record(tostring(err))\n"
+			"  return ok\n"
+			"end\n");
+	int Script = Load("position_methods.lua");
+	TakeErrors();
+	TScriptCall Method(Script, "onMethod");
+	Method.addPosition(1, 2, 3);
+	TOutcome Outcome = Run(Method, RUN_BOOLEAN);
+	CHECK(!Outcome.Thrown && Outcome.Boolean);
+
+	const char *Refusals[] = {"unknown name 'Position.noSuchMethod'", "Position.testSum is read-only",
+			"unknown name 'Position.x'", "bad argument #1", "bad argument #3", "Position expected",
+			"unknown name 'Position.testSum2'"};
+	int Count = static_cast<int>(sizeof(Refusals) / sizeof(Refusals[0]));
+	for (int i = 1; i <= Count; i++) {
+		Records.clear();
+		TScriptCall Refused(Script, "onRefused");
+		Refused.addNumber(i);
+		Refused.addPosition(1, 2, 3);
+		Refused.addItem(9);
+		TOutcome RefusedOutcome = Run(Refused, RUN_BOOLEAN);
+		CHECK(!RefusedOutcome.Thrown && !RefusedOutcome.Boolean);
+		if (RefusedOutcome.Thrown || RefusedOutcome.Boolean) {
+			fprintf(stderr, "  position method refusal number %d was not refused\n", i);
+		}
+		CHECK(Records.size() == 1);
+		if (Records.size() == 1) {
+			CHECK_CONTAINS(Records[0], Refusals[i - 1]);
+		}
+	}
+	CHECK(TakeErrors() == "");
+}
+
+// The Houses: House(id) for 1 to 65535 (nil for other ints), their tostring,
+// print, ==, the read-only metatable and method table, a method a binding
+// adds, what a House parameter refuses and what House() refuses.
+static void TestHouses() {
+	WriteScript("houses.lua",
+			"function onHouse(item, p)\n"
+			"  local h = House(7)\n"
+			"  print(h, House(65535))\n"
+			"  return type(h) == 'userdata' and getmetatable(h) == false and h == House(7)\n"
+			"    and not rawequal(h, House(7)) and h ~= House(8) and h ~= item and h ~= p and h ~= ItemType(7)\n"
+			"    and h ~= test.makeItem(7) and h ~= 7 and h ~= nil\n"
+			"    and tostring(h) == 'House 7' and tostring(House(1)) == 'House 1'\n"
+			"    and tostring(House(65535)) == 'House 65535'\n"
+			"    and House(0) == nil and House(65536) == nil and House(-1) == nil and House(-2147483648) == nil\n"
+			"    and House(2147483647) == nil and select('#', House(0)) == 1\n"
+			"    and test.houseId(h) == 7 and test.makeHouse(7) == h and h:testDouble() == 14\n"
+			"    and House.testDouble(House(3)) == 6 and type(House) == 'userdata' and getmetatable(House) == false\n"
+			"end\n"
+			"function onRefused(i, item, c)\n"
+			"  local h = House(1)\n"
+			"  local calls = {\n"
+			"    function() return House() end,\n"
+			"    function() return House(1, 2) end,\n"
+			"    function() return House(1.5) end,\n"
+			"    function() return House('1') end,\n"
+			"    function() return House(2147483648) end,\n"
+			"    function() return test.houseId(item) end,\n"
+			"    function() return test.houseId(1) end,\n"
+			"    function() return test.houseId(nil) end,\n"
+			"    function() return test.houseId(ItemType(1)) end,\n"
+			"    function() return test.houseId(c) end,\n"
+			"    function() return test.itemHandle(h) end,\n"
+			"    function() return test.creatureId(h) end,\n"
+			"    function() h.x = 1 end,\n"
+			"    function() House.testDouble = nil end,\n"
+			"    function() return h:noSuchMethod() end,\n"
+			"    function() return House.testDouble(item) end,\n"
+			"    function() return House('x') end,\n"
+			"  }\n"
+			"  local ok, err = pcall(calls[i])\n"
+			"  test.record(tostring(err))\n"
+			"  return ok\n"
+			"end\n");
+	int Script = Load("houses.lua");
+	TakeErrors();
+
+	Prints.clear();
+	TScriptCall Houses(Script, "onHouse");
+	Houses.addItem(7);
+	Houses.addPlayer(7);
+	TOutcome Outcome = Run(Houses, RUN_BOOLEAN);
+	CHECK(!Outcome.Thrown && Outcome.Boolean);
+	CHECK((Prints == std::vector<std::string>{"2:House 7\tHouse 65535\n"}));
+	CHECK(TakeErrors() == "");
+
+	const char *Refusals[] = {"one argument expected", "one argument expected", "integer expected",
+			"number expected", "integer expected", "House expected", "House expected", "House expected",
+			"House expected", "House expected", "Item expected", "Creature expected", "House.x is read-only",
+			"House.testDouble is read-only", "unknown name 'House.noSuchMethod'", "House expected",
+			"bad argument #1"};
+	int Count = static_cast<int>(sizeof(Refusals) / sizeof(Refusals[0]));
+	for (int i = 1; i <= Count; i++) {
+		Records.clear();
+		TScriptCall Refused(Script, "onRefused");
+		Refused.addNumber(i);
+		Refused.addItem(9);
+		Refused.addCreature(0x40000001u);
+		TOutcome RefusedOutcome = Run(Refused, RUN_BOOLEAN);
+		CHECK(!RefusedOutcome.Thrown && !RefusedOutcome.Boolean);
+		if (RefusedOutcome.Thrown || RefusedOutcome.Boolean) {
+			fprintf(stderr, "  house refusal number %d was not refused\n", i);
+		}
+		CHECK(Records.size() == 1);
+		if (Records.size() == 1) {
+			CHECK_CONTAINS(Records[0], Refusals[i - 1]);
+		}
+	}
+	CHECK(TakeErrors() == "");
+}
+
+// Game.atoi against the C library's atoi over a corpus (spaces, signs, text
+// after the digits, numbers beyond int and long, hexadecimal-looking text,
+// Latin-1 bytes), and what it refuses.
+static void TestAtoi() {
+	WriteScript("atoi.lua",
+			"function onAtoi(text) return Game.atoi(text) end\n"
+			"function onRefused(i)\n"
+			"  local calls = {\n"
+			"    function() return Game.atoi(12) end,\n"
+			"    function() return Game.atoi(nil) end,\n"
+			"    function() return Game.atoi() end,\n"
+			"    function() return Game.atoi({}) end,\n"
+			"  }\n"
+			"  local ok, err = pcall(calls[i])\n"
+			"  test.record(tostring(err))\n"
+			"  return ok\n"
+			"end\n");
+	int Script = Load("atoi.lua");
+	const char *Corpus[] = {"", " ", "0", "12", "  12", "\t-7", "\n\v\f\r 42", "+5", "-0", "+-3", "-+3", "- 3",
+			"-", "+", "12abc", "abc", "abc12", "007", "3.9", "1e5", "0x1F", "0X10", "1,2,3", "[1,2,3]",
+			"2147483647", "2147483648", "-2147483648", "-2147483649", "4294967295", "4294967296", "4294967297",
+			"-4294967297", "9223372036854775807", "9223372036854775808", "-9223372036854775808",
+			"-9223372036854775809", "99999999999999999999", "-99999999999999999999", "4294967296000",
+			"00000000000000000000000000001", "-00000000000000000000099999999999999999999", "\xA0" "5",
+			"\xE9" "12", "12\xE9", "\x85" "7", "1\xC0" "2", "\xFF\xFF", "\xC2\xA0" "9", "  \t+0012x"};
+	for (const char *Text : Corpus) {
+		TScriptCall Atoi(Script, "onAtoi");
+		Atoi.addString(Text);
+		TOutcome Outcome = Run(Atoi, RUN_NUMBER);
+		CHECK(!Outcome.Thrown && Outcome.Number == atoi(Text));
+		if (Outcome.Thrown || Outcome.Number != atoi(Text)) {
+			fprintf(stderr, "  Game.atoi(\"%s\") gave %d, atoi %d\n", Text, Outcome.Number, atoi(Text));
+		}
+	}
+	// glibc's values on 64 bits, which the corpus compared: the low 32 bits
+	// of strtol's long, which saturates beyond the long's range.
+	struct {
+		const char *Text;
+		int Value;
+	} Known[] = {{"4294967296", 0}, {"4294967297", 1}, {"-2147483649", 2147483647}, {"2147483648", INT_MIN},
+			{"99999999999999999999", -1}, {"-99999999999999999999", 0}, {"+12", 12}, {"0x1F", 0}, {"", 0}};
+	for (const auto &Entry : Known) {
+		TScriptCall Atoi(Script, "onAtoi");
+		Atoi.addString(Entry.Text);
+		TOutcome Outcome = Run(Atoi, RUN_NUMBER);
+		CHECK(!Outcome.Thrown && Outcome.Number == Entry.Value);
+		if (Outcome.Thrown || Outcome.Number != Entry.Value) {
+			fprintf(stderr, "  Game.atoi(\"%s\") gave %d, expected %d\n", Entry.Text, Outcome.Number, Entry.Value);
+		}
+	}
+	CHECK(TakeErrors() == "");
+
+	for (int i = 1; i <= 4; i++) {
+		Records.clear();
+		TOutcome Refused = Call(Script, "onRefused", RUN_BOOLEAN, {i});
+		CHECK(!Refused.Thrown && !Refused.Boolean);
+		CHECK(Records.size() == 1);
+		if (Records.size() == 1) {
+			CHECK_CONTAINS(Records[0], "string expected");
+		}
+	}
+	CHECK(TakeErrors() == "");
+}
+
 // TScriptEvent: the rule number (or none), the event's name and the three
 // objects (nil for 0), the same values for every call; results as
 // runBoolean; errors; an event inside a call; the stack as before.
@@ -2646,7 +2871,10 @@ int main() {
 	TestRunCaught();
 	TestHooks();
 	TestPositions();
+	TestPositionMethods();
 	TestItemTypes();
+	TestHouses();
+	TestAtoi();
 	TestEvents();
 	TestFailure();
 	TestConstants();

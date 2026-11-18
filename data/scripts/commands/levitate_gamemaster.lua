@@ -1,5 +1,11 @@
--- commands/levitate_gamemaster.lua: Levitate Gamemaster ("alani hur para"), what
--- CharacterRightSpell's case SPELL_LEVITATE_GAMEMASTER did: moves the caster up or down in the direction of the word, for no mana.
+-- commands/levitate_gamemaster.lua: Levitate Gamemaster ("alani hur para"),
+-- what MagicClimbing(cr, Direction) (the original magic.cc) did: with the
+-- command's right, moves the caster a floor up or down ("up", "down") onto the
+-- field in front of it, as the spell Levitate does (Magic.magicClimbing), for
+-- no mana and no soul points.
+
 function onSay(caster, command, words)
-	Magic.magicClimbingFree(caster, words[3])
+	if caster:hasCommandRight(command) then
+		Magic.magicClimbing(caster, 0, 0, words[3])
+	end
 end

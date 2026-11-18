@@ -9,6 +9,7 @@
 #include <cstdlib>
 
 #include "dbfuncs.hh"
+#include "magicdata.hh"
 
 struct Object;
 struct ObjectType;
@@ -108,6 +109,10 @@ void CheckRuneLevel(TCreature *cr, int SpellNr);
 void CheckRing(TCreature *cr, int);
 void CheckAffectedPlayers(TCreature *cr, int x, int y, int z);
 void SpendManaAndSoulPoints(TCreature *cr, int Mana, int SoulPoints, int Delay);
+// Whether the player CharacterID has the right of the command SpellNr's check
+// Check (CommandRight, commands.toml); a check without a right is logged and
+// false.
+bool CheckCommandRight(uint32_t CharacterID, int SpellNr, int Check = COMMAND_RIGHT);
 int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation);
 bool IsAggressiveSpell(int SpellNr);
 void ActorShapeSpell(TCreature *Actor, TImpact *Impact, int Effect);
@@ -119,27 +124,18 @@ void AngleShapeSpell(TCreature *Actor, int Angle, int Range, TImpact *Impact, in
 void MassCombat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, int EffectNr, int Radius, unsigned short DmgType, int Animation);
 void AngleCombat(TCreature *cr, int Mana, int SoulPoints, int Damage, int EffectNr, int Radius, int Angle, unsigned short DmgType);
 void Combat(TCreature *cr, Object Target, int Mana, int SoulPoints, int Damage, int EffectNr, int AnimationNr, unsigned short DmgType);
-void KillAllMonsters(TCreature *cr, int EffectNr, int Radius);
 void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type);
 void CreateField(TCreature *cr, int Mana, int SoulPoints, int Type);
 void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type, int Radius);
 void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type, int Extension);
 void DeleteField(TCreature *cr, Object Obj, int Mana, int SoulPoints);
 void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints);
-void CleanupField(TCreature *cr);
-void Teleport(TCreature *cr, char *Param);
-void TeleportToCreature(TCreature *cr, char *Name);
-void TeleportPlayerToMe(TCreature *cr, char *Name);
 void MagicRope(TCreature *cr, int Mana, int SoulPoints);
 void MagicClimbing(TCreature *cr, int Mana, int SoulPoints, char *Direction);
-void MagicClimbing(TCreature *cr, char *Direction);
-void CreateThing(TCreature *cr, char *Param1, char *Param2);
-void CreateMoney(TCreature *cr, char *Param);
 void CreateFood(TCreature *cr, int Mana, int SoulPoints);
 void CreateArrows(TCreature *cr, int Mana, int SoulPoints, int Ammo, int Amount);
 void SummonCreature(TCreature *cr, int Mana, int Race, bool God);
 void SummonCreature(TCreature *cr, int Mana, char *RaceName, bool God);
-void StartMonsterraid(TCreature *cr, char *RaidName);
 void RaiseDead(TCreature *cr, Object Obj, int Mana, int SoulPoints);
 void MassRaiseDead(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius);
 void Heal(TCreature *cr, int Mana, int SoulPoints, int Healing);
@@ -154,31 +150,10 @@ void Invisibility(TCreature *cr, int Mana, int SoulPoints, int Duration);
 void CancelInvisibility(TCreature *cr, Object Target, int Mana, int SoulPoints, int Radius);
 void CreatureIllusion(TCreature *cr, int Mana, int SoulPoints, char *RaceName, int Duration);
 void ObjectIllusion(TCreature *cr, int Mana, int SoulPoints, Object Obj, int Duration);
-void ChangeData(TCreature *cr, char *Param);
 void EnchantObject(TCreature *cr, int Mana, int SoulPoints, ObjectType Origin, ObjectType Target);
 void Convince(TCreature *master, TCreature *slave);
 void Challenge(TCreature *cr, int Mana, int SoulPoints, int Radius);
 void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name);
-void GetPosition(TCreature *cr);
-void GetQuestValue(TCreature *cr, char *Param);
-void SetQuestValue(TCreature *cr, char *Param1, char *Param2);
-void ClearQuestValues(TCreature *cr);
-void CreateKnowledge(TCreature *cr, char *Param1, char *Param2);
-void ChangeProfession(TCreature *cr, char *Param);
-void EditGuests(TCreature *cr);
-void EditSubowners(TCreature *cr);
-void KickGuest(TCreature *cr, char *Name);
-void EditNameDoor(TCreature *cr);
-void Notation(TCreature *cr, char *Name, char *Comment);
-void NameLock(TCreature *cr, char *Name);
-void BanishAccount(TCreature *cr, char *Name, int, char *Reason);
-void DeleteAccount(TCreature *cr, char *Name, char *Reason);
-void BanishCharacter(TCreature *cr, char *Name, int, char *Reason);
-void DeleteCharacter(TCreature *cr, char *Name, char *Reason);
-void IPBanishment(TCreature *cr, char *Name, char *Reason);
-void SetNameRule(TCreature *cr, char *Name);
-void KickPlayer(TCreature *cr, char *Name);
-void HomeTeleport(TCreature *cr, char *Name);
 void SpellFailed(uint32_t CreatureID);
 // The words of the spoken spell are SpellStr[1] to SpellStr[LastWord], the
 // last entry CheckForSpell set (the empty one that ends them); the spell's

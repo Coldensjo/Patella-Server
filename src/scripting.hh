@@ -78,16 +78,16 @@
 //
 // Objects. Creature, Player (a Creature), Npc and Monster (Creatures, phases 5
 // and 6) and Item are classes whose objects hold a creature ID or an object
-// handle (rule 2); a Vocation holds its player's creature ID. A creature ID is
-// a Player when it is
-// a player's (below FIRST_NONPLAYER_CREATURE_ID), a Creature otherwise; nil
+// handle (rule 2); a Vocation holds its player's creature ID, a House (phase
+// 9) a house number. A creature ID is a Player when it is a player's (below
+// FIRST_NONPLAYER_CREATURE_ID), a Creature otherwise; nil
 // stands where the C++ code has no creature (nullptr). Two objects are equal
 // (==) when they are of the same class and hold the same ID or handle, so two
 // Vocation objects are equal only for the same player, not for two players of
 // the same vocation (compare their getId()). A method is called as
 // object:method(...); the classes' method tables are the shared globals
-// Creature, Player, Npc, Item and Vocation (Player's and Npc's fall back to
-// Creature's). An NPC's creature ID is an Npc only where an NPC's script gets
+// Creature, Player, Npc, Monster, Item, Vocation, House and Position
+// (Player's, Npc's and Monster's fall back to Creature's). An NPC's creature ID is an Npc only where an NPC's script gets
 // its NPC (the handlers of phase 5); Game.getCreature and item:getCreature give
 // a Creature for it. A creature that is gone gives, in a function that takes
 // it, what the C++ function does for nullptr; where the C++ function would
@@ -219,7 +219,6 @@
 //       animation)                                            MassCombat
 //   angleCombat(actor, mana, soul, damage, effect, radius, angle,
 //       damageType)                                           AngleCombat
-//   killAllMonsters(actor, effect, radius)                    KillAllMonsters
 //   createField(actor, mana, soul, fieldType)                 CreateField(cr, Mana, SoulPoints, Type)
 //   createFieldOn(actor, obj, mana, soul, fieldType)          CreateField(cr, Obj, Mana, SoulPoints, Type)
 //   massCreateField(actor, obj, mana, soul, fieldType, radius)
@@ -227,11 +226,9 @@
 //   createFieldWall(actor, obj, mana, soul, fieldType, extension)
 //                                                             CreateFieldWall
 //   deleteField(actor, obj, mana, soul)                       DeleteField
-//   cleanupField(actor)                                       CleanupField(cr)
-//   cleanupFieldOn(actor, obj, mana, soul)                    CleanupField(cr, Obj, Mana, SoulPoints)
+//   cleanupFieldOn(actor, obj|nil, mana, soul)                CleanupField(cr, Obj, Mana, SoulPoints)
 //   magicRope(actor, mana, soul)                              MagicRope
 //   magicClimbing(actor, mana, soul, direction)               MagicClimbing(cr, Mana, SoulPoints, Direction)
-//   magicClimbingFree(actor, direction)                       MagicClimbing(cr, Direction)
 //   createFood(actor, mana, soul)                             CreateFood
 //   createArrows(actor, mana, soul, ammo, amount)             CreateArrows
 //   summonCreature(actor, mana, raceName, god)                SummonCreature(cr, Mana, RaceName, God)
@@ -250,36 +247,6 @@
 //   convince(actor, target|nil)                               Convince
 //   challenge(actor, mana, soul, radius)                      Challenge
 //   findPerson(actor, mana, soul, name)                       FindPerson
-// Command: the commands' functions of magic.cc (actor: the caster, a
-// Creature; the other arguments are the words, as the C++ case passed
-// SpellStr).
-//   createThing(actor, p1, p2|nil)           CreateThing
-//   teleport(actor, p)                       Teleport
-//   createKnowledge(actor, p1, p2|nil)       CreateKnowledge
-//   changeData(actor, p)                     ChangeData
-//   teleportToCreature(actor, name)          TeleportToCreature
-//   teleportPlayerToMe(actor, name)          TeleportPlayerToMe
-//   showPosition(actor)                      GetPosition
-//   createMoney(actor, p)                    CreateMoney
-//   changeProfession(actor, p)               ChangeProfession
-//   editGuests(actor)                        EditGuests
-//   editSubowners(actor)                     EditSubowners
-//   kickGuest(actor, name)                   KickGuest
-//   editNameDoor(actor)                      EditNameDoor
-//   getQuestValue(actor, p)                  GetQuestValue
-//   setQuestValue(actor, p1, p2)             SetQuestValue
-//   clearQuestValues(actor)                  ClearQuestValues
-//   startMonsterraid(actor, name)            StartMonsterraid
-//   homeTeleport(actor, name)                HomeTeleport
-//   banishAccount(actor, name, n, reason)    BanishAccount
-//   deleteAccount(actor, name, reason)       DeleteAccount
-//   setNameRule(actor, name)                 SetNameRule
-//   notation(actor, name, comment)           Notation
-//   nameLock(actor, name)                    NameLock
-//   kickPlayer(actor, name)                  KickPlayer
-//   deleteCharacter(actor, name, reason)     DeleteCharacter
-//   ipBanishment(actor, name, reason)        IPBanishment
-//   banishCharacter(actor, name, n, reason)  BanishCharacter
 // Game.toInt(text) -> int: (int)std::clamp(strtol(text, nullptr, 10),
 //   (long)INT32_MIN, (long)INT32_MAX), as AccountRightSpell read numbers.
 // creature:getSkillValue(skill) -> Skills[skill]->Get().
@@ -905,6 +872,93 @@
 //       for the other commands: without it, or for an actor that is no
 //       player, it asks nothing and gives true.
 // Constants: RIGHT_RELOAD_SCRIPTS (with the other RIGHT_ constants).
+//
+// Commands in Lua (phase 9; scripting_commands.cc, RegisterCommandAPI,
+// which RegisterMagicAPI calls). Every command script of
+// data/scripts/commands/ (but reload_scripts.lua) does in Lua what its C++
+// function of magic.cc did, on the small calls below: the same calls in the
+// same order with the same arguments, texts and log lines. What a script
+// leaves out: the C++ function's checks that the dispatcher makes
+// unreachable (a creature that is nullptr or no player: onSay gets a Player;
+// a word that is nullptr or empty: a parameter word is never either). Each
+// script checks its command's right where the C++ function did, with its
+// onSay argument command (the entry's number), through
+// player:hasCommandRight. The shared helpers are the module lib/commands.lua
+// (lower, add32, scanCoordinates, identifyPlayer, findRace: its comment says
+// what each does). The C++ command functions are gone; the spell functions
+// some commands used stay for the spells (MagicClimbing, CleanupField with
+// an object, SummonCreature).
+// New methods:
+//   player:hasCommandRight(command[, check]) -> CheckCommandRight(ID,
+//       command, check) of magic.cc (check COMMAND_RIGHT when left out; its
+//       log line for a check without a right); command 0 to MAX_SPELLS - 1
+//       and check 0 to 3, else the binding's error.
+//   creature:getDirection() -> Direction (the way it faces, DIRECTION_).
+//   creature:isMonster() -> Type == MONSTER.
+//   creature:getMapContainer() -> GetMapContainer(GetCreatureObject()), an
+//       Item (the object form: it does not stamp the sector's TimeStamp as
+//       Game.getMapContainer(position) does).
+//   creature:setSkillMagicDelta(skill, value) ->
+//       Skills[skill]->SetMDAct(value).
+//   player:getStartPosition() -> startx, starty, startz as a Position.
+//   player:setSex(sex) -> Sex = sex (PLAYERSEX_; another value is the
+//       binding's error).
+//   player:clearVocation() -> ClearProfession().
+//   player:addSkillTries(skill, count) -> Skills[skill]->Increase(count) (any
+//       skill, SKILL_LEVEL's experience too).
+//   player:sendHouseWindow(house, listId) -> ShowGuestList (listId
+//       GUEST_LIST) or ShowSubownerList (SUBOWNER_LIST) of houses.cc and
+//       SendEditList with its text (one call: the dialog is protocol).
+//   player:sendNameDoorWindow(door) -> ShowNameDoor of houses.cc and
+//       SendEditList(EDIT_LIST_NAME_DOOR, the door's handle) (one call).
+// House: an object holding a house number (rule 2). House(id) makes one for
+// 1 to 65535 (nil otherwise; that a house of the number exists is checked by
+// the functions that take it, as the C++ functions do); house:getId().
+//   house:kickPlayer(player, target) -> KickGuest(HouseID, player, target)
+//       of houses.cc (its checks, moves and texts).
+// Game:
+//   Game.atoi(text) -> atoi(Text) of the C library (glibc on 64 bits:
+//       (int)strtol(Text, nullptr, 10), the low 32 bits of the long).
+//   Game.identifyPlayer(name, exactMatch, ignoreGamemasters) -> result,
+//       player: IdentifyPlayer of crplayer.cc on a copy of name: result 0
+//       with the Player, -1 (not online) or -2 (ambiguous) with nil.
+//   Game.searchFreeField(position, distance, houseId, jump) -> Position or
+//       nil: SearchFreeField(x, y, z, Distance, HouseID, Jump) (houseId 0 to
+//       65535; 65535 any field).
+//   Game.searchSummonField(position, distance) -> Position or nil:
+//       SearchSummonField (its random draws).
+//   Game.isOnMap(position) -> IsOnMap(x, y, z).
+//   Game.getMarkPosition(name) -> Position or nil: GetMarkPosition.
+//   Game.startRaid(name) -> boolean: QueueMonsterRaid(Name, (int)RoundNr)
+//       of crmain.cc (its log line, the waves, onRaid).
+//   Game.createAtCreature(creatureId, type, value) -> Item (nil for NONE):
+//       CreateAtCreature(ID, ObjectType(Type), Value) of operate.cc.
+//   Game.announceChangedCreature(creatureId, what) ->
+//       AnnounceChangedCreature(ID, What) (CREATURE_HEALTH ...).
+//   Game.isThrowPossible(from, to, power) -> ThrowPossible(from, to, Power).
+// ItemType:
+//   ItemType.fromName(name, movable) -> GetObjectTypeByName(Name, Movable),
+//       the type's number (0 for none).
+//   ItemType.exists(id) -> ObjectTypeExists(id).
+// Position:
+//   position:sendMagicEffect(effect) -> GraphicalEffect(x, y, z, Effect).
+//   Position, the global, is also the method table of the Positions (a
+//   callable userdata: Position(x, y, z) makes one).
+// Magic:
+//   Magic.getCircle(radius) -> an array of Positions: the offsets of
+//       Circle[radius] (circles.toml), z 0, radius 0 to MAX_CIRCLES - 1.
+//   Magic.cleanupFieldOn(actor, obj|nil, mana, soul) takes nil for NONE.
+// Constants (7.72's values): MESSAGE_STATUS_SMALL (TALK_FAILURE_MESSAGE),
+// MESSAGE_EVENT_ADVANCE (TALK_EVENT_MESSAGE) (TFS's names); CONST_SLOT_HEAD
+// ... CONST_SLOT_AMMO (objects.hh's BODY_, TFS's names); DIRECTION_NORTH,
+// DIRECTION_EAST, DIRECTION_SOUTH, DIRECTION_WEST (the creature's facing);
+// CREATURE_HEALTH, CREATURE_LIGHT, CREATURE_OUTFIT, CREATURE_SPEED,
+// CREATURE_SKULL, CREATURE_PARTY (operate.hh); COMMAND_RIGHT,
+// MOVE_RIGHT_VERTICAL, MOVE_RIGHT_SPEED, MOVE_RIGHT_COORDINATE,
+// MOVE_RIGHT_MARK (magicdata.hh); GUEST_LIST 1, SUBOWNER_LIST 2 (the lists
+// of sendHouseWindow, the edit lists' numbers the client gets); MAX_AMOUNT
+// (the most of a cumulative object); MAX_RACES (crmain.hh: the races are 1
+// to MAX_RACES - 1).
 //
 // Logged texts: the game's error handler (shm.cc's ErrorHandler) hands the
 // text to Log as its format string, so every text the engine logs with

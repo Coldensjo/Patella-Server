@@ -1,8 +1,13 @@
-r"""Prove that a change keeps the game's behaviour: the packet traces of two builds in a scripted scenario.
+r"""Prove that a change keeps the game's behaviour: the packet traces and the logs of two builds in a scripted scenario.
 
 Usage, from any folder (the checkout is the one this file is in), on Windows or in WSL:
   python -I tools/trace_check.py [<old> [<new>]] [--scenario NAME] [--stop-round N] [--seed S] [--install PATH]
                                  [--port N] [--qm-port N] [--shm KEY] [--stall-old ROUND:MS]
+                                 [--debug-level N] [--logs check|report]
+
+--logs report: the logs are compared and the differences reported, but they do not decide the exit code (for an
+<old> whose log texts differ on purpose: faithful writes them in German, main in English since 2026-11-14). Default
+check: a difference of the logs fails the check like one of the traces.
 
 --stall-old ROUND:MS makes the old build's main loop wait MS milliseconds at ProcessCommand in round ROUND. A reload
 (scenario reload) stalls the new build's main loop for as long as it takes, which shifts the next creature movement
@@ -29,10 +34,12 @@ What it does, in WSL Ubuntu-24.04:
      .mon and .evt files) of the copy, are removed (spells.toml and commands.toml replace the spell table and the
      commands' rights in the code). A tree without them (faithful) gets the copy's .tibia with its paths pointed at the
      copy, and keeps those files. The scenario's clients read the object types from the file the copy has. Either config
-     gets a scratch SHM key (--shm, default 17011) and scratch query manager ports (--qm-port, default 17173, and the
-     three after it for the other entries). Then it seeds a scratch database with the build's querymanager-seed (game
-     port --port, default 17171), adds the test accounts with a new character each (900001 'Testa Alpha', male, and
-     900002 'Testb Beta', female; and the gamemasters 900003 to 900007, 'Testc Gamma' to 'Testg Eta', male, each with
+     gets a scratch SHM key (--shm, default 17011), scratch query manager ports (--qm-port, default 17173, and the
+     three after it for the other entries) and the debug level --debug-level (default 3, one above the original
+     installation's 2, so that the game's print(3, ...) lines, which the logs do not hold, are on the console and
+     compared in step 6; the level decides only what is printed). Then it seeds a scratch database with the build's
+     querymanager-seed (game port --port, default 17171), adds the test accounts with a new character each (900001
+     'Testa Alpha', male, and 900002 'Testb Beta', female; and the gamemasters 900003 to 900007, 'Testc Gamma' to 'Testg Eta', male, each with
      some of the rights the commands check, GM_RIGHTS; and the caster 900008 'Testh Theta', male, with the rights to
      cast every spell and make and use every rune, CASTER_RIGHTS; and the door opener 900009 'Testi Iota', male, who
      may open every name door, DOOR_RIGHTS; and the talkers 900010 to 900013, 'Testj Kappa' to 'Testm Nu', male,
@@ -42,21 +49,30 @@ What it does, in WSL Ubuntu-24.04:
      names it; faithful's does not, and its seed refuses a right it does not know); the rights from 82 on never reach
      the client, so the other scenarios do not see it. A build whose query manager keeps the player data (its database has the table
      player_data) gets them from the player files with the seed, which imports them; the copy's usr/ is then removed,
-     so the run also shows that its game no longer reads or writes player files. The game runs with HOME set to the
-     copy, so it reads the copy's config.toml (or .tibia). The copy gets the check's RSA key (repro_check's key
+     so the run also shows that its game no longer reads or writes player files. A scenario that names houses for test
+     characters (its attribute houses, {house id: client key}; tools/trace/scenarios.py) gets them as the owners: after
+     the seed, each such house gets an entry in the copy's owners.dat (in its data folder, where the game reads it),
+     the character as owner, paid until 2^31-1, no guests and no subowners. Only a house the original owners.dat does
+     not list may be given: the seed has imported that file's owners into the database, and the query manager would
+     otherwise name the old owner (or evict the house). The game runs with HOME set to the copy, so it reads the
+     copy's config.toml (or .tibia). The copy gets the check's RSA key (repro_check's key
      header) as a key file in PKCS#1 PEM, mode 0600, at the path the copy's config.toml names with rsa_key (key.pem in
      the copy without one, and for a .tibia): a tree that reads its key at run time uses it, one that builds the key
      in has the same key built in. The scenario's clients encrypt their logins with that file's modulus.
   3. Runs the game under gdb: rand() is seeded again with --seed (default 4242) right after the game's own
      srand(time(NULL)), at InitSignalHandler; a breakpoint on SetRoundNr prints every round number into the console,
      and the scenario's clients (tools/trace/run_scenario.py; --scenario, default full) act in fixed rounds after it.
-     At the start of the AdvanceGame call of round --stop-round (default 232, after the last step of full) gdb
+     At the start of the AdvanceGame call of round --stop-round (default: the scenario's stop_round in
+     tools/trace/scenarios.py if it has one, as commands, else 232, after the last step of full) gdb
      delivers SIGQUIT and the game shuts down by itself. This is the SCENARIO and STOPROUND mode of the reference
      project's notes/boot/compare.sh. One addition: the game runs with a small library preloaded (RAND_SHIM, built
      with gcc for each run) whose rand() is the C library's in the main thread and draws from a sequence of its own
      in any other thread. A connection thread calls rand() when a client connects (the seed of the connection's
      packet padding), at a moment that depends on the threads' timing; with the one sequence of the C library, a
-     login during a creature's move gives the creatures other numbers in one run than in the other.
+     login during a creature's move gives the creatures other numbers in one run than in the other. The library also
+     makes the game's standard output line buffered: each line the game prints is written whole when it is printed,
+     between the round numbers gdb writes into the same console file, so that step 6 knows the round of each line
+     (with the default full buffering the game wrote 4 KB blocks that gdb's lines cut in the middle of a line).
      The game's CPU time over the scenario is measured on the way, for information (a change that should cost less
      or no more CPU, e.g. a rule engine moved elsewhere): utime + stime of the game process (all its threads), read
      from /proc/<pid>/stat as soon as the console shows the scenario's base round (the first line of
@@ -72,16 +88,45 @@ What it does, in WSL Ubuntu-24.04:
      player files wrote, and the player data a build with a player database saved, written as player files with that
      build's patella-convert usr-export (the game's old writer). LastLogin and LastLogout follow the wall clock and
      are left out. They must be the same, and at least one character must have been saved.
+  6. Compares the logs of the two runs: the console and the log files. The game prints with print(level, ...) to its
+     standard output (the console file, through gdb) when the level is at most the debug level, error(...) to the
+     console and into error.log, and Log(name, ...) writes log/<name>.log (the log folder of the copy: [paths] log, or
+     LOGPATH of the .tibia) and prints the line as "<name>.log: <text>" at level 2. The Lua scripts' Game.print,
+     debugPrint and Game.log are those three. Each run's log folder is copied to <side>/log before the runtime copy
+     is removed; the console stays as <side>/console. Compared are:
+     - the console: each line the game printed with the round of gdb's last @@ROUND line before it (0 for the boot),
+       without gdb's own lines (round lines, breakpoints, threads, the CPU block, the end) and without the
+       "<name>.log: " echoes (the log files are compared instead);
+     - each log file either run wrote, line for line: Log's lines with their round but without date and time, the
+       start line of InitLog without its time.
+     Left out, as they follow the wall clock and not the rounds (CLOCK_LOGS, CLOCK_LINES; the counts are reported):
+     lag.log (rounds that took longer than the beat), load.log (the player list of every 5th real minute, with the
+     time), netload.log (bytes per real hour); the lines "AdvanceGame: No creature movement due to lag" and "Lag
+     detected!"; "Refreshing sector X/Y/Z ..." (the sectors near players refreshed every real minute,
+     RefreshCylinders); "Saving all player data..." and the players' "Attaching slot"/"Freeing slot" lines of its
+     round (the save ordered every 15 real minutes, done by the writer thread). Replaced by a place holder: the
+     game's pid ("Pid N - ...", "(Pid=N)"), socket numbers (file descriptors, which depend on the files the threads
+     have open at that moment), the rounds the boot schedules the raids for ("Scheduling raid X for round N" in round
+     0: the time until the raid's date or until the next reboot), the reload's "done in N ms" and the number of a
+     "New record: N players". Compared without their
+     round and order (LOOSE_LINES): "Connection on socket N broke down." (a connection thread, when a client has
+     closed its connection, as the clients do at the end of a scenario). The other lines a thread other than the
+     game's main thread prints (a connection's login, the writer thread's replies) are compared like the others; a
+     run with a different order or round of them shows as a difference.
+     The differences are reported per file, the differing lines in ~/.cache/patella-check/trace/diff-logs.txt; with
+     --logs check (default) they fail the check like the traces, with --logs report they are for information.
 
 Only the builds run, never the original bin/game. The ports 7171-7176, the SHM key 10011 and /game are refused, so a
 server the owner plays on is never touched. Nothing of usr/ is printed: the seed's output and the game's console stay
-in files. Every exit path stops the processes of the run and removes its SHM segment, database and runtime copy. A run
-takes about five minutes per build. What the runs leave (consoles, query manager logs, traces, the comparison) is in
-~/.cache/patella-check/trace/. Checks run one at a time: from the first build to the comparison a run holds
-repro_check's ~/.cache/patella-check/run.lock, and a repro_check or trace_check from any checkout waits for it.
+in files (the log comparison prints lines that differ, and the game names the players of the installation there by
+their character ID at most, e.g. the tenants in houses.log). Every exit path stops the processes of the run and removes its SHM segment, database and runtime copy. A run
+takes about five minutes per build. What the runs leave (consoles, log folders, query manager logs, traces, the
+comparisons) is in ~/.cache/patella-check/trace/. Checks run one at a time: from the first build to the comparison a
+run holds repro_check's ~/.cache/patella-check/run.lock, and a repro_check or trace_check from any checkout waits for
+it.
 
-Exit code 0: the traces match apart from the allowed differences, and both runs went through. 1: they differ, or a
-run or a build failed. 2: wrong usage.
+Exit code 0: the traces match apart from the allowed differences, the logs match apart from what is left out (or
+--logs report), and both runs went through. 1: they differ, or a run or a build failed. 2: wrong usage.
 """
 
 import argparse
@@ -280,9 +325,9 @@ def kill_leftovers(cache, root, key):
 
 # ---------------------------------------------------------------- WSL side: one run
 
-def rewrite_tibia(path, game, shm, qm_port):
+def rewrite_tibia(path, game, shm, qm_port, debug_level):
 	"""Points the paths of the runtime copy's .tibia at the copy, its SHM key and query manager ports at the scratch
-	ones. Returns the world's name."""
+	ones, and sets its debug level. Returns the world's name."""
 	with open(path, encoding="latin-1") as f:
 		text = f.read()
 	text, count = re.subn(r'(?m)^(\s*[A-Z]+PATH\s*=\s*)"([^"]*)"',
@@ -292,6 +337,9 @@ def rewrite_tibia(path, game, shm, qm_port):
 	text, count = re.subn(r"(?m)^(\s*SHM\s*=\s*)\d+", lambda m: "%s%d" % (m.group(1), shm), text)
 	if count != 1:
 		raise CheckError(".tibia: no SHM key")
+	text, count = re.subn(r"(?m)^(\s*DebugLevel\s*=\s*)-?\d+", lambda m: "%s%d" % (m.group(1), debug_level), text)
+	if count != 1:
+		raise CheckError(".tibia: no DebugLevel")
 	entries = [0]
 
 	def port(m):
@@ -313,9 +361,10 @@ def rewrite_tibia(path, game, shm, qm_port):
 	return world.group(1)
 
 
-def write_config(source, game, shm, qm_port):
+def write_config(source, game, shm, qm_port, debug_level):
 	"""Writes the tree's data/config.toml as the copy's config.toml, with the SHM key and the query manager ports set
-	to the scratch ones; its paths must be relative, so they point at the copy. Returns the world's name."""
+	to the scratch ones and the debug level set; its paths must be relative, so they point at the copy. Returns the
+	world's name."""
 	import tomllib
 	with open(source, encoding="utf-8") as f:
 		text = f.read()
@@ -330,6 +379,9 @@ def write_config(source, game, shm, qm_port):
 	text, count = re.subn(r"(?m)^(\s*shm_key\s*=\s*)-?\d+", lambda m: "%s%d" % (m.group(1), shm), text)
 	if count != 1:
 		raise CheckError("data/config.toml: no shm_key")
+	text, count = re.subn(r"(?m)^(\s*debug_level\s*=\s*)-?\d+", lambda m: "%s%d" % (m.group(1), debug_level), text)
+	if count != 1:
+		raise CheckError("data/config.toml: no debug_level")
 	entries = [0]
 
 	def port(m):
@@ -341,9 +393,9 @@ def write_config(source, game, shm, qm_port):
 	if not 1 <= entries[0] <= 4 or entries[0] != len(config.get("query_manager", [])):
 		raise CheckError("data/config.toml: %d query_manager entries with a port" % entries[0])
 	patched = tomllib.loads(text)
-	if patched["shm_key"] != shm or [q["port"] for q in patched["query_manager"]] != [qm_port + i
-			for i in range(entries[0])]:
-		raise CheckError("data/config.toml: the SHM key or the query manager ports could not be set")
+	if patched["shm_key"] != shm or patched["debug_level"] != debug_level or [q["port"] for q in
+			patched["query_manager"]] != [qm_port + i for i in range(entries[0])]:
+		raise CheckError("data/config.toml: the SHM key, the debug level or the query manager ports could not be set")
 	world = patched.get("world", {}).get("name")
 	if not world:
 		raise CheckError("data/config.toml: no [world] name")
@@ -365,6 +417,18 @@ def paths_folder(game, key):
 def data_folder(game):
 	"""The copy's data folder as its config.toml names it ([paths] data, relative to the copy)."""
 	return paths_folder(game, "data")
+
+
+def game_folder(game, key, tibia_key):
+	"""A folder of the copy as its game reads it: [paths] key of its config.toml, or else tibia_key of its .tibia
+	(which rewrite_tibia pointed at the copy)."""
+	if os.path.isfile(os.path.join(game, "config.toml")):
+		return paths_folder(game, key)
+	with open(os.path.join(game, ".tibia"), encoding="latin-1") as f:
+		found = re.search(r'(?m)^\s*%s\s*=\s*"([^"]*)"' % tibia_key, f.read())
+	if found is None:
+		raise CheckError(".tibia: no %s" % tibia_key)
+	return found.group(1)
 
 
 # The TOML files of a tree's data/ that go into the copy's data folder, each with the original files of that folder it
@@ -400,7 +464,8 @@ def lay_out(game, data, options):
 	tibia = os.path.join(game, ".tibia")
 	objects = os.path.join(game, "dat", "objects.srv")
 	if data and os.path.isfile(os.path.join(data, "config.toml")):
-		world = write_config(os.path.join(data, "config.toml"), game, options["shm"], options["qm_port"])
+		world = write_config(os.path.join(data, "config.toml"), game, options["shm"], options["qm_port"],
+			options["debug_level"])
 		if os.path.exists(tibia):
 			os.remove(tibia)
 		layout = "config.toml from the tree's data/, no .tibia"
@@ -433,7 +498,7 @@ def lay_out(game, data, options):
 			raise CheckError("data/%s without data/config.toml: the copy's data folder is unknown" % name)
 	if data and os.path.isdir(os.path.join(data, "scripts")):
 		raise CheckError("data/scripts without data/config.toml: the copy's data folder is unknown")
-	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"]), ".tibia", objects
+	return rewrite_tibia(tibia, game, options["shm"], options["qm_port"], options["debug_level"]), ".tibia", objects
 
 
 # The seed's report lines that hold counts only.
@@ -498,6 +563,32 @@ def seed(binary, db, game, world, port, log_file, reload_right):
 	return characters
 
 
+def give_houses(game, houses, characters):
+	"""Makes test characters the owners of houses for the run (step 2 of the comment at the top): houses is {house id
+	(as text, from JSON): client key} (the scenario's attribute houses), characters the IDs of the new characters, one
+	per TEST_ACCOUNTS entry. Appends an entry per house to the copy's owners.dat. Returns what it did, for the log."""
+	import run_scenario
+	path = os.path.join(game_folder(game, "data", "DATAPATH"), "owners.dat")
+	text = ""
+	if os.path.isfile(path):
+		with open(path, encoding="latin-1") as f:
+			text = f.read()
+	listed = {int(n) for n in re.findall(r"(?m)^\s*ID\s*=\s*(\d+)", text)}
+	accounts = [entry[0] for entry in TEST_ACCOUNTS]
+	given = []
+	for house, key in sorted((int(house), key) for house, key in houses.items()):
+		if house in listed:
+			raise CheckError("house %d: the original owners.dat lists it; a scenario may only be given a house it does "
+				"not list" % house)
+		account, _, name = run_scenario.ACCOUNTS[key]
+		text += "\nID = %d\nOwner = %d\nLastTransition = 0\nPaidUntil = 2147483647\nGuests = {}\nSubowners = {}\n" % (
+			house, characters[accounts.index(account)])
+		given.append("house %d to %s" % (house, name))
+	with open(path, "w", encoding="latin-1", newline="\n") as f:
+		f.write(text)
+	return ", ".join(given)
+
+
 def saved_characters(binaries, game, db, characters, out):
 	"""What the game saved of the test characters, as player file texts without the LastLogin and LastLogout lines
 	({id: text}; a character it saved nothing of is missing): the player files it wrote, or, with a player database,
@@ -521,15 +612,23 @@ def saved_characters(binaries, game, db, characters, out):
 
 
 # The library the game runs with (LD_PRELOAD, see the comment at the top, step 3): rand() of the main thread is the
-# C library's, that of any other thread draws from a sequence of its own; patella_stall is the wait of --stall-old.
+# C library's, that of any other thread draws from a sequence of its own; patella_stall is the wait of --stall-old;
+# the standard output is line buffered.
 RAND_SHIM = r"""
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <time.h>
+
+/* Each line the game prints is written whole when it is printed (the log comparison gives it the round of the
+   console's last round line). */
+__attribute__((constructor)) static void patella_line_buffered(void) {
+	setvbuf(stdout, NULL, _IOLBF, 0);
+}
 
 /* Waits ms milliseconds of the monotonic clock, signals delivered meanwhile (--stall-old). */
 void patella_stall(int ms) {
@@ -572,8 +671,9 @@ def build_rand_shim(folder):
 	return library
 
 
-# What the gdb script prints before the game's /proc stat (gdb's info proc stat) at the stop round.
+# What the gdb script prints before and after the game's /proc stat (gdb's info proc stat) at the stop round.
 CPU_STOP_MARK = "@@CPU AT STOP@@"
+CPU_STOP_END = "@@CPU END@@"
 
 
 def game_cpu(pid):
@@ -626,6 +726,7 @@ def gdb_script(seed_value, stop_round, rand_shim, stall=None):
 		# The game's CPU time at the stop round, while it is stopped here (game_cpu_at_stop).
 		'printf "%s\\n"' % CPU_STOP_MARK,
 		"info proc stat",
+		'printf "%s\\n"' % CPU_STOP_END,
 		"signal SIGQUIT",
 		"end",
 		"break SetRoundNr",
@@ -741,6 +842,8 @@ def run(side, build, data, options, key, root, reload_right):
 		if reload_right:
 			log("  %s: the query manager knows the right %s: account %d has it" % (side, RELOAD_RIGHT,
 				RELOAD_ACCOUNT))
+		if options["houses"]:
+			log("  %s: owners.dat of the copy gives %s" % (side, give_houses(game, options["houses"], characters)))
 		if has_player_data(db):
 			shutil.rmtree(os.path.join(game, "usr"))
 			log("  %s: the database keeps the player data; usr/ removed from the copy" % side)
@@ -857,10 +960,227 @@ def run(side, build, data, options, key, root, reload_right):
 				log("  %s: removed the SHM segment the game left (key %d)" % (side, options["shm"]))
 		except CheckError as e:
 			log("  %s: %s" % (side, e))
+		# The game's log files stay with the run's other output (step 6 compares them).
+		try:
+			logs = game_folder(game, "log", "LOGPATH")
+			if os.path.isdir(logs):
+				shutil.copytree(logs, os.path.join(out, "log"))
+		except (CheckError, OSError) as e:
+			log("  %s: the log files were not kept: %s" % (side, e))
 		shutil.rmtree(game, ignore_errors=True)
 		for suffix in ("", "-wal", "-shm", "-journal"):
 			if os.path.exists(db + suffix):
 				os.remove(db + suffix)
+
+
+# ---------------------------------------------------------------- the logs (step 6 of the comment at the top)
+
+# The time stamp Log writes in front of a line of a log file (writer.cc): the date and time, then the round.
+LOG_TIME = re.compile(r"^\d\d\.\d\d\.\d{4} \d\d:\d\d:\d\d \((-?\d+)\): ")
+# The line InitLog writes when the game starts a log file: its name and the start time (ctime); faithful writes
+# "gestartet".
+LOG_STARTED = re.compile(r"^(\S+\.log - (?:started|gestartet) ).*$")
+
+# The log files whose lines all follow the wall clock, not the rounds; they are left out (their line counts are
+# reported).
+CLOCK_LOGS = {
+	"lag.log": "a round that took longer than the beat (AdvanceGame: Delay N msec)",
+	"load.log": "the time and the first free player slot, with the player list, when the real minute is a multiple "
+		"of 5 (CreatePlayerList)",
+	"netload.log": "the bytes sent and received since the last full real hour, at every full real hour "
+		"(NetLoadSummary)",
+}
+
+# What follows the wall clock or the harness, not the rounds, in the lines of the console and of the log files (their
+# text, without time stamp and round): a pattern, what replaces each match (None: the line is left out), why, and
+# whether only lines of the boot (round 0) are meant. Each of them is applied to every line; main's texts and
+# faithful's German ones both.
+CLOCK_LINES = [
+	# The game's process ID ("Pid N - listening on port N", "LaunchGame: Game server is ready (Pid=N).").
+	(re.compile(r"^Pid \d+ "), "Pid <pid> ", "the game's process ID", False),
+	(re.compile(r"\(Pid=\d+\)"), "(Pid=<pid>)", "the game's process ID", False),
+	# A connection's socket, a file descriptor: its number depends on the files the game's threads have open at
+	# that moment (the protocol thread opens a log file for every line it writes).
+	(re.compile(r"\b([Ss]ocket )\d+"), r"\1<fd>", "a socket's file descriptor", False),
+	# The rounds the boot schedules raids for: the round now plus the seconds until the raid's date, or a random
+	# round before the next reboot (LoadMonsterRaids). Raids started later (Start Monsterraid) keep their round.
+	(re.compile(r"^(Scheduling raid .* for round |Plane Raid .* ein f\xfcr Runde )-?\d+\.$"), r"\1<round>.",
+		"the round the boot schedules a raid for (the time until its date or the next reboot)", True),
+	# The lag lines: a round that took too long (main.cc AdvanceGame) and the load check (NetLoadCheck).
+	(re.compile(r"^AdvanceGame: (No creature movement due to lag|Keine Kreaturbewegung wegen Lag)"), None,
+		"a round that took too long", False),
+	(re.compile(r"^Lag detected!$"), None, "the load check of the real minute", False),
+	# The sectors refreshed from the original map near the players (RefreshCylinders, every real minute).
+	(re.compile(r"^(Refreshing sector|Refreshe Sektor) \d+/\d+/\d+ \.\.\.$"), None, "the refresh of sectors every "
+		"real minute", False),
+	# The reload's summary (reload.cc): how long the reload took.
+	(re.compile(r"\bdone in \d+ ms"), "done in <N> ms", "how long the reload took", False),
+	# The new record of players online, found with the player list of every 5th real minute.
+	(re.compile(r"\bNew record: \d+ players"), "New record: <N> players", "the player list of the real minute",
+		False),
+]
+
+
+# The save of all player data, ordered every 15 real minutes (AdvanceGame, SavePlayerDataOrder) and done by the writer
+# thread (SavePlayerPoolSlots): its first line, and the lines of each player it saves, which it prints in the same
+# round; those of that round are left out with it.
+SAVE_START = re.compile(r"^(Saving all player data|Speichere alle Spielerdaten)\.\.\.$")
+SAVE_SLOT = re.compile(r"^(Attaching slot of player \d+\.|Freeing slot of player \d+\.|Attache Slot von Spieler \d+\.|"
+	r"Gebe Slot von Spieler \d+ frei\.)$")
+SAVE_REASON = "the save of all player data every 15 real minutes (writer thread)"
+
+# The lines of the log files a connection thread writes at a moment that depends on the threads' timing, not on the
+# rounds: they are compared without their round and order (loose).
+LOOSE_LINES = [
+	# A client that closed its connection (the clients at the end of a scenario) when the game sends to it.
+	re.compile(r"^(Connection on socket <fd> broke down\.|Verbindung an Socket <fd> zusammengebrochen\.)$"),
+]
+
+
+def clock_filter(text, boot):
+	"""(text, reasons): the text with what follows the wall clock or the harness replaced, None if it is left out
+	as a whole; boot: whether the line is of the boot (round 0)."""
+	reasons = []
+	for pattern, replacement, reason, boot_only in CLOCK_LINES:
+		if (boot or not boot_only) and pattern.search(text):
+			reasons.append(reason)
+			if replacement is None:
+				return None, reasons
+			text = pattern.sub(replacement, text)
+	return text, reasons
+
+
+def count_reasons(filtered, reasons):
+	for reason in reasons:
+		filtered[reason] = filtered.get(reason, 0) + 1
+
+
+def log_file_lines(path):
+	"""The lines of a log file as compared: without the date and time of Log's time stamp (the round stays) and the
+	start time of InitLog's line, through clock_filter. Returns (lines, {reason: count}, the LOOSE_LINES texts)."""
+	lines = []
+	filtered = {}
+	loose = []
+	with open(path, "rb") as f:
+		raw = f.read().decode("latin-1").split("\n")
+	if raw[-1] == "":
+		raw.pop()
+	for line in raw:
+		line = LOG_STARTED.sub(r"\1<time>", line)
+		stamp = LOG_TIME.match(line)
+		text, reasons = clock_filter(line[stamp.end():] if stamp else line, stamp is not None and
+			int(stamp.group(1)) == 0)
+		count_reasons(filtered, reasons)
+		if text is None:
+			continue
+		if any(pattern.match(text) for pattern in LOOSE_LINES):
+			loose.append(text)
+		else:
+			lines.append("(%s): %s" % (stamp.group(1), text) if stamp else text)
+	return lines, filtered, loose
+
+
+# The lines gdb writes into the console: the round numbers (they give the following game lines their round), the
+# breakpoints, threads and the end of the game, and the CPU block (CPU_STOP_MARK to CPU_STOP_END).
+GDB_ROUND = re.compile(r"^@@ROUND (\d+)@@$")
+GDB_LINE = re.compile(r"^(Breakpoint \d+ at 0x[0-9a-f]+: file .*|\[Thread debugging using libthread_db enabled\]|"
+	r"Using host libthread_db library .*|\[New Thread 0x[0-9a-f]+ \(LWP \d+\)\]|"
+	r"\[Thread 0x[0-9a-f]+ \(LWP \d+\) exited\]|\[Inferior \d+ \(process \d+\) [^\]]*\])$")
+# The console lines of Log (print(2, "<name>.log: <text>")): the log files hold them, and are compared.
+CONSOLE_LOG_ECHO = re.compile(r"^[a-z-]+\.log: ")
+
+
+def console_lines(path):
+	"""What the game printed on the console, each line with the round gdb's last round line before it named (0 before
+	the first): ["<round>: <text>"], without gdb's lines, without the echoes of the log files' lines, through
+	clock_filter. Returns (lines, {reason: count})."""
+	lines = []
+	filtered = {}
+	current = 0
+	save_round = None
+	inside_cpu = False
+	with open(path, "rb") as f:
+		raw = f.read().decode("latin-1").split("\n")
+	if raw[-1] == "":
+		raw.pop()
+	for line in raw:
+		if inside_cpu:
+			inside_cpu = line != CPU_STOP_END
+			continue
+		if line == CPU_STOP_MARK:
+			inside_cpu = True
+			continue
+		found = GDB_ROUND.match(line)
+		if found:
+			current = int(found.group(1))
+			continue
+		if GDB_LINE.match(line) or CONSOLE_LOG_ECHO.match(line):
+			continue
+		if SAVE_START.match(line):
+			save_round = current
+		if save_round == current and (SAVE_START.match(line) or SAVE_SLOT.match(line)):
+			count_reasons(filtered, [SAVE_REASON])
+			continue
+		text, reasons = clock_filter(line, current == 0)
+		count_reasons(filtered, reasons)
+		if text is not None:
+			lines.append("%d: %s" % (current, text))
+	return lines, filtered, []
+
+
+def compare_logs(root):
+	"""Compares the console and the log files of the runs old and new (in root/<side>/console and root/<side>/log/).
+	Returns (whether they differ, summary lines, the differing lines)."""
+	import difflib
+	sources = [("console", [os.path.join(root, side, "console") for side in ("old", "new")])]
+	names = set()
+	for side in ("old", "new"):
+		folder = os.path.join(root, side, "log")
+		if os.path.isdir(folder):
+			names.update(n for n in os.listdir(folder) if n.endswith(".log"))
+	sources += [(name, [os.path.join(root, side, "log", name) for side in ("old", "new")]) for name in sorted(names)]
+	differs = False
+	summary = []
+	report = []
+	for name, paths in sources:
+		if name in CLOCK_LOGS:
+			counts = []
+			for path in paths:
+				with open(path, "rb") if os.path.isfile(path) else io.BytesIO() as f:
+					counts.append(f.read().count(b"\n"))
+			summary.append("%s: left out, it follows the wall clock (%s): old %d, new %d lines" % (name,
+				CLOCK_LOGS[name], counts[0], counts[1]))
+			continue
+		read = console_lines if name == "console" else log_file_lines
+		results = [read(path) if os.path.isfile(path) else None for path in paths]
+		if None in results:
+			differs = True
+			summary.append("%s: only the %s run wrote it" % (name, "new" if results[0] is None else "old"))
+			report.append("=== %s: only the %s run wrote it" % (name, "new" if results[0] is None else "old"))
+			continue
+		(old, old_filtered, old_loose), (new, new_filtered, new_loose) = results
+		filtered = "; ".join("%s: old %d, new %d" % (reason, old_filtered.get(reason, 0), new_filtered.get(reason, 0))
+			for reason in sorted(set(old_filtered) | set(new_filtered)))
+		diff = [line for line in difflib.unified_diff(old, new, lineterm="", n=0)
+			if not line.startswith(("+++", "---"))]
+		loose = [line for line in difflib.unified_diff(sorted(old_loose), sorted(new_loose), lineterm="", n=0)
+			if line[:1] in "+-" and not line.startswith(("+++", "---"))]
+		if loose:
+			diff += ["@@ lines of other threads, compared without round and order"] + loose
+		if old_loose or new_loose:
+			filtered += "%sother threads' lines without round and order: old %d, new %d" % ("; " if filtered else "",
+				len(old_loose), len(new_loose))
+		changed = sum(1 for line in diff if line[:1] in "+-")
+		if changed:
+			differs = True
+			summary.append("%s: %d lines differ (old %d, new %d lines)%s" % (name, changed, len(old), len(new),
+				"; filtered: " + filtered if filtered else ""))
+			report.append("=== %s" % name)
+			report += diff
+		else:
+			summary.append("%s: the same (%d lines)%s" % (name, len(old), "; filtered: " + filtered if filtered else
+				""))
+	return differs, summary, report
 
 
 def query_manager_requests(path):
@@ -957,6 +1277,20 @@ def trace(arguments, data):
 			else:
 				log("trace_check: saved test characters: the same in both runs (%d characters, LastLogin and "
 					"LastLogout left out)" % len(saved[0]))
+		logs_differ, log_summary, log_report = compare_logs(root)
+		with open(os.path.join(root, "diff-logs.txt"), "w", encoding="utf-8") as f:
+			f.write("\n".join(log_summary + [""] + log_report) + "\n")
+		log("trace_check: logs, the console and the log files (%s):" % ("they decide the exit code"
+			if options["logs"] == "check" else "for information, --logs report"))
+		for line in log_summary:
+			log("  " + line)
+		if logs_differ:
+			if options["logs"] == "check":
+				code = 1
+			for line in log_report[:120]:
+				log("  " + line)
+			if len(log_report) > 120:
+				log("  ... %d more lines in %s" % (len(log_report) - 120, os.path.join(root, "diff-logs.txt")))
 		if total:
 			code = 1
 			for line in report[:120]:
@@ -1004,19 +1338,32 @@ def main(argv):
 	parser = argparse.ArgumentParser(prog="trace_check.py", add_help=False)
 	parser.add_argument("commits", nargs="*", help="<old> (default faithful) and <new> (default the working tree)")
 	parser.add_argument("--scenario", default="full")
-	parser.add_argument("--stop-round", type=int, default=232)
+	parser.add_argument("--stop-round", type=int, default=None)
 	parser.add_argument("--seed", type=int, default=4242)
 	parser.add_argument("--install", default=DEFAULT_INSTALL)
 	parser.add_argument("--port", type=int, default=17171)
 	parser.add_argument("--qm-port", type=int, default=17173)
 	parser.add_argument("--shm", type=int, default=17011)
 	parser.add_argument("--stall-old", default=None, metavar="ROUND:MS")
+	parser.add_argument("--debug-level", type=int, default=3)
+	parser.add_argument("--logs", choices=("check", "report"), default="check")
 	args = parser.parse_args(argv)
 	if len(args.commits) > 2:
 		parser.print_usage(sys.stderr)
 		return 2
-	options = {"scenario": args.scenario, "stop_round": args.stop_round, "seed": args.seed, "install": args.install,
-		"port": args.port, "qm_port": args.qm_port, "shm": args.shm, "stall_old": args.stall_old}
+	import scenarios
+	if args.scenario not in scenarios.SCENARIOS:
+		print("trace_check.py: no scenario %r (tools/trace/scenarios.py has %s)" % (args.scenario,
+			", ".join(sorted(scenarios.SCENARIOS))), file=sys.stderr)
+		return 2
+	# The houses the scenario's test characters own (give_houses), as {house id as text: client key} for JSON.
+	houses = {str(house): key for house, key in getattr(scenarios.SCENARIOS[args.scenario], "houses", {}).items()}
+	stop_round = args.stop_round
+	if stop_round is None:
+		stop_round = getattr(scenarios.SCENARIOS[args.scenario], "stop_round", None) or 232
+	options = {"scenario": args.scenario, "stop_round": stop_round, "seed": args.seed, "install": args.install,
+		"port": args.port, "qm_port": args.qm_port, "shm": args.shm, "stall_old": args.stall_old,
+		"debug_level": args.debug_level, "logs": args.logs, "houses": houses}
 	check_options(options)
 	who = "trace_check"
 	old_tree, old_label = repro_check.resolve(args.commits[0] if args.commits else "faithful")

@@ -1,12 +1,13 @@
 // scripting_magic.cc: the API of the spells', runes' and commands' scripts
 // (scripting.hh, "Spells, runes and commands"): the spell functions of
-// magic.cc in the table Magic, the commands' functions in Command, the few
-// reads the cases of the old switches made (Game.toInt, the methods
+// magic.cc in the table Magic, the reload command's Command.reloadScripts,
+// the few reads the cases of the old switches made (Game.toInt, the methods
 // creature:getSkillValue, player:getLevel, player:getVocation with
 // vocation:getId and vocation:getBaseId, ItemType.fromOldNumber) and the
 // constants (CONST_ME_, CONST_ANI_, COMBAT_, FIELD_, CONJURE_, SKILL_,
-// VOCATION_). RegisterMagicAPI binds them; InitAll calls it after
-// InitScripting.
+// VOCATION_). RegisterMagicAPI binds them and calls RegisterCommandAPI
+// (scripting_commands.cc, the API the other commands' scripts work on);
+// InitAll calls it after InitScripting.
 //
 // What every binding here does alike:
 //  - actor and target are Creature objects (a Player is one), whose IDs are
@@ -20,13 +21,14 @@
 //  - obj is an Item object, whose handle the binding passes on as Object(obj)
 //    (the C++ function checks it with exists() as before), or a Creature
 //    object, whose object the binding passes on (GetCreatureObject; a
-//    creature that is gone is "nullptr: checked").
+//    creature that is gone is "nullptr: checked"); nil gives NONE only where
+//    the API list says "obj|nil".
 //  - A string passed on as a char * is a copy (TWord): at most 511
 //    characters and the zero, as CheckForSpell's SpellStr holds a word (at
 //    most 509 characters), so a function that changes its parameter
-//    (StartMonsterraid lowers it, for one) never touches Lua's string. nil
-//    gives nullptr only where the API list says "|nil"; elsewhere nil is a
-//    Lua error of the argument check.
+//    (IdentifyPlayer, which HealFriend and FindPerson call, cuts a '~', for
+//    one) never touches Lua's string. nil is a Lua error of the argument
+//    check.
 //  - What the C++ function throws (a RESULT) is raised as the result code
 //    (Guarded). None of the bound functions throws anything else itself
 //    except where its comment says so; std::bad_alloc from an allocation
@@ -71,23 +73,6 @@ struct TWord {
 		memcpy(Text, Value.data(), Length);
 		Text[Length] = 0;
 	}
-};
-
-// TWord of a string that may be nil: get() is nullptr for nil.
-struct TOptionalWord {
-	char Text[WORD_SIZE];
-	bool Given;
-
-	explicit TOptionalWord(const sol::optional<std::string> &Value) : Given(Value.has_value()) {
-		Text[0] = 0;
-		if (Given) {
-			size_t Length = std::min(Value->size(), static_cast<size_t>(WORD_SIZE - 1));
-			memcpy(Text, Value->data(), Length);
-			Text[Length] = 0;
-		}
-	}
-
-	char *get() { return Given ? Text : nullptr; }
 };
 
 // The creature ID names; for a missing one (0 included) logs "<Name>:
@@ -212,14 +197,6 @@ static void MagicAngleCombat(TScriptCreature Actor, int Mana, int SoulPoints, in
 			static_cast<unsigned short>(DmgType));
 }
 
-// Magic.killAllMonsters(actor, effect, radius): KillAllMonsters(cr,
-// EffectNr, Radius). nullptr: passed on. radius at most MAX_CIRCLES - 1
-// (binding's check). Throws what KillAllMonsters throws.
-static void MagicKillAllMonsters(TScriptCreature Actor, int EffectNr, int Radius) {
-	CheckRadius(Radius, MAX_CIRCLES, "Magic.killAllMonsters: radius beyond the circles");
-	KillAllMonsters(GetCreature(Actor.ID), EffectNr, Radius);
-}
-
 // Magic.createField(actor, mana, soul, fieldType): CreateField(cr, Mana,
 // SoulPoints, Type), on the field the creature faces. nullptr: passed on.
 // Throws what CreateField throws.
@@ -262,16 +239,14 @@ static void MagicDeleteField(TScriptCreature Actor, TScriptThing Target, int Man
 	DeleteField(GetCreature(Actor.ID), Obj, Mana, SoulPoints);
 }
 
-// Magic.cleanupField(actor): CleanupField(cr), the gamemaster's cleanup of
-// the field in front. nullptr: passed on. Throws what CleanupField throws.
-static void MagicCleanupField(TScriptCreature Actor) {
-	CleanupField(GetCreature(Actor.ID));
-}
-
-// Magic.cleanupFieldOn(actor, obj, mana, soul): CleanupField(cr, Obj, Mana,
-// SoulPoints). nullptr: passed on. Throws what CleanupField throws.
-static void MagicCleanupFieldOn(TScriptCreature Actor, TScriptThing Target, int Mana, int SoulPoints) {
-	Object Obj = ThingObject(Target, "Magic.cleanupFieldOn");
+// Magic.cleanupFieldOn(actor, obj|nil, mana, soul): CleanupField(cr, Obj,
+// Mana, SoulPoints); nil gives NONE (Game.getMapContainer's nil for a field
+// off the map or without a sector, in the gamemaster's Desintegrate Spell),
+// which CleanupField logs ("CleanupField: Given object does not exist.") and
+// throws ERROR for. nullptr: passed on. Throws what CleanupField throws.
+static void MagicCleanupFieldOn(TScriptCreature Actor, sol::optional<TScriptThing> Target, int Mana,
+		int SoulPoints) {
+	Object Obj = Target.has_value() ? ThingObject(*Target, "Magic.cleanupFieldOn") : NONE;
 	CleanupField(GetCreature(Actor.ID), Obj, Mana, SoulPoints);
 }
 
@@ -287,14 +262,6 @@ static void MagicMagicRope(TScriptCreature Actor, int Mana, int SoulPoints) {
 static void MagicMagicClimbing(TScriptCreature Actor, int Mana, int SoulPoints, std::string Direction) {
 	TWord Word(Direction);
 	MagicClimbing(GetCreature(Actor.ID), Mana, SoulPoints, Word.Text);
-}
-
-// Magic.magicClimbingFree(actor, direction): MagicClimbing(cr, Direction),
-// the gamemaster's levitation, direction copied. nullptr: passed on. Throws
-// what MagicClimbing throws.
-static void MagicMagicClimbingFree(TScriptCreature Actor, std::string Direction) {
-	TWord Word(Direction);
-	MagicClimbing(GetCreature(Actor.ID), Word.Text);
 }
 
 // Magic.createFood(actor, mana, soul): CreateFood(cr, Mana, SoulPoints).
@@ -442,183 +409,8 @@ static void MagicFindPerson(TScriptCreature Actor, int Mana, int SoulPoints, std
 }
 
 // ---------------------------------------------------------------------------
-// Command: every function checks for nullptr itself (it logs and throws
-// ERROR), so each binding passes it on; the strings are copied (TWord). Each
-// throws what its C++ function throws.
-
-// Command.createThing(actor, p1, p2|nil): CreateThing(cr, Param1, Param2).
-static void CommandCreateThing(TScriptCreature Actor, std::string Param1, sol::optional<std::string> Param2) {
-	TWord Word1(Param1);
-	TOptionalWord Word2(Param2);
-	CreateThing(GetCreature(Actor.ID), Word1.Text, Word2.get());
-}
-
-// Command.teleport(actor, p): Teleport(cr, Param).
-static void CommandTeleport(TScriptCreature Actor, std::string Param) {
-	TWord Word(Param);
-	Teleport(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.createKnowledge(actor, p1, p2|nil): CreateKnowledge(cr, Param1,
-// Param2).
-static void CommandCreateKnowledge(TScriptCreature Actor, std::string Param1, sol::optional<std::string> Param2) {
-	TWord Word1(Param1);
-	TOptionalWord Word2(Param2);
-	CreateKnowledge(GetCreature(Actor.ID), Word1.Text, Word2.get());
-}
-
-// Command.changeData(actor, p): ChangeData(cr, Param).
-static void CommandChangeData(TScriptCreature Actor, std::string Param) {
-	TWord Word(Param);
-	ChangeData(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.teleportToCreature(actor, name): TeleportToCreature(cr, Name).
-static void CommandTeleportToCreature(TScriptCreature Actor, std::string Name) {
-	TWord Word(Name);
-	TeleportToCreature(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.teleportPlayerToMe(actor, name): TeleportPlayerToMe(cr, Name).
-static void CommandTeleportPlayerToMe(TScriptCreature Actor, std::string Name) {
-	TWord Word(Name);
-	TeleportPlayerToMe(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.showPosition(actor): GetPosition(cr), which tells the caster its
-// position.
-static void CommandShowPosition(TScriptCreature Actor) {
-	GetPosition(GetCreature(Actor.ID));
-}
-
-// Command.createMoney(actor, p): CreateMoney(cr, Param).
-static void CommandCreateMoney(TScriptCreature Actor, std::string Param) {
-	TWord Word(Param);
-	CreateMoney(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.changeProfession(actor, p): ChangeProfession(cr, Param).
-static void CommandChangeProfession(TScriptCreature Actor, std::string Param) {
-	TWord Word(Param);
-	ChangeProfession(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.editGuests(actor): EditGuests(cr).
-static void CommandEditGuests(TScriptCreature Actor) {
-	EditGuests(GetCreature(Actor.ID));
-}
-
-// Command.editSubowners(actor): EditSubowners(cr).
-static void CommandEditSubowners(TScriptCreature Actor) {
-	EditSubowners(GetCreature(Actor.ID));
-}
-
-// Command.kickGuest(actor, name): KickGuest(cr, Name).
-static void CommandKickGuest(TScriptCreature Actor, std::string Name) {
-	TWord Word(Name);
-	KickGuest(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.editNameDoor(actor): EditNameDoor(cr).
-static void CommandEditNameDoor(TScriptCreature Actor) {
-	EditNameDoor(GetCreature(Actor.ID));
-}
-
-// Command.getQuestValue(actor, p): GetQuestValue(cr, Param).
-static void CommandGetQuestValue(TScriptCreature Actor, std::string Param) {
-	TWord Word(Param);
-	GetQuestValue(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.setQuestValue(actor, p1, p2): SetQuestValue(cr, Param1, Param2).
-static void CommandSetQuestValue(TScriptCreature Actor, std::string Param1, std::string Param2) {
-	TWord Word1(Param1);
-	TWord Word2(Param2);
-	SetQuestValue(GetCreature(Actor.ID), Word1.Text, Word2.Text);
-}
-
-// Command.clearQuestValues(actor): ClearQuestValues(cr).
-static void CommandClearQuestValues(TScriptCreature Actor) {
-	ClearQuestValues(GetCreature(Actor.ID));
-}
-
-// Command.startMonsterraid(actor, name): StartMonsterraid(cr, RaidName),
-// which lowers the copy. The const char * of a raid that fails to load is
-// caught inside StartMonsterraid, as before.
-static void CommandStartMonsterraid(TScriptCreature Actor, std::string RaidName) {
-	TWord Word(RaidName);
-	StartMonsterraid(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.homeTeleport(actor, name): HomeTeleport(cr, Name).
-static void CommandHomeTeleport(TScriptCreature Actor, std::string Name) {
-	TWord Word(Name);
-	HomeTeleport(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.banishAccount(actor, name, n, reason): BanishAccount(cr, Name, n,
-// Reason).
-static void CommandBanishAccount(TScriptCreature Actor, std::string Name, int Number, std::string Reason) {
-	TWord NameWord(Name);
-	TWord ReasonWord(Reason);
-	BanishAccount(GetCreature(Actor.ID), NameWord.Text, Number, ReasonWord.Text);
-}
-
-// Command.deleteAccount(actor, name, reason): DeleteAccount(cr, Name,
-// Reason).
-static void CommandDeleteAccount(TScriptCreature Actor, std::string Name, std::string Reason) {
-	TWord NameWord(Name);
-	TWord ReasonWord(Reason);
-	DeleteAccount(GetCreature(Actor.ID), NameWord.Text, ReasonWord.Text);
-}
-
-// Command.setNameRule(actor, name): SetNameRule(cr, Name).
-static void CommandSetNameRule(TScriptCreature Actor, std::string Name) {
-	TWord Word(Name);
-	SetNameRule(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.notation(actor, name, comment): Notation(cr, Name, Comment).
-static void CommandNotation(TScriptCreature Actor, std::string Name, std::string Comment) {
-	TWord NameWord(Name);
-	TWord CommentWord(Comment);
-	Notation(GetCreature(Actor.ID), NameWord.Text, CommentWord.Text);
-}
-
-// Command.nameLock(actor, name): NameLock(cr, Name).
-static void CommandNameLock(TScriptCreature Actor, std::string Name) {
-	TWord Word(Name);
-	NameLock(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.kickPlayer(actor, name): KickPlayer(cr, Name).
-static void CommandKickPlayer(TScriptCreature Actor, std::string Name) {
-	TWord Word(Name);
-	KickPlayer(GetCreature(Actor.ID), Word.Text);
-}
-
-// Command.deleteCharacter(actor, name, reason): DeleteCharacter(cr, Name,
-// Reason).
-static void CommandDeleteCharacter(TScriptCreature Actor, std::string Name, std::string Reason) {
-	TWord NameWord(Name);
-	TWord ReasonWord(Reason);
-	DeleteCharacter(GetCreature(Actor.ID), NameWord.Text, ReasonWord.Text);
-}
-
-// Command.ipBanishment(actor, name, reason): IPBanishment(cr, Name, Reason).
-static void CommandIPBanishment(TScriptCreature Actor, std::string Name, std::string Reason) {
-	TWord NameWord(Name);
-	TWord ReasonWord(Reason);
-	IPBanishment(GetCreature(Actor.ID), NameWord.Text, ReasonWord.Text);
-}
-
-// Command.banishCharacter(actor, name, n, reason): BanishCharacter(cr, Name,
-// n, Reason).
-static void CommandBanishCharacter(TScriptCreature Actor, std::string Name, int Number, std::string Reason) {
-	TWord NameWord(Name);
-	TWord ReasonWord(Reason);
-	BanishCharacter(GetCreature(Actor.ID), NameWord.Text, Number, ReasonWord.Text);
-}
+// Command: the reload command's binding (the other commands' scripts work on
+// the API of scripting_commands.cc).
 
 // Command.reloadScripts(actor) -> boolean: RequestScriptReload(actor's ID),
 // for a player with the right commands.toml gives the command Reload Scripts
@@ -834,17 +626,14 @@ void RegisterMagicAPI() {
 	Magic.set_function("combat", Guarded(&MagicCombat));
 	Magic.set_function("massCombat", Guarded(&MagicMassCombat));
 	Magic.set_function("angleCombat", Guarded(&MagicAngleCombat));
-	Magic.set_function("killAllMonsters", Guarded(&MagicKillAllMonsters));
 	Magic.set_function("createField", Guarded(&MagicCreateField));
 	Magic.set_function("createFieldOn", Guarded(&MagicCreateFieldOn));
 	Magic.set_function("massCreateField", Guarded(&MagicMassCreateField));
 	Magic.set_function("createFieldWall", Guarded(&MagicCreateFieldWall));
 	Magic.set_function("deleteField", Guarded(&MagicDeleteField));
-	Magic.set_function("cleanupField", Guarded(&MagicCleanupField));
 	Magic.set_function("cleanupFieldOn", Guarded(&MagicCleanupFieldOn));
 	Magic.set_function("magicRope", Guarded(&MagicMagicRope));
 	Magic.set_function("magicClimbing", Guarded(&MagicMagicClimbing));
-	Magic.set_function("magicClimbingFree", Guarded(&MagicMagicClimbingFree));
 	Magic.set_function("createFood", Guarded(&MagicCreateFood));
 	Magic.set_function("createArrows", Guarded(&MagicCreateArrows));
 	Magic.set_function("summonCreature", Guarded(&MagicSummonCreature));
@@ -864,33 +653,6 @@ void RegisterMagicAPI() {
 	Magic.set_function("findPerson", Guarded(&MagicFindPerson));
 
 	sol::table Command = ScriptAPITable("Command");
-	Command.set_function("createThing", Guarded(&CommandCreateThing));
-	Command.set_function("teleport", Guarded(&CommandTeleport));
-	Command.set_function("createKnowledge", Guarded(&CommandCreateKnowledge));
-	Command.set_function("changeData", Guarded(&CommandChangeData));
-	Command.set_function("teleportToCreature", Guarded(&CommandTeleportToCreature));
-	Command.set_function("teleportPlayerToMe", Guarded(&CommandTeleportPlayerToMe));
-	Command.set_function("showPosition", Guarded(&CommandShowPosition));
-	Command.set_function("createMoney", Guarded(&CommandCreateMoney));
-	Command.set_function("changeProfession", Guarded(&CommandChangeProfession));
-	Command.set_function("editGuests", Guarded(&CommandEditGuests));
-	Command.set_function("editSubowners", Guarded(&CommandEditSubowners));
-	Command.set_function("kickGuest", Guarded(&CommandKickGuest));
-	Command.set_function("editNameDoor", Guarded(&CommandEditNameDoor));
-	Command.set_function("getQuestValue", Guarded(&CommandGetQuestValue));
-	Command.set_function("setQuestValue", Guarded(&CommandSetQuestValue));
-	Command.set_function("clearQuestValues", Guarded(&CommandClearQuestValues));
-	Command.set_function("startMonsterraid", Guarded(&CommandStartMonsterraid));
-	Command.set_function("homeTeleport", Guarded(&CommandHomeTeleport));
-	Command.set_function("banishAccount", Guarded(&CommandBanishAccount));
-	Command.set_function("deleteAccount", Guarded(&CommandDeleteAccount));
-	Command.set_function("setNameRule", Guarded(&CommandSetNameRule));
-	Command.set_function("notation", Guarded(&CommandNotation));
-	Command.set_function("nameLock", Guarded(&CommandNameLock));
-	Command.set_function("kickPlayer", Guarded(&CommandKickPlayer));
-	Command.set_function("deleteCharacter", Guarded(&CommandDeleteCharacter));
-	Command.set_function("ipBanishment", Guarded(&CommandIPBanishment));
-	Command.set_function("banishCharacter", Guarded(&CommandBanishCharacter));
 	Command.set_function("reloadScripts", Guarded(&CommandReloadScripts));
 
 	sol::table Game = ScriptAPITable("Game");
@@ -913,4 +675,6 @@ void RegisterMagicAPI() {
 	for (const TScriptConstant &Constant : Constants) {
 		SetScriptConstant(Constant.Name, Constant.Value);
 	}
+
+	RegisterCommandAPI();
 }

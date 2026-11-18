@@ -25,8 +25,8 @@
 // A binding's parameters are numbers (integral or floating types, bool),
 // strings (const char *, std::string), the objects below (TScriptCreature,
 // TScriptPlayer, TScriptNpc, TScriptMonster, TScriptItem, TScriptThing,
-// TScriptVocation, TScriptItemType, TScriptMonsterType), a Position
-// (TScriptPosition), an Impact (TScriptImpact), an outfit's colors
+// TScriptVocation, TScriptItemType, TScriptMonsterType, TScriptHouse), a
+// Position (TScriptPosition), an Impact (TScriptImpact), an outfit's colors
 // (TScriptColors) or sol::optional of those ("|nil"); Guarded refuses any
 // other parameter type at compile time. A script can so pass only numbers,
 // booleans, strings, nil, the objects, Positions, Impacts and the colors'
@@ -59,7 +59,8 @@ sol::state &ScriptState();
 // made empty and strict (reading a field it lacks is a Lua error "unknown name
 // '<Name>.<field>'"; writing one from a script is the error "<Name>.<field> is
 // read-only") when it is not there yet. The classes' method tables (Creature,
-// Player, Npc, Item, Vocation) are API tables too, made by InitScripting.
+// Player, Npc, Monster, Item, Vocation, ItemType, MonsterType, House) and
+// Position's are API tables too, made by InitScripting.
 // Registration functions add their bindings to the returned table. Throws a
 // const char * when Name is a shared global that is not an API table (a library
 // such as "string", a function, a constant), or a name the sandbox removed.
@@ -88,7 +89,8 @@ void SetScriptConstant(const char *Name, int Value);
 // The objects (scripting.hh, "Objects"): a userdata holding a creature ID
 // (a Creature, Player, Npc or Monster), an object handle, for a Vocation its
 // player's creature ID, for an ItemType an object type's number (an int, kept
-// as its uint32_t bits), or for a MonsterType a race number.
+// as its uint32_t bits), for a MonsterType a race number, or for a House a
+// house number (1 to 65535).
 enum TScriptObjectKind {
 	SCRIPT_NO_OBJECT,
 	SCRIPT_CREATURE,
@@ -99,10 +101,15 @@ enum TScriptObjectKind {
 	SCRIPT_NPC,
 	SCRIPT_MONSTER,
 	SCRIPT_MONSTERTYPE,
+	SCRIPT_HOUSE,
 };
 
 // The last kind (the kinds are numbered from SCRIPT_NO_OBJECT, 0, on).
-const TScriptObjectKind LAST_SCRIPT_OBJECT_KIND = SCRIPT_MONSTERTYPE;
+const TScriptObjectKind LAST_SCRIPT_OBJECT_KIND = SCRIPT_HOUSE;
+
+// The house numbers a House holds (House(id) makes one for these only).
+const int FIRST_SCRIPT_HOUSE = 1;
+const int LAST_SCRIPT_HOUSE = 0xFFFF;
 
 // The kind of the value at Index: SCRIPT_NO_OBJECT for anything that is not
 // one of the objects. Calls no metamethod.
@@ -129,6 +136,9 @@ void SetItemTypeConstructor(int (*Constructor)(int));
 
 // A Position (scripting.hh, "Position"): a userdata holding three ints, not
 // one of the objects above (ScriptObjectKind gives SCRIPT_NO_OBJECT for it).
+// Its fields are x, y and z; its methods are those of the API table Position
+// (position:sendMagicEffect, scripting_commands.cc), whose proxy, the shared
+// global Position, is also its constructor (Position(x, y, z)).
 // Whether the value at Index is a Position (calls no metamethod); its
 // coordinates; pushing a new one.
 bool IsScriptPosition(lua_State *L, int Index);
@@ -179,10 +189,10 @@ void PushScriptImpact(lua_State *L, const TScriptImpact &Impact);
 // only a Player; TScriptNpc only an Npc; TScriptMonster only a Monster;
 // TScriptItem only an Item; TScriptThing an Item or any of the creatures (for
 // the C++ functions that take an Object); TScriptVocation a Vocation;
-// TScriptItemType an ItemType; TScriptMonsterType a MonsterType. A
-// TScriptCreature result is nil for 0, a Player for a player's ID and a
-// Creature otherwise (PushScriptCreature), also for an NPC's or a monster's
-// ID.
+// TScriptItemType an ItemType; TScriptMonsterType a MonsterType; TScriptHouse
+// a House. A TScriptCreature result is nil for 0, a Player for a player's ID
+// and a Creature otherwise (PushScriptCreature), also for an NPC's or a
+// monster's ID.
 struct TScriptCreature {
 	uint32_t ID;
 };
@@ -218,6 +228,10 @@ struct TScriptItemType {
 
 struct TScriptMonsterType {
 	int Race;
+};
+
+struct TScriptHouse {
+	int ID;
 };
 
 // The colors of an outfit as a parameter: a Lua array of four integers (a
@@ -335,6 +349,16 @@ struct TScriptObjectType<TScriptMonsterType> {
 	}
 };
 
+template<>
+struct TScriptObjectType<TScriptHouse> {
+	static bool accepts(TScriptObjectKind Kind) { return Kind == SCRIPT_HOUSE; }
+	static const char *expected() { return "House expected"; }
+	static TScriptHouse make(TScriptObjectKind, uint32_t Value) { return TScriptHouse{static_cast<int>(Value)}; }
+	static void push(lua_State *L, const TScriptHouse &Value) {
+		PushScriptObject(L, SCRIPT_HOUSE, static_cast<uint32_t>(Value.ID));
+	}
+};
+
 // sol's check of an object parameter: the kind must be one T accepts;
 // otherwise the handler raises sol's argument error.
 template<typename T, typename Handler>
@@ -408,6 +432,7 @@ SCRIPT_OBJECT_TYPE(TScriptThing)
 SCRIPT_OBJECT_TYPE(TScriptVocation)
 SCRIPT_OBJECT_TYPE(TScriptItemType)
 SCRIPT_OBJECT_TYPE(TScriptMonsterType)
+SCRIPT_OBJECT_TYPE(TScriptHouse)
 
 #undef SCRIPT_OBJECT_TYPE
 
@@ -502,8 +527,9 @@ struct TScriptArgument : std::integral_constant<bool, std::is_arithmetic<T>::val
 		|| std::is_same<T, TScriptNpc>::value || std::is_same<T, TScriptMonster>::value
 		|| std::is_same<T, TScriptItem>::value || std::is_same<T, TScriptThing>::value
 		|| std::is_same<T, TScriptVocation>::value || std::is_same<T, TScriptItemType>::value
-		|| std::is_same<T, TScriptMonsterType>::value || std::is_same<T, TScriptPosition>::value
-		|| std::is_same<T, TScriptImpact>::value || std::is_same<T, TScriptColors>::value> {};
+		|| std::is_same<T, TScriptMonsterType>::value || std::is_same<T, TScriptHouse>::value
+		|| std::is_same<T, TScriptPosition>::value || std::is_same<T, TScriptImpact>::value
+		|| std::is_same<T, TScriptColors>::value> {};
 template<typename T>
 struct TScriptArgument<sol::optional<T>> : TScriptArgument<std::decay_t<T>> {};
 
@@ -535,8 +561,11 @@ auto Guarded(R (*Function)(A...)) {
 }
 
 // The registration of each area's API, called by InitAll right after
-// InitScripting, in this order (scripting.hh lists the functions).
+// InitScripting, in this order (scripting.hh lists the functions);
+// RegisterCommandAPI (scripting_commands.cc, the commands' API of phase 9) is
+// called by RegisterMagicAPI.
 void RegisterMagicAPI();
+void RegisterCommandAPI();
 void RegisterTriggerAPI();
 void RegisterItemAPI();
 void RegisterNpcAPI();

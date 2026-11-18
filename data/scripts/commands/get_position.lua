@@ -1,5 +1,11 @@
--- commands/get_position.lua: Get Position ("aliva tera"), what
--- CharacterRightSpell's case SPELL_GET_POSITION did: tells the caster its coordinate.
+-- commands/get_position.lua: Get Position ("aliva tera"), what GetPosition
+-- (the original magic.cc) did: with the command's right, tells the caster its
+-- coordinate.
+
 function onSay(caster, command, words)
-	Command.showPosition(caster)
+	if caster:hasCommandRight(command) then
+		local position = caster:getPosition()
+		caster:sendTextMessage(MESSAGE_EVENT_ADVANCE,
+				string.format("Your position is [%d,%d,%d].", position.x, position.y, position.z))
+	end
 end
