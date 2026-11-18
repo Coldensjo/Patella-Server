@@ -54,11 +54,13 @@ const int MAX_SYLLABLES = 51;
 // The spell numbers (SpellList) the code still names, after the spells' names
 // in spells.toml and commands.toml. What a spell or command does is its script
 // (the key script of its entry), not its number. The code names the commands
-// whose rights it checks (CheckCommandRight, GetCommandRightChecks) and three
-// spells whose cost the spellbook shows as a text instead of their mana
-// (GetSpellbook: Summon Creature, Convince Creature, Berserk). The numbers of
-// the other spells and commands are in the reference spell table of
-// tools/convert (spells_reference.hh).
+// that have right checks (GetCommandRightChecks, and tools/convert's
+// reference rights, commands_reference.cc; their scripts check them with
+// player:hasCommandRight, CheckCommandRight) and three spells whose cost the
+// spellbook shows as a text instead of their mana (GetSpellbook: Summon
+// Creature, Convince Creature, Berserk). The numbers of the other spells and
+// commands are in the reference spell table of tools/convert
+// (spells_reference.hh).
 const int SPELL_SUMMON_CREATURE = 9;
 const int SPELL_CONVINCE_CREATURE = 12;
 const int SPELL_GET_ITEM_COUNT = 34;

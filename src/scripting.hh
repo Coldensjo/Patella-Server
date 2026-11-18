@@ -219,7 +219,6 @@
 //       animation)                                            MassCombat
 //   angleCombat(actor, mana, soul, damage, effect, radius, angle,
 //       damageType)                                           AngleCombat
-//   killAllMonsters(actor, effect, radius)                    KillAllMonsters
 //   createField(actor, mana, soul, fieldType)                 CreateField(cr, Mana, SoulPoints, Type)
 //   createFieldOn(actor, obj, mana, soul, fieldType)          CreateField(cr, Obj, Mana, SoulPoints, Type)
 //   massCreateField(actor, obj, mana, soul, fieldType, radius)
@@ -227,11 +226,9 @@
 //   createFieldWall(actor, obj, mana, soul, fieldType, extension)
 //                                                             CreateFieldWall
 //   deleteField(actor, obj, mana, soul)                       DeleteField
-//   cleanupField(actor)                                       CleanupField(cr)
-//   cleanupFieldOn(actor, obj, mana, soul)                    CleanupField(cr, Obj, Mana, SoulPoints)
+//   cleanupFieldOn(actor, obj|nil, mana, soul)                CleanupField(cr, Obj, Mana, SoulPoints)
 //   magicRope(actor, mana, soul)                              MagicRope
 //   magicClimbing(actor, mana, soul, direction)               MagicClimbing(cr, Mana, SoulPoints, Direction)
-//   magicClimbingFree(actor, direction)                       MagicClimbing(cr, Direction)
 //   createFood(actor, mana, soul)                             CreateFood
 //   createArrows(actor, mana, soul, ammo, amount)             CreateArrows
 //   summonCreature(actor, mana, raceName, god)                SummonCreature(cr, Mana, RaceName, God)
@@ -250,36 +247,6 @@
 //   convince(actor, target|nil)                               Convince
 //   challenge(actor, mana, soul, radius)                      Challenge
 //   findPerson(actor, mana, soul, name)                       FindPerson
-// Command: the commands' functions of magic.cc (actor: the caster, a
-// Creature; the other arguments are the words, as the C++ case passed
-// SpellStr).
-//   createThing(actor, p1, p2|nil)           CreateThing
-//   teleport(actor, p)                       Teleport
-//   createKnowledge(actor, p1, p2|nil)       CreateKnowledge
-//   changeData(actor, p)                     ChangeData
-//   teleportToCreature(actor, name)          TeleportToCreature
-//   teleportPlayerToMe(actor, name)          TeleportPlayerToMe
-//   showPosition(actor)                      GetPosition
-//   createMoney(actor, p)                    CreateMoney
-//   changeProfession(actor, p)               ChangeProfession
-//   editGuests(actor)                        EditGuests
-//   editSubowners(actor)                     EditSubowners
-//   kickGuest(actor, name)                   KickGuest
-//   editNameDoor(actor)                      EditNameDoor
-//   getQuestValue(actor, p)                  GetQuestValue
-//   setQuestValue(actor, p1, p2)             SetQuestValue
-//   clearQuestValues(actor)                  ClearQuestValues
-//   startMonsterraid(actor, name)            StartMonsterraid
-//   homeTeleport(actor, name)                HomeTeleport
-//   banishAccount(actor, name, n, reason)    BanishAccount
-//   deleteAccount(actor, name, reason)       DeleteAccount
-//   setNameRule(actor, name)                 SetNameRule
-//   notation(actor, name, comment)           Notation
-//   nameLock(actor, name)                    NameLock
-//   kickPlayer(actor, name)                  KickPlayer
-//   deleteCharacter(actor, name, reason)     DeleteCharacter
-//   ipBanishment(actor, name, reason)        IPBanishment
-//   banishCharacter(actor, name, n, reason)  BanishCharacter
 // Game.toInt(text) -> int: (int)std::clamp(strtol(text, nullptr, 10),
 //   (long)INT32_MIN, (long)INT32_MAX), as AccountRightSpell read numbers.
 // creature:getSkillValue(skill) -> Skills[skill]->Get().

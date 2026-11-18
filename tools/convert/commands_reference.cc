@@ -1,9 +1,10 @@
 // commands_reference.cc: the rights the game's code checked for its commands
 // (commands_reference.hh), which the reference commands.toml is written with.
-// Each command function of magic.cc called CheckRight with one of these
-// rights where it now calls CheckCommandRight with the command and the check.
-// After them the commands that are ours, not the original code's (Reload
-// Scripts), with their rights and scripts.
+// Each command function of the original magic.cc (the faithful branch; named
+// below) called CheckRight with one of these rights where the command's script
+// now checks the command and the check (player:hasCommandRight,
+// CheckCommandRight). After them the commands that are ours, not the original
+// code's (Reload Scripts), with their rights and scripts.
 
 #include <cstdint>
 #include <cstring>
