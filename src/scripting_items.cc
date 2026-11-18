@@ -573,6 +573,7 @@ static constexpr TItemConstant RightConstants[] = {
 	RIGHT_CONSTANT(CLEANUP_FIELDS),
 	RIGHT_CONSTANT(NO_STATISTICS),
 	RIGHT_CONSTANT(RELOAD_SCRIPTS),
+	RIGHT_CONSTANT(ONLINE_LIST),
 };
 #undef RIGHT_CONSTANT
 
@@ -607,7 +608,7 @@ static_assert(SpecialConstants[NUMBER_OF_SPECIAL_CONSTANTS - 1].Value == SPECIAL
 static_assert(sizeof(RightConstants) / sizeof(RightConstants[0]) == NUMBER_OF_RIGHTS,
 		"RightConstants must name every RIGHT");
 static_assert(NumberedInOrder(RightConstants), "RightConstants must be in the order of the numbers of RIGHT");
-static_assert(RELOAD_SCRIPTS == NUMBER_OF_RIGHTS - 1, "NUMBER_OF_RIGHTS must follow the last RIGHT");
+static_assert(ONLINE_LIST == NUMBER_OF_RIGHTS - 1, "NUMBER_OF_RIGHTS must follow the last RIGHT");
 
 void RegisterItemAPI() {
 	SetItemTypeConstructor(&ItemTypeNumber);

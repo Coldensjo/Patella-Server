@@ -181,7 +181,7 @@ static void Test(const std::string &CirclesFileA, const std::string &SpellsFileA
 	CHECK(SpellList[10].Comment < SpellList[71].Comment);
 	CHECK(SpellList[71].Comment < SpellList[103].Comment);
 	CHECK(CommandRight[103][COMMAND_RIGHT] == GetRightByName("RELOAD_SCRIPTS"));
-	CHECK(GetRightByName("RELOAD_SCRIPTS") == NUMBER_OF_RIGHTS - 1);
+	CHECK(GetRightByName("RELOAD_SCRIPTS") == NUMBER_OF_RIGHTS - 2);
 	CHECK(GetCommandRightChecks(SPELL_RELOAD_SCRIPTS).Count == 1);
 	CHECK(GetSpellScript(103) != nullptr && strcmp(GetSpellScript(103), "commands/reload_scripts.lua") == 0);
 	const char *StartLight = SpellList[10].Comment;

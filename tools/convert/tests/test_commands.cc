@@ -226,7 +226,7 @@ static void TestRoundTrips(const fs::path &Folder) {
 	});
 	CHECK(Toml.find("\n[[command]]\nnumber = 35\nname = \"Get Item\"\nwords = \"alevo para\"\n"
 			"right = \"PREMIUM_ACCOUNT\"\nscript = \"commands/get_item.lua\"\n\n") != std::string::npos);
-	CHECK(Toml.find("words = \"omana para\"\nright = \"RELOAD_SCRIPTS\"\nscript = \"commands/kick_player.lua\"\n")
+	CHECK(Toml.find("words = \"omana para\"\nright = \"ONLINE_LIST\"\nscript = \"commands/kick_player.lua\"\n")
 			!= std::string::npos);
 	CHECK(Toml.find("name = \"a \\\"quoted\\\" back\\\\slash \xc3\xa4\xc3\xb6\xc3\xbc\xc3\x9f\"\n")
 			!= std::string::npos);
@@ -256,6 +256,9 @@ static void TestRoundTrips(const fs::path &Folder) {
 			"right = \"RELOAD_SCRIPTS\"\nscript = \"commands/reload_scripts.lua\"\n") != std::string::npos);
 	CHECK(Toml.find("# Command 103 (Reload Scripts) reloads the scripts and the data while the game\n")
 			!= std::string::npos);
+	CHECK(Toml.find("number = 103\n") < Toml.find("number = 104\n"));
+	CHECK(Toml.find("\n[[command]]\nnumber = 104\nname = \"Online List\"\nwords = \"aliva mas\"\n"
+			"right = \"ONLINE_LIST\"\nscript = \"commands/online_list.lua\"\n") != std::string::npos);
 
 	// Number 103 with words of another class is no command of ours: it has no
 	// script name.
@@ -263,6 +266,14 @@ static void TestRoundTrips(const fs::path &Folder) {
 		SetWords(SpellList[SPELL_RELOAD_SCRIPTS], {"al", "evo", "gran", "cogni"});
 		SpellList[SPELL_RELOAD_SCRIPTS].Comment = "Reload Scripts";
 		CommandRight[SPELL_RELOAD_SCRIPTS][COMMAND_RIGHT] = NUMBER_OF_RIGHTS - 1;
+	});
+	CHECK(Other.find("error: a spell number without a script name") == 0);
+
+	// Nor is number 104 with words of the om class.
+	Other = Convert([]() {
+		SetWords(SpellList[SPELL_ONLINE_LIST], {"om", "iva", "mas"});
+		SpellList[SPELL_ONLINE_LIST].Comment = "Online List";
+		CommandRight[SPELL_ONLINE_LIST][COMMAND_RIGHT] = NUMBER_OF_RIGHTS - 1;
 	});
 	CHECK(Other.find("error: a spell number without a script name") == 0);
 }

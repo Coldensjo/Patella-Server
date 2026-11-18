@@ -305,6 +305,17 @@ static std::tuple<int, sol::optional<TScriptPlayer>> GameIdentifyPlayer(std::str
 	return std::make_tuple(Result, sol::optional<TScriptPlayer>(TScriptPlayer{pl->ID}));
 }
 
+// Game.getPlayers() -> a new array of the Players online, in the order of
+// PlayerList (crplayer.cc; the order they joined, but that one leaving puts
+// the last in its place), gamemasters with NO_STATISTICS too. Throws nothing.
+static sol::as_table_t<std::vector<TScriptPlayer>> GameGetPlayers() {
+	std::vector<TScriptPlayer> Players;
+	for (int i = 0; i < GetNumberOfPlayers(); i++) {
+		Players.push_back(TScriptPlayer{PlayerList(i)->ID});
+	}
+	return sol::as_table(std::move(Players));
+}
+
 // Game.searchFreeField(position, distance, houseId, jump) -> the field
 // SearchFreeField(x, y, z, Distance, HouseID, Jump) of info.cc finds from
 // position on (in its spiral, at most distance away; on the floor of
@@ -528,6 +539,7 @@ void RegisterCommandAPI() {
 
 	sol::table Game = ScriptAPITable("Game");
 	Game.set_function("identifyPlayer", Guarded(&GameIdentifyPlayer));
+	Game.set_function("getPlayers", Guarded(&GameGetPlayers));
 	Game.set_function("searchFreeField", Guarded(&GameSearchFreeField));
 	Game.set_function("searchSummonField", Guarded(&GameSearchSummonField));
 	Game.set_function("isOnMap", Guarded(&GameIsOnMap));

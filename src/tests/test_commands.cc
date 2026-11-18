@@ -97,6 +97,15 @@ int IdentifyPlayer(char *Name, bool ExactMatch, bool IgnoreGamemasters, TPlayer 
 	return strcmp(Name, "amb") == 0 ? -2 : -1;
 }
 
+// No player online: Game.getPlayers reads PlayerList only below
+// GetNumberOfPlayers.
+vector<TPlayer *> PlayerList(0, 10, 10, nullptr);
+
+int GetNumberOfPlayers() {
+	Calls.push_back("GetNumberOfPlayers");
+	return 0;
+}
+
 // True for the command 37 (Move).
 bool CheckCommandRight(uint32_t CharacterID, int SpellNr, int Check) {
 	Calls.push_back("CheckCommandRight " + std::to_string(CharacterID) + " " + std::to_string(SpellNr) + " "
@@ -534,6 +543,10 @@ static void TestBindings() {
 			"    and name == 'Name~'\n"
 			"    and select('#', Game.identifyPlayer('x', false, false)) == 2\n"
 			"end\n"
+			"function onPlayers()\n"
+			"  local players = Game.getPlayers()\n"
+			"  return type(players) == 'table' and #players == 0 and next(players) == nil\n"
+			"end\n"
 			"function onFields()\n"
 			"  local from = Position(10, 20, 7)\n"
 			"  return Game.searchFreeField(from, 1, 65535, true) == Position(11, 22, 7)\n"
@@ -605,6 +618,10 @@ static void TestBindings() {
 	CHECK(!Identify.Thrown && Identify.Boolean);
 	CHECK(SameCalls(TakeCalls(), {"IdentifyPlayer Name~ 0 1", "IdentifyPlayer amb~ 0 0", "IdentifyPlayer Exact~ 1 0",
 			"IdentifyPlayer x 0 0"}));
+
+	TOutcome Players = Call(Script, "onPlayers");
+	CHECK(!Players.Thrown && Players.Boolean);
+	CHECK(SameCalls(TakeCalls(), {"GetNumberOfPlayers"}));
 
 	TOutcome Fields = Call(Script, "onFields");
 	CHECK(!Fields.Thrown && Fields.Boolean);
