@@ -9,6 +9,7 @@
 #include <cstdlib>
 
 #include "dbfuncs.hh"
+#include "magicdata.hh"
 
 struct Object;
 struct ObjectType;
@@ -108,6 +109,10 @@ void CheckRuneLevel(TCreature *cr, int SpellNr);
 void CheckRing(TCreature *cr, int);
 void CheckAffectedPlayers(TCreature *cr, int x, int y, int z);
 void SpendManaAndSoulPoints(TCreature *cr, int Mana, int SoulPoints, int Delay);
+// Whether the player CharacterID has the right of the command SpellNr's check
+// Check (CommandRight, commands.toml); a check without a right is logged and
+// false.
+bool CheckCommandRight(uint32_t CharacterID, int SpellNr, int Check = COMMAND_RIGHT);
 int ComputeDamage(TCreature *cr, int SpellNr, int Damage, int Variation);
 bool IsAggressiveSpell(int SpellNr);
 void ActorShapeSpell(TCreature *Actor, TImpact *Impact, int Effect);

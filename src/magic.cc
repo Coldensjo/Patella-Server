@@ -77,9 +77,9 @@ static_assert(NUMBER_OF_RIGHTS == RELOAD_SCRIPTS + 1, "RightNames names every ri
 
 // Whether the player CharacterID has the right that commands.toml gives the
 // right check Check of the command SpellNr (COMMAND_RIGHT, or one of the
-// MOVE_RIGHT_* of SPELL_MOVE). A check without a right is never passed; it
-// belongs to a command commands.toml does not have, which is never cast.
-static bool CheckCommandRight(uint32_t CharacterID, int SpellNr, int Check = COMMAND_RIGHT) {
+// MOVE_RIGHT_* of SPELL_MOVE). A check without a right (NO_RIGHT) is logged
+// and false.
+bool CheckCommandRight(uint32_t CharacterID, int SpellNr, int Check) {
 	int Right = CommandRight[SpellNr][Check];
 	if (Right == NO_RIGHT) {
 		error("CheckCommandRight: Command %d has no right for check %d.\n", SpellNr, Check);
