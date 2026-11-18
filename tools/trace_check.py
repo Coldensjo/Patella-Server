@@ -44,9 +44,10 @@ What it does, in WSL Ubuntu-24.04:
      cast every spell and make and use every rune, CASTER_RIGHTS; and the door opener 900009 'Testi Iota', male, who
      may open every name door, DOOR_RIGHTS; and the talkers 900010 to 900013, 'Testj Kappa' to 'Testm Nu', male,
      with NO_BANISHMENT and TELEPORT_TO_COORDINATE, TALKER_RIGHTS; none may have a player file or player data) and
-     starts the build's query manager. The gamemaster 'Teste Epsilon' also gets the right RELOAD_SCRIPTS (the command
-     Reload Scripts of the scenario reload) from a tree whose query manager knows it (its querymanager/src/protocol.cc
-     names it; faithful's does not, and its seed refuses a right it does not know); the rights from 82 on never reach
+     starts the build's query manager. The gamemaster 'Teste Epsilon' also gets the rights RELOAD_SCRIPTS (the command
+     Reload Scripts of the scenario reload) and ONLINE_LIST (the command Online List of the scenario online_list),
+     each from a tree whose query manager knows it (its querymanager/src/protocol.cc names it; faithful's does not,
+     and its seed refuses a right it does not know); the rights from 82 on never reach
      the client, so the other scenarios do not see it. A build whose query manager keeps the player data (its database has the table
      player_data) gets them from the player files with the seed, which imports them; the copy's usr/ is then removed,
      so the run also shows that its game no longer reads or writes player files. A scenario that names houses for test
@@ -183,11 +184,11 @@ DOOR_RIGHTS = ["OPEN_NAMEDDOORS", "TELEPORT_TO_COORDINATE"]
 # in a row); they go to their NPC by Move to coordinates.
 TALKER_RIGHTS = ["NO_BANISHMENT", "TELEPORT_TO_COORDINATE"]
 
-# The right of the command Reload Scripts (scenario reload) and the account that gets it from a tree whose query
-# manager knows the right (reload_right): the gamemaster 'Teste Epsilon', who goes to a field of its own by Move to
-# coordinates to give the command.
-RELOAD_RIGHT = "RELOAD_SCRIPTS"
-RELOAD_ACCOUNT = 900005
+# The rights of our own commands, Reload Scripts (scenario reload) and Online List (scenario online_list), and the
+# account that gets each of them from a tree whose query manager knows it (own_rights): the gamemaster
+# 'Teste Epsilon', who goes to a field of its own by Move to coordinates to give Reload Scripts.
+OWN_RIGHTS = ["RELOAD_SCRIPTS", "ONLINE_LIST"]
+OWN_RIGHTS_ACCOUNT = 900005
 
 # Account, password, sex, character name and rights.
 TEST_ACCOUNTS = [
@@ -527,9 +528,9 @@ def stored_player_data(db, character):
 		connection.close()
 
 
-def seed(binary, db, game, world, port, log_file, reload_right):
-	"""Seeds the database from the copy and adds the test accounts, as compare.sh does, RELOAD_ACCOUNT with
-	RELOAD_RIGHT too when reload_right. The output (it names player files) goes to log_file only; the lines with the
+def seed(binary, db, game, world, port, log_file, own_rights):
+	"""Seeds the database from the copy and adds the test accounts, as compare.sh does, OWN_RIGHTS_ACCOUNT with the
+	rights own_rights (those of OWN_RIGHTS the tree's query manager knows) too. The output (it names player files) goes to log_file only; the lines with the
 	counts of the player files and player data are logged. Returns the IDs of the new characters, one per test
 	account."""
 	with open(log_file, "w") as f:
@@ -542,8 +543,8 @@ def seed(binary, db, game, world, port, log_file, reload_right):
 				log("    seed: " + line.rstrip("\n"))
 	characters = []
 	for account, password, sex, name, rights in TEST_ACCOUNTS:
-		if reload_right and account == RELOAD_ACCOUNT:
-			rights = rights + [RELOAD_RIGHT]
+		if account == OWN_RIGHTS_ACCOUNT:
+			rights = rights + own_rights
 		result = subprocess.run([binary, "--db", db, "--add-account", str(account), "--password", password, "--world",
 			world, "--sex", str(sex), "--new-character", name] + [a for right in rights for a in ("--right", right)],
 			stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
@@ -810,9 +811,9 @@ def key_file_path(game):
 	return path
 
 
-def run(side, build, data, options, key, root, reload_right):
-	"""One run of a build, with data the tree's data/ folder (None: none); reload_right: whether its query manager
-	knows RELOAD_RIGHT. Returns its result: {"ok", "boot", "scenario", "exit"}."""
+def run(side, build, data, options, key, root, own_rights):
+	"""One run of a build, with data the tree's data/ folder (None: none); own_rights: the rights of OWN_RIGHTS its
+	query manager knows. Returns its result: {"ok", "boot", "scenario", "exit"}."""
 	out = os.path.join(root, side)
 	game = os.path.join(root, "game")
 	db = os.path.join(root, "querymanager.sqlite")
@@ -838,10 +839,9 @@ def run(side, build, data, options, key, root, reload_right):
 		log("  %s: runtime copy with %s; the check's RSA key in %s" % (side, layout,
 			os.path.relpath(key_file, os.path.realpath(game))))
 		characters = seed(os.path.join(binaries, "querymanager", "querymanager-seed"), db, game, world,
-			options["port"], os.path.join(out, "seed.log"), reload_right)
-		if reload_right:
-			log("  %s: the query manager knows the right %s: account %d has it" % (side, RELOAD_RIGHT,
-				RELOAD_ACCOUNT))
+			options["port"], os.path.join(out, "seed.log"), own_rights)
+		for right in own_rights:
+			log("  %s: the query manager knows the right %s: account %d has it" % (side, right, OWN_RIGHTS_ACCOUNT))
 		if options["houses"]:
 			log("  %s: owners.dat of the copy gives %s" % (side, give_houses(game, options["houses"], characters)))
 		if has_player_data(db):
@@ -1228,7 +1228,7 @@ def trace(arguments, data):
 			log("trace_check: running %s, %s" % (side, arguments[side]["label"]))
 			folder = os.path.join(trees, side, "data")
 			results[side] = run(side, arguments[side]["dir"], folder if os.path.isdir(folder) else None, options, key,
-				root, arguments[side]["reload_right"])
+				root, arguments[side]["own_rights"])
 		import difflib
 		sys.path.insert(0, TRACE_TOOLS)
 		import compare_traces
@@ -1304,13 +1304,13 @@ def trace(arguments, data):
 WORKERS = {"trace": trace}
 
 
-def knows_reload_right(tree):
-	"""Whether the tree's query manager knows RELOAD_RIGHT: its querymanager/src/protocol.cc names it."""
+def known_own_rights(tree):
+	"""The rights of OWN_RIGHTS the tree's query manager knows: those its querymanager/src/protocol.cc names."""
 	try:
 		source = repro_check.git("show", "%s:querymanager/src/protocol.cc" % tree)
 	except CheckError:
-		return False
-	return ('"%s"' % RELOAD_RIGHT) in source
+		return []
+	return [right for right in OWN_RIGHTS if ('"%s"' % right) in source]
 
 
 def data_archive(trees):
@@ -1376,8 +1376,8 @@ def main(argv):
 			log("%s: %s and %s are the same tree: both runs use the same build, so this proves only that the runs "
 				"repeat" % (who, old_label, new_label))
 		return repro_check.call_worker(__file__, WORKERS, "trace", {"options": options,
-			"old": {"dir": old_dir, "label": old_label, "reload_right": knows_reload_right(old_tree)},
-			"new": {"dir": new_dir, "label": new_label, "reload_right": knows_reload_right(new_tree)}},
+			"old": {"dir": old_dir, "label": old_label, "own_rights": known_own_rights(old_tree)},
+			"new": {"dir": new_dir, "label": new_label, "own_rights": known_own_rights(new_tree)}},
 			data_archive({"old": old_tree, "new": new_tree}))["code"]
 
 

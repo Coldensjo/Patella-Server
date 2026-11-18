@@ -2562,3 +2562,41 @@ def reload(ctx):
 	words) only e's trace may differ, at the words and the reload's result.
 	It ends at step 100 (round 120): run it with --stop-round 130."""
 	reload_play(ctx)
+
+
+# The scenario online_list: the command Online List ("aliva mas", ours) by
+# the gamemaster e (Teste Epsilon; trace_check.py gives it the right
+# ONLINE_LIST from a tree whose query manager knows it) with a, b and e
+# online, said alone at the depot of Thais (RELOAD_E), where no NPC hears the
+# words: a tree that has the command tells e the names of the players online;
+# faithful knows no such spell, so there e just says the words. (Said where
+# NPCs hear it, the words would change what they do in faithful's run only.)
+ONLINE_LIST_WORDS = "aliva mas"
+
+
+@scenario(stop_round=40)
+def online_list(ctx):
+	"""Online List by the gamemaster e with a, b and e online (a tree that has
+	the command tells e: 3 players online, their names). Against faithful (no
+	such command) only e's trace may differ, at the words. It ends at step 14
+	(round 34): run it with --stop-round 40."""
+	s = Steps(ctx)
+	ctx.at(0)
+	a = ctx.login("a")
+	s(2)
+	b = ctx.login("b")
+	s(2)
+	e = ctx.login("e")
+	s(2)
+	teleport(s, e, RELOAD_E, "e alone at the depot of Thais, out of hearing of any NPC")
+	e.note("=== Online List by e: 3 players online")
+	e.say(ONLINE_LIST_WORDS)
+	s(2)
+	note = "=== a ping, so that the game keeps the idle connection"
+	for c in (a, b):
+		c.note(note)
+		c.ping()
+	s(2)
+	for c in (a, b, e):
+		c.logout()
+	s(2)
