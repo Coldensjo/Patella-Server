@@ -1,5 +1,8 @@
--- commands/banish_ip_address.lua: Banish IP Address ("omana vis para para"), what
--- AccountRightSpell's case SPELL_BANISH_IP_ADDRESS did: tells the caster the command is gone and to use the dialog (Ctrl+Y).
+-- commands/banish_ip_address.lua: Banish IP Address ("omana vis para para"),
+-- what IPBanishment (the original magic.cc) did: tells the caster the command
+-- is gone and to use the dialog (Ctrl+Y). It checks no right and reads no
+-- word.
+
 function onSay(caster, command, words)
-	Command.ipBanishment(caster, words[3], words[4])
+	caster:sendTextMessage(MESSAGE_STATUS_SMALL, "Spell is not available any more. Press Ctrl+Y for the dialog.")
 end

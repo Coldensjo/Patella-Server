@@ -1,5 +1,16 @@
 -- commands/clear_quest_values.lua: Clear Quest Values ("alana cogni"), what
--- CharacterRightSpell's case SPELL_CLEAR_QUEST_VALUES did: sets all of the caster's quest values to 0.
+-- ClearQuestValues (the original magic.cc) did: with the command's right, sets
+-- all of the caster's quest values, 0 to MAX_QUESTS - 1 in order, to 0 (each
+-- printed at level 3 by player:setStorageValue) and tells the caster.
+
 function onSay(caster, command, words)
-	Command.clearQuestValues(caster)
+	if not caster:hasCommandRight(command) then
+		return
+	end
+
+	for number = 0, MAX_QUESTS - 1 do
+		caster:setStorageValue(number, 0)
+	end
+
+	caster:sendTextMessage(MESSAGE_INFO_DESCR, "All quest values deleted.")
 end

@@ -1,5 +1,8 @@
--- commands/banish_account.lua: Banish Account ("omana liber para para para"), what
--- AccountRightSpell's case SPELL_BANISH_ACCOUNT did: tells the caster the command is gone and to use the dialog (Ctrl+Y).
+-- commands/banish_account.lua: Banish Account ("omana liber para para para"),
+-- what BanishAccount (the original magic.cc) did: tells the caster the command
+-- is gone and to use the dialog (Ctrl+Y). It checks no right and reads no
+-- word.
+
 function onSay(caster, command, words)
-	Command.banishAccount(caster, words[3], Game.toInt(words[4]), words[5])
+	caster:sendTextMessage(MESSAGE_STATUS_SMALL, "Spell is not available any more. Press Ctrl+Y for the dialog.")
 end
