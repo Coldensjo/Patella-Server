@@ -13,8 +13,9 @@
 -- word may only be of one kind: "/speed" a speed, "/pos" a coordinate,
 -- "/town" a mark (another word is told the caster); "/a" (ours) takes a
 -- number of fields and moves the caster that many fields the way it faces
--- (backwards for a negative number), to the first free field within 1 of
--- there (MOVE_RIGHT_COORDINATE).
+-- (backwards for a negative number), onto that very field even when it is
+-- not walkable (MOVE_RIGHT_COORDINATE; a field off the map or with nothing on
+-- it is told the caster).
 
 local commands = require("lib.commands")
 
@@ -80,12 +81,16 @@ local function moveAhead(caster, command, word)
 	local position = caster:getPosition()
 	local offset = AHEAD[caster:getDirection()]
 	local target = Position(position.x + offset[1] * steps, position.y + offset[2] * steps, position.z)
-	if not Game.isOnMap(target) then
+	if not Game.isOnMap(target) or Game.getFirstObject(target) == nil then
 		caster:sendTextMessage(MESSAGE_STATUS_SMALL, "You cannot teleport there.")
 		return
 	end
 
-	moveTo(caster, target, ANY_HOUSE)
+	-- Straight onto the field, whatever is on it (walls, water, creatures):
+	-- Move by creature 0 checks no destination.
+	local field = Game.getMapContainer(target)
+	Game.move(0, caster, field, -1, false, nil)
+	field:sendMagicEffect(CONST_ME_TELEPORT)
 end
 
 function onSay(caster, command, words, talk)

@@ -2647,6 +2647,10 @@ def talkactions(ctx):
 		ctx.check(p.pos is not None and p.pos[2] == pos[2] and abs(p.pos[0] - pos[0]) <= 1
 			and abs(p.pos[1] - pos[1]) <= 1, "talkactions: %s (at %s)" % (what, p.pos))
 
+	def on(p, pos, what):
+		"""p on pos itself (/a takes no other field)."""
+		ctx.check(p.pos is not None and tuple(p.pos) == tuple(pos), "talkactions: %s (at %s)" % (what, p.pos))
+
 	def floor(p, m, z, what):
 		"""p on floor z, or told that there is no room there (the temple has
 		no free field above or below it): either way Move got the word."""
@@ -2689,12 +2693,20 @@ def talkactions(ctx):
 	s(1)
 	here = tuple(e.pos)
 	say(e, "/a 2", "/a 2: two fields south")
-	near(e, offset(here, 0, 2), "/a 2")
-	here = tuple(e.pos)
+	on(e, offset(here, 0, 2), "/a 2")
 	say(e, "/a -2", "/a -2: two fields back north")
-	near(e, offset(here, 0, -2), "/a -2")
+	on(e, here, "/a -2")
 	m = say(e, "/a north", "/a without a number: told")
 	told(e, m, r"Invalid number of fields", "/a tells an invalid number")
+	# Onto the temple's east wall (stone walls 1294 to 1298 on x = TEMPLE + 5,
+	# the temple's rows): /a goes onto the very field, walkable or not.
+	say(e, "/pos %d,%d,%d" % TEMPLE, "/pos: e to the temple (or next to it)")
+	e.note("=== e faces east")
+	e.turn("e")
+	s(1)
+	wall = (TEMPLE[0] + 5, e.pos[1], e.pos[2])
+	say(e, "/a %d" % (wall[0] - e.pos[0]), "/a: onto the temple's east wall")
+	on(e, wall, "/a onto a wall")
 
 	# To a player and a player brought (e and f to a).
 	say(e, "/goto Testa Alpha", "/goto: e to a")
