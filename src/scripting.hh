@@ -200,10 +200,13 @@
 //       user is the Player, target the Item of the object Dest (ground and
 //       fields included), targetCreature the creature dest (a Player for a
 //       player), nil where dest is nullptr.
-//   commands/<name>.lua  onSay(caster, command, words)
+//   commands/<name>.lua  onSay(caster, command, words, talk)
 //       CharacterRightSpell's or AccountRightSpell's case (only for a
 //       player): caster is the Player, command the entry's number, words as
-//       for spells.
+//       for spells; talk the words of the talkaction (talkactions.toml) that
+//       gave the command ("/goto"), with words built as the command's own
+//       words give them (each parameter word a part of the talkaction's
+//       parameter), or nil for the command's own words.
 //
 // Magic: the spell functions of magic.cc (actor: a Creature; target: a
 // Creature, or nil where it says "|nil"; obj: an Item or a Creature, whose

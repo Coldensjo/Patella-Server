@@ -157,9 +157,13 @@ void FindPerson(TCreature *cr, int Mana, int SoulPoints, char *Name);
 void SpellFailed(uint32_t CreatureID);
 // The words of the spoken spell are SpellStr[1] to SpellStr[LastWord], the
 // last entry CheckForSpell set (the empty one that ends them); the spell's
-// script gets them (scripting.hh).
-void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord);
-void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord);
+// script gets them (scripting.hh). Talk: the words of the talkaction that
+// gave the command ("/goto"), which the script gets after them, or nullptr
+// for the command's own words (the script gets nothing more then).
+void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord,
+		const char *Talk = nullptr);
+void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord,
+		const char *Talk = nullptr);
 void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord);
 void RuneSpell(uint32_t CreatureID, int SpellNr);
 int TypeOfSpell(char *Text);
@@ -169,6 +173,12 @@ void GetSpellString(int SpellNr, char *Text);
 void GetMagicItemDescription(Object Obj, char *SpellString, int &MagicLevel);
 void GetSpellbook(uint32_t CharacterID, char *Buffer);
 int GetSpellLevel(int SpellNr);
+// A text that starts with the words of a talkaction (talkactions.toml) gives
+// its command (magicdata.hh, TTalkaction): it returns the command's class
+// (SYLLABLE_AL, SYLLABLE_OM; negative after a failure), as for the command's
+// own words. A talkaction without a command for its parameter tells the
+// player "Insufficient parameters." and returns the class of its first
+// command.
 int CheckForSpell(uint32_t CreatureID, char *Text);
 void DeleteRune(Object Obj);
 void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest);

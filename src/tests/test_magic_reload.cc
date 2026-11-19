@@ -293,12 +293,127 @@ static void Test(const std::string &CirclesFileA, const std::string &SpellsFileA
 	CHECK(Snapshot() == Live);
 }
 
-int main() {
+// Empties the live tables (and the staged ones), so that a read may leave out
+// what an earlier test read.
+static void EmptyLiveTables() {
+	ClearStagedMagicData();
+	SwapStagedMagicData();
+	ClearStagedMagicData();
+}
+
+// Commands with no, one and two parameter words, for the talkactions.
+static const char *const CommandsTalk =
+		"[[command]]\nnumber = 71\nname = \"Invite Guests\"\nwords = \"aleta sio\"\n"
+		"[[command]]\nnumber = 34\nname = \"Get Item\"\nwords = \"alevo para para\"\n"
+		"right = \"CREATE_OBJECTS\"\n"
+		"[[command]]\nnumber = 35\nname = \"Get Item\"\nwords = \"alevo para\"\nright = \"CREATE_OBJECTS\"\n"
+		"[[command]]\nnumber = 47\nname = \"Teleport to Friend\"\nwords = \"alani sio para\"\n"
+		"right = \"TELEPORT_TO_CHARACTER\"\n";
+
+// ReadStagedTalkactions: what it reads, the swap with the live set, the
+// summary's values, and what it refuses.
+static void TestTalkactions(const std::string &CirclesFile, const std::string &SpellsFile) {
+	EmptyLiveTables();
+	std::string CommandsFile = WriteFile("commands_talk.toml", CommandsTalk);
+	auto Read = [&](const std::string &Text) {
+		std::string File = WriteFile("talkactions.toml", Text);
+		ReadStagedMagicData(CirclesFile.c_str(), SpellsFile.c_str(), CommandsFile.c_str());
+		ReadStagedTalkactions(File.c_str());
+	};
+
+	Read("[[talkaction]]\nwords = \"/i\"\ncommand = [35, 34]\n"
+			"[[talkaction]]\nwords = \"/up\"\ncommand = 47\nparam = \"up\"\n"
+			"[[talkaction]]\nwords = \"!me\"\ncommand = 35\nself = true\n"
+			"[[talkaction]]\nwords = \"/invite\"\ncommand = 71\n");
+	CHECK(StagedTalkactionCount() == 4);
+	CHECK(StagedTalkactionsDiffer());
+	CHECK(FindTalkaction("/i") == nullptr);
+	SwapStagedMagicData();
+	CHECK(CountParameterWords(SpellList[34]) == 2);
+	CHECK(CountParameterWords(SpellList[35]) == 1);
+	CHECK(CountParameterWords(SpellList[71]) == 0);
+	const TTalkaction *I = FindTalkaction("/I");
+	CHECK(I != nullptr && I->Words == "/i" && I->CommandCount == 2 && I->Commands[0] == 35 && I->Commands[1] == 34
+			&& !I->HasParam && !I->Self);
+	const TTalkaction *Up = FindTalkaction("/up");
+	CHECK(Up != nullptr && Up->CommandCount == 1 && Up->Commands[0] == 47 && Up->HasParam && Up->Param == "up");
+	const TTalkaction *Me = FindTalkaction("!ME");
+	CHECK(Me != nullptr && Me->Self && !Me->HasParam);
+	CHECK(FindTalkaction("/in") == nullptr && FindTalkaction("/invitee") == nullptr);
+	ClearStagedMagicData();
+
+	// The same file again changes nothing; one entry less does.
+	Read("[[talkaction]]\nwords = \"/i\"\ncommand = [35, 34]\n"
+			"[[talkaction]]\nwords = \"/up\"\ncommand = 47\nparam = \"up\"\n"
+			"[[talkaction]]\nwords = \"!me\"\ncommand = 35\nself = true\n"
+			"[[talkaction]]\nwords = \"/invite\"\ncommand = 71\n");
+	CHECK(!StagedTalkactionsDiffer());
+	Read("[[talkaction]]\nwords = \"/i\"\ncommand = [35, 34]\n");
+	CHECK(StagedTalkactionsDiffer() && StagedTalkactionCount() == 1);
+	Read("");
+	CHECK(StagedTalkactionCount() == 0);
+	ClearStagedMagicData();
+
+	auto Refused = [&](const std::string &Text, const char *What) {
+		CHECK_CONTAINS(ErrorOf([&]() { Read(Text); }), What);
+		ClearStagedMagicData();
+	};
+	Refused("[[talkaction]]\nwords = \"goto\"\ncommand = 35\n", "words must start with / or !");
+	Refused("[[talkaction]]\nwords = \"/\"\ncommand = 35\n", "words need a character after the / or !");
+	Refused("[[talkaction]]\nwords = \"/a b\"\ncommand = 35\n", "no white space and no comma");
+	Refused("[[talkaction]]\nwords = \"/a,b\"\ncommand = 35\n", "no white space and no comma");
+	Refused("[[talkaction]]\nwords = \"/abcdefghijabcdefghijabcdefghij\"\ncommand = 35\n", "talkactions.toml:");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 35\n[[talkaction]]\nwords = \"/I\"\ncommand = 34\n",
+			"the talkaction /I is defined twice");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 5\n", "5 is no command of commands.toml");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 40\n", "40 is no command of commands.toml");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 0\n", "command must be a command number");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = \"35\"\n", "command must be a command number");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = []\n", "command must list 1 to 4 commands");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = [35, 47]\n",
+			"command 47 has as many parameter words as command 35");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 35\nparam = \"\"\n", "param must not be empty");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 35\nself = 1\n", "self must be true or false");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 35\nparam = \"x\"\nself = true\n",
+			"a talkaction with param takes no self");
+	Refused("[[talkaction]]\nwords = \"/i\"\n", "an entry of talkaction needs command");
+	Refused("[[talkaction]]\ncommand = 35\n", "an entry of talkaction needs words");
+	Refused("[[talkaction]]\nwords = \"/i\"\ncommand = 35\nscript = \"x\"\n", "script");
+	Refused("talk = 1\n", "talk");
+}
+
+// The delivered files of data/ (Data): talkactions.toml reads with
+// commands.toml, and gives the words TFS 1.4.2 uses.
+static void TestDelivered(const std::string &Data) {
+	EmptyLiveTables();
+	ReadStagedMagicData((Data + "/circles.toml").c_str(), (Data + "/spells.toml").c_str(),
+			(Data + "/commands.toml").c_str());
+	ReadStagedTalkactions((Data + "/talkactions.toml").c_str());
+	SwapStagedMagicData();
+	for (const char *Words : {"/i", "/a", "/goto", "/c", "/up", "/down", "/pos", "/town", "/t", "/m", "/r", "/kick",
+			"/raid", "/reload", "/online", "/speed"}) {
+		if (FindTalkaction(Words) == nullptr) {
+			fprintf(stderr, "talkactions.toml has no %s\n", Words);
+			Failures++;
+		}
+	}
+	const TTalkaction *Goto = FindTalkaction("/goto");
+	CHECK(Goto != nullptr && Goto->Commands[0] == 47);
+	const TTalkaction *Bring = FindTalkaction("/c");
+	CHECK(Bring != nullptr && Bring->Commands[0] == 52);
+	EmptyLiveTables();
+}
+
+int main(int argc, char **argv) {
 	Folder = fs::temp_directory_path() / ("patella-test-magic-reload-" + std::to_string(getpid()));
 	fs::create_directories(Folder);
 	try {
 		Test(WriteFile("circles_a.toml", CirclesA), WriteFile("spells_a.toml", SpellsA),
 				WriteFile("commands_a.toml", CommandsA));
+		TestTalkactions(WriteFile("circles_a.toml", CirclesA), WriteFile("spells_a.toml", SpellsA));
+		if (argc > 1) {
+			TestDelivered(argv[1]);
+		}
 	} catch (const char *Error) {
 		fprintf(stderr, "unexpected error: %s\n", Error);
 		Failures++;

@@ -1,0 +1,198 @@
+# talkactions.toml: the talkactions of the game server, ours: words a player
+# says, such as "/goto Name", that give a command of commands.toml as The
+# Forgotten Server's talkactions do (the same words where TFS 1.4.2 has the
+# command, words in its style where it has none). The command's own words
+# keep giving it, and its script checks its rights as for them. The game
+# reads talkactions.toml in its data folder after commands.toml, and again
+# on a reload (Reload Scripts).
+#
+# What follows the words and a space is the parameter. Split at its commas
+# (each part without the white space around it), it gives the command's
+# parameter words ("para" in commands.toml) in order; the last one takes the
+# rest of the text, commas included ("/pos 100,200,7"). A text that starts
+# with / or ! and no talkaction's words is said as it is.
+#
+# Each [[talkaction]] is one talkaction:
+#   words    What is said: / or ! and at most 29 more characters, no white
+#            space and no comma; no two the same in any case.
+#   command  The number of the command it gives, or a list of up to four
+#            with different numbers of parameter words: the one with as many
+#            as the parts of the parameter, else the one with the most that
+#            are fewer; none ("Insufficient parameters."): nothing happens.
+#   param    The parameter it gives the command, whatever follows the words.
+#   self     true: no parameter is the speaker's own name.
+#
+# The command Move (37) takes one word of four kinds; given by "/speed",
+# "/pos", "/town" or "/a" it takes only that kind (commands/move.lua): a
+# speed, a coordinate, a mark, or, for "/a", the number of fields to move
+# ahead.
+
+# --- The words of TFS 1.4.2's talkactions.
+
+# /i type[, count]: Get Item, by number or name.
+[[talkaction]]
+words = "/i"
+command = [35, 34]
+
+# /a fields: that many fields the way the speaker faces.
+[[talkaction]]
+words = "/a"
+command = 37
+
+# /goto name: Teleport to Friend.
+[[talkaction]]
+words = "/goto"
+command = 47
+
+# /c name: Retrieve Friend, the player to the speaker.
+[[talkaction]]
+words = "/c"
+command = 52
+
+# /up, /down: a floor up or down.
+[[talkaction]]
+words = "/up"
+command = 37
+param = "up"
+
+[[talkaction]]
+words = "/down"
+command = 37
+param = "down"
+
+# /pos: the speaker's coordinate; /pos x,y,z: there.
+[[talkaction]]
+words = "/pos"
+command = [58, 37]
+
+# /town mark: to a mark of the map.
+[[talkaction]]
+words = "/town"
+command = 37
+
+# /t: the speaker to its temple; /t name: that player to its temple.
+[[talkaction]]
+words = "/t"
+command = 60
+self = true
+
+# /m race: Summon Wild Creature.
+[[talkaction]]
+words = "/m"
+command = 53
+
+# /r: Desintegrate Spell, the field the speaker faces cleared.
+[[talkaction]]
+words = "/r"
+command = 98
+
+# /kick name: Kick Player.
+[[talkaction]]
+words = "/kick"
+command = 67
+
+# /ban, /ipban: Banish Character and Banish IP Address (both point to the
+# rule violation dialog, Ctrl+Y).
+[[talkaction]]
+words = "/ban"
+command = 70
+
+[[talkaction]]
+words = "/ipban"
+command = 69
+
+# /raid name: Start Monsterraid.
+[[talkaction]]
+words = "/raid"
+command = 102
+
+# /reload: Reload Scripts.
+[[talkaction]]
+words = "/reload"
+command = 103
+
+# /online: Online List.
+[[talkaction]]
+words = "/online"
+command = 104
+
+# /addskill skill, points: Get Skill Experience (the skill by number).
+[[talkaction]]
+words = "/addskill"
+command = 46
+
+# /attr number: Change Data of the object in hand.
+[[talkaction]]
+words = "/attr"
+command = 41
+
+# --- Ours, in TFS's style, for the commands TFS has not.
+
+# /speed slow|normal|fast|fastest|max: the speaker's speed.
+[[talkaction]]
+words = "/speed"
+command = 37
+
+# /addexp points: Get Experience.
+[[talkaction]]
+words = "/addexp"
+command = 40
+
+# /gold amount: Create Gold.
+[[talkaction]]
+words = "/gold"
+command = 63
+
+# /vocation knight|paladin|sorcerer|druid|none|promote|male|female: Change
+# Profession or Sex.
+[[talkaction]]
+words = "/vocation"
+command = 64
+
+# /levitate up|down: Levitate Gamemaster.
+[[talkaction]]
+words = "/levitate"
+command = 99
+
+# /killall: Kill All Creatures.
+[[talkaction]]
+words = "/killall"
+command = 101
+
+# /getquest number, /setquest number, value, /clearquests: the quest values.
+[[talkaction]]
+words = "/getquest"
+command = 96
+
+[[talkaction]]
+words = "/setquest"
+command = 97
+
+[[talkaction]]
+words = "/clearquests"
+command = 100
+
+# The account commands that point to the rule violation dialog (Ctrl+Y).
+[[talkaction]]
+words = "/banaccount"
+command = 57
+
+[[talkaction]]
+words = "/deleteaccount"
+command = 61
+
+[[talkaction]]
+words = "/deletechar"
+command = 68
+
+[[talkaction]]
+words = "/namelock"
+command = 66
+
+[[talkaction]]
+words = "/notation"
+command = 65
+
+[[talkaction]]
+words = "/namerule"
+command = 62
