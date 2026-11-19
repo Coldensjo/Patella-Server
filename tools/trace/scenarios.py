@@ -2698,15 +2698,17 @@ def talkactions(ctx):
 	on(e, here, "/a -2")
 	m = say(e, "/a north", "/a without a number: told")
 	told(e, m, r"Invalid number of fields", "/a tells an invalid number")
-	# Onto the temple's east wall (stone walls 1294 to 1298 on x = TEMPLE + 5,
-	# the temple's rows): /a goes onto the very field, walkable or not.
+	# At the temple's east wall (stone walls 1294 to 1298 on x = TEMPLE + 5,
+	# the temple's rows): /a passes it to a free field nearby, never into it.
 	say(e, "/pos %d,%d,%d" % TEMPLE, "/pos: e to the temple (or next to it)")
 	e.note("=== e faces east")
 	e.turn("e")
 	s(1)
 	wall = (TEMPLE[0] + 5, e.pos[1], e.pos[2])
-	say(e, "/a %d" % (wall[0] - e.pos[0]), "/a: onto the temple's east wall")
-	on(e, wall, "/a onto a wall")
+	say(e, "/a %d" % (wall[0] - e.pos[0]), "/a: at the temple's east wall")
+	ctx.check(e.pos is not None and tuple(e.pos) != wall and e.pos[2] == wall[2]
+		and max(abs(e.pos[0] - wall[0]), abs(e.pos[1] - wall[1])) <= 5,
+		"talkactions: /a at a wall goes next to it (at %s)" % (e.pos,))
 
 	# To a player and a player brought (e and f to a).
 	say(e, "/goto Testa Alpha", "/goto: e to a")

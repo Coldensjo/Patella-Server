@@ -13,9 +13,10 @@
 -- word may only be of one kind: "/speed" a speed, "/pos" a coordinate,
 -- "/town" a mark (another word is told the caster); "/a" (ours) takes a
 -- number of fields and moves the caster that many fields the way it faces
--- (backwards for a negative number), onto that very field even when it is
--- not walkable (MOVE_RIGHT_COORDINATE; a field off the map or with nothing on
--- it is told the caster).
+-- (backwards for a negative number): onto that field, or when it is no free
+-- field (a wall, water) the nearest free one within AHEAD_SEARCH of it, so
+-- the caster passes walls but never stands inside one, where the client
+-- cannot show it (MOVE_RIGHT_COORDINATE).
 
 local commands = require("lib.commands")
 
@@ -36,6 +37,9 @@ local SPEEDS = {
 	max = SPEED_MAX,
 }
 
+-- How far around the field "/a" names it looks for a free field.
+local AHEAD_SEARCH = 5
+
 -- The field offsets of the ways a creature faces.
 local AHEAD = {
 	[DIRECTION_NORTH] = {0, -1},
@@ -44,12 +48,13 @@ local AHEAD = {
 	[DIRECTION_WEST] = {-1, 0},
 }
 
--- Moves the caster to the first free field within 1 of position that a jump
--- reaches and shows the teleport effect there; throws NOROOM when there is
--- none. The fields SearchFreeField takes: for ANY_HOUSE any, for house 0 only
--- fields of no house, for house H fields of no house or of house H.
-local function moveTo(caster, position, houseId)
-	local field = Game.searchFreeField(position, 1, houseId, true)
+-- Moves the caster to the first free field within distance (1 when not
+-- given) of position that a jump reaches and shows the teleport effect there;
+-- throws NOROOM when there is none. The fields SearchFreeField takes: for
+-- ANY_HOUSE any, for house 0 only fields of no house, for house H fields of no
+-- house or of house H.
+local function moveTo(caster, position, houseId, distance)
+	local field = Game.searchFreeField(position, distance or 1, houseId, true)
 	if field == nil then
 		Game.throwResult(RETURNVALUE_NOTENOUGHROOM)
 	end
@@ -81,16 +86,12 @@ local function moveAhead(caster, command, word)
 	local position = caster:getPosition()
 	local offset = AHEAD[caster:getDirection()]
 	local target = Position(position.x + offset[1] * steps, position.y + offset[2] * steps, position.z)
-	if not Game.isOnMap(target) or Game.getFirstObject(target) == nil then
+	if not Game.isOnMap(target) then
 		caster:sendTextMessage(MESSAGE_STATUS_SMALL, "You cannot teleport there.")
 		return
 	end
 
-	-- Straight onto the field, whatever is on it (walls, water, creatures):
-	-- Move by creature 0 checks no destination.
-	local field = Game.getMapContainer(target)
-	Game.move(0, caster, field, -1, false, nil)
-	field:sendMagicEffect(CONST_ME_TELEPORT)
+	moveTo(caster, target, ANY_HOUSE, AHEAD_SEARCH)
 end
 
 function onSay(caster, command, words, talk)
