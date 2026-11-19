@@ -91,6 +91,23 @@ void TomlGetNumber(const toml::table &Table, const char *Key, int &Value, int Mi
 	Value = static_cast<int>(Number);
 }
 
+void TomlGetFloat(const toml::table &Table, const char *Key, double &Value, double Min, double Max) {
+	const toml::node *Node = Table.get(Key);
+	if (Node == nullptr) {
+		return;
+	}
+	if (!Node->is_number()) {
+		TomlError(Node->source(), "%s must be a number", Key);
+	}
+	double Number = Node->is_integer() ? static_cast<double>(Node->as_integer()->get())
+			: Node->as_floating_point()->get();
+	// Written this way round, nan fails too.
+	if (!(Number >= Min && Number <= Max)) {
+		TomlError(Node->source(), "%s must lie between %g and %g", Key, Min, Max);
+	}
+	Value = Number;
+}
+
 bool TomlGetString(const toml::table &Table, const char *Key, char *Buffer, int Size) {
 	const toml::node *Node = Table.get(Key);
 	if (Node == nullptr) {

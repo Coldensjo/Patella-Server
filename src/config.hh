@@ -34,6 +34,25 @@ extern int PremiumNewbieBuffer;
 extern int Beat;
 extern int RebootTime;
 
+// [decay]: how long objects lie before they decay, as multipliers of the
+// times items.toml gives (total_expire_time), each MIN_DECAY_MULTIPLIER to
+// MAX_DECAY_MULTIPLIER and 1 by default: of the corpses monsters leave
+// (monster_corpse), of those players leave (player_corpse), and of the liquid
+// pools (blood): the splash a hit leaves, the pool a death leaves, and with
+// that pool's type also a spilled liquid. map.cc's CronExpire applies them.
+extern double MonsterCorpseDecay;
+extern double PlayerCorpseDecay;
+extern double BloodDecay;
+
+const double MIN_DECAY_MULTIPLIER = 0.01;
+const double MAX_DECAY_MULTIPLIER = 1000.0;
+
+// Time (seconds, a type's TOTALEXPIRETIME) times a [decay] multiplier, rounded
+// to whole seconds: at least 1, so that what decays still lies for a moment,
+// and at most INT_MAX. A multiplier of 1 and a time of 0 or less give Time as
+// it is.
+int MultiplyDecayTime(int Time, double Multiplier);
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 
@@ -41,9 +60,9 @@ void DisguisePassword(char *Password, const char *Key);
 
 // Sets every setting to its value for a config that does not name it: empty
 // paths (LoadConfig then sets RSAKEYPATH to key.pem in the file's folder),
-// SHM key 0, debug level 1, a public world without a name, beat 200, no query
-// managers; and the world config to type NORMAL, reboot time 540, address
-// 0.0.0.0, port 0 and no players.
+// SHM key 0, debug level 1, a public world without a name, beat 200, the
+// [decay] multipliers 1, no query managers; and the world config to type
+// NORMAL, reboot time 540, address 0.0.0.0, port 0 and no players.
 void SetConfigDefaults();
 
 // Reads the settings from the TOML file FileName, over the defaults. Throws a

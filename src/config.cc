@@ -1,8 +1,9 @@
 // config.cc: the server's settings. ReadConfig reads them from config.toml
 // (data/config.toml in the repository is an example, converted from the
 // original .tibia by tools/convert): the paths, the shared memory key, the
-// debug level, the world's name and state, the beat, the query managers and
-// the file of the RSA key (communication.cc's ReadPrivateKey reads it).
+// debug level, the world's name and state, the beat, the [decay] multipliers,
+// the query managers and the file of the RSA key (communication.cc's
+// ReadPrivateKey reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
 // in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
 // disguises a query manager password before it is sent.
@@ -10,6 +11,7 @@
 #include "tomlfile.hh"
 
 #include <climits>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -43,6 +45,9 @@ int PremiumPlayerBuffer;
 int PremiumNewbieBuffer;
 int Beat;
 int RebootTime;
+double MonsterCorpseDecay;
+double PlayerCorpseDecay;
+double BloodDecay;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -64,6 +69,21 @@ void DisguisePassword(char *Password, const char *Key) {
 		int b = Key[i];
 		Password[i] = static_cast<char>((b - a + 94) % 94 + 33);
 	}
+}
+
+int MultiplyDecayTime(int Time, double Multiplier) {
+	if (Multiplier == 1.0 || Time <= 0) {
+		return Time;
+	}
+
+	double Multiplied = std::round(Time * Multiplier);
+	if (Multiplied < 1.0) {
+		return 1;
+	}
+	if (Multiplied >= static_cast<double>(INT_MAX)) {
+		return INT_MAX;
+	}
+	return static_cast<int>(Multiplied);
 }
 
 void SetConfigDefaults() {
@@ -88,6 +108,9 @@ void SetConfigDefaults() {
 	PremiumNewbieBuffer = 0;
 	Beat = 200;
 	RebootTime = 540;
+	MonsterCorpseDecay = 1.0;
+	PlayerCorpseDecay = 1.0;
+	BloodDecay = 1.0;
 	NumberOfQueryManagers = 0;
 }
 
@@ -160,7 +183,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -192,6 +215,13 @@ void LoadConfig(const char *FileName) {
 				TomlError(World->get("state")->source(), "state must be \"public\" or \"private\"");
 			}
 		}
+	}
+
+	if (const toml::table *Decay = TomlGetTable(Config, "decay")) {
+		TomlCheckKeys(*Decay, "[decay]", {"monster_corpse", "player_corpse", "blood"});
+		TomlGetFloat(*Decay, "monster_corpse", MonsterCorpseDecay, MIN_DECAY_MULTIPLIER, MAX_DECAY_MULTIPLIER);
+		TomlGetFloat(*Decay, "player_corpse", PlayerCorpseDecay, MIN_DECAY_MULTIPLIER, MAX_DECAY_MULTIPLIER);
+		TomlGetFloat(*Decay, "blood", BloodDecay, MIN_DECAY_MULTIPLIER, MAX_DECAY_MULTIPLIER);
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

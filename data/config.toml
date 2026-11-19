@@ -28,6 +28,16 @@ name = "Zanera"
 # accounts (default "public").
 state = "public"
 
+# How long corpses and blood lie before they decay, as multipliers of the times
+# in items.toml (total_expire_time): 2.0 makes them lie twice as long, 0.5 half
+# as long. Each is 0.01 to 1000 (default 1.0, the original times), and counts
+# for every stage of the decay. What already lies when the game starts keeps
+# the time it had left.
+[decay]
+monster_corpse = 1.0  # the corpses of monsters
+player_corpse = 1.0   # the corpses of players
+blood = 1.0           # the splash of a hit, the pool of a death, a spilled liquid
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]
