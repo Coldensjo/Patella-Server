@@ -365,6 +365,21 @@ uint32_t CronStop(Object Obj) {
 	return CronInfo(Obj, true);
 }
 
+// How long an object of an EXPIRE type lies from its start: its type's
+// TOTALEXPIRETIME, for a corpse and for a liquid pool times its multiplier of
+// config.toml's [decay] (CORPSETYPE 0 is a player's corpse). Each stage of a
+// corpse or pool starts anew and so gets the multiplier too.
+static int TotalExpireTime(Object Obj) {
+	int Time = Obj.getAttribute(TOTALEXPIRETIME);
+	if (Obj.getFlag(CORPSE)) {
+		return MultiplyDecayTime(Time, Obj.getAttribute(CORPSETYPE) == 0 ? PlayerCorpseDecay : MonsterCorpseDecay);
+	}
+	if (Obj.getFlag(LIQUIDPOOL)) {
+		return MultiplyDecayTime(Time, BloodDecay);
+	}
+	return Time;
+}
+
 void CronExpire(Object Obj, int Delay) {
 	if (!Obj.exists()) {
 		error("CronExpire: Given object does not exist.\n");
@@ -373,7 +388,7 @@ void CronExpire(Object Obj, int Delay) {
 
 	if (Obj.getFlag(EXPIRE)) {
 		if (Delay == -1) {
-			Delay = Obj.getAttribute(TOTALEXPIRETIME);
+			Delay = TotalExpireTime(Obj);
 		}
 
 		CronSet(Obj, Delay);

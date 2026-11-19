@@ -16,6 +16,7 @@
 // for the same path under the folder of config.toml.
 
 #include <algorithm>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -103,6 +104,9 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("PremiumNewbieBuffer", std::to_string(PremiumNewbieBuffer));
 	Add("Beat", std::to_string(Beat));
 	Add("RebootTime", std::to_string(RebootTime));
+	Add("MonsterCorpseDecay", std::to_string(MonsterCorpseDecay));
+	Add("PlayerCorpseDecay", std::to_string(PlayerCorpseDecay));
+	Add("BloodDecay", std::to_string(BloodDecay));
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -122,6 +126,7 @@ static void Poison() {
 	}
 	SHMKey = GamePort = DebugLevel = MaxPlayers = MaxNewbies = 0x5A5A5A5A;
 	PremiumPlayerBuffer = PremiumNewbieBuffer = Beat = RebootTime = NumberOfQueryManagers = 0x5A5A5A5A;
+	MonsterCorpseDecay = PlayerCorpseDecay = BloodDecay = 90.5;
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -299,6 +304,41 @@ static void TestRoundTrips(const fs::path &Folder) {
 	SetConfigDefaults();
 	Same(Take(), Defaults, "defaults");
 	CHECK(Beat == 200 && DebugLevel == 1 && RebootTime == 540 && strcmp(GameAddress, "0.0.0.0") == 0);
+	CHECK(MonsterCorpseDecay == 1.0 && PlayerCorpseDecay == 1.0 && BloodDecay == 1.0);
+}
+
+static void TestDecay(const fs::path &Folder) {
+	// Each key of [decay] sets its own multiplier, written with or without a
+	// fraction; one left out keeps 1.
+	Poison();
+	CHECK(LoadError(Folder / "decay.toml", "[decay]\nmonster_corpse = 2.0\nplayer_corpse = 0.5\nblood = 3\n") == "");
+	CHECK(MonsterCorpseDecay == 2.0 && PlayerCorpseDecay == 0.5 && BloodDecay == 3.0);
+	Poison();
+	CHECK(LoadError(Folder / "decay.toml", "[decay]\nblood = 1.5\n") == "");
+	CHECK(MonsterCorpseDecay == 1.0 && PlayerCorpseDecay == 1.0 && BloodDecay == 1.5);
+	Poison();
+	CHECK(LoadError(Folder / "decay.toml", "[decay]\nmonster_corpse = 0.01\nplayer_corpse = 1000\n") == "");
+	CHECK(MonsterCorpseDecay == 0.01 && PlayerCorpseDecay == 1000.0 && BloodDecay == 1.0);
+
+	// A multiplier of 1 changes nothing, whatever the time.
+	CHECK(MultiplyDecayTime(1800, 1.0) == 1800);
+	CHECK(MultiplyDecayTime(0, 1.0) == 0);
+	CHECK(MultiplyDecayTime(-1, 1.0) == -1);
+	// The times of items.toml's corpses and pools.
+	CHECK(MultiplyDecayTime(1800, 2.0) == 3600);
+	CHECK(MultiplyDecayTime(1200, 0.5) == 600);
+	CHECK(MultiplyDecayTime(120, 1.5) == 180);
+	CHECK(MultiplyDecayTime(10, 2.0) == 20);
+	// Rounded to whole seconds, at least 1 and at most INT_MAX.
+	CHECK(MultiplyDecayTime(10, 0.25) == 3);
+	CHECK(MultiplyDecayTime(10, 0.24) == 2);
+	CHECK(MultiplyDecayTime(10, 0.01) == 1);
+	CHECK(MultiplyDecayTime(1, 0.01) == 1);
+	CHECK(MultiplyDecayTime(INT_MAX, 1000.0) == INT_MAX);
+	CHECK(MultiplyDecayTime(INT_MAX / 2 + 1, 2.0) == INT_MAX);
+	// A time of 0 or less is not a time to multiply.
+	CHECK(MultiplyDecayTime(0, 2.0) == 0);
+	CHECK(MultiplyDecayTime(-5, 2.0) == -5);
 }
 
 static void TestErrors(const fs::path &Folder) {
@@ -339,6 +379,15 @@ static void TestErrors(const fs::path &Folder) {
 		Eleven += "[[query_manager]]\nhost = \"h\"\nport = 1\npassword = \"p\"\n";
 	}
 	Expect(Eleven, 4 * MAX_QUERY_MANAGERS + 1, "more than 10 query managers");
+	Expect("decay = 2.0\n", 1, "decay must be a table");
+	Expect("[decay]\ncorpse = 2.0\n", 2, "unknown key \"corpse\" in [decay]");
+	Expect("[decay]\nblood = \"2\"\n", 2, "blood must be a number");
+	Expect("[decay]\nmonster_corpse = true\n", 2, "monster_corpse must be a number");
+	Expect("[decay]\nmonster_corpse = 0\n", 2, "monster_corpse must lie between 0.01 and 1000");
+	Expect("[decay]\nplayer_corpse = -2.0\n", 2, "player_corpse must lie between 0.01 and 1000");
+	Expect("[decay]\n\nblood = 1000.5\n", 3, "blood must lie between 0.01 and 1000");
+	Expect("[decay]\nblood = inf\n", 2, "blood must lie between 0.01 and 1000");
+	Expect("[decay]\nblood = nan\n", 2, "blood must lie between 0.01 and 1000");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -470,6 +519,7 @@ int main(int argc, char **argv) {
 	fs::path Folder = fs::canonical(Pattern);
 	try {
 		TestRoundTrips(Folder);
+		TestDecay(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

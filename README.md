@@ -62,6 +62,12 @@ and operator tools in its `bin/` still read it (`reboot-daily`, which the game
 runs for its daily reboot, and `gamelogs-backup` from `/game/.tibia`;
 `highscores`, `deloldusr`, `pl` and the other programs from `$HOME/.tibia`).
 
+`[decay]` is not from the `.tibia`: its `monster_corpse`, `player_corpse` and
+`blood` multiply how long the corpses of monsters, the corpses of players and
+the pools of blood (the splash of a hit, the pool of a death, a spilled
+liquid) lie before they decay, each stage of them. 1.0, the default, gives the
+times of `items.toml`; the game reads them at its start.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

@@ -61,6 +61,17 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "# accounts (default \"public\").\n";
 	Text += std::string("state = ") + (PrivateWorld ? "\"private\"" : "\"public\"") + "\n";
 	Text += "\n";
+	// The .tibia has nothing of the kind: the defaults.
+	Text += "# How long corpses and blood lie before they decay, as multipliers of the times\n";
+	Text += "# in items.toml (total_expire_time): 2.0 makes them lie twice as long, 0.5 half\n";
+	Text += "# as long. Each is 0.01 to 1000 (default 1.0, the original times), and counts\n";
+	Text += "# for every stage of the decay. What already lies when the game starts keeps\n";
+	Text += "# the time it had left.\n";
+	Text += "[decay]\n";
+	Text += "monster_corpse = 1.0  # the corpses of monsters\n";
+	Text += "player_corpse = 1.0   # the corpses of players\n";
+	Text += "blood = 1.0           # the splash of a hit, the pool of a death, a spilled liquid\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";
