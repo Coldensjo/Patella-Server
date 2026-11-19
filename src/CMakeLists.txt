@@ -126,7 +126,7 @@ add_test(NAME game_monsterreload COMMAND game_test_monsterreload)
 add_executable(game_test_magic_reload tests/test_magic_reload.cc magicdata.cc tomlfile.cc strings.cc utils.cc mudinc.cc)
 target_include_directories(game_test_magic_reload PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(game_test_magic_reload PRIVATE game_flags tomlplusplus)
-add_test(NAME game_magic_reload COMMAND game_test_magic_reload)
+add_test(NAME game_magic_reload COMMAND game_test_magic_reload ${PROJECT_SOURCE_DIR}/data)
 
 # game_test_triggers_reload: the staged trigger tables (triggersdata.cc); it
 # links convert_common (tools/convert), which compiles triggersdata.cc with

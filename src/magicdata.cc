@@ -17,11 +17,13 @@
 #include <climits>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "magicdata.hh"
+#include "mudinc.hh"
 #include "strings.hh"
 
 char SpellSyllable[MAX_SYLLABLES][6] = {
@@ -92,6 +94,10 @@ static int StagedCommandRight[MAX_SPELLS][MAX_COMMAND_RIGHTS];
 static TCircle StagedCircle[MAX_CIRCLES];
 static std::string StagedSpellScript[MAX_SPELLS];
 static std::string StagedSpellScriptPosition[MAX_SPELLS];
+
+// The talkactions, live and staged (ReadStagedTalkactions).
+static std::vector<TTalkaction> Talkactions;
+static std::vector<TTalkaction> StagedTalkactions;
 
 // The tables a read fills: the live set or the staged set.
 struct TMagicTables {
@@ -769,6 +775,7 @@ void SwapStagedMagicData() {
 	for (int i = 0; i < MAX_CIRCLES; i++) {
 		std::swap(Circle[i], StagedCircle[i]);
 	}
+	Talkactions.swap(StagedTalkactions);
 }
 
 void ClearStagedMagicData() {
@@ -783,6 +790,7 @@ void ClearStagedMagicData() {
 	for (int i = 0; i < MAX_CIRCLES; i++) {
 		memset(&StagedCircle[i], 0, sizeof(TCircle));
 	}
+	StagedTalkactions.clear();
 }
 
 // Whether the entry SpellNr of the staged set differs from the live one.
@@ -822,4 +830,144 @@ TMagicChanges CompareStagedMagicData() {
 	}
 	Changes.CirclesChanged = memcmp(Circle, StagedCircle, sizeof(Circle)) != 0;
 	return Changes;
+}
+
+int CountParameterWords(const TSpellList &Spell) {
+	int Count = 0;
+	for (int j = 0; j < MAX_SPELL_SYLLABLES && Spell.Syllable[j] != 0; j++) {
+		if (Spell.Syllable[j] == SYLLABLE_PARA) {
+			Count++;
+		}
+	}
+	return Count;
+}
+
+// The command number a value of command in talkactions.toml gives: a staged
+// command (al or om).
+static int ReadTalkactionCommand(const toml::node &Node) {
+	std::optional<int64_t> Number = Node.value<int64_t>();
+	if (!Node.is_integer() || !Number || *Number < 1 || *Number > MAX_SPELLS - 1) {
+		TomlError(Node.source(), "command must be a command number, 1 to %d", MAX_SPELLS - 1);
+	}
+	int Class = StagedSpellList[*Number].Syllable[0];
+	if (Class != SYLLABLE_AL && Class != SYLLABLE_OM) {
+		TomlError(Node.source(), "%d is no command of commands.toml", static_cast<int>(*Number));
+	}
+	return static_cast<int>(*Number);
+}
+
+// One [[talkaction]] of talkactions.toml, into StagedTalkactions.
+static void ReadTalkaction(const toml::node &Node) {
+	if (!Node.is_table()) {
+		TomlError(Node.source(), "an entry of talkaction must be a table");
+	}
+
+	const toml::table &Entry = *Node.as_table();
+	TomlCheckKeys(Entry, "[[talkaction]]", {"words", "command", "param", "self"});
+	for (const char *Key : {"words", "command"}) {
+		if (!Entry.contains(Key)) {
+			TomlError(Node.source(), "an entry of talkaction needs %s", Key);
+		}
+	}
+
+	TTalkaction Talk = {};
+	char Words[MAX_TALKACTION_WORDS + 1];
+	TomlGetString(Entry, "words", Words, sizeof(Words));
+	const toml::source_region &WordsAt = Entry.get("words")->source();
+	if (Words[0] != '/' && Words[0] != '!') {
+		TomlError(WordsAt, "words must start with / or !");
+	}
+	if (Words[1] == 0) {
+		TomlError(WordsAt, "words need a character after the / or !");
+	}
+	for (const char *c = Words; *c != 0; c++) {
+		if (isSpace(static_cast<unsigned char>(*c)) || *c == ',') {
+			TomlError(WordsAt, "words may hold no white space and no comma");
+		}
+	}
+	for (const TTalkaction &Other : StagedTalkactions) {
+		if (stricmp(const_cast<char *>(Other.Words.c_str()), Words, -1) == 0) {
+			TomlError(WordsAt, "the talkaction %s is defined twice", Words);
+		}
+	}
+	Talk.Words = Words;
+
+	const toml::node &Command = *Entry.get("command");
+	if (const toml::array *List = Command.as_array()) {
+		if (List->empty() || List->size() > MAX_TALKACTION_COMMANDS) {
+			TomlError(Command.source(), "command must list 1 to %d commands", MAX_TALKACTION_COMMANDS);
+		}
+		for (const toml::node &Item : *List) {
+			int SpellNr = ReadTalkactionCommand(Item);
+			int Count = CountParameterWords(StagedSpellList[SpellNr]);
+			for (int i = 0; i < Talk.CommandCount; i++) {
+				if (CountParameterWords(StagedSpellList[Talk.Commands[i]]) == Count) {
+					TomlError(Item.source(), "command %d has as many parameter words as command %d", SpellNr,
+							Talk.Commands[i]);
+				}
+			}
+			Talk.Commands[Talk.CommandCount++] = SpellNr;
+		}
+	} else {
+		Talk.Commands[Talk.CommandCount++] = ReadTalkactionCommand(Command);
+	}
+
+	char Param[510];
+	if (TomlGetString(Entry, "param", Param, sizeof(Param))) {
+		if (Param[0] == 0) {
+			TomlError(Entry.get("param")->source(), "param must not be empty");
+		}
+		Talk.HasParam = true;
+		Talk.Param = Param;
+	}
+	if (const toml::node *Self = Entry.get("self")) {
+		if (!Self->is_boolean()) {
+			TomlError(Self->source(), "self must be true or false");
+		}
+		Talk.Self = Self->value_or(false);
+		if (Talk.Self && Talk.HasParam) {
+			TomlError(Self->source(), "a talkaction with param takes no self");
+		}
+	}
+	StagedTalkactions.push_back(std::move(Talk));
+}
+
+void ReadStagedTalkactions(const char *FileName) {
+	StagedTalkactions.clear();
+	toml::table File = TomlParseFile(FileName);
+	TomlCheckKeys(File, "the top level", {"talkaction"});
+	if (const toml::array *Entries = TomlGetArray(File, "talkaction")) {
+		for (const toml::node &Node : *Entries) {
+			ReadTalkaction(Node);
+		}
+	}
+}
+
+const TTalkaction *FindTalkaction(const char *Words) {
+	for (const TTalkaction &Talk : Talkactions) {
+		if (stricmp(const_cast<char *>(Talk.Words.c_str()), const_cast<char *>(Words), -1) == 0) {
+			return &Talk;
+		}
+	}
+	return nullptr;
+}
+
+int StagedTalkactionCount() {
+	return static_cast<int>(StagedTalkactions.size());
+}
+
+bool StagedTalkactionsDiffer() {
+	if (Talkactions.size() != StagedTalkactions.size()) {
+		return true;
+	}
+	for (size_t i = 0; i < Talkactions.size(); i++) {
+		const TTalkaction &Old = Talkactions[i];
+		const TTalkaction &New = StagedTalkactions[i];
+		if (Old.Words != New.Words || Old.CommandCount != New.CommandCount || Old.HasParam != New.HasParam
+				|| Old.Param != New.Param || Old.Self != New.Self
+				|| memcmp(Old.Commands, New.Commands, sizeof(Old.Commands)) != 0) {
+			return true;
+		}
+	}
+	return false;
 }

@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 #include "script.hh"
 #include "threads.hh"
@@ -1980,7 +1982,7 @@ void SpellFailed(uint32_t CreatureID) {
 	GraphicalEffect(cr->GetCreatureObject(), EFFECT_POFF);
 }
 
-void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord) {
+void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord, const char *Talk) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
 		error("CharacterRightSpell: Creature does not exist.\n");
@@ -1998,11 +2000,14 @@ void CharacterRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512]
 		Call.addPlayer(CreatureID);
 		Call.addNumber(SpellNr);
 		AddWords(Call, SpellStr, LastWord);
+		if (Talk != nullptr) {
+			Call.addString(Talk);
+		}
 		Call.run();
 	}
 }
 
-void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord) {
+void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int LastWord, const char *Talk) {
 	TCreature *cr = GetCreature(CreatureID);
 	if (cr == nullptr) {
 		error("AccountRightSpell: Creature does not exist.\n");
@@ -2020,6 +2025,9 @@ void AccountRightSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], 
 		Call.addPlayer(CreatureID);
 		Call.addNumber(SpellNr);
 		AddWords(Call, SpellStr, LastWord);
+		if (Talk != nullptr) {
+			Call.addString(Talk);
+		}
 		Call.run();
 	}
 }
@@ -2286,7 +2294,162 @@ int GetSpellLevel(int SpellNr) {
 	return SpellList[SpellNr].Level;
 }
 
+// Runs the spell or command SpellNr of the class SpellType with its words
+// (SpellStr[0] to SpellStr[LastWord], the last one empty) as CheckForSpell
+// does; Talk as CharacterRightSpell takes it. Returns SpellType, or
+// -SpellType after a failure (SpellFailed for any but ERROR, and the result
+// to the player).
+static int RunSpell(uint32_t CreatureID, int SpellType, int SpellNr, char (*SpellStr)[512], int LastWord,
+		const char *Talk) {
+	try {
+		switch (SpellType) {
+			case SYLLABLE_AL:
+				CharacterRightSpell(CreatureID, SpellNr, SpellStr, LastWord, Talk);
+				break;
+			case SYLLABLE_AD:
+				RuneSpell(CreatureID, SpellNr);
+				break;
+			case SYLLABLE_EX:
+			case SYLLABLE_UT:
+				CastSpell(CreatureID, SpellNr, SpellStr, LastWord);
+				break;
+			case SYLLABLE_OM:
+				AccountRightSpell(CreatureID, SpellNr, SpellStr, LastWord, Talk);
+				break;
+			default:
+				error("CheckForSpell: Spell class %d does not exist.\n", SpellType);
+				break;
+		}
+	} catch (RESULT r) {
+		if (r != ERROR) {
+			SpellFailed(CreatureID);
+		}
+
+		TPlayer *pl = GetPlayer(CreatureID);
+		if (pl != nullptr) {
+			SendResult(pl->GetConnection(), r);
+		}
+
+		return -SpellType;
+	}
+
+	return SpellType;
+}
+
+// Text without the white space at its start and end.
+static std::string TrimSpace(const std::string &Text) {
+	size_t First = 0;
+	size_t Last = Text.size();
+	while (First < Last && isSpace(static_cast<unsigned char>(Text[First]))) {
+		First++;
+	}
+	while (Last > First && isSpace(static_cast<unsigned char>(Text[Last - 1]))) {
+		Last--;
+	}
+	return Text.substr(First, Last - First);
+}
+
+// The talkaction path of CheckForSpell (magic.hh): Text starts with '/' or
+// '!'. Returns 0 when no talkaction has the words Text starts with (up to
+// its first white space).
+static int CheckForTalkaction(uint32_t CreatureID, const char *Text) {
+	size_t End = 0;
+	while (Text[End] != 0 && !isSpace(static_cast<unsigned char>(Text[End]))) {
+		End++;
+	}
+	std::string Words(Text, End);
+	const TTalkaction *Talk = FindTalkaction(Words.c_str());
+	if (Talk == nullptr) {
+		return 0;
+	}
+
+	std::string Param = Talk->HasParam ? Talk->Param : TrimSpace(Text + End);
+	if (Param.empty() && Talk->Self) {
+		TCreature *cr = GetCreature(CreatureID);
+		if (cr != nullptr) {
+			Param = cr->Name;
+		}
+	}
+
+	// The parts of the parameter, at its commas.
+	std::vector<std::string> Parts;
+	if (!Param.empty()) {
+		size_t Start = 0;
+		while (true) {
+			size_t Comma = Param.find(',', Start);
+			Parts.push_back(TrimSpace(Param.substr(Start, Comma == std::string::npos ? std::string::npos
+					: Comma - Start)));
+			if (Comma == std::string::npos) {
+				break;
+			}
+			Start = Comma + 1;
+		}
+	}
+
+	// The command with as many parameter words as parts, else the one with
+	// the most that are fewer.
+	int SpellNr = 0;
+	int Want = -1;
+	for (int i = 0; i < Talk->CommandCount; i++) {
+		int Count = CountParameterWords(SpellList[Talk->Commands[i]]);
+		if (Count == static_cast<int>(Parts.size())) {
+			SpellNr = Talk->Commands[i];
+			Want = Count;
+			break;
+		}
+		if (Count < static_cast<int>(Parts.size()) && Count > Want) {
+			SpellNr = Talk->Commands[i];
+			Want = Count;
+		}
+	}
+
+	TPlayer *pl = GetPlayer(CreatureID);
+	int SpellType = SpellList[SpellNr != 0 ? SpellNr : Talk->Commands[0]].Syllable[0];
+	if (SpellNr != 0 && Want > 0 && Want < static_cast<int>(Parts.size())) {
+		// The last parameter word takes the rest of the text, commas included.
+		size_t Start = 0;
+		for (int i = 0; i < Want - 1; i++) {
+			Start = Param.find(',', Start) + 1;
+		}
+		Parts.resize(Want);
+		Parts[Want - 1] = TrimSpace(Param.substr(Start));
+	}
+	bool Fits = SpellNr != 0;
+	for (int i = 0; Fits && i < Want; i++) {
+		if (Parts[i].empty() || Parts[i].size() > 509) {
+			Fits = false;
+		}
+	}
+	if (!Fits) {
+		if (pl != nullptr) {
+			SendMessage(pl->GetConnection(), TALK_FAILURE_MESSAGE, "Insufficient parameters.");
+		}
+		return SpellType;
+	}
+
+	// The command's words as its own words give them: each syllable's text,
+	// a part for each parameter word, the empty one at the end.
+	char SpellStr[MAX_SPELL_SYLLABLES + 1][512];
+	int Next = 0;
+	int Syl = 0;
+	const TSpellList &Spell = SpellList[SpellNr];
+	while (Syl < MAX_SPELL_SYLLABLES && Spell.Syllable[Syl] != 0) {
+		if (Spell.Syllable[Syl] == SYLLABLE_PARA) {
+			strcpy(SpellStr[Syl], Parts[Next++].c_str());
+		} else {
+			strcpy(SpellStr[Syl], SpellSyllable[Spell.Syllable[Syl]]);
+		}
+		Syl++;
+	}
+	SpellStr[Syl][0] = 0;
+	return RunSpell(CreatureID, SpellType, SpellNr, SpellStr, Syl, Talk->Words.c_str());
+}
+
 int CheckForSpell(uint32_t CreatureID, char *Text) {
+	if (Text != nullptr && (Text[0] == '/' || Text[0] == '!')) {
+		return CheckForTalkaction(CreatureID, Text);
+	}
+
 	int SpellType = TypeOfSpell(Text);
 	if (SpellType == 0) {
 		return 0;
@@ -2345,39 +2508,7 @@ int CheckForSpell(uint32_t CreatureID, char *Text) {
 		return 0;
 	}
 
-	try {
-		switch (SpellType) {
-			case SYLLABLE_AL:
-				CharacterRightSpell(CreatureID, SpellNr, SpellStr, syl);
-				break;
-			case SYLLABLE_AD:
-				RuneSpell(CreatureID, SpellNr);
-				break;
-			case SYLLABLE_EX:
-			case SYLLABLE_UT:
-				CastSpell(CreatureID, SpellNr, SpellStr, syl);
-				break;
-			case SYLLABLE_OM:
-				AccountRightSpell(CreatureID, SpellNr, SpellStr, syl);
-				break;
-			default:
-				error("CheckForSpell: Spell class %d does not exist.\n", SpellType);
-				break;
-		}
-	} catch (RESULT r) {
-		if (r != ERROR) {
-			SpellFailed(CreatureID);
-		}
-
-		TPlayer *pl = GetPlayer(CreatureID);
-		if (pl != nullptr) {
-			SendResult(pl->GetConnection(), r);
-		}
-
-		return -SpellType;
-	}
-
-	return SpellType;
+	return RunSpell(CreatureID, SpellType, SpellNr, SpellStr, syl, nullptr);
 }
 
 void DeleteRune(Object Obj) {
@@ -2545,8 +2676,9 @@ static void LoadSpellScripts() {
 
 namespace {
 
-// The magic part of the reload (reload.hh): circles.toml, spells.toml and
-// commands.toml, staged by magicdata.cc (ReadStagedMagicData), and the
+// The magic part of the reload (reload.hh): circles.toml, spells.toml,
+// commands.toml and talkactions.toml, staged by magicdata.cc
+// (ReadStagedMagicData, ReadStagedTalkactions), and the
 // scripts of the spells and commands (LoadSpellScripts). What refers to a
 // spell or command keeps its number, which a reload may not take away; a
 // spell's name is a static string, which a reload takes again where the
@@ -2563,9 +2695,14 @@ public:
 		char CommandsFile[4096];
 		snprintf(CirclesFile, sizeof(CirclesFile), "%s/circles.toml", DATAPATH);
 		snprintf(SpellsFile, sizeof(SpellsFile), "%s/spells.toml", DATAPATH);
+		char TalkactionsFile[4096];
 		snprintf(CommandsFile, sizeof(CommandsFile), "%s/commands.toml", DATAPATH);
+		snprintf(TalkactionsFile, sizeof(TalkactionsFile), "%s/talkactions.toml", DATAPATH);
 		ReadStagedMagicData(CirclesFile, SpellsFile, CommandsFile);
+		ReadStagedTalkactions(TalkactionsFile);
 		Changes = CompareStagedMagicData();
+		Talkactions = StagedTalkactionCount();
+		TalkactionsChanged = StagedTalkactionsDiffer();
 	}
 
 	void install() override {
@@ -2597,17 +2734,20 @@ public:
 	}
 
 	std::string summary() const override {
-		char Text[256];
+		char Text[320];
 		snprintf(Text, sizeof(Text),
 				"spells.toml: %d spells changed, %d added; commands.toml: %d commands changed, %d added; "
-				"circles.toml: %s",
+				"circles.toml: %s; talkactions.toml: %d, %s",
 				Changes.SpellsChanged, Changes.SpellsAdded, Changes.CommandsChanged, Changes.CommandsAdded,
-				Changes.CirclesChanged ? "changed" : "unchanged");
+				Changes.CirclesChanged ? "changed" : "unchanged", Talkactions,
+				TalkactionsChanged ? "changed" : "unchanged");
 		return Text;
 	}
 
 private:
 	TMagicChanges Changes = {0, 0, 0, 0, false};
+	int Talkactions = 0;
+	bool TalkactionsChanged = false;
 };
 
 } // namespace
@@ -2617,8 +2757,8 @@ TReloadPart &MagicReloadPart() {
 	return Part;
 }
 
-// At start the part reads circles.toml, spells.toml and commands.toml in this
-// order (the names made static strings in the files' order) and loads the
+// At start the part reads circles.toml, spells.toml, commands.toml and
+// talkactions.toml in this order (the names made static strings in the files' order) and loads the
 // scripts by spell number.
 void InitMagic() {
 	TReloadPart &Part = MagicReloadPart();

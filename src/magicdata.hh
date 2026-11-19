@@ -10,6 +10,8 @@
 #ifndef PATELLA_MAGICDATA_HH
 #define PATELLA_MAGICDATA_HH
 
+#include <string>
+
 #include "dbfuncs.hh"
 
 // The words a spell can have, its class syllable included (TSpellList's
@@ -209,6 +211,49 @@ struct TMagicChanges {
 	bool CirclesChanged;
 };
 TMagicChanges CompareStagedMagicData();
+
+// The talkactions (talkactions.toml, ours): words such as "/goto" that give a
+// command (commands.toml) as TFS's talkactions do, next to the command's own
+// words. What follows the words and a space is the parameter; split at its
+// commas (each part without the white space around it) it gives the
+// command's parameter words ("para") in order, the last taking the rest of
+// the text with its commas. A talkaction may name several commands (with
+// different numbers of parameter words): the one with as many as the parts,
+// else the one with the most that are fewer (its last taking the rest), else
+// none ("Insufficient parameters."; CheckForSpell). Param, when HasParam, is
+// the parameter whatever follows the words; Self makes an empty parameter
+// the caster's name.
+const int MAX_TALKACTION_COMMANDS = 4;
+const int MAX_TALKACTION_WORDS = 30;
+struct TTalkaction {
+	std::string Words;
+	int Commands[MAX_TALKACTION_COMMANDS];
+	int CommandCount;
+	bool HasParam;
+	std::string Param;
+	bool Self;
+};
+
+// The number of parameter words ("para") of a spell table entry.
+int CountParameterWords(const TSpellList &Spell);
+
+// Reads the talkactions.toml file FileName into the staged set, after
+// ReadStagedMagicData (its commands are the staged ones): each [[talkaction]]
+// with words (a '/' or '!' and 1 to MAX_TALKACTION_WORDS - 1 more
+// characters, none white space or a comma; no two the same in any case),
+// command (a command number, or an array of 1 to MAX_TALKACTION_COMMANDS of
+// them, no two with the same number of parameter words), and optionally param
+// (a string that is not empty) or self (a boolean). Throws a const char *
+// "<file>:<line>:<column>: <what>" for what is wrong with it.
+void ReadStagedTalkactions(const char *FileName);
+
+// The live talkaction whose words are Words (in any case), or nullptr.
+const TTalkaction *FindTalkaction(const char *Words);
+
+// The number of staged talkactions, and whether they differ from the live
+// ones (for the reload's summary).
+int StagedTalkactionCount();
+bool StagedTalkactionsDiffer();
 
 extern char SpellSyllable[MAX_SYLLABLES][6];
 extern TSpellList SpellList[MAX_SPELLS];

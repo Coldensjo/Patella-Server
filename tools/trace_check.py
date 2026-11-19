@@ -27,7 +27,7 @@ What it does, in WSL Ubuntu-24.04:
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
      relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/commands.toml,
      data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml, data/conversion.toml,
-     data/npcs.toml, data/monsters.toml, data/raids.toml, data/monster_homes.toml and data/events.toml go into the
+     data/npcs.toml, data/monsters.toml, data/raids.toml, data/monster_homes.toml, data/events.toml and data/talkactions.toml go into the
      copy's data folder ([paths] data), as does data/scripts/ (the Lua scripts, as a whole folder), and the files they
      were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat, houses.dat, map.dat with the
      mem.dat it includes, conversion.lst, monster.db, and the folders npc/ (the .npc and .ndb files) and mon/ (the
@@ -449,6 +449,7 @@ DATA_FILES = [
 	("raids.toml", ()),
 	("monster_homes.toml", ("monster.db",)),
 	("events.toml", ()),
+	("talkactions.toml", ()),
 ]
 
 # The TOML files of a tree's data/ that replace a whole folder of the copy, the folder as the original installation

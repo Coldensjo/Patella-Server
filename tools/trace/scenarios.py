@@ -2600,3 +2600,139 @@ def online_list(ctx):
 	for c in (a, b, e):
 		c.logout()
 	s(2)
+
+
+# The scenario talkactions: the words of talkactions.toml (ours; TFS's words
+# for the commands) by the gamemasters c to f, each word with the right its
+# command checks (trace_check.py's GM_RIGHTS; e also has ONLINE_LIST), a
+# player without rights and words no talkaction has. The checks say what a
+# tree with the talkactions must show; against a tree without them (faithful,
+# or main before them) the words are said aloud and everything after them
+# differs, so the scenario is checked by its own checks, not by a comparison.
+GOLD_COIN = 3031
+
+
+@scenario(stop_round=150)
+def talkactions(ctx):
+	"""The talkactions (see the comment above), checked by the scenario: Get
+	Item with and without a count, the speeds (max included) and a word that
+	is no speed, a mark, up and down, the own coordinate and a coordinate, a
+	number of fields ahead (forwards, backwards, no number), to a player and a
+	player brought, the temple of oneself and of a player, the players online,
+	a monster and Kill All Creatures, a talkaction without its parameter,
+	one by a player without the right and words no talkaction has. It ends at
+	step about 120 (round 140): run it with --stop-round 150."""
+	who = {}
+	s = KeepAlive(ctx, who)
+	ctx.at(0)
+	for key in "acdef":
+		who[key] = ctx.login(key)
+		s(2)
+	a, c, d, e, f = (who[key] for key in "acdef")
+
+	def say(p, text, what, k=2):
+		"""p says text; gives the record mark before it."""
+		p.note("=== " + what)
+		m = p.mark()
+		p.say(text)
+		s(k)
+		return m
+
+	def told(p, m, pattern, what):
+		ctx.check(p.wait_text(pattern, m, 2) is not None, "talkactions: %s" % what)
+
+	def near(p, pos, what):
+		"""p on pos or a field next to it (a move takes the first free field
+		within 1)."""
+		ctx.check(p.pos is not None and p.pos[2] == pos[2] and abs(p.pos[0] - pos[0]) <= 1
+			and abs(p.pos[1] - pos[1]) <= 1, "talkactions: %s (at %s)" % (what, p.pos))
+
+	def floor(p, m, z, what):
+		"""p on floor z, or told that there is no room there (the temple has
+		no free field above or below it): either way Move got the word."""
+		ctx.check((p.pos is not None and p.pos[2] == z) or p.wait_text(r"not enough room", m, 2) is not None,
+			"talkactions: %s" % what)
+
+	# Get Item: one coin, then fifty (the command with two parameter words).
+	m = say(c, "/i %d" % GOLD_COIN, "/i: Get Item, one gold coin")
+	told(c, m, r"MagicEffect|GraphicalEffect", "/i shows the green sparkles")
+	say(c, "/i %d, 50" % GOLD_COIN, "/i with a count: fifty gold coins")
+
+	# The speeds.
+	m = say(c, "/speed max", "/speed max: speed 2000 above normal")
+	told(c, m, r"ChangeSpeed|CreatureSpeed", "/speed max changes the speed")
+	m = say(c, "/speed rookgaard", "/speed with a word that is no speed: told")
+	told(c, m, r"Unknown speed", "/speed tells an unknown speed")
+	say(c, "/speed normal", "/speed normal")
+
+	# A mark, by /town; a coordinate refused there.
+	say(c, "/town rookgaard", "/town: the mark Rookgaard, north of the temple")
+	ctx.check(c.pos is not None and tuple(c.pos) != tuple(TEMPLE), "talkactions: /town moved c")
+	m = say(c, "/town 1,2,3", "/town with a coordinate: no mark of this name")
+	told(c, m, r"There is no mark of this name", "/town refuses a coordinate")
+
+	# Up and down, and the own coordinate (d).
+	start = tuple(d.pos)
+	m = say(d, "/up", "/up: a floor up (or no room above the temple)")
+	floor(d, m, start[2] - 1, "/up went up or was told there is no room")
+	m = say(d, "/down", "/down: a floor down (or no room)")
+	floor(d, m, start[2] + 1 if tuple(d.pos) == start else start[2], "/down went down or was told there is no room")
+	m = say(d, "/pos", "/pos: the own coordinate")
+	told(d, m, r"Your position is \[%d,%d,%d\]" % tuple(d.pos), "/pos tells the coordinate")
+
+	# A coordinate and the fields ahead (e).
+	target = offset(TEMPLE, 0, 3)
+	say(e, "/pos %d,%d,%d" % target, "/pos x,y,z: to a coordinate south of the temple")
+	near(e, target, "/pos x,y,z")
+	e.note("=== e faces south")
+	e.turn("s")
+	s(1)
+	here = tuple(e.pos)
+	say(e, "/a 2", "/a 2: two fields south")
+	near(e, offset(here, 0, 2), "/a 2")
+	here = tuple(e.pos)
+	say(e, "/a -2", "/a -2: two fields back north")
+	near(e, offset(here, 0, -2), "/a -2")
+	m = say(e, "/a north", "/a without a number: told")
+	told(e, m, r"Invalid number of fields", "/a tells an invalid number")
+
+	# To a player and a player brought (e and f to a).
+	say(e, "/goto Testa Alpha", "/goto: e to a")
+	ctx.check(e.pos is not None and a.pos is not None and abs(e.pos[0] - a.pos[0]) <= 1
+		and abs(e.pos[1] - a.pos[1]) <= 1, "talkactions: /goto took e next to a")
+	say(e, "/pos %d,%d,%d" % offset(TEMPLE, 3, 3), "/pos: e away again")
+	say(f, "/c Testa Alpha", "/c: a brought to f")
+	ctx.check(f.pos is not None and a.pos is not None and abs(f.pos[0] - a.pos[0]) <= 1
+		and abs(f.pos[1] - a.pos[1]) <= 1, "talkactions: /c brought a next to f")
+
+	# The temple: d itself (no name) and a by name.
+	m = say(d, "/t", "/t: d to its own temple")
+	near(d, TEMPLE, "/t took d to its temple")
+	m = say(d, "/t Testa Alpha", "/t name: a to its temple")
+	told(d, m, r"Testa Alpha", "/t name tells d")
+
+	# The players online (e has ONLINE_LIST).
+	m = say(e, "/online", "/online: the players online")
+	told(e, m, r"5 players online: ", "/online lists five players")
+
+	# A monster and Kill All Creatures (f has CREATE_MONSTERS).
+	m = say(f, "/m rat", "/m: a rat next to f")
+	ctx.check(f.wait_creature("rat", m, 2) is not None, "talkactions: /m made a rat")
+	say(f, "/killall", "/killall: the rat killed")
+
+	# A talkaction without its parameter; one by a player without the right;
+	# words no talkaction has (said aloud); a talkaction in upper case.
+	m = say(e, "/goto", "/goto without a name: Insufficient parameters.")
+	told(e, m, r"Insufficient parameters", "/goto without a name is told")
+	before = tuple(a.pos)
+	say(a, "/goto Teste Epsilon", "/goto by a, without the right: nothing")
+	ctx.check(tuple(a.pos) == before, "talkactions: /goto without the right moved a")
+	m = say(a, "/nosuch hello", "words no talkaction has: said aloud")
+	told(a, m, r"Talk .*'/nosuch hello'", "unknown words are said aloud")
+	m = say(e, "/ONLINE", "/ONLINE: in upper case")
+	told(e, m, r"players online: ", "/ONLINE works in upper case")
+
+	for key in "acdef":
+		who[key].logout()
+		s(1)
+	s(3)
