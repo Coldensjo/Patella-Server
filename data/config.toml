@@ -109,6 +109,17 @@ banishment = { day = 6, week = 10, month = 20 }
 [idle]
 minutes = 15
 
+# What a player gains per level, by vocation (a promoted one counts as its
+# vocation): hp, mana and capacity, each 0 to 10000. Each value given counts
+# from a character's next level on (and for a level lost); one not given stays
+# what the character got when it chose its vocation. The original values:
+[vocations]
+# none = { hp = 5, mana = 5, capacity = 10 }
+# knight = { hp = 15, mana = 5, capacity = 25 }
+# paladin = { hp = 10, mana = 15, capacity = 20 }
+# sorcerer = { hp = 5, mana = 30, capacity = 10 }
+# druid = { hp = 5, mana = 30, capacity = 10 }
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]

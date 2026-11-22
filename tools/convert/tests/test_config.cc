@@ -136,6 +136,12 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 		Add("BanishmentKills[" + std::to_string(i) + "]", std::to_string(BanishmentKills[i]));
 	}
 	Add("IdleMinutes", std::to_string(IdleMinutes));
+	for (int v = 0; v < VOCATIONS; v++) {
+		for (int g = 0; g < LEVEL_GAINS; g++) {
+			Add("VocationGains[" + std::to_string(v) + "][" + std::to_string(g) + "]",
+					std::to_string(VocationGains[v][g]));
+		}
+	}
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -167,6 +173,11 @@ static void Poison() {
 	HitpointRegeneration = ManaRegeneration = 0x5A5A5A5A;
 	SoulInterval = SoulPromotedInterval = SoulDuration = SoulOfflineInterval = 0x5A5A5A5A;
 	FightLock = KillLock = RedSkullDays = IdleMinutes = 0x5A5A5A5A;
+	for (auto &Gains : VocationGains) {
+		for (int &Gain : Gains) {
+			Gain = 0x5A5A5A5A;
+		}
+	}
 	for (int i = 0; i < 3; i++) {
 		RedSkullKills[i] = BanishmentKills[i] = 0x5A5A5A5A;
 	}
@@ -496,6 +507,17 @@ static void TestPvp(const fs::path &Folder) {
 	CHECK(IdleMinutes == 30);
 }
 
+static void TestVocations(const fs::path &Folder) {
+	// The gains given are set, the others stay -1 (the character's own).
+	Poison();
+	CHECK(LoadError(Folder / "vocations.toml", "[vocations]\nknight = { hp = 20, capacity = 30 }\n"
+			"druid = { mana = 40 }\nnone = { hp = 0, mana = 0, capacity = 0 }\n") == "");
+	CHECK(VocationGains[1][0] == 20 && VocationGains[1][1] == -1 && VocationGains[1][2] == 30);
+	CHECK(VocationGains[4][0] == -1 && VocationGains[4][1] == 40 && VocationGains[4][2] == -1);
+	CHECK(VocationGains[0][0] == 0 && VocationGains[0][1] == 0 && VocationGains[0][2] == 0);
+	CHECK(VocationGains[2][0] == -1 && VocationGains[3][1] == -1);
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -620,6 +642,10 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[pvp]\nbanishment = { month = 21 }\n", 2, "month must lie between 1 and 20");
 	Expect("[idle]\nseconds = 60\n", 2, "unknown key \"seconds\" in [idle]");
 	Expect("[idle]\nminutes = 0\n", 2, "minutes must lie between 1 and 1440");
+	Expect("[vocations]\nelite_knight = { hp = 5 }\n", 2, "unknown key \"elite_knight\" in [vocations]");
+	Expect("[vocations]\nknight = 15\n", 2, "knight must be a table");
+	Expect("[vocations]\nknight = { speed = 2 }\n", 2, "unknown key \"speed\" in [vocations] knight");
+	Expect("[vocations]\npaladin = { mana = -1 }\n", 2, "mana must lie between 0 and 10000");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -759,6 +785,7 @@ int main(int argc, char **argv) {
 		TestRegeneration(Folder);
 		TestSoul(Folder);
 		TestPvp(Folder);
+		TestVocations(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

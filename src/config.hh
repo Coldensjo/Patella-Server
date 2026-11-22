@@ -207,6 +207,18 @@ extern int IdleMinutes;
 
 const int MAX_IDLE_MINUTES = 1440;
 
+// [vocations]: what a player gains per level, by vocation (none, knight,
+// paladin, sorcerer, druid: the numbers of the professions; a promoted one
+// counts as its vocation): hitpoints (hp), mana (mana) and capacity
+// (capacity), each 0 to MAX_LEVEL_GAIN. VocationGains[vocation][gain], gain
+// in that order; -1 where config.toml gives none: the character keeps what
+// it holds (set when it chose its vocation). crskill.cc's TSkillLevel::Jump
+// sets the given ones before each level gained or lost.
+const int VOCATIONS = 5;
+const int LEVEL_GAINS = 3;
+const int MAX_LEVEL_GAIN = 10000;
+extern int VocationGains[VOCATIONS][LEVEL_GAINS];
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 
@@ -215,8 +227,8 @@ void DisguisePassword(char *Password, const char *Key);
 // Sets every setting to its value for a config that does not name it: empty
 // paths (LoadConfig then sets RSAKEYPATH to key.pem in the file's folder),
 // SHM key 0, debug level 1, a public world without a name, beat 200, the
-// [decay], [rates] and [spawn] multipliers 1 (no
-// [spawn.monsters] entries), no query managers; and the world config to type
+// gameplay settings above at their defaults (the original behaviour; no
+// per-race entries, no vocation gains), no query managers; and the world config to type
 // NORMAL, reboot time 540, address 0.0.0.0, port 0 and no players.
 void SetConfigDefaults();
 

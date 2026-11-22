@@ -111,6 +111,13 @@ keeps).
 `[idle]` `minutes` (1 to 1440, default 15) is how long a player may do nothing
 before being warned, and logged out a minute later.
 
+`[vocations]` sets what a player gains per level by vocation (`none`,
+`knight`, `paladin`, `sorcerer`, `druid`; promoted ones count as theirs):
+`hp`, `mana` and `capacity`, e.g. `knight = { hp = 20 }`. A value given counts
+from each character's next level on (past levels stay); one not given stays
+what the character got with its vocation. `data/config.toml` lists the
+original values, commented out.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

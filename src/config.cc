@@ -1,9 +1,11 @@
 // config.cc: the server's settings. ReadConfig reads them from config.toml
 // (data/config.toml in the repository is an example, converted from the
 // original .tibia by tools/convert): the paths, the shared memory key, the
-// debug level, the world's name and state, the beat, the [decay], [rates] and
-// [spawn] multipliers, the query managers and the file of the RSA key (communication.cc's
-// ReadPrivateKey reads it).
+// debug level, the world's name and state, the beat, the gameplay settings
+// that are not from the .tibia ([decay], [rates], [spawn], [loot], [death],
+// [regeneration], [soul], [pvp], [idle], [vocations]; config.hh), the query
+// managers and the file of the RSA key (communication.cc's ReadPrivateKey
+// reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
 // in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
 // disguises a query manager password before it is sent.
@@ -72,6 +74,7 @@ int RedSkullDays;
 int RedSkullKills[3];
 int BanishmentKills[3];
 int IdleMinutes;
+int VocationGains[VOCATIONS][LEVEL_GAINS];
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -282,6 +285,11 @@ void SetConfigDefaults() {
 	BanishmentKills[1] = 10;
 	BanishmentKills[2] = 20;
 	IdleMinutes = 15;
+	for (auto &Gains : VocationGains) {
+		for (int &Gain : Gains) {
+			Gain = -1;
+		}
+	}
 	NumberOfQueryManagers = 0;
 }
 
@@ -354,7 +362,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "vocations", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -491,6 +499,22 @@ void LoadConfig(const char *FileName) {
 	if (const toml::table *Idle = TomlGetTable(Config, "idle")) {
 		TomlCheckKeys(*Idle, "[idle]", {"minutes"});
 		TomlGetNumber(*Idle, "minutes", IdleMinutes, 1, MAX_IDLE_MINUTES);
+	}
+
+	if (const toml::table *Vocations = TomlGetTable(Config, "vocations")) {
+		static const char *const Names[VOCATIONS] = {"none", "knight", "paladin", "sorcerer", "druid"};
+		TomlCheckKeys(*Vocations, "[vocations]", {Names[0], Names[1], Names[2], Names[3], Names[4]});
+		for (int Vocation = 0; Vocation < VOCATIONS; Vocation++) {
+			const toml::table *Gains = TomlGetTable(*Vocations, Names[Vocation]);
+			if (Gains == nullptr) {
+				continue;
+			}
+			std::string What = std::string("[vocations] ") + Names[Vocation];
+			TomlCheckKeys(*Gains, What.c_str(), {"hp", "mana", "capacity"});
+			TomlGetNumber(*Gains, "hp", VocationGains[Vocation][0], 0, MAX_LEVEL_GAIN);
+			TomlGetNumber(*Gains, "mana", VocationGains[Vocation][1], 0, MAX_LEVEL_GAIN);
+			TomlGetNumber(*Gains, "capacity", VocationGains[Vocation][2], 0, MAX_LEVEL_GAIN);
+		}
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

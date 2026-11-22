@@ -143,6 +143,17 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "[idle]\n";
 	Text += "minutes = 15\n";
 	Text += "\n";
+	Text += "# What a player gains per level, by vocation (a promoted one counts as its\n";
+	Text += "# vocation): hp, mana and capacity, each 0 to 10000. Each value given counts\n";
+	Text += "# from a character's next level on (and for a level lost); one not given stays\n";
+	Text += "# what the character got when it chose its vocation. The original values:\n";
+	Text += "[vocations]\n";
+	Text += "# none = { hp = 5, mana = 5, capacity = 10 }\n";
+	Text += "# knight = { hp = 15, mana = 5, capacity = 25 }\n";
+	Text += "# paladin = { hp = 10, mana = 15, capacity = 20 }\n";
+	Text += "# sorcerer = { hp = 5, mana = 30, capacity = 10 }\n";
+	Text += "# druid = { hp = 5, mana = 30, capacity = 10 }\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";
