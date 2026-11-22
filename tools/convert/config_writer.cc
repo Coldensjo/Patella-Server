@@ -111,6 +111,13 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "container_drop = true  # whether a worn container (the backpack) always drops;\n";
 	Text += "                       # false: it takes the chance of item_drop too\n";
 	Text += "\n";
+	Text += "# How much health and mana a fed player regains each time, as whole-number\n";
+	Text += "# multipliers, 1 to 1000 (default 1: 1 hp and 4 mana every few rounds, by\n";
+	Text += "# vocation; also in a bed while offline). The food lasts as long as ever.\n";
+	Text += "[regeneration]\n";
+	Text += "hp = 1\n";
+	Text += "mana = 1\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";

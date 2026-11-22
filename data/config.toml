@@ -77,6 +77,13 @@ item_drop = 10         # the percent chance of each item worn to drop, 0 to 100
 container_drop = true  # whether a worn container (the backpack) always drops;
                        # false: it takes the chance of item_drop too
 
+# How much health and mana a fed player regains each time, as whole-number
+# multipliers, 1 to 1000 (default 1: 1 hp and 4 mana every few rounds, by
+# vocation; also in a bed while offline). The food lasts as long as ever.
+[regeneration]
+hp = 1
+mana = 1
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]

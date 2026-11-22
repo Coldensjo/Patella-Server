@@ -92,6 +92,10 @@ blessings keep their rules), `item_drop` is the percent chance of each worn
 item to drop (default 10) and `container_drop` whether the backpack always
 drops (default true).
 
+`[regeneration]` multiplies the health (`hp`) and mana (`mana`) a fed player
+regains each time, whole numbers 1 to 1000, default 1; a bed's offline
+regeneration too. The food lasts as long as before.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

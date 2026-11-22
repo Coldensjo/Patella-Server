@@ -157,6 +157,15 @@ const double MAX_DEATH_PENALTY = 10.0;
 // otherwise rounded, at most Exp, at least 0.
 int DeathLoss(int Exp, int Percent);
 
+// [regeneration]: whole-number multipliers of the hitpoints (hp) and mana
+// (mana) a fed player regains each time (1 and 4 every few rounds, by
+// vocation; and in a bed, for the time offline), MIN_RATE_MULTIPLIER to
+// MAX_RATE_MULTIPLIER and 1 by default. The food lasts as long as ever.
+// crmain.cc's ProcessCreatures and crplayer.cc's TPlayer::Regenerate apply
+// them (MultiplyRate).
+extern int HitpointRegeneration;
+extern int ManaRegeneration;
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 

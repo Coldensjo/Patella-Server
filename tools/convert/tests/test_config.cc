@@ -122,6 +122,8 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("DeathPenalty", std::to_string(DeathPenalty));
 	Add("DeathItemDrop", std::to_string(DeathItemDrop));
 	Add("DeathContainerDrop", std::to_string(DeathContainerDrop));
+	Add("HitpointRegeneration", std::to_string(HitpointRegeneration));
+	Add("ManaRegeneration", std::to_string(ManaRegeneration));
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -150,6 +152,7 @@ static void Poison() {
 	DeathPenalty = 90.5;
 	DeathItemDrop = 0x5A5A5A5A;
 	DeathContainerDrop = false;
+	HitpointRegeneration = ManaRegeneration = 0x5A5A5A5A;
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -436,6 +439,15 @@ static void TestDeath(const fs::path &Folder) {
 	DeathPenalty = 1.0;
 }
 
+static void TestRegeneration(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "regeneration.toml", "[regeneration]\nhp = 2\nmana = 3\n") == "");
+	CHECK(HitpointRegeneration == 2 && ManaRegeneration == 3);
+	Poison();
+	CHECK(LoadError(Folder / "regeneration.toml", "[regeneration]\nmana = 1000\n") == "");
+	CHECK(HitpointRegeneration == 1 && ManaRegeneration == 1000);
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -542,6 +554,9 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[death]\nitem_drop = 101\n", 2, "item_drop must lie between 0 and 100");
 	Expect("[death]\nitem_drop = 5.5\n", 2, "item_drop must be an integer");
 	Expect("[death]\ncontainer_drop = 1\n", 2, "container_drop must be true or false");
+	Expect("[regeneration]\nspeed = 2\n", 2, "unknown key \"speed\" in [regeneration]");
+	Expect("[regeneration]\nhp = 0\n", 2, "hp must lie between 1 and 1000");
+	Expect("[regeneration]\nmana = 1.5\n", 2, "mana must be an integer");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -678,6 +693,7 @@ int main(int argc, char **argv) {
 		TestSpawn(Folder);
 		TestLoot(Folder);
 		TestDeath(Folder);
+		TestRegeneration(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

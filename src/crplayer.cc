@@ -2220,8 +2220,9 @@ void TPlayer::Regenerate() {
 	}
 
 	if (Regeneration > 0) {
-		Skills[SKILL_HITPOINTS]->Change(Regeneration / 4);
-		Skills[SKILL_MANA]->Change(Regeneration);
+		// Times config.toml's [regeneration] multipliers; the food used stays.
+		Skills[SKILL_HITPOINTS]->Change(MultiplyRate(Regeneration / 4, HitpointRegeneration));
+		Skills[SKILL_MANA]->Change(MultiplyRate(Regeneration, ManaRegeneration));
 		SetTimer(SKILL_EATING, Skills[SKILL_EATING]->TimerValue() - Regeneration * 3, 0, 0, -1);
 	}
 

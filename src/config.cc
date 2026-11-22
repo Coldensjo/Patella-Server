@@ -60,6 +60,8 @@ std::vector<TMonsterLootRate> MonsterLootRates;
 double DeathPenalty;
 int DeathItemDrop;
 bool DeathContainerDrop;
+int HitpointRegeneration;
+int ManaRegeneration;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -240,6 +242,8 @@ void SetConfigDefaults() {
 	DeathPenalty = 1.0;
 	DeathItemDrop = 10;
 	DeathContainerDrop = true;
+	HitpointRegeneration = 1;
+	ManaRegeneration = 1;
 	NumberOfQueryManagers = 0;
 }
 
@@ -312,7 +316,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -412,6 +416,12 @@ void LoadConfig(const char *FileName) {
 		TomlGetFloat(*Death, "penalty", DeathPenalty, MIN_DEATH_PENALTY, MAX_DEATH_PENALTY);
 		TomlGetNumber(*Death, "item_drop", DeathItemDrop, 0, 100);
 		TomlGetBool(*Death, "container_drop", DeathContainerDrop);
+	}
+
+	if (const toml::table *Regeneration = TomlGetTable(Config, "regeneration")) {
+		TomlCheckKeys(*Regeneration, "[regeneration]", {"hp", "mana"});
+		TomlGetNumber(*Regeneration, "hp", HitpointRegeneration, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+		TomlGetNumber(*Regeneration, "mana", ManaRegeneration, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

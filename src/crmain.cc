@@ -111,8 +111,9 @@ void ProcessCreatures() {
 				&& RoundNr % cr->Skills[SKILL_EATING]->Get() == 0
 				&& !cr->IsDead
 				&& !IsProtectionZone(cr->posx, cr->posy, cr->posz)) {
-			cr->Skills[SKILL_HITPOINTS]->Change(1);
-			cr->Skills[SKILL_MANA]->Change(4);
+			// A player's gain times config.toml's [regeneration] multipliers.
+			cr->Skills[SKILL_HITPOINTS]->Change(cr->Type == PLAYER ? MultiplyRate(1, HitpointRegeneration) : 1);
+			cr->Skills[SKILL_MANA]->Change(cr->Type == PLAYER ? MultiplyRate(4, ManaRegeneration) : 4);
 			if (cr->Type == PLAYER) {
 				SendPlayerData(cr->GetConnection());
 			}
