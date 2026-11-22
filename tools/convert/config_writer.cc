@@ -72,6 +72,13 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "player_corpse = 1.0   # the corpses of players\n";
 	Text += "blood = 1.0           # the splash of a hit, the pool of a death, a spilled liquid\n";
 	Text += "\n";
+	Text += "# What players gain, as whole-number multipliers, each 1 to 1000 (default 1,\n";
+	Text += "# the original rates): 5 makes a rat give 25 experience instead of 5.\n";
+	Text += "[rates]\n";
+	Text += "experience = 1   # the experience slain monsters give (not slain players)\n";
+	Text += "magic_level = 1  # the mana spent that counts for the magic level\n";
+	Text += "skill = 1        # the tries of the other skills: fighting, shielding, fishing\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";

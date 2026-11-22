@@ -279,8 +279,10 @@ void SpendManaAndSoulPoints(TCreature *cr, int Mana, int SoulPoints, int Delay) 
 		soulpoints->Change(-SoulPoints);
 	}
 
+	// [rates] magic_level multiplies what counts for the magic level, not the
+	// mana spent.
 	if (Mana > 0) {
-		cr->Skills[SKILL_MAGICLEVEL]->Increase(Mana);
+		cr->Skills[SKILL_MAGICLEVEL]->Increase(MultiplyRate(Mana, MagicLevelRate));
 	}
 
 	cr->EarliestSpellTime = std::max<uint32_t>(cr->EarliestSpellTime, ServerMilliseconds + Delay);

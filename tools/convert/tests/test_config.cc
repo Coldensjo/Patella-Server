@@ -107,6 +107,9 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("MonsterCorpseDecay", std::to_string(MonsterCorpseDecay));
 	Add("PlayerCorpseDecay", std::to_string(PlayerCorpseDecay));
 	Add("BloodDecay", std::to_string(BloodDecay));
+	Add("ExperienceRate", std::to_string(ExperienceRate));
+	Add("MagicLevelRate", std::to_string(MagicLevelRate));
+	Add("SkillRate", std::to_string(SkillRate));
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -127,6 +130,7 @@ static void Poison() {
 	SHMKey = GamePort = DebugLevel = MaxPlayers = MaxNewbies = 0x5A5A5A5A;
 	PremiumPlayerBuffer = PremiumNewbieBuffer = Beat = RebootTime = NumberOfQueryManagers = 0x5A5A5A5A;
 	MonsterCorpseDecay = PlayerCorpseDecay = BloodDecay = 90.5;
+	ExperienceRate = MagicLevelRate = SkillRate = 0x5A5A5A5A;
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -305,6 +309,26 @@ static void TestRoundTrips(const fs::path &Folder) {
 	Same(Take(), Defaults, "defaults");
 	CHECK(Beat == 200 && DebugLevel == 1 && RebootTime == 540 && strcmp(GameAddress, "0.0.0.0") == 0);
 	CHECK(MonsterCorpseDecay == 1.0 && PlayerCorpseDecay == 1.0 && BloodDecay == 1.0);
+	CHECK(ExperienceRate == 1 && MagicLevelRate == 1 && SkillRate == 1);
+}
+
+static void TestRates(const fs::path &Folder) {
+	// Each key of [rates] sets its own multiplier; one left out keeps 1.
+	Poison();
+	CHECK(LoadError(Folder / "rates.toml", "[rates]\nexperience = 5\nmagic_level = 3\nskill = 2\n") == "");
+	CHECK(ExperienceRate == 5 && MagicLevelRate == 3 && SkillRate == 2);
+	Poison();
+	CHECK(LoadError(Folder / "rates.toml", "[rates]\nskill = 1000\n") == "");
+	CHECK(ExperienceRate == 1 && MagicLevelRate == 1 && SkillRate == 1000);
+
+	// MultiplyRate: 1 keeps the amount, more multiplies it, up to INT_MAX.
+	CHECK(MultiplyRate(5, 1) == 5);
+	CHECK(MultiplyRate(5, 5) == 25);
+	CHECK(MultiplyRate(0, 5) == 0);
+	CHECK(MultiplyRate(1, 1000) == 1000);
+	CHECK(MultiplyRate(INT_MAX, 1) == INT_MAX);
+	CHECK(MultiplyRate(INT_MAX / 2 + 1, 2) == INT_MAX);
+	CHECK(MultiplyRate(3000000, 1000) == INT_MAX);
 }
 
 static void TestDecay(const fs::path &Folder) {
@@ -388,6 +412,11 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[decay]\n\nblood = 1000.5\n", 3, "blood must lie between 0.01 and 1000");
 	Expect("[decay]\nblood = inf\n", 2, "blood must lie between 0.01 and 1000");
 	Expect("[decay]\nblood = nan\n", 2, "blood must lie between 0.01 and 1000");
+	Expect("rates = 2\n", 1, "rates must be a table");
+	Expect("[rates]\nexp = 2\n", 2, "unknown key \"exp\" in [rates]");
+	Expect("[rates]\nexperience = 1.5\n", 2, "experience must be an integer");
+	Expect("[rates]\nmagic_level = 0\n", 2, "magic_level must lie between 1 and 1000");
+	Expect("[rates]\nskill = 1001\n", 2, "skill must lie between 1 and 1000");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -520,6 +549,7 @@ int main(int argc, char **argv) {
 	try {
 		TestRoundTrips(Folder);
 		TestDecay(Folder);
+		TestRates(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

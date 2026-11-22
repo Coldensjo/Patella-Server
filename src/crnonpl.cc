@@ -810,7 +810,9 @@ TMonster::~TMonster() {
 	if (!this->IsDead) {
 		GraphicalEffect(this->posx, this->posy, this->posz, EFFECT_POFF);
 	} else if (this->Master == 0) {
-		this->Combat.DistributeExperiencePoints(RaceData[this->Race].ExperiencePoints);
+		// [rates] experience multiplies what a slain monster gives.
+		this->Combat.DistributeExperiencePoints(
+				(uint32_t)MultiplyRate(RaceData[this->Race].ExperiencePoints, ExperienceRate));
 	}
 
 	if (this->Home != 0) {
