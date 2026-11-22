@@ -37,7 +37,6 @@
 #include "scripting.hh"
 
 const int PINGTIME = 30;
-const int IDLETIME = 900;
 
 TConnection Connections[MAX_CONNECTIONS];
 TConnection *FirstSendingConnection;
@@ -66,14 +65,17 @@ void TConnection::Process() {
 			SendPing(this);
 		}
 
-		if (RoundNr - IDLETIME == TimeStampAction && !CheckRight(CharacterID, NO_LOGOUT_BLOCK)) {
+		// The warning after config.toml's [idle] minutes, the logout a minute
+		// later.
+		int IdleTime = IdleMinutes * 60;
+		if (RoundNr - IdleTime == TimeStampAction && !CheckRight(CharacterID, NO_LOGOUT_BLOCK)) {
 			SendMessage(this, TALK_ADMIN_MESSAGE,
 				"You have been idle for %d minutes. You will be disconnected in one minute if you are still idle then.",
-				IDLETIME / 60);
+				IdleMinutes);
 		}
 
 		if (!GameRunning()
-				|| (RoundNr - TimeStampAction >= static_cast<uint32_t>(IDLETIME + 60)
+				|| (RoundNr - TimeStampAction >= static_cast<uint32_t>(IdleTime + 60)
 					&& !CheckRight(CharacterID, NO_LOGOUT_BLOCK))) {
 			Logout(0, true);
 		} else if (!ConnectionIsOk || Time >= 3 * PINGTIME) {

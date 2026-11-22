@@ -135,6 +135,7 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 		Add("RedSkullKills[" + std::to_string(i) + "]", std::to_string(RedSkullKills[i]));
 		Add("BanishmentKills[" + std::to_string(i) + "]", std::to_string(BanishmentKills[i]));
 	}
+	Add("IdleMinutes", std::to_string(IdleMinutes));
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -165,7 +166,7 @@ static void Poison() {
 	DeathContainerDrop = false;
 	HitpointRegeneration = ManaRegeneration = 0x5A5A5A5A;
 	SoulInterval = SoulPromotedInterval = SoulDuration = SoulOfflineInterval = 0x5A5A5A5A;
-	FightLock = KillLock = RedSkullDays = 0x5A5A5A5A;
+	FightLock = KillLock = RedSkullDays = IdleMinutes = 0x5A5A5A5A;
 	for (int i = 0; i < 3; i++) {
 		RedSkullKills[i] = BanishmentKills[i] = 0x5A5A5A5A;
 	}
@@ -489,6 +490,10 @@ static void TestPvp(const fs::path &Folder) {
 	CHECK(FightLock == 60 && KillLock == 900 && RedSkullDays == 30);
 	CHECK(RedSkullKills[0] == 3 && RedSkullKills[1] == 7 && RedSkullKills[2] == 10);
 	CHECK(BanishmentKills[0] == 6 && BanishmentKills[1] == 10 && BanishmentKills[2] == 20);
+
+	Poison();
+	CHECK(LoadError(Folder / "idle.toml", "[idle]\nminutes = 30\n") == "");
+	CHECK(IdleMinutes == 30);
 }
 
 static void TestDecay(const fs::path &Folder) {
@@ -613,6 +618,8 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[pvp]\nred_skull = 3\n", 2, "red_skull must be a table");
 	Expect("[pvp]\nbanishment = { year = 1 }\n", 2, "unknown key \"year\" in [pvp] banishment");
 	Expect("[pvp]\nbanishment = { month = 21 }\n", 2, "month must lie between 1 and 20");
+	Expect("[idle]\nseconds = 60\n", 2, "unknown key \"seconds\" in [idle]");
+	Expect("[idle]\nminutes = 0\n", 2, "minutes must lie between 1 and 1440");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");

@@ -108,6 +108,9 @@ day, a week and 30 days that give a red skull (`red_skull`, 3/5/10) or a
 banishment (`banishment`, 6/10/20; each at most 20, the kills a player's data
 keeps).
 
+`[idle]` `minutes` (1 to 1440, default 15) is how long a player may do nothing
+before being warned, and logged out a minute later.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

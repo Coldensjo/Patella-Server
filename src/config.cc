@@ -71,6 +71,7 @@ int KillLock;
 int RedSkullDays;
 int RedSkullKills[3];
 int BanishmentKills[3];
+int IdleMinutes;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -280,6 +281,7 @@ void SetConfigDefaults() {
 	BanishmentKills[0] = 6;
 	BanishmentKills[1] = 10;
 	BanishmentKills[2] = 20;
+	IdleMinutes = 15;
 	NumberOfQueryManagers = 0;
 }
 
@@ -352,7 +354,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -484,6 +486,11 @@ void LoadConfig(const char *FileName) {
 		TomlGetNumber(*Pvp, "red_skull_days", RedSkullDays, 1, 365);
 		ReadKillLimits(*Pvp, "red_skull", RedSkullKills);
 		ReadKillLimits(*Pvp, "banishment", BanishmentKills);
+	}
+
+	if (const toml::table *Idle = TomlGetTable(Config, "idle")) {
+		TomlCheckKeys(*Idle, "[idle]", {"minutes"});
+		TomlGetNumber(*Idle, "minutes", IdleMinutes, 1, MAX_IDLE_MINUTES);
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

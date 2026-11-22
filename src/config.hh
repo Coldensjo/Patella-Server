@@ -199,6 +199,14 @@ extern int BanishmentKills[3];
 const int MAX_LOCK_TIME = 86400;
 const int MAX_MURDER_KILLS = 20;
 
+// [idle]: minutes, after how many minutes without an action a player is
+// warned, and logged out a minute later (1 to MAX_IDLE_MINUTES, 15 by
+// default; a player with NO_LOGOUT_BLOCK never is). connections.cc's
+// TConnection::Process applies it.
+extern int IdleMinutes;
+
+const int MAX_IDLE_MINUTES = 1440;
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 

@@ -138,6 +138,11 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "red_skull = { day = 3, week = 5, month = 10 }\n";
 	Text += "banishment = { day = 6, week = 10, month = 20 }\n";
 	Text += "\n";
+	Text += "# After how many minutes without an action a player is warned, and logged out\n";
+	Text += "# a minute later (1 to 1440, default 15).\n";
+	Text += "[idle]\n";
+	Text += "minutes = 15\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";
