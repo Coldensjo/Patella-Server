@@ -4,6 +4,9 @@
 #ifndef PATELLA_CONFIG_HH
 #define PATELLA_CONFIG_HH
 
+#include <string>
+#include <vector>
+
 enum TWorldType {
 	NORMAL = 0,
 	NON_PVP = 1,
@@ -71,6 +74,39 @@ const int MAX_RATE_MULTIPLIER = 1000;
 // Amount as it is.
 int MultiplyRate(int Amount, int Multiplier);
 
+// [spawn]: how fast monster homes bring their monsters back (speed: the
+// home's regeneration time divided by it, 4 = four times as fast) and how
+// many monsters a home holds (amount: its amount times it), each
+// MIN_SPAWN_MULTIPLIER to MAX_SPAWN_MULTIPLIER and 1 by default.
+// [spawn.monsters] gives a race (by its key in monsters.toml) its own speed
+// and/or amount, which replace the global ones for that race; one it leaves
+// out stays the global one. crnonpl.cc's LoadMonsterhomes applies them (at
+// the start; monster_homes.toml is not reloaded) and checks the race keys.
+extern double SpawnSpeed;
+extern double SpawnAmount;
+
+struct TMonsterSpawnRate {
+	std::string Race;
+	double Speed;       // 0: not given, the global one.
+	double Amount;      // 0: not given, the global one.
+	std::string Where;  // file:line:column of the entry, for errors.
+};
+extern std::vector<TMonsterSpawnRate> MonsterSpawnRates;
+
+const double MIN_SPAWN_MULTIPLIER = 0.01;
+const double MAX_SPAWN_MULTIPLIER = 1000.0;
+
+// The speed and amount multipliers for the race with key RaceKey: its own
+// from [spawn.monsters], or the global ones.
+double GetSpawnSpeed(const char *RaceKey);
+double GetSpawnAmount(const char *RaceKey);
+
+// A home's regeneration time (seconds) divided by a speed multiplier, and
+// its amount times an amount multiplier, each rounded, at least 1 and at most
+// INT_MAX. A multiplier of 1 gives the value as it is.
+int ApplySpawnSpeed(int Regeneration, double Speed);
+int ApplySpawnAmount(int Amount, double Multiplier);
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 
@@ -79,7 +115,8 @@ void DisguisePassword(char *Password, const char *Key);
 // Sets every setting to its value for a config that does not name it: empty
 // paths (LoadConfig then sets RSAKEYPATH to key.pem in the file's folder),
 // SHM key 0, debug level 1, a public world without a name, beat 200, the
-// [decay] and [rates] multipliers 1, no query managers; and the world config to type
+// [decay], [rates] and [spawn] multipliers 1 (no
+// [spawn.monsters] entries), no query managers; and the world config to type
 // NORMAL, reboot time 540, address 0.0.0.0, port 0 and no players.
 void SetConfigDefaults();
 

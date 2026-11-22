@@ -126,6 +126,17 @@ void LoadMonsterhomes() {
 
 	std::vector<TMonsterHomeData> Homes;
 	LoadMonsterHomes(FileName, GetMonsterRaces(), Homes);
+
+	// The races config.toml's [spawn.monsters] names must exist.
+	for (const TMonsterSpawnRate &Rate : MonsterSpawnRates) {
+		if (GetRaceByKey(Rate.Race.c_str()) == 0) {
+			static char Error[4096 + 512];
+			snprintf(Error, sizeof(Error), "%s: unknown race \"%s\" in [spawn.monsters]",
+					Rate.Where.c_str(), Rate.Race.c_str());
+			throw static_cast<const char *>(Error);
+		}
+	}
+
 	Monsterhomes = 0;
 	for (const TMonsterHomeData &Home : Homes) {
 		Monsterhomes++;
@@ -138,9 +149,11 @@ void LoadMonsterhomes() {
 			print(1, "WARNING: Monster home [%d,%d,%d] is outside the map.\n", MH.x, MH.y, MH.z);
 		}
 		MH.Radius = Home.Radius;
-		MH.MaxMonsters = Home.Amount;
+		// With config.toml's [spawn] multipliers (the race's own or the global
+		// ones).
+		MH.MaxMonsters = ApplySpawnAmount(Home.Amount, GetSpawnAmount(Home.Race.c_str()));
 		MH.ActMonsters = 0;
-		MH.RegenerationTime = Home.Regeneration;
+		MH.RegenerationTime = ApplySpawnSpeed(Home.Regeneration, GetSpawnSpeed(Home.Race.c_str()));
 		MH.Timer = 0;
 	}
 
