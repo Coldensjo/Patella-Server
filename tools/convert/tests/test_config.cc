@@ -115,6 +115,10 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	for (const TMonsterSpawnRate &Rate : MonsterSpawnRates) {
 		Add("MonsterSpawnRates[" + Rate.Race + "]", std::to_string(Rate.Speed) + "," + std::to_string(Rate.Amount));
 	}
+	Add("LootChance", std::to_string(LootChance));
+	for (const TMonsterLootRate &Rate : MonsterLootRates) {
+		Add("MonsterLootRates[" + Rate.Race + "]", std::to_string(Rate.Chance));
+	}
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -138,6 +142,8 @@ static void Poison() {
 	ExperienceRate = MagicLevelRate = SkillRate = 0x5A5A5A5A;
 	SpawnSpeed = SpawnAmount = 90.5;
 	MonsterSpawnRates.assign(1, TMonsterSpawnRate{"poison", 90.5, 90.5, "poison"});
+	LootChance = 90.5;
+	MonsterLootRates.assign(1, TMonsterLootRate{"poison", 90.5, "poison"});
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -376,6 +382,29 @@ static void TestSpawn(const fs::path &Folder) {
 	CHECK(ApplySpawnAmount(INT_MAX, 1000.0) == INT_MAX);
 }
 
+static void TestLoot(const fs::path &Folder) {
+	// The global chance and the races' own ones.
+	Poison();
+	CHECK(LoadError(Folder / "loot.toml", "[loot]\nchance = 2\n[loot.monsters]\nrat = { chance = 4.0 }\n") == "");
+	CHECK(LootChance == 2.0 && MonsterLootRates.size() == 1);
+	CHECK(GetLootChance("rat") == 4.0 && GetLootChance("troll") == 2.0);
+	CHECK(MonsterLootRates[0].Where.find("loot.toml:4:1") != std::string::npos);
+	Poison();
+	CHECK(LoadError(Folder / "loot.toml", "[loot.monsters]\nrat = {}\n") == "");
+	CHECK(LootChance == 1.0 && GetLootChance("rat") == 1.0);
+
+	// ApplyLootChance multiplies the chance (Probability + 1 in 1000), from 0
+	// to 999; 1 and a certain item keep Probability.
+	CHECK(ApplyLootChance(99, 1.0) == 99);
+	CHECK(ApplyLootChance(99, 2.0) == 199);
+	CHECK(ApplyLootChance(99, 0.5) == 49);
+	CHECK(ApplyLootChance(0, 2.0) == 1);
+	CHECK(ApplyLootChance(0, 0.01) == 0);
+	CHECK(ApplyLootChance(499, 3.0) == 999);
+	CHECK(ApplyLootChance(999, 0.5) == 999);
+	CHECK(ApplyLootChance(1000, 2.0) == 1000);
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -471,6 +500,12 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[spawn.monsters]\nrat = { rate = 4.0 }\n", 2, "unknown key \"rate\" in [spawn.monsters] rat");
 	Expect("[spawn.monsters]\nrat = { speed = 0 }\n", 2, "speed must lie between 0.01 and 1000");
 	Expect("[spawn.monsters]\nrat = { amount = \"2\" }\n", 2, "amount must be a number");
+	Expect("loot = 2\n", 1, "loot must be a table");
+	Expect("[loot]\nrate = 2.0\n", 2, "unknown key \"rate\" in [loot]");
+	Expect("[loot]\nchance = 0\n", 2, "chance must lie between 0.01 and 1000");
+	Expect("[loot.monsters]\nrat = 4.0\n", 2, "rat must be a table");
+	Expect("[loot.monsters]\nrat = { speed = 4.0 }\n", 2, "unknown key \"speed\" in [loot.monsters] rat");
+	Expect("[loot.monsters]\nrat = { chance = 1001 }\n", 2, "chance must lie between 0.01 and 1000");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -605,6 +640,7 @@ int main(int argc, char **argv) {
 		TestDecay(Folder);
 		TestRates(Folder);
 		TestSpawn(Folder);
+		TestLoot(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

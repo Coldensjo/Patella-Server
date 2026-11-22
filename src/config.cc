@@ -55,6 +55,8 @@ int SkillRate;
 double SpawnSpeed;
 double SpawnAmount;
 std::vector<TMonsterSpawnRate> MonsterSpawnRates;
+double LootChance;
+std::vector<TMonsterLootRate> MonsterLootRates;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -150,6 +152,40 @@ int ApplySpawnAmount(int Amount, double Multiplier) {
 	return RoundSpawnValue(Amount * Multiplier);
 }
 
+double GetLootChance(const char *RaceKey) {
+	for (const TMonsterLootRate &Rate : MonsterLootRates) {
+		if (Rate.Race == RaceKey) {
+			return Rate.Chance != 0.0 ? Rate.Chance : LootChance;
+		}
+	}
+	return LootChance;
+}
+
+int ApplyLootChance(int Probability, double Multiplier) {
+	if (Multiplier == 1.0 || Probability >= 999) {
+		return Probability;
+	}
+
+	// The item drops for random(0, 999) <= Probability, in Probability + 1
+	// of 1000 draws.
+	double Draws = std::round((Probability + 1) * Multiplier);
+	if (Draws < 1.0) {
+		return 0;
+	}
+	if (Draws >= 1000.0) {
+		return 999;
+	}
+	return static_cast<int>(Draws) - 1;
+}
+
+// file:line:column of Where, for errors found after the config is read.
+static std::string SourceLocation(const toml::source_region &Where, const char *FileName) {
+	char Location[4096 + 64];
+	snprintf(Location, sizeof(Location), "%s:%u:%u",
+			Where.path != nullptr ? Where.path->c_str() : FileName, Where.begin.line, Where.begin.column);
+	return Location;
+}
+
 void SetConfigDefaults() {
 	BINPATH[0] = 0;
 	DATAPATH[0] = 0;
@@ -181,6 +217,8 @@ void SetConfigDefaults() {
 	SpawnSpeed = 1.0;
 	SpawnAmount = 1.0;
 	MonsterSpawnRates.clear();
+	LootChance = 1.0;
+	MonsterLootRates.clear();
 	NumberOfQueryManagers = 0;
 }
 
@@ -253,7 +291,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -320,12 +358,30 @@ void LoadConfig(const char *FileName) {
 				Rate.Amount = 0.0;
 				TomlGetFloat(Monster, "speed", Rate.Speed, MIN_SPAWN_MULTIPLIER, MAX_SPAWN_MULTIPLIER);
 				TomlGetFloat(Monster, "amount", Rate.Amount, MIN_SPAWN_MULTIPLIER, MAX_SPAWN_MULTIPLIER);
-				const toml::source_region &Where = Entry.first.source();
-				char Location[4096 + 64];
-				snprintf(Location, sizeof(Location), "%s:%u:%u",
-						Where.path != nullptr ? Where.path->c_str() : FileName, Where.begin.line, Where.begin.column);
-				Rate.Where = Location;
+				Rate.Where = SourceLocation(Entry.first.source(), FileName);
 				MonsterSpawnRates.push_back(Rate);
+			}
+		}
+	}
+
+	if (const toml::table *Loot = TomlGetTable(Config, "loot")) {
+		TomlCheckKeys(*Loot, "[loot]", {"chance", "monsters"});
+		TomlGetFloat(*Loot, "chance", LootChance, MIN_LOOT_MULTIPLIER, MAX_LOOT_MULTIPLIER);
+		if (const toml::table *Monsters = TomlGetTable(*Loot, "monsters")) {
+			for (const auto &Entry : *Monsters) {
+				std::string Race(Entry.first.str());
+				if (!Entry.second.is_table()) {
+					TomlError(Entry.second.source(), "%s must be a table", Race.c_str());
+				}
+				const toml::table &Monster = *Entry.second.as_table();
+				std::string What = "[loot.monsters] " + Race;
+				TomlCheckKeys(Monster, What.c_str(), {"chance"});
+				TMonsterLootRate Rate;
+				Rate.Race = Race;
+				Rate.Chance = 0.0;
+				TomlGetFloat(Monster, "chance", Rate.Chance, MIN_LOOT_MULTIPLIER, MAX_LOOT_MULTIPLIER);
+				Rate.Where = SourceLocation(Entry.first.source(), FileName);
+				MonsterLootRates.push_back(Rate);
 			}
 		}
 	}

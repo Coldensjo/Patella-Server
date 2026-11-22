@@ -107,6 +107,35 @@ double GetSpawnAmount(const char *RaceKey);
 int ApplySpawnSpeed(int Regeneration, double Speed);
 int ApplySpawnAmount(int Amount, double Multiplier);
 
+// [loot]: a multiplier of the chance of each item a monster carries
+// (monsters.toml's loot, and the extra items of a raid's wave), chance,
+// MIN_LOOT_MULTIPLIER to MAX_LOOT_MULTIPLIER and 1 by default; 2 makes every
+// item twice as likely, at most certain. [loot.monsters] gives a race (by
+// key) its own chance in place of the global one. crnonpl.cc's TMonster
+// (a monster's items) and crmain.cc's ProcessMonsterRaids (a wave's extra
+// items, with the global chance) apply it; LoadMonsterhomes checks the keys.
+extern double LootChance;
+
+struct TMonsterLootRate {
+	std::string Race;
+	double Chance;      // 0: not given, the global one.
+	std::string Where;  // file:line:column of the entry, for errors.
+};
+extern std::vector<TMonsterLootRate> MonsterLootRates;
+
+const double MIN_LOOT_MULTIPLIER = 0.01;
+const double MAX_LOOT_MULTIPLIER = 1000.0;
+
+// The loot multiplier for the race with key RaceKey: its own from
+// [loot.monsters], or the global one.
+double GetLootChance(const char *RaceKey);
+
+// An item's Probability (it drops when random(0, 999) <= Probability, in
+// Probability + 1 of 1000) with its chance times Multiplier: rounded, from 0
+// (1 in 1000) to 999 (certain). A multiplier of 1, and a Probability of 999
+// or more, give Probability as it is.
+int ApplyLootChance(int Probability, double Multiplier);
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 

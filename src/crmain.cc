@@ -1872,7 +1872,8 @@ void ProcessMonsterRaids() {
 
 		for (int i = 1; i <= AttackWave->ExtraItems && Monsters > 0; i++) {
 			TItemData &I = AttackWave->ExtraItem(i);
-			if (random(0, 999) > I.Probability) {
+			// With config.toml's global [loot] chance.
+			if (random(0, 999) > ApplyLootChance(I.Probability, LootChance)) {
 				continue;
 			}
 

@@ -57,6 +57,16 @@ amount = 1.0  # how many monsters a home holds: 2.0 twice as many
 # rat = { speed = 4.0 }
 # dragon = { speed = 0.5, amount = 2.0 }
 
+# How likely monsters carry each item of their loot, as a multiplier of its
+# chance, 0.01 to 1000 (default 1.0, the chances of monsters.toml): 2.0 makes
+# every item twice as likely, at most certain. Also the extra items of raids.
+[loot]
+chance = 1.0
+
+# A race's own chance (by its key in monsters.toml), in place of the one above.
+[loot.monsters]
+# rat = { chance = 4.0 }
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]

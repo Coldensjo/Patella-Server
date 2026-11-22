@@ -82,6 +82,10 @@ key in `monsters.toml`, e.g. `rat = { speed = 4.0 }`; a value a race leaves
 out is the global one. The game reads them at its start; an unknown race key
 stops the start.
 
+`[loot]` multiplies the chance of every item monsters carry (`chance`, 0.01 to
+1000, default 1.0; at most certain), raids' extra items included;
+`[loot.monsters]` gives single races their own, e.g. `rat = { chance = 4.0 }`.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

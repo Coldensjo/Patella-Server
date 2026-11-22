@@ -91,6 +91,16 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "# rat = { speed = 4.0 }\n";
 	Text += "# dragon = { speed = 0.5, amount = 2.0 }\n";
 	Text += "\n";
+	Text += "# How likely monsters carry each item of their loot, as a multiplier of its\n";
+	Text += "# chance, 0.01 to 1000 (default 1.0, the chances of monsters.toml): 2.0 makes\n";
+	Text += "# every item twice as likely, at most certain. Also the extra items of raids.\n";
+	Text += "[loot]\n";
+	Text += "chance = 1.0\n";
+	Text += "\n";
+	Text += "# A race's own chance (by its key in monsters.toml), in place of the one above.\n";
+	Text += "[loot.monsters]\n";
+	Text += "# rat = { chance = 4.0 }\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";
