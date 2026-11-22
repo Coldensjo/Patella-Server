@@ -915,7 +915,7 @@ void CreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Type) 
 	Missile(cr->GetCreatureObject(), Obj, (Type == FIELD_FIRE ? ANIMATION_FIRE : ANIMATION_ENERGY));
 	CreateField(x, y, z, Type, cr->ID, (WorldType == NON_PVP && cr->IsPeaceful()));
 	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
-		cr->BlockLogout(60, true);
+		cr->BlockLogout(FightLock, true);
 	}
 }
 
@@ -977,7 +977,7 @@ void MassCreateField(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 	}
 
 	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
-		cr->BlockLogout(60, true);
+		cr->BlockLogout(FightLock, true);
 	}
 }
 
@@ -1080,7 +1080,7 @@ void CreateFieldWall(TCreature *cr, Object Obj, int Mana, int SoulPoints, int Ty
 	}
 
 	if (in(Type, FIELD_FIRE, FIELD_ENERGY)) {
-		cr->BlockLogout(60, true);
+		cr->BlockLogout(FightLock, true);
 	}
 }
 
@@ -1144,7 +1144,7 @@ void CleanupField(TCreature *cr, Object Obj, int Mana, int SoulPoints) {
 	}
 
 	GraphicalEffect(x, y, z, EFFECT_POFF);
-	cr->BlockLogout(60, true);
+	cr->BlockLogout(FightLock, true);
 }
 
 void MagicRope(TCreature *cr, int Mana, int SoulPoints) {
@@ -1606,7 +1606,7 @@ void MagicGoStrength(TCreature *cr, TCreature *dest, int Mana, int SoulPoints, i
 	sk->SetMDAct(mdact);
 	dest->SetTimer(SKILL_GOSTRENGTH, duration, 10, 10, -1);
 	if (percent < 0) {
-		cr->BlockLogout(60, dest->Type == PLAYER);
+		cr->BlockLogout(FightLock, dest->Type == PLAYER);
 	}
 
 	GraphicalEffect(cr->GetCreatureObject(), EFFECT_MAGIC_GREEN);
@@ -2070,7 +2070,7 @@ void CastSpell(uint32_t CreatureID, int SpellNr, char (*SpellStr)[512], int Last
 	}
 
 	if (IsAggressiveSpell(SpellNr)) {
-		cr->BlockLogout(60, false);
+		cr->BlockLogout(FightLock, false);
 	}
 }
 
@@ -2615,7 +2615,7 @@ void UseMagicItem(uint32_t CreatureID, Object Obj, Object Dest) {
 		}
 
 		if (IsAggressiveSpell(SpellNr)) {
-			pl->BlockLogout(60, false);
+			pl->BlockLogout(FightLock, false);
 		}
 	} catch (RESULT r) {
 		if (r != ERROR) {

@@ -111,8 +111,9 @@ void ProcessCreatures() {
 				&& RoundNr % cr->Skills[SKILL_EATING]->Get() == 0
 				&& !cr->IsDead
 				&& !IsProtectionZone(cr->posx, cr->posy, cr->posz)) {
-			cr->Skills[SKILL_HITPOINTS]->Change(1);
-			cr->Skills[SKILL_MANA]->Change(4);
+			// A player's gain times config.toml's [regeneration] multipliers.
+			cr->Skills[SKILL_HITPOINTS]->Change(cr->Type == PLAYER ? MultiplyRate(1, HitpointRegeneration) : 1);
+			cr->Skills[SKILL_MANA]->Change(cr->Type == PLAYER ? MultiplyRate(4, ManaRegeneration) : 4);
 			if (cr->Type == PLAYER) {
 				SendPlayerData(cr->GetConnection());
 			}
@@ -485,6 +486,23 @@ TCreature::TCreature() : ToDoList(0, 20, 10) {
 	EnergyDamageOrigin = 0;
 }
 
+// Whether an item a dying player wears drops, by config.toml's [death]
+// item_drop percent: at 10, the default, the original draw of one in ten
+// (random(0, 9) == 0), so that the random numbers stay as they were; at 0
+// and 100 without a draw.
+static bool DeathItemDrops() {
+	if (DeathItemDrop == 10) {
+		return random(0, 9) == 0;
+	}
+	if (DeathItemDrop <= 0) {
+		return false;
+	}
+	if (DeathItemDrop >= 100) {
+		return true;
+	}
+	return random(0, 99) < DeathItemDrop;
+}
+
 TCreature::~TCreature() noexcept(false) {
 	if (IsDead) {
 		try {
@@ -543,7 +561,8 @@ TCreature::~TCreature() noexcept(false) {
 						continue;
 					}
 
-					if (LoseInventory == LOSE_INVENTORY_ALL || Obj.getFlag(CONTAINER) || random(0, 9) == 0) {
+					if (LoseInventory == LOSE_INVENTORY_ALL || (DeathContainerDrop && Obj.getFlag(CONTAINER))
+							|| DeathItemDrops()) {
 						::Move(0, Obj, Corpse, -1, false, NONE);
 					}
 				}
@@ -778,11 +797,11 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	}
 
 	if (atk != nullptr) {
-		atk->BlockLogout(60, Type == PLAYER);
+		atk->BlockLogout(FightLock, Type == PLAYER);
 	}
 
 	if (Responsible != nullptr) {
-		Responsible->BlockLogout(60, Type == PLAYER);
+		Responsible->BlockLogout(FightLock, Type == PLAYER);
 		if (Responsible->Type == PLAYER && Type == PLAYER) {
 			((TPlayer *)Responsible)->RecordAttack(ID);
 		}
@@ -1089,11 +1108,11 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		Death();
 
 		if (atk != nullptr && Type == PLAYER) {
-			atk->BlockLogout(900, true);
+			atk->BlockLogout(KillLock, true);
 		}
 
 		if (Responsible != nullptr && Type == PLAYER) {
-			Responsible->BlockLogout(900, true);
+			Responsible->BlockLogout(KillLock, true);
 		}
 
 		uint32_t MurdererID = 0;
@@ -1872,7 +1891,8 @@ void ProcessMonsterRaids() {
 
 		for (int i = 1; i <= AttackWave->ExtraItems && Monsters > 0; i++) {
 			TItemData &I = AttackWave->ExtraItem(i);
-			if (random(0, 999) > I.Probability) {
+			// With config.toml's global [loot] chance.
+			if (random(0, 999) > ApplyLootChance(I.Probability, LootChance)) {
 				continue;
 			}
 

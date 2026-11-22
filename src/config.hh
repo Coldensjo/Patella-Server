@@ -107,6 +107,118 @@ double GetSpawnAmount(const char *RaceKey);
 int ApplySpawnSpeed(int Regeneration, double Speed);
 int ApplySpawnAmount(int Amount, double Multiplier);
 
+// [loot]: a multiplier of the chance of each item a monster carries
+// (monsters.toml's loot, and the extra items of a raid's wave), chance,
+// MIN_LOOT_MULTIPLIER to MAX_LOOT_MULTIPLIER and 1 by default; 2 makes every
+// item twice as likely, at most certain. [loot.monsters] gives a race (by
+// key) its own chance in place of the global one. crnonpl.cc's TMonster
+// (a monster's items) and crmain.cc's ProcessMonsterRaids (a wave's extra
+// items, with the global chance) apply it; LoadMonsterhomes checks the keys.
+extern double LootChance;
+
+struct TMonsterLootRate {
+	std::string Race;
+	double Chance;      // 0: not given, the global one.
+	std::string Where;  // file:line:column of the entry, for errors.
+};
+extern std::vector<TMonsterLootRate> MonsterLootRates;
+
+const double MIN_LOOT_MULTIPLIER = 0.01;
+const double MAX_LOOT_MULTIPLIER = 1000.0;
+
+// The loot multiplier for the race with key RaceKey: its own from
+// [loot.monsters], or the global one.
+double GetLootChance(const char *RaceKey);
+
+// An item's Probability (it drops when random(0, 999) <= Probability, in
+// Probability + 1 of 1000) with its chance times Multiplier: rounded, from 0
+// (1 in 1000) to 999 (certain). A multiplier of 1, and a Probability of 999
+// or more, give Probability as it is.
+int ApplyLootChance(int Probability, double Multiplier);
+
+// [death]: what a player loses by dying. penalty multiplies the part of the
+// experience, magic level and skills lost (10 percent, 7 promoted, one less
+// per blessing; those rules stay), MIN_DEATH_PENALTY to MAX_DEATH_PENALTY and
+// 1 by default, the loss at most all; item_drop is the percent chance of
+// each item worn to drop into the corpse (default 10); container_drop
+// whether a container worn (the backpack) always drops (default true; false:
+// it takes the chance of item_drop too). An amulet of loss and a red skull
+// keep their rules. crplayer.cc's TPlayer::Death (DeathLoss) and crmain.cc's
+// ~TCreature apply them.
+extern double DeathPenalty;
+extern int DeathItemDrop;
+extern bool DeathContainerDrop;
+
+const double MIN_DEATH_PENALTY = 0.0;
+const double MAX_DEATH_PENALTY = 10.0;
+
+// The points of a skill with Exp points lost by a death of Percent percent,
+// times penalty: with penalty 1 (int64)Exp * Percent / 100, as ever;
+// otherwise rounded, at most Exp, at least 0.
+int DeathLoss(int Exp, int Percent);
+
+// [regeneration]: whole-number multipliers of the hitpoints (hp) and mana
+// (mana) a fed player regains each time (1 and 4 every few rounds, by
+// vocation; and in a bed, for the time offline), MIN_RATE_MULTIPLIER to
+// MAX_RATE_MULTIPLIER and 1 by default. The food lasts as long as ever.
+// crmain.cc's ProcessCreatures and crplayer.cc's TPlayer::Regenerate apply
+// them (MultiplyRate).
+extern int HitpointRegeneration;
+extern int ManaRegeneration;
+
+// [soul], in seconds: a kill that gives a player at least their level in
+// experience makes them regain one soul point every interval (120 by
+// default; promoted_interval, 15, for a promoted player) for duration
+// (240), and a bed gives one per offline_interval (900) of the time offline.
+// Each 1 to MAX_SOUL_TIME; the intervals at most duration. crcombat.cc's
+// DistributeExperiencePoints and crplayer.cc's TPlayer (login, promotion,
+// Regenerate) apply them.
+extern int SoulInterval;
+extern int SoulPromotedInterval;
+extern int SoulDuration;
+extern int SoulOfflineInterval;
+
+const int MAX_SOUL_TIME = 86400;
+
+// [pvp]: fight_lock, the seconds a fight keeps a player from logging out
+// (and, after an attack on a player, out of protection zones; 60 by
+// default), and kill_lock, the same after a kill of a player (900); each 1
+// to MAX_LOCK_TIME. red_skull_days (1 to 365, 30) is how long a red skull
+// lasts. RedSkullKills and BanishmentKills are the unjustified kills within
+// a day, a week and 30 days that give a red skull (red_skull, 3, 5 and 10)
+// and a banishment as well (banishment, 6, 10 and 20); each 1 to
+// MAX_MURDER_KILLS, the murders a player's data keeps. crcombat.cc,
+// crmain.cc, crplayer.cc and magic.cc apply them (BlockLogout,
+// TPlayer::RecordMurder and CheckPlayerkilling).
+extern int FightLock;
+extern int KillLock;
+extern int RedSkullDays;
+extern int RedSkullKills[3];
+extern int BanishmentKills[3];
+
+const int MAX_LOCK_TIME = 86400;
+const int MAX_MURDER_KILLS = 20;
+
+// [idle]: minutes, after how many minutes without an action a player is
+// warned, and logged out a minute later (1 to MAX_IDLE_MINUTES, 15 by
+// default; a player with NO_LOGOUT_BLOCK never is). connections.cc's
+// TConnection::Process applies it.
+extern int IdleMinutes;
+
+const int MAX_IDLE_MINUTES = 1440;
+
+// [vocations]: what a player gains per level, by vocation (none, knight,
+// paladin, sorcerer, druid: the numbers of the professions; a promoted one
+// counts as its vocation): hitpoints (hp), mana (mana) and capacity
+// (capacity), each 0 to MAX_LEVEL_GAIN. VocationGains[vocation][gain], gain
+// in that order; -1 where config.toml gives none: the character keeps what
+// it holds (set when it chose its vocation). crskill.cc's TSkillLevel::Jump
+// sets the given ones before each level gained or lost.
+const int VOCATIONS = 5;
+const int LEVEL_GAINS = 3;
+const int MAX_LEVEL_GAIN = 10000;
+extern int VocationGains[VOCATIONS][LEVEL_GAINS];
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 
@@ -115,8 +227,8 @@ void DisguisePassword(char *Password, const char *Key);
 // Sets every setting to its value for a config that does not name it: empty
 // paths (LoadConfig then sets RSAKEYPATH to key.pem in the file's folder),
 // SHM key 0, debug level 1, a public world without a name, beat 200, the
-// [decay], [rates] and [spawn] multipliers 1 (no
-// [spawn.monsters] entries), no query managers; and the world config to type
+// gameplay settings above at their defaults (the original behaviour; no
+// per-race entries, no vocation gains), no query managers; and the world config to type
 // NORMAL, reboot time 540, address 0.0.0.0, port 0 and no players.
 void SetConfigDefaults();
 

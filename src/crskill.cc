@@ -646,6 +646,21 @@ bool TSkillLevel::Jump(int Range) {
 		return false;
 	}
 
+	// A player's gains per level from config.toml's [vocations], where given:
+	// they replace what the character holds, and count for this and every
+	// later level (and a level lost).
+	if (cr->Type == PLAYER) {
+		int Vocation = ((TPlayer *)cr)->GetEffectiveProfession();
+		if (Vocation >= 0 && Vocation < VOCATIONS) {
+			const int SkillNumbers[LEVEL_GAINS] = {SKILL_HITPOINTS, SKILL_MANA, SKILL_CARRYSTRENGTH};
+			for (int i = 0; i < LEVEL_GAINS; i++) {
+				if (VocationGains[Vocation][i] >= 0) {
+					cr->Skills[SkillNumbers[i]]->SetAddLevel(VocationGains[Vocation][i]);
+				}
+			}
+		}
+	}
+
 	TSkill *sk = cr->Skills[SKILL_HITPOINTS];
 	sk->Advance(Range);
 	sk = cr->Skills[SKILL_MANA];

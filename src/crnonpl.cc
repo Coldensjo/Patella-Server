@@ -119,6 +119,16 @@ void StartMonsterhomeTimer(int nr) {
 // Makes the monster homes of <DATAPATH>/monster_homes.toml in the file's
 // order (their race keys checked against the races LoadRaces read) and
 // spawns their monsters. Throws what LoadMonsterHomes throws (a start error).
+// Throws a start error for a race key of config.toml (Race, at Where, in the
+// table Table) that names no race.
+static void CheckConfigRace(const std::string &Race, const std::string &Where, const char *Table) {
+	if (GetRaceByKey(Race.c_str()) == 0) {
+		static char Error[4096 + 512];
+		snprintf(Error, sizeof(Error), "%s: unknown race \"%s\" in %s", Where.c_str(), Race.c_str(), Table);
+		throw static_cast<const char *>(Error);
+	}
+}
+
 void LoadMonsterhomes() {
 	char FileName[4096];
 	print(1, "Initializing monster homes ...\n");
@@ -127,14 +137,13 @@ void LoadMonsterhomes() {
 	std::vector<TMonsterHomeData> Homes;
 	LoadMonsterHomes(FileName, GetMonsterRaces(), Homes);
 
-	// The races config.toml's [spawn.monsters] names must exist.
+	// The races config.toml's [spawn.monsters] and [loot.monsters] name must
+	// exist.
 	for (const TMonsterSpawnRate &Rate : MonsterSpawnRates) {
-		if (GetRaceByKey(Rate.Race.c_str()) == 0) {
-			static char Error[4096 + 512];
-			snprintf(Error, sizeof(Error), "%s: unknown race \"%s\" in [spawn.monsters]",
-					Rate.Where.c_str(), Rate.Race.c_str());
-			throw static_cast<const char *>(Error);
-		}
+		CheckConfigRace(Rate.Race, Rate.Where, "[spawn.monsters]");
+	}
+	for (const TMonsterLootRate &Rate : MonsterLootRates) {
+		CheckConfigRace(Rate.Race, Rate.Where, "[loot.monsters]");
 	}
 
 	Monsterhomes = 0;
@@ -765,9 +774,11 @@ TMonster::TMonster(int Race, int x, int y, int z, int Home, uint32_t Father) {
 	if (this->Master == 0 && RaceData[Race].Items > 0) {
 		try {
 			Object Bag = Create(GetBodyContainer(this->ID, BODY_CONTAINER), GetSpecialObject(INVENTORY_CONTAINER), 0);
+			// With config.toml's [loot] chance (the race's own or the global one).
+			double Chance = GetLootChance(RaceData[Race].Key);
 			for (int i = 1; i <= RaceData[Race].Items; i++) {
 				TItemData &I = RaceData[Race].Item(i);
-				if (random(0, 999) > I.Probability) {
+				if (random(0, 999) > ApplyLootChance(I.Probability, Chance)) {
 					continue;
 				}
 

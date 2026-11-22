@@ -1,7 +1,7 @@
 // tomlfile.hh: the helpers the game's TOML readers share (tomlfile.cc): opening
 // a file, errors with file:line:column, checking that a table has only known
-// keys, and reading integers, numbers with a fraction and Latin-1 strings with
-// their limits.
+// keys, and reading integers, numbers with a fraction, booleans and Latin-1
+// strings with their limits.
 //
 // The game's texts are Latin-1 and TOML files are UTF-8: a string is turned
 // back into Latin-1 on reading, and a character outside Latin-1 is an error.
@@ -45,6 +45,10 @@ void TomlGetNumber(const toml::table &Table, const char *Key, int &Value, int Mi
 // (2.5 or 2), if there is one, and leaves it as it is otherwise. Throws when
 // the value is not a number or lies outside Min..Max (inf and nan do).
 void TomlGetFloat(const toml::table &Table, const char *Key, double &Value, double Min, double Max);
+
+// Sets Value to the boolean under Key if there is one, and leaves it as it is
+// otherwise. Throws when the value is not true or false.
+void TomlGetBool(const toml::table &Table, const char *Key, bool &Value);
 
 // Copies the string under Key, as Latin-1, into Buffer (Size bytes with the
 // terminating zero) if there is one, and leaves Buffer as it is otherwise.

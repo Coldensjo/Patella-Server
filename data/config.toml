@@ -57,6 +57,69 @@ amount = 1.0  # how many monsters a home holds: 2.0 twice as many
 # rat = { speed = 4.0 }
 # dragon = { speed = 0.5, amount = 2.0 }
 
+# How likely monsters carry each item of their loot, as a multiplier of its
+# chance, 0.01 to 1000 (default 1.0, the chances of monsters.toml): 2.0 makes
+# every item twice as likely, at most certain. Also the extra items of raids.
+[loot]
+chance = 1.0
+
+# A race's own chance (by its key in monsters.toml), in place of the one above.
+[loot.monsters]
+# rat = { chance = 4.0 }
+
+# What a player loses by dying. An amulet of loss and a red skull keep their
+# rules.
+[death]
+penalty = 1.0          # times the loss of experience, magic level and skills
+                       # (10%, 7% promoted, 1% less per blessing): 0.5 half,
+                       # 0 none; 0 to 10, at most all
+item_drop = 10         # the percent chance of each item worn to drop, 0 to 100
+container_drop = true  # whether a worn container (the backpack) always drops;
+                       # false: it takes the chance of item_drop too
+
+# How much health and mana a fed player regains each time, as whole-number
+# multipliers, 1 to 1000 (default 1: 1 hp and 4 mana every few rounds, by
+# vocation; also in a bed while offline). The food lasts as long as ever.
+[regeneration]
+hp = 1
+mana = 1
+
+# Soul points, in seconds, each 1 to 86400. A kill that gives a player at least
+# their level in experience makes them regain one soul point per interval for
+# duration; a bed gives one per offline_interval of the time offline.
+[soul]
+interval = 120          # (the intervals at most duration)
+promoted_interval = 15  # for a promoted player
+duration = 240
+offline_interval = 900
+
+# Player killing.
+[pvp]
+fight_lock = 60      # seconds a fight keeps a player from logging out (after an
+                     # attack on a player also out of protection zones), 1 to 86400
+kill_lock = 900      # the same after killing a player, 1 to 86400
+red_skull_days = 30  # how long a red skull lasts, 1 to 365
+# Unjustified kills within a day, a week and 30 days (each 1 to 20) that give
+# a red skull, and a banishment as well.
+red_skull = { day = 3, week = 5, month = 10 }
+banishment = { day = 6, week = 10, month = 20 }
+
+# After how many minutes without an action a player is warned, and logged out
+# a minute later (1 to 1440, default 15).
+[idle]
+minutes = 15
+
+# What a player gains per level, by vocation (a promoted one counts as its
+# vocation): hp, mana and capacity, each 0 to 10000. Each value given counts
+# from a character's next level on (and for a level lost); one not given stays
+# what the character got when it chose its vocation. The original values:
+[vocations]
+# none = { hp = 5, mana = 5, capacity = 10 }
+# knight = { hp = 15, mana = 5, capacity = 25 }
+# paladin = { hp = 10, mana = 15, capacity = 20 }
+# sorcerer = { hp = 5, mana = 30, capacity = 10 }
+# druid = { hp = 5, mana = 30, capacity = 10 }
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]

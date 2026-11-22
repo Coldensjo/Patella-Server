@@ -115,6 +115,33 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	for (const TMonsterSpawnRate &Rate : MonsterSpawnRates) {
 		Add("MonsterSpawnRates[" + Rate.Race + "]", std::to_string(Rate.Speed) + "," + std::to_string(Rate.Amount));
 	}
+	Add("LootChance", std::to_string(LootChance));
+	for (const TMonsterLootRate &Rate : MonsterLootRates) {
+		Add("MonsterLootRates[" + Rate.Race + "]", std::to_string(Rate.Chance));
+	}
+	Add("DeathPenalty", std::to_string(DeathPenalty));
+	Add("DeathItemDrop", std::to_string(DeathItemDrop));
+	Add("DeathContainerDrop", std::to_string(DeathContainerDrop));
+	Add("HitpointRegeneration", std::to_string(HitpointRegeneration));
+	Add("ManaRegeneration", std::to_string(ManaRegeneration));
+	Add("SoulInterval", std::to_string(SoulInterval));
+	Add("SoulPromotedInterval", std::to_string(SoulPromotedInterval));
+	Add("SoulDuration", std::to_string(SoulDuration));
+	Add("SoulOfflineInterval", std::to_string(SoulOfflineInterval));
+	Add("FightLock", std::to_string(FightLock));
+	Add("KillLock", std::to_string(KillLock));
+	Add("RedSkullDays", std::to_string(RedSkullDays));
+	for (int i = 0; i < 3; i++) {
+		Add("RedSkullKills[" + std::to_string(i) + "]", std::to_string(RedSkullKills[i]));
+		Add("BanishmentKills[" + std::to_string(i) + "]", std::to_string(BanishmentKills[i]));
+	}
+	Add("IdleMinutes", std::to_string(IdleMinutes));
+	for (int v = 0; v < VOCATIONS; v++) {
+		for (int g = 0; g < LEVEL_GAINS; g++) {
+			Add("VocationGains[" + std::to_string(v) + "][" + std::to_string(g) + "]",
+					std::to_string(VocationGains[v][g]));
+		}
+	}
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -138,6 +165,22 @@ static void Poison() {
 	ExperienceRate = MagicLevelRate = SkillRate = 0x5A5A5A5A;
 	SpawnSpeed = SpawnAmount = 90.5;
 	MonsterSpawnRates.assign(1, TMonsterSpawnRate{"poison", 90.5, 90.5, "poison"});
+	LootChance = 90.5;
+	MonsterLootRates.assign(1, TMonsterLootRate{"poison", 90.5, "poison"});
+	DeathPenalty = 90.5;
+	DeathItemDrop = 0x5A5A5A5A;
+	DeathContainerDrop = false;
+	HitpointRegeneration = ManaRegeneration = 0x5A5A5A5A;
+	SoulInterval = SoulPromotedInterval = SoulDuration = SoulOfflineInterval = 0x5A5A5A5A;
+	FightLock = KillLock = RedSkullDays = IdleMinutes = 0x5A5A5A5A;
+	for (auto &Gains : VocationGains) {
+		for (int &Gain : Gains) {
+			Gain = 0x5A5A5A5A;
+		}
+	}
+	for (int i = 0; i < 3; i++) {
+		RedSkullKills[i] = BanishmentKills[i] = 0x5A5A5A5A;
+	}
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -376,6 +419,105 @@ static void TestSpawn(const fs::path &Folder) {
 	CHECK(ApplySpawnAmount(INT_MAX, 1000.0) == INT_MAX);
 }
 
+static void TestLoot(const fs::path &Folder) {
+	// The global chance and the races' own ones.
+	Poison();
+	CHECK(LoadError(Folder / "loot.toml", "[loot]\nchance = 2\n[loot.monsters]\nrat = { chance = 4.0 }\n") == "");
+	CHECK(LootChance == 2.0 && MonsterLootRates.size() == 1);
+	CHECK(GetLootChance("rat") == 4.0 && GetLootChance("troll") == 2.0);
+	CHECK(MonsterLootRates[0].Where.find("loot.toml:4:1") != std::string::npos);
+	Poison();
+	CHECK(LoadError(Folder / "loot.toml", "[loot.monsters]\nrat = {}\n") == "");
+	CHECK(LootChance == 1.0 && GetLootChance("rat") == 1.0);
+
+	// ApplyLootChance multiplies the chance (Probability + 1 in 1000), from 0
+	// to 999; 1 and a certain item keep Probability.
+	CHECK(ApplyLootChance(99, 1.0) == 99);
+	CHECK(ApplyLootChance(99, 2.0) == 199);
+	CHECK(ApplyLootChance(99, 0.5) == 49);
+	CHECK(ApplyLootChance(0, 2.0) == 1);
+	CHECK(ApplyLootChance(0, 0.01) == 0);
+	CHECK(ApplyLootChance(499, 3.0) == 999);
+	CHECK(ApplyLootChance(999, 0.5) == 999);
+	CHECK(ApplyLootChance(1000, 2.0) == 1000);
+}
+
+static void TestDeath(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "death.toml", "[death]\npenalty = 0.5\nitem_drop = 0\ncontainer_drop = false\n") == "");
+	CHECK(DeathPenalty == 0.5 && DeathItemDrop == 0 && !DeathContainerDrop);
+	Poison();
+	CHECK(LoadError(Folder / "death.toml", "[death]\npenalty = 0\n") == "");
+	CHECK(DeathPenalty == 0.0 && DeathItemDrop == 10 && DeathContainerDrop);
+
+	// DeathLoss: at 1 the original integer formula, otherwise rounded, at most
+	// all.
+	DeathPenalty = 1.0;
+	CHECK(DeathLoss(1000, 10) == 100);
+	CHECK(DeathLoss(999, 7) == 69);
+	CHECK(DeathLoss(INT_MAX, 10) == INT_MAX / 10);
+	DeathPenalty = 0.5;
+	CHECK(DeathLoss(1000, 10) == 50);
+	CHECK(DeathLoss(999, 7) == 35);
+	DeathPenalty = 0.0;
+	CHECK(DeathLoss(1000, 10) == 0);
+	DeathPenalty = 10.0;
+	CHECK(DeathLoss(1000, 10) == 1000);
+	CHECK(DeathLoss(1000, 7) == 700);
+	DeathPenalty = 1.0;
+}
+
+static void TestRegeneration(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "regeneration.toml", "[regeneration]\nhp = 2\nmana = 3\n") == "");
+	CHECK(HitpointRegeneration == 2 && ManaRegeneration == 3);
+	Poison();
+	CHECK(LoadError(Folder / "regeneration.toml", "[regeneration]\nmana = 1000\n") == "");
+	CHECK(HitpointRegeneration == 1 && ManaRegeneration == 1000);
+}
+
+static void TestSoul(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "soul.toml",
+			"[soul]\ninterval = 30\npromoted_interval = 5\nduration = 600\noffline_interval = 300\n") == "");
+	CHECK(SoulInterval == 30 && SoulPromotedInterval == 5 && SoulDuration == 600 && SoulOfflineInterval == 300);
+	Poison();
+	CHECK(LoadError(Folder / "soul.toml", "[soul]\noffline_interval = 60\n") == "");
+	CHECK(SoulInterval == 120 && SoulPromotedInterval == 15 && SoulDuration == 240 && SoulOfflineInterval == 60);
+	Poison();
+	CHECK(LoadError(Folder / "soul.toml", "[soul]\ninterval = 240\npromoted_interval = 240\n") == "");
+}
+
+static void TestPvp(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "pvp.toml", "[pvp]\nfight_lock = 30\nkill_lock = 600\nred_skull_days = 7\n"
+			"red_skull = { day = 2, week = 4, month = 8 }\nbanishment = { day = 4, week = 8, month = 16 }\n") == "");
+	CHECK(FightLock == 30 && KillLock == 600 && RedSkullDays == 7);
+	CHECK(RedSkullKills[0] == 2 && RedSkullKills[1] == 4 && RedSkullKills[2] == 8);
+	CHECK(BanishmentKills[0] == 4 && BanishmentKills[1] == 8 && BanishmentKills[2] == 16);
+	// A limit left out keeps its default.
+	Poison();
+	CHECK(LoadError(Folder / "pvp.toml", "[pvp]\nred_skull = { week = 7 }\n") == "");
+	CHECK(FightLock == 60 && KillLock == 900 && RedSkullDays == 30);
+	CHECK(RedSkullKills[0] == 3 && RedSkullKills[1] == 7 && RedSkullKills[2] == 10);
+	CHECK(BanishmentKills[0] == 6 && BanishmentKills[1] == 10 && BanishmentKills[2] == 20);
+
+	Poison();
+	CHECK(LoadError(Folder / "idle.toml", "[idle]\nminutes = 30\n") == "");
+	CHECK(IdleMinutes == 30);
+}
+
+static void TestVocations(const fs::path &Folder) {
+	// The gains given are set, the others stay -1 (the character's own).
+	Poison();
+	CHECK(LoadError(Folder / "vocations.toml", "[vocations]\nknight = { hp = 20, capacity = 30 }\n"
+			"druid = { mana = 40 }\nnone = { hp = 0, mana = 0, capacity = 0 }\n") == "");
+	CHECK(VocationGains[1][0] == 20 && VocationGains[1][1] == -1 && VocationGains[1][2] == 30);
+	CHECK(VocationGains[4][0] == -1 && VocationGains[4][1] == 40 && VocationGains[4][2] == -1);
+	CHECK(VocationGains[0][0] == 0 && VocationGains[0][1] == 0 && VocationGains[0][2] == 0);
+	CHECK(VocationGains[2][0] == -1 && VocationGains[3][1] == -1);
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -471,6 +613,39 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[spawn.monsters]\nrat = { rate = 4.0 }\n", 2, "unknown key \"rate\" in [spawn.monsters] rat");
 	Expect("[spawn.monsters]\nrat = { speed = 0 }\n", 2, "speed must lie between 0.01 and 1000");
 	Expect("[spawn.monsters]\nrat = { amount = \"2\" }\n", 2, "amount must be a number");
+	Expect("loot = 2\n", 1, "loot must be a table");
+	Expect("[loot]\nrate = 2.0\n", 2, "unknown key \"rate\" in [loot]");
+	Expect("[loot]\nchance = 0\n", 2, "chance must lie between 0.01 and 1000");
+	Expect("[loot.monsters]\nrat = 4.0\n", 2, "rat must be a table");
+	Expect("[loot.monsters]\nrat = { speed = 4.0 }\n", 2, "unknown key \"speed\" in [loot.monsters] rat");
+	Expect("[loot.monsters]\nrat = { chance = 1001 }\n", 2, "chance must lie between 0.01 and 1000");
+	Expect("[death]\nloss = 1\n", 2, "unknown key \"loss\" in [death]");
+	Expect("[death]\npenalty = -0.5\n", 2, "penalty must lie between 0 and 10");
+	Expect("[death]\nitem_drop = 101\n", 2, "item_drop must lie between 0 and 100");
+	Expect("[death]\nitem_drop = 5.5\n", 2, "item_drop must be an integer");
+	Expect("[death]\ncontainer_drop = 1\n", 2, "container_drop must be true or false");
+	Expect("[regeneration]\nspeed = 2\n", 2, "unknown key \"speed\" in [regeneration]");
+	Expect("[regeneration]\nhp = 0\n", 2, "hp must lie between 1 and 1000");
+	Expect("[regeneration]\nmana = 1.5\n", 2, "mana must be an integer");
+	Expect("[soul]\nrate = 2\n", 2, "unknown key \"rate\" in [soul]");
+	Expect("[soul]\ninterval = 0\n", 2, "interval must lie between 1 and 86400");
+	Expect("[soul]\nduration = 86401\n", 2, "duration must lie between 1 and 86400");
+	Expect("[soul]\ninterval = 300\n", 2, "interval (300) must not be longer than duration (240)");
+	Expect("[soul]\n\nduration = 100\n", 3, "interval (120) must not be longer than duration (100)");
+	Expect("[soul]\nduration = 30\npromoted_interval = 60\ninterval = 30\n", 3,
+			"promoted_interval (60) must not be longer than duration (30)");
+	Expect("[pvp]\nwhite_skull = 1\n", 2, "unknown key \"white_skull\" in [pvp]");
+	Expect("[pvp]\nfight_lock = 0\n", 2, "fight_lock must lie between 1 and 86400");
+	Expect("[pvp]\nred_skull_days = 366\n", 2, "red_skull_days must lie between 1 and 365");
+	Expect("[pvp]\nred_skull = 3\n", 2, "red_skull must be a table");
+	Expect("[pvp]\nbanishment = { year = 1 }\n", 2, "unknown key \"year\" in [pvp] banishment");
+	Expect("[pvp]\nbanishment = { month = 21 }\n", 2, "month must lie between 1 and 20");
+	Expect("[idle]\nseconds = 60\n", 2, "unknown key \"seconds\" in [idle]");
+	Expect("[idle]\nminutes = 0\n", 2, "minutes must lie between 1 and 1440");
+	Expect("[vocations]\nelite_knight = { hp = 5 }\n", 2, "unknown key \"elite_knight\" in [vocations]");
+	Expect("[vocations]\nknight = 15\n", 2, "knight must be a table");
+	Expect("[vocations]\nknight = { speed = 2 }\n", 2, "unknown key \"speed\" in [vocations] knight");
+	Expect("[vocations]\npaladin = { mana = -1 }\n", 2, "mana must lie between 0 and 10000");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -605,6 +780,12 @@ int main(int argc, char **argv) {
 		TestDecay(Folder);
 		TestRates(Folder);
 		TestSpawn(Folder);
+		TestLoot(Folder);
+		TestDeath(Folder);
+		TestRegeneration(Folder);
+		TestSoul(Folder);
+		TestPvp(Folder);
+		TestVocations(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

@@ -1035,8 +1035,9 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 		Skills[SKILL_SOULPOINTS]->SetMax(GetActivePromotion() ? 200 : 100);
 		Skills[SKILL_SOULPOINTS]->Check();
 		int Rest = Skills[SKILL_SOULPOINTS]->TimerValue();
-		if (Rest > 14) {
-			int Interval = GetActivePromotion() ? 15 : 120;
+		// The intervals of config.toml's [soul].
+		if (Rest > SoulPromotedInterval - 1) {
+			int Interval = GetActivePromotion() ? SoulPromotedInterval : SoulInterval;
 			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / Interval + 1, (Rest - 1) % Interval + 1, Interval, -1);
 		}
 
@@ -1529,36 +1530,37 @@ void TPlayer::Death() {
 		}
 	}
 
+	// DeathLoss: with config.toml's [death] penalty.
 	TSkill *sk = Skills[SKILL_SWORDFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_AXEFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_CLUBFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_DISTANCEFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_FISTFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_SHIELDING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_MAGICLEVEL];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_FISHING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_LEVEL];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	EventDeath(ID, Killer);
 }
 
 void TPlayer::AttackStimulus(uint32_t) {
 	if (!IsDead) {
-		BlockLogout(60, false);
+		BlockLogout(FightLock, false);
 	}
 }
 
 void TPlayer::DamageStimulus(uint32_t, int, int) {
 	if (!IsDead) {
-		BlockLogout(60, false);
+		BlockLogout(FightLock, false);
 	}
 }
 
@@ -1838,8 +1840,10 @@ void TPlayer::SetProfession(unsigned char prof) {
 		Combat.CheckCombatValues();
 		Skills[SKILL_SOULPOINTS]->SetMax(200);
 		int Rest = Skills[SKILL_SOULPOINTS]->TimerValue();
-		if (Rest > 14) {
-			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / 15 + 1, (Rest - 1) % 15 + 1, 15, -1);
+		// The promoted interval of config.toml's [soul].
+		if (Rest > SoulPromotedInterval - 1) {
+			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / SoulPromotedInterval + 1, (Rest - 1) % SoulPromotedInterval + 1,
+					SoulPromotedInterval, -1);
 		}
 		return;
 	}
@@ -2219,13 +2223,15 @@ void TPlayer::Regenerate() {
 	}
 
 	if (Regeneration > 0) {
-		Skills[SKILL_HITPOINTS]->Change(Regeneration / 4);
-		Skills[SKILL_MANA]->Change(Regeneration);
+		// Times config.toml's [regeneration] multipliers; the food used stays.
+		Skills[SKILL_HITPOINTS]->Change(MultiplyRate(Regeneration / 4, HitpointRegeneration));
+		Skills[SKILL_MANA]->Change(MultiplyRate(Regeneration, ManaRegeneration));
 		SetTimer(SKILL_EATING, Skills[SKILL_EATING]->TimerValue() - Regeneration * 3, 0, 0, -1);
 	}
 
-	if (OfflineTime >= 900) {
-		Skills[SKILL_SOULPOINTS]->Change((int)(OfflineTime / 900));
+	// One soul point per offline_interval of config.toml's [soul].
+	if (OfflineTime >= SoulOfflineInterval) {
+		Skills[SKILL_SOULPOINTS]->Change((int)(OfflineTime / SoulOfflineInterval));
 	}
 
 	try {
@@ -2347,7 +2353,8 @@ void TPlayer::RecordMurder(uint32_t Victim) {
 	int Playerkilling = CheckPlayerkilling();
 	if (Playerkilling != PLAYERKILLING_NONE) {
 		bool Announce = !IsPlayerkiller();
-		PlayerData->PlayerkillerEnd = static_cast<int32_t>(time(nullptr)) + 2592000;
+		// How long a red skull lasts: config.toml's [pvp] red_skull_days.
+		PlayerData->PlayerkillerEnd = static_cast<int32_t>(time(nullptr)) + RedSkullDays * 86400;
 		if (Announce) {
 			print(3, "Player %s is a player killer.\n", Name);
 			AnnounceChangedCreature(ID, CREATURE_SKULL);
@@ -2383,11 +2390,12 @@ int TPlayer::CheckPlayerkilling() {
 		}
 	}
 
-	if (LastDay >= 6 || LastWeek >= 10 || LastMonth >= 20) {
+	// The limits of config.toml's [pvp] banishment and red_skull.
+	if (LastDay >= BanishmentKills[0] || LastWeek >= BanishmentKills[1] || LastMonth >= BanishmentKills[2]) {
 		return PLAYERKILLING_LIMIT_DOUBLED;
 	}
 
-	if (LastDay >= 3 || LastWeek >= 5 || LastMonth >= 10) {
+	if (LastDay >= RedSkullKills[0] || LastWeek >= RedSkullKills[1] || LastMonth >= RedSkullKills[2]) {
 		return PLAYERKILLING_LIMIT_EXCEEDED;
 	}
 

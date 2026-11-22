@@ -204,8 +204,8 @@ void TCombat::Attack() {
 	int distx = abs(Master->posx - dfd->posx);
 	int disty = abs(Master->posy - dfd->posy);
 
-	Master->BlockLogout(60, dfd->Type == PLAYER);
-	dfd->BlockLogout(60, false);
+	Master->BlockLogout(FightLock, dfd->Type == PLAYER);
+	dfd->BlockLogout(FightLock, false);
 	if (Master->Type == PLAYER && dfd->Type == PLAYER) {
 		((TPlayer *)Master)->RecordAttack(dfd->ID);
 	}
@@ -310,7 +310,7 @@ void TCombat::SetAttackDest(uint32_t dfd, bool Follow) {
 	Following = Follow;
 	if (!Follow) {
 		cr->AttackStimulus(Master->ID);
-		Master->BlockLogout(60, cr->Type == PLAYER);
+		Master->BlockLogout(FightLock, cr->Type == PLAYER);
 		if (Master->Type == PLAYER && cr->Type == PLAYER) {
 			((TPlayer *)Master)->RecordAttack(cr->ID);
 		}
@@ -453,8 +453,9 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 
 		if (Amount != 0) {
 			if (cr->Type == PLAYER && Amount >= cr->Skills[SKILL_LEVEL]->Get()) {
-				int Interval = ((TPlayer *)cr)->GetActivePromotion() ? 15 : 120;
-				int Cycles = 240 / Interval;
+				// The intervals and the time of config.toml's [soul].
+				int Interval = ((TPlayer *)cr)->GetActivePromotion() ? SoulPromotedInterval : SoulInterval;
+				int Cycles = SoulDuration / Interval;
 				int Rest = cr->Skills[SKILL_SOULPOINTS]->TimerValue() % Interval;
 				if (Rest == 0) {
 					Rest = Interval;

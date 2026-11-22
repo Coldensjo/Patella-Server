@@ -82,6 +82,42 @@ key in `monsters.toml`, e.g. `rat = { speed = 4.0 }`; a value a race leaves
 out is the global one. The game reads them at its start; an unknown race key
 stops the start.
 
+`[loot]` multiplies the chance of every item monsters carry (`chance`, 0.01 to
+1000, default 1.0; at most certain), raids' extra items included;
+`[loot.monsters]` gives single races their own, e.g. `rat = { chance = 4.0 }`.
+
+`[death]` sets what a player loses by dying: `penalty` multiplies the loss of
+experience, magic level and skills (0 to 10, default 1.0; promotion and
+blessings keep their rules), `item_drop` is the percent chance of each worn
+item to drop (default 10) and `container_drop` whether the backpack always
+drops (default true).
+
+`[regeneration]` multiplies the health (`hp`) and mana (`mana`) a fed player
+regains each time, whole numbers 1 to 1000, default 1; a bed's offline
+regeneration too. The food lasts as long as before.
+
+`[soul]` sets the soul point regeneration in seconds: after a kill worth at
+least the player's level in experience, one point per `interval` (120) or
+`promoted_interval` (15) for `duration` (240); in a bed one per
+`offline_interval` (900) offline.
+
+`[pvp]` sets player killing: `fight_lock` (60) and `kill_lock` (900), the
+seconds a fight or a kill of a player keeps a player from logging out (and out
+of protection zones), `red_skull_days` (30), and the unjustified kills within a
+day, a week and 30 days that give a red skull (`red_skull`, 3/5/10) or a
+banishment (`banishment`, 6/10/20; each at most 20, the kills a player's data
+keeps).
+
+`[idle]` `minutes` (1 to 1440, default 15) is how long a player may do nothing
+before being warned, and logged out a minute later.
+
+`[vocations]` sets what a player gains per level by vocation (`none`,
+`knight`, `paladin`, `sorcerer`, `druid`; promoted ones count as theirs):
+`hp`, `mana` and `capacity`, e.g. `knight = { hp = 20 }`. A value given counts
+from each character's next level on (past levels stay); one not given stays
+what the character got with its vocation. `data/config.toml` lists the
+original values, commented out.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from
