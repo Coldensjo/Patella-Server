@@ -109,6 +109,16 @@ banishment = { day = 6, week = 10, month = 20 }
 [idle]
 minutes = 15
 
+# How far monsters may be lured from their spawn (monster home). A monster
+# farther than radius times its spawn's radius along x or y, or more than
+# floors floors up or down, vanishes and respawns later. limit = false lets
+# monsters follow anywhere. With values other than these defaults, a monster
+# left outside its spawn's area wanders freely instead of standing still.
+[lure]
+limit = true  # false: no limit
+radius = 1.0  # times each spawn's radius, 1 to 100
+floors = 2    # 0 to 15
+
 # What a player gains per level, by vocation (a promoted one counts as its
 # vocation): hp, mana and capacity, each 0 to 10000. Each value given counts
 # from a character's next level on (and for a level lost); one not given stays

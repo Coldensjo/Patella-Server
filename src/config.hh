@@ -207,6 +207,25 @@ extern int IdleMinutes;
 
 const int MAX_IDLE_MINUTES = 1440;
 
+// [lure]: how far a monster of a monster home may be lured. limit (LureLimit,
+// true by default): a monster farther from its home's middle than radius
+// (LureRadius, 1 to MAX_LURE_RADIUS, 1 by default) times the home's radius
+// along x or y, or more than floors (LureFloors, 0 to MAX_LURE_FLOORS, 2 by
+// default) floors above or below it, vanishes; false: it never does.
+// crnonpl.cc's MonsterhomeInLureRange applies it. With other values than the
+// defaults, a monster standing outside its home's area may walk anywhere when
+// it is not attacking or fleeing (TMonster::MovePossible); with the defaults
+// it may only step into the area, as in the original.
+extern bool LureLimit;
+extern double LureRadius;
+extern int LureFloors;
+
+const double MAX_LURE_RADIUS = 100.0;
+const int MAX_LURE_FLOORS = 15;
+
+// Whether [lure] is at its defaults (the original behaviour).
+bool LureIsOriginal();
+
 // [vocations]: what a player gains per level, by vocation (none, knight,
 // paladin, sorcerer, druid: the numbers of the professions; a promoted one
 // counts as its vocation): hitpoints (hp), mana (mana) and capacity

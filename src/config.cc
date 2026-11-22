@@ -3,7 +3,7 @@
 // original .tibia by tools/convert): the paths, the shared memory key, the
 // debug level, the world's name and state, the beat, the gameplay settings
 // that are not from the .tibia ([decay], [rates], [spawn], [loot], [death],
-// [regeneration], [soul], [pvp], [idle], [vocations]; config.hh), the query
+// [regeneration], [soul], [pvp], [idle], [lure], [vocations]; config.hh), the query
 // managers and the file of the RSA key (communication.cc's ReadPrivateKey
 // reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
@@ -74,6 +74,9 @@ int RedSkullDays;
 int RedSkullKills[3];
 int BanishmentKills[3];
 int IdleMinutes;
+bool LureLimit;
+double LureRadius;
+int LureFloors;
 int VocationGains[VOCATIONS][LEVEL_GAINS];
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
@@ -285,6 +288,9 @@ void SetConfigDefaults() {
 	BanishmentKills[1] = 10;
 	BanishmentKills[2] = 20;
 	IdleMinutes = 15;
+	LureLimit = true;
+	LureRadius = 1.0;
+	LureFloors = 2;
 	for (auto &Gains : VocationGains) {
 		for (int &Gain : Gains) {
 			Gain = -1;
@@ -362,7 +368,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "vocations", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "lure", "vocations", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -501,6 +507,13 @@ void LoadConfig(const char *FileName) {
 		TomlGetNumber(*Idle, "minutes", IdleMinutes, 1, MAX_IDLE_MINUTES);
 	}
 
+	if (const toml::table *Lure = TomlGetTable(Config, "lure")) {
+		TomlCheckKeys(*Lure, "[lure]", {"limit", "radius", "floors"});
+		TomlGetBool(*Lure, "limit", LureLimit);
+		TomlGetFloat(*Lure, "radius", LureRadius, 1.0, MAX_LURE_RADIUS);
+		TomlGetNumber(*Lure, "floors", LureFloors, 0, MAX_LURE_FLOORS);
+	}
+
 	if (const toml::table *Vocations = TomlGetTable(Config, "vocations")) {
 		static const char *const Names[VOCATIONS] = {"none", "knight", "paladin", "sorcerer", "druid"};
 		TomlCheckKeys(*Vocations, "[vocations]", {Names[0], Names[1], Names[2], Names[3], Names[4]});
@@ -534,6 +547,10 @@ void LoadConfig(const char *FileName) {
 			ReadQueryManager(Node);
 		}
 	}
+}
+
+bool LureIsOriginal() {
+	return LureLimit && LureRadius == 1.0 && LureFloors == 2;
 }
 
 void ReadConfig(const char *FileName) {

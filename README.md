@@ -111,6 +111,15 @@ keeps).
 `[idle]` `minutes` (1 to 1440, default 15) is how long a player may do nothing
 before being warned, and logged out a minute later.
 
+`[lure]` sets how far monsters of a spawn (monster home) may be lured: one
+farther than `radius` (1 to 100, default 1) times its spawn's radius along x
+or y, or more than `floors` (0 to 15, default 2) floors up or down, vanishes
+and respawns later; `limit = false` lets them follow anywhere. With values
+other than the defaults, a monster left outside its spawn's area wanders
+freely when it stops chasing. Raid monsters and summons have no spawn and are
+not affected. A lured monster that stays alive keeps its place in its spawn's
+count, so the spawn brings no replacement until it dies.
+
 `[vocations]` sets what a player gains per level by vocation (`none`,
 `knight`, `paladin`, `sorcerer`, `druid`; promoted ones count as theirs):
 `hp`, `mana` and `capacity`, e.g. `knight = { hp = 20 }`. A value given counts
