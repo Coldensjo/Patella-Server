@@ -68,6 +68,12 @@ the pools of blood (the splash of a hit, the pool of a death, a spilled
 liquid) lie before they decay, each stage of them. 1.0, the default, gives the
 times of `items.toml`; the game reads them at its start.
 
+`[rates]` is not from the `.tibia` either: its whole-number multipliers
+`experience`, `magic_level` and `skill` (1 to 1000, default 1) multiply the
+experience slain monsters give (5 makes a rat give 25 instead of 5; a slain
+player's experience stays as it is), the mana spent that counts for the magic
+level, and the tries of the other skills (fighting, shielding, fishing).
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

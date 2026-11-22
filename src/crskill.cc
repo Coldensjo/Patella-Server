@@ -47,6 +47,7 @@ struct TSkillProbe : public TSkill {
 private:
 	virtual void Event(int);
 	virtual bool Jump(int Range);
+	int TriesPerTest();
 };
 
 struct TSkillAdd : public TSkill {
@@ -868,9 +869,18 @@ void TSkillProbe::Decrease(int Amount) {
 	}
 }
 
+// The tries one test of a skill counts: 1, for a player times [rates] skill.
+int TSkillProbe::TriesPerTest() {
+	TCreature *cr = GetMaster();
+	if (cr != nullptr && cr->Type == PLAYER) {
+		return MultiplyRate(1, SkillRate);
+	}
+	return 1;
+}
+
 bool TSkillProbe::Probe(int Diff, int Prob, bool _Increase) {
 	if (_Increase) {
-		Increase(1);
+		Increase(TriesPerTest());
 	}
 
 	if (Diff == 0) {
@@ -886,7 +896,7 @@ bool TSkillProbe::Probe(int Diff, int Prob, bool _Increase) {
 
 int TSkillProbe::ProbeValue(int max, bool _Increase) {
 	if (_Increase) {
-		Increase(1);
+		Increase(TriesPerTest());
 	}
 
 	int NewMax = max * (Get() * 5 + 50);

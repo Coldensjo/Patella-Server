@@ -38,6 +38,13 @@ monster_corpse = 1.0  # the corpses of monsters
 player_corpse = 1.0   # the corpses of players
 blood = 1.0           # the splash of a hit, the pool of a death, a spilled liquid
 
+# What players gain, as whole-number multipliers, each 1 to 1000 (default 1,
+# the original rates): 5 makes a rat give 25 experience instead of 5.
+[rates]
+experience = 1   # the experience slain monsters give (not slain players)
+magic_level = 1  # the mana spent that counts for the magic level
+skill = 1        # the tries of the other skills: fighting, shielding, fishing
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]

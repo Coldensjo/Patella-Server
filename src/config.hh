@@ -53,6 +53,24 @@ const double MAX_DECAY_MULTIPLIER = 1000.0;
 // it is.
 int MultiplyDecayTime(int Time, double Multiplier);
 
+// [rates]: whole-number multipliers of what players gain, each
+// MIN_RATE_MULTIPLIER to MAX_RATE_MULTIPLIER and 1 by default: the experience
+// a slain monster gives (experience; not that of a slain player), the mana
+// spent that counts for the magic level (magic_level), and the tries of the
+// other skills, fishing's included (skill). crnonpl.cc's ~TMonster,
+// magic.cc's CheckMana and crskill.cc's TSkillProbe::Probe/ProbeValue apply
+// them.
+extern int ExperienceRate;
+extern int MagicLevelRate;
+extern int SkillRate;
+
+const int MIN_RATE_MULTIPLIER = 1;
+const int MAX_RATE_MULTIPLIER = 1000;
+
+// Amount times a [rates] multiplier, at most INT_MAX. A multiplier of 1 gives
+// Amount as it is.
+int MultiplyRate(int Amount, int Multiplier);
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 
@@ -61,7 +79,7 @@ void DisguisePassword(char *Password, const char *Key);
 // Sets every setting to its value for a config that does not name it: empty
 // paths (LoadConfig then sets RSAKEYPATH to key.pem in the file's folder),
 // SHM key 0, debug level 1, a public world without a name, beat 200, the
-// [decay] multipliers 1, no query managers; and the world config to type
+// [decay] and [rates] multipliers 1, no query managers; and the world config to type
 // NORMAL, reboot time 540, address 0.0.0.0, port 0 and no players.
 void SetConfigDefaults();
 

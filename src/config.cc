@@ -1,8 +1,8 @@
 // config.cc: the server's settings. ReadConfig reads them from config.toml
 // (data/config.toml in the repository is an example, converted from the
 // original .tibia by tools/convert): the paths, the shared memory key, the
-// debug level, the world's name and state, the beat, the [decay] multipliers,
-// the query managers and the file of the RSA key (communication.cc's
+// debug level, the world's name and state, the beat, the [decay] and [rates]
+// multipliers, the query managers and the file of the RSA key (communication.cc's
 // ReadPrivateKey reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
 // in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
@@ -12,6 +12,7 @@
 
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -48,6 +49,9 @@ int RebootTime;
 double MonsterCorpseDecay;
 double PlayerCorpseDecay;
 double BloodDecay;
+int ExperienceRate;
+int MagicLevelRate;
+int SkillRate;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -86,6 +90,18 @@ int MultiplyDecayTime(int Time, double Multiplier) {
 	return static_cast<int>(Multiplied);
 }
 
+int MultiplyRate(int Amount, int Multiplier) {
+	if (Multiplier == 1) {
+		return Amount;
+	}
+
+	int64_t Multiplied = static_cast<int64_t>(Amount) * Multiplier;
+	if (Multiplied > INT_MAX) {
+		return INT_MAX;
+	}
+	return static_cast<int>(Multiplied);
+}
+
 void SetConfigDefaults() {
 	BINPATH[0] = 0;
 	DATAPATH[0] = 0;
@@ -111,6 +127,9 @@ void SetConfigDefaults() {
 	MonsterCorpseDecay = 1.0;
 	PlayerCorpseDecay = 1.0;
 	BloodDecay = 1.0;
+	ExperienceRate = 1;
+	MagicLevelRate = 1;
+	SkillRate = 1;
 	NumberOfQueryManagers = 0;
 }
 
@@ -183,7 +202,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -222,6 +241,13 @@ void LoadConfig(const char *FileName) {
 		TomlGetFloat(*Decay, "monster_corpse", MonsterCorpseDecay, MIN_DECAY_MULTIPLIER, MAX_DECAY_MULTIPLIER);
 		TomlGetFloat(*Decay, "player_corpse", PlayerCorpseDecay, MIN_DECAY_MULTIPLIER, MAX_DECAY_MULTIPLIER);
 		TomlGetFloat(*Decay, "blood", BloodDecay, MIN_DECAY_MULTIPLIER, MAX_DECAY_MULTIPLIER);
+	}
+
+	if (const toml::table *Rates = TomlGetTable(Config, "rates")) {
+		TomlCheckKeys(*Rates, "[rates]", {"experience", "magic_level", "skill"});
+		TomlGetNumber(*Rates, "experience", ExperienceRate, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+		TomlGetNumber(*Rates, "magic_level", MagicLevelRate, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+		TomlGetNumber(*Rates, "skill", SkillRate, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

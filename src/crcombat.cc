@@ -3,6 +3,7 @@
 // ammunition, and the list of damage that shares out the experience.
 
 #include <algorithm>
+#include <climits>
 #include <cstdint>
 #include <cstdlib>
 
@@ -430,7 +431,10 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 			continue;
 		}
 
-		int Amount = Exp * CombatList[i].Damage / CombatDamage;
+		// In 64 bits: with a [rates] experience multiplier, Exp times the damage
+		// can exceed 32 bits. Each share is at most Exp, at most INT_MAX.
+		uint64_t Share = (uint64_t)Exp * CombatList[i].Damage / CombatDamage;
+		int Amount = (int)std::min<uint64_t>(Share, INT_MAX);
 		if (Master->Type == PLAYER && cr->Type == PLAYER) {
 			if (((TPlayer *)Master)->GetPartyLeader(true) != 0
 					&& ((TPlayer *)Master)->GetPartyLeader(true) == ((TPlayer *)cr)->GetPartyLeader(true)) {
