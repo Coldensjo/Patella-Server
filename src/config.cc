@@ -1,8 +1,8 @@
 // config.cc: the server's settings. ReadConfig reads them from config.toml
 // (data/config.toml in the repository is an example, converted from the
 // original .tibia by tools/convert): the paths, the shared memory key, the
-// debug level, the world's name and state, the beat, the [decay] and [rates]
-// multipliers, the query managers and the file of the RSA key (communication.cc's
+// debug level, the world's name and state, the beat, the [decay], [rates] and
+// [spawn] multipliers, the query managers and the file of the RSA key (communication.cc's
 // ReadPrivateKey reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
 // in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
@@ -52,6 +52,9 @@ double BloodDecay;
 int ExperienceRate;
 int MagicLevelRate;
 int SkillRate;
+double SpawnSpeed;
+double SpawnAmount;
+std::vector<TMonsterSpawnRate> MonsterSpawnRates;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -102,6 +105,51 @@ int MultiplyRate(int Amount, int Multiplier) {
 	return static_cast<int>(Multiplied);
 }
 
+static const TMonsterSpawnRate *FindMonsterSpawnRate(const char *RaceKey) {
+	for (const TMonsterSpawnRate &Rate : MonsterSpawnRates) {
+		if (Rate.Race == RaceKey) {
+			return &Rate;
+		}
+	}
+	return nullptr;
+}
+
+double GetSpawnSpeed(const char *RaceKey) {
+	const TMonsterSpawnRate *Rate = FindMonsterSpawnRate(RaceKey);
+	return Rate != nullptr && Rate->Speed != 0.0 ? Rate->Speed : SpawnSpeed;
+}
+
+double GetSpawnAmount(const char *RaceKey) {
+	const TMonsterSpawnRate *Rate = FindMonsterSpawnRate(RaceKey);
+	return Rate != nullptr && Rate->Amount != 0.0 ? Rate->Amount : SpawnAmount;
+}
+
+// Value rounded, at least 1 and at most INT_MAX.
+static int RoundSpawnValue(double Value) {
+	Value = std::round(Value);
+	if (Value < 1.0) {
+		return 1;
+	}
+	if (Value >= static_cast<double>(INT_MAX)) {
+		return INT_MAX;
+	}
+	return static_cast<int>(Value);
+}
+
+int ApplySpawnSpeed(int Regeneration, double Speed) {
+	if (Speed == 1.0) {
+		return Regeneration;
+	}
+	return RoundSpawnValue(Regeneration / Speed);
+}
+
+int ApplySpawnAmount(int Amount, double Multiplier) {
+	if (Multiplier == 1.0) {
+		return Amount;
+	}
+	return RoundSpawnValue(Amount * Multiplier);
+}
+
 void SetConfigDefaults() {
 	BINPATH[0] = 0;
 	DATAPATH[0] = 0;
@@ -130,6 +178,9 @@ void SetConfigDefaults() {
 	ExperienceRate = 1;
 	MagicLevelRate = 1;
 	SkillRate = 1;
+	SpawnSpeed = 1.0;
+	SpawnAmount = 1.0;
+	MonsterSpawnRates.clear();
 	NumberOfQueryManagers = 0;
 }
 
@@ -202,7 +253,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -248,6 +299,35 @@ void LoadConfig(const char *FileName) {
 		TomlGetNumber(*Rates, "experience", ExperienceRate, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
 		TomlGetNumber(*Rates, "magic_level", MagicLevelRate, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
 		TomlGetNumber(*Rates, "skill", SkillRate, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+	}
+
+	if (const toml::table *Spawn = TomlGetTable(Config, "spawn")) {
+		TomlCheckKeys(*Spawn, "[spawn]", {"speed", "amount", "monsters"});
+		TomlGetFloat(*Spawn, "speed", SpawnSpeed, MIN_SPAWN_MULTIPLIER, MAX_SPAWN_MULTIPLIER);
+		TomlGetFloat(*Spawn, "amount", SpawnAmount, MIN_SPAWN_MULTIPLIER, MAX_SPAWN_MULTIPLIER);
+		if (const toml::table *Monsters = TomlGetTable(*Spawn, "monsters")) {
+			for (const auto &Entry : *Monsters) {
+				std::string Race(Entry.first.str());
+				if (!Entry.second.is_table()) {
+					TomlError(Entry.second.source(), "%s must be a table", Race.c_str());
+				}
+				const toml::table &Monster = *Entry.second.as_table();
+				std::string What = "[spawn.monsters] " + Race;
+				TomlCheckKeys(Monster, What.c_str(), {"speed", "amount"});
+				TMonsterSpawnRate Rate;
+				Rate.Race = Race;
+				Rate.Speed = 0.0;
+				Rate.Amount = 0.0;
+				TomlGetFloat(Monster, "speed", Rate.Speed, MIN_SPAWN_MULTIPLIER, MAX_SPAWN_MULTIPLIER);
+				TomlGetFloat(Monster, "amount", Rate.Amount, MIN_SPAWN_MULTIPLIER, MAX_SPAWN_MULTIPLIER);
+				const toml::source_region &Where = Entry.first.source();
+				char Location[4096 + 64];
+				snprintf(Location, sizeof(Location), "%s:%u:%u",
+						Where.path != nullptr ? Where.path->c_str() : FileName, Where.begin.line, Where.begin.column);
+				Rate.Where = Location;
+				MonsterSpawnRates.push_back(Rate);
+			}
+		}
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

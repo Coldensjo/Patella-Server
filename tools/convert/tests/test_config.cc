@@ -110,6 +110,11 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("ExperienceRate", std::to_string(ExperienceRate));
 	Add("MagicLevelRate", std::to_string(MagicLevelRate));
 	Add("SkillRate", std::to_string(SkillRate));
+	Add("SpawnSpeed", std::to_string(SpawnSpeed));
+	Add("SpawnAmount", std::to_string(SpawnAmount));
+	for (const TMonsterSpawnRate &Rate : MonsterSpawnRates) {
+		Add("MonsterSpawnRates[" + Rate.Race + "]", std::to_string(Rate.Speed) + "," + std::to_string(Rate.Amount));
+	}
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -131,6 +136,8 @@ static void Poison() {
 	PremiumPlayerBuffer = PremiumNewbieBuffer = Beat = RebootTime = NumberOfQueryManagers = 0x5A5A5A5A;
 	MonsterCorpseDecay = PlayerCorpseDecay = BloodDecay = 90.5;
 	ExperienceRate = MagicLevelRate = SkillRate = 0x5A5A5A5A;
+	SpawnSpeed = SpawnAmount = 90.5;
+	MonsterSpawnRates.assign(1, TMonsterSpawnRate{"poison", 90.5, 90.5, "poison"});
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -331,6 +338,44 @@ static void TestRates(const fs::path &Folder) {
 	CHECK(MultiplyRate(3000000, 1000) == INT_MAX);
 }
 
+static void TestSpawn(const fs::path &Folder) {
+	// The global multipliers, and the races' own ones; a race's field left out
+	// is the global one, a race not named gets the global ones.
+	Poison();
+	CHECK(LoadError(Folder / "spawn.toml", "[spawn]\nspeed = 2.0\namount = 3\n"
+			"[spawn.monsters]\nrat = { speed = 4.0 }\ndragon = { speed = 0.5, amount = 2.0 }\n"
+			"[spawn.monsters.orc]\namount = 0.5\n") == "");
+	CHECK(SpawnSpeed == 2.0 && SpawnAmount == 3.0);
+	CHECK(MonsterSpawnRates.size() == 3);
+	CHECK(GetSpawnSpeed("rat") == 4.0 && GetSpawnAmount("rat") == 3.0);
+	CHECK(GetSpawnSpeed("dragon") == 0.5 && GetSpawnAmount("dragon") == 2.0);
+	CHECK(GetSpawnSpeed("orc") == 2.0 && GetSpawnAmount("orc") == 0.5);
+	CHECK(GetSpawnSpeed("troll") == 2.0 && GetSpawnAmount("troll") == 3.0);
+	for (const TMonsterSpawnRate &Rate : MonsterSpawnRates) {
+		if (Rate.Race == "rat") {
+			CHECK(Rate.Where.find("spawn.toml:5:1") != std::string::npos);
+		}
+	}
+	Poison();
+	CHECK(LoadError(Folder / "spawn.toml", "[spawn.monsters]\nrat = { amount = 2.0 }\n") == "");
+	CHECK(SpawnSpeed == 1.0 && SpawnAmount == 1.0);
+	CHECK(GetSpawnSpeed("rat") == 1.0 && GetSpawnAmount("rat") == 2.0);
+
+	// ApplySpawnSpeed divides the time, ApplySpawnAmount multiplies the
+	// amount; rounded, at least 1, at most INT_MAX; 1 keeps the value.
+	CHECK(ApplySpawnSpeed(600, 1.0) == 600);
+	CHECK(ApplySpawnSpeed(600, 4.0) == 150);
+	CHECK(ApplySpawnSpeed(600, 0.5) == 1200);
+	CHECK(ApplySpawnSpeed(10, 4.0) == 3);
+	CHECK(ApplySpawnSpeed(1, 4.0) == 1);
+	CHECK(ApplySpawnSpeed(INT_MAX, 0.01) == INT_MAX);
+	CHECK(ApplySpawnAmount(3, 1.0) == 3);
+	CHECK(ApplySpawnAmount(3, 2.0) == 6);
+	CHECK(ApplySpawnAmount(3, 0.5) == 2);
+	CHECK(ApplySpawnAmount(1, 0.01) == 1);
+	CHECK(ApplySpawnAmount(INT_MAX, 1000.0) == INT_MAX);
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -417,6 +462,15 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[rates]\nexperience = 1.5\n", 2, "experience must be an integer");
 	Expect("[rates]\nmagic_level = 0\n", 2, "magic_level must lie between 1 and 1000");
 	Expect("[rates]\nskill = 1001\n", 2, "skill must lie between 1 and 1000");
+	Expect("spawn = 2\n", 1, "spawn must be a table");
+	Expect("[spawn]\nrate = 2.0\n", 2, "unknown key \"rate\" in [spawn]");
+	Expect("[spawn]\nspeed = 0\n", 2, "speed must lie between 0.01 and 1000");
+	Expect("[spawn]\namount = 1001\n", 2, "amount must lie between 0.01 and 1000");
+	Expect("[spawn]\nmonsters = 4\n", 2, "monsters must be a table");
+	Expect("[spawn.monsters]\nrat = 4.0\n", 2, "rat must be a table");
+	Expect("[spawn.monsters]\nrat = { rate = 4.0 }\n", 2, "unknown key \"rate\" in [spawn.monsters] rat");
+	Expect("[spawn.monsters]\nrat = { speed = 0 }\n", 2, "speed must lie between 0.01 and 1000");
+	Expect("[spawn.monsters]\nrat = { amount = \"2\" }\n", 2, "amount must be a number");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -550,6 +604,7 @@ int main(int argc, char **argv) {
 		TestRoundTrips(Folder);
 		TestDecay(Folder);
 		TestRates(Folder);
+		TestSpawn(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

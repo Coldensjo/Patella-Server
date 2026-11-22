@@ -74,6 +74,14 @@ experience slain monsters give (5 makes a rat give 25 instead of 5; a slain
 player's experience stays as it is), the mana spent that counts for the magic
 level, and the tries of the other skills (fighting, shielding, fishing).
 
+`[spawn]` (not from the `.tibia` either) sets how fast the monster homes bring
+killed monsters back (`speed`: 4.0 divides the home's regeneration time by 4)
+and how many monsters each holds (`amount`: 2.0 doubles it), 0.01 to 1000,
+default 1.0. `[spawn.monsters]` gives single races their own values by their
+key in `monsters.toml`, e.g. `rat = { speed = 4.0 }`; a value a race leaves
+out is the global one. The game reads them at its start; an unknown race key
+stops the start.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

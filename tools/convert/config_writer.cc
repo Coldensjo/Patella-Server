@@ -79,6 +79,18 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "magic_level = 1  # the mana spent that counts for the magic level\n";
 	Text += "skill = 1        # the tries of the other skills: fighting, shielding, fishing\n";
 	Text += "\n";
+	Text += "# How monster homes spawn, as multipliers, each 0.01 to 1000 (default 1.0, the\n";
+	Text += "# times and amounts of monster_homes.toml). Read at the start.\n";
+	Text += "[spawn]\n";
+	Text += "speed = 1.0   # how fast a killed monster comes back: 4.0 four times as fast\n";
+	Text += "amount = 1.0  # how many monsters a home holds: 2.0 twice as many\n";
+	Text += "\n";
+	Text += "# A race's own speed and/or amount (by its key in monsters.toml, the .mon\n";
+	Text += "# file's name), in place of the ones above; one left out stays as above.\n";
+	Text += "[spawn.monsters]\n";
+	Text += "# rat = { speed = 4.0 }\n";
+	Text += "# dragon = { speed = 0.5, amount = 2.0 }\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";
