@@ -1554,13 +1554,13 @@ void TPlayer::Death() {
 
 void TPlayer::AttackStimulus(uint32_t) {
 	if (!IsDead) {
-		BlockLogout(60, false);
+		BlockLogout(FightLock, false);
 	}
 }
 
 void TPlayer::DamageStimulus(uint32_t, int, int) {
 	if (!IsDead) {
-		BlockLogout(60, false);
+		BlockLogout(FightLock, false);
 	}
 }
 
@@ -2353,7 +2353,8 @@ void TPlayer::RecordMurder(uint32_t Victim) {
 	int Playerkilling = CheckPlayerkilling();
 	if (Playerkilling != PLAYERKILLING_NONE) {
 		bool Announce = !IsPlayerkiller();
-		PlayerData->PlayerkillerEnd = static_cast<int32_t>(time(nullptr)) + 2592000;
+		// How long a red skull lasts: config.toml's [pvp] red_skull_days.
+		PlayerData->PlayerkillerEnd = static_cast<int32_t>(time(nullptr)) + RedSkullDays * 86400;
 		if (Announce) {
 			print(3, "Player %s is a player killer.\n", Name);
 			AnnounceChangedCreature(ID, CREATURE_SKULL);
@@ -2389,11 +2390,12 @@ int TPlayer::CheckPlayerkilling() {
 		}
 	}
 
-	if (LastDay >= 6 || LastWeek >= 10 || LastMonth >= 20) {
+	// The limits of config.toml's [pvp] banishment and red_skull.
+	if (LastDay >= BanishmentKills[0] || LastWeek >= BanishmentKills[1] || LastMonth >= BanishmentKills[2]) {
 		return PLAYERKILLING_LIMIT_DOUBLED;
 	}
 
-	if (LastDay >= 3 || LastWeek >= 5 || LastMonth >= 10) {
+	if (LastDay >= RedSkullKills[0] || LastWeek >= RedSkullKills[1] || LastMonth >= RedSkullKills[2]) {
 		return PLAYERKILLING_LIMIT_EXCEEDED;
 	}
 

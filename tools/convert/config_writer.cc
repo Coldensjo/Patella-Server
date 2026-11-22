@@ -127,6 +127,17 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "duration = 240\n";
 	Text += "offline_interval = 900\n";
 	Text += "\n";
+	Text += "# Player killing.\n";
+	Text += "[pvp]\n";
+	Text += "fight_lock = 60      # seconds a fight keeps a player from logging out (after an\n";
+	Text += "                     # attack on a player also out of protection zones), 1 to 86400\n";
+	Text += "kill_lock = 900      # the same after killing a player, 1 to 86400\n";
+	Text += "red_skull_days = 30  # how long a red skull lasts, 1 to 365\n";
+	Text += "# Unjustified kills within a day, a week and 30 days (each 1 to 20) that give\n";
+	Text += "# a red skull, and a banishment as well.\n";
+	Text += "red_skull = { day = 3, week = 5, month = 10 }\n";
+	Text += "banishment = { day = 6, week = 10, month = 20 }\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";

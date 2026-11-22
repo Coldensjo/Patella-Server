@@ -128,6 +128,13 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("SoulPromotedInterval", std::to_string(SoulPromotedInterval));
 	Add("SoulDuration", std::to_string(SoulDuration));
 	Add("SoulOfflineInterval", std::to_string(SoulOfflineInterval));
+	Add("FightLock", std::to_string(FightLock));
+	Add("KillLock", std::to_string(KillLock));
+	Add("RedSkullDays", std::to_string(RedSkullDays));
+	for (int i = 0; i < 3; i++) {
+		Add("RedSkullKills[" + std::to_string(i) + "]", std::to_string(RedSkullKills[i]));
+		Add("BanishmentKills[" + std::to_string(i) + "]", std::to_string(BanishmentKills[i]));
+	}
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -158,6 +165,10 @@ static void Poison() {
 	DeathContainerDrop = false;
 	HitpointRegeneration = ManaRegeneration = 0x5A5A5A5A;
 	SoulInterval = SoulPromotedInterval = SoulDuration = SoulOfflineInterval = 0x5A5A5A5A;
+	FightLock = KillLock = RedSkullDays = 0x5A5A5A5A;
+	for (int i = 0; i < 3; i++) {
+		RedSkullKills[i] = BanishmentKills[i] = 0x5A5A5A5A;
+	}
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -465,6 +476,21 @@ static void TestSoul(const fs::path &Folder) {
 	CHECK(LoadError(Folder / "soul.toml", "[soul]\ninterval = 240\npromoted_interval = 240\n") == "");
 }
 
+static void TestPvp(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "pvp.toml", "[pvp]\nfight_lock = 30\nkill_lock = 600\nred_skull_days = 7\n"
+			"red_skull = { day = 2, week = 4, month = 8 }\nbanishment = { day = 4, week = 8, month = 16 }\n") == "");
+	CHECK(FightLock == 30 && KillLock == 600 && RedSkullDays == 7);
+	CHECK(RedSkullKills[0] == 2 && RedSkullKills[1] == 4 && RedSkullKills[2] == 8);
+	CHECK(BanishmentKills[0] == 4 && BanishmentKills[1] == 8 && BanishmentKills[2] == 16);
+	// A limit left out keeps its default.
+	Poison();
+	CHECK(LoadError(Folder / "pvp.toml", "[pvp]\nred_skull = { week = 7 }\n") == "");
+	CHECK(FightLock == 60 && KillLock == 900 && RedSkullDays == 30);
+	CHECK(RedSkullKills[0] == 3 && RedSkullKills[1] == 7 && RedSkullKills[2] == 10);
+	CHECK(BanishmentKills[0] == 6 && BanishmentKills[1] == 10 && BanishmentKills[2] == 20);
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -581,6 +607,12 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[soul]\n\nduration = 100\n", 3, "interval (120) must not be longer than duration (100)");
 	Expect("[soul]\nduration = 30\npromoted_interval = 60\ninterval = 30\n", 3,
 			"promoted_interval (60) must not be longer than duration (30)");
+	Expect("[pvp]\nwhite_skull = 1\n", 2, "unknown key \"white_skull\" in [pvp]");
+	Expect("[pvp]\nfight_lock = 0\n", 2, "fight_lock must lie between 1 and 86400");
+	Expect("[pvp]\nred_skull_days = 366\n", 2, "red_skull_days must lie between 1 and 365");
+	Expect("[pvp]\nred_skull = 3\n", 2, "red_skull must be a table");
+	Expect("[pvp]\nbanishment = { year = 1 }\n", 2, "unknown key \"year\" in [pvp] banishment");
+	Expect("[pvp]\nbanishment = { month = 21 }\n", 2, "month must lie between 1 and 20");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -719,6 +751,7 @@ int main(int argc, char **argv) {
 		TestDeath(Folder);
 		TestRegeneration(Folder);
 		TestSoul(Folder);
+		TestPvp(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

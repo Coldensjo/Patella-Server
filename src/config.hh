@@ -180,6 +180,25 @@ extern int SoulOfflineInterval;
 
 const int MAX_SOUL_TIME = 86400;
 
+// [pvp]: fight_lock, the seconds a fight keeps a player from logging out
+// (and, after an attack on a player, out of protection zones; 60 by
+// default), and kill_lock, the same after a kill of a player (900); each 1
+// to MAX_LOCK_TIME. red_skull_days (1 to 365, 30) is how long a red skull
+// lasts. RedSkullKills and BanishmentKills are the unjustified kills within
+// a day, a week and 30 days that give a red skull (red_skull, 3, 5 and 10)
+// and a banishment as well (banishment, 6, 10 and 20); each 1 to
+// MAX_MURDER_KILLS, the murders a player's data keeps. crcombat.cc,
+// crmain.cc, crplayer.cc and magic.cc apply them (BlockLogout,
+// TPlayer::RecordMurder and CheckPlayerkilling).
+extern int FightLock;
+extern int KillLock;
+extern int RedSkullDays;
+extern int RedSkullKills[3];
+extern int BanishmentKills[3];
+
+const int MAX_LOCK_TIME = 86400;
+const int MAX_MURDER_KILLS = 20;
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 

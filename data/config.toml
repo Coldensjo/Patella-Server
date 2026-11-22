@@ -93,6 +93,17 @@ promoted_interval = 15  # for a promoted player
 duration = 240
 offline_interval = 900
 
+# Player killing.
+[pvp]
+fight_lock = 60      # seconds a fight keeps a player from logging out (after an
+                     # attack on a player also out of protection zones), 1 to 86400
+kill_lock = 900      # the same after killing a player, 1 to 86400
+red_skull_days = 30  # how long a red skull lasts, 1 to 365
+# Unjustified kills within a day, a week and 30 days (each 1 to 20) that give
+# a red skull, and a banishment as well.
+red_skull = { day = 3, week = 5, month = 10 }
+banishment = { day = 6, week = 10, month = 20 }
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]

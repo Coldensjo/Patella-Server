@@ -101,6 +101,13 @@ least the player's level in experience, one point per `interval` (120) or
 `promoted_interval` (15) for `duration` (240); in a bed one per
 `offline_interval` (900) offline.
 
+`[pvp]` sets player killing: `fight_lock` (60) and `kill_lock` (900), the
+seconds a fight or a kill of a player keeps a player from logging out (and out
+of protection zones), `red_skull_days` (30), and the unjustified kills within a
+day, a week and 30 days that give a red skull (`red_skull`, 3/5/10) or a
+banishment (`banishment`, 6/10/20; each at most 20, the kills a player's data
+keeps).
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

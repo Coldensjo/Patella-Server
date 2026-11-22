@@ -66,6 +66,11 @@ int SoulInterval;
 int SoulPromotedInterval;
 int SoulDuration;
 int SoulOfflineInterval;
+int FightLock;
+int KillLock;
+int RedSkullDays;
+int RedSkullKills[3];
+int BanishmentKills[3];
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -202,6 +207,20 @@ int DeathLoss(int Exp, int Percent) {
 	return static_cast<int>(Loss);
 }
 
+// Reads [pvp]'s table Key ({ day, week, month }, each 1 to MAX_MURDER_KILLS)
+// into Kills, over what it holds.
+static void ReadKillLimits(const toml::table &Pvp, const char *Key, int Kills[3]) {
+	const toml::table *Limits = TomlGetTable(Pvp, Key);
+	if (Limits == nullptr) {
+		return;
+	}
+	std::string What = std::string("[pvp] ") + Key;
+	TomlCheckKeys(*Limits, What.c_str(), {"day", "week", "month"});
+	TomlGetNumber(*Limits, "day", Kills[0], 1, MAX_MURDER_KILLS);
+	TomlGetNumber(*Limits, "week", Kills[1], 1, MAX_MURDER_KILLS);
+	TomlGetNumber(*Limits, "month", Kills[2], 1, MAX_MURDER_KILLS);
+}
+
 // file:line:column of Where, for errors found after the config is read.
 static std::string SourceLocation(const toml::source_region &Where, const char *FileName) {
 	char Location[4096 + 64];
@@ -252,6 +271,15 @@ void SetConfigDefaults() {
 	SoulPromotedInterval = 15;
 	SoulDuration = 240;
 	SoulOfflineInterval = 900;
+	FightLock = 60;
+	KillLock = 900;
+	RedSkullDays = 30;
+	RedSkullKills[0] = 3;
+	RedSkullKills[1] = 5;
+	RedSkullKills[2] = 10;
+	BanishmentKills[0] = 6;
+	BanishmentKills[1] = 10;
+	BanishmentKills[2] = 20;
 	NumberOfQueryManagers = 0;
 }
 
@@ -324,7 +352,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -447,6 +475,15 @@ void LoadConfig(const char *FileName) {
 						SoulDuration);
 			}
 		}
+	}
+
+	if (const toml::table *Pvp = TomlGetTable(Config, "pvp")) {
+		TomlCheckKeys(*Pvp, "[pvp]", {"fight_lock", "kill_lock", "red_skull_days", "red_skull", "banishment"});
+		TomlGetNumber(*Pvp, "fight_lock", FightLock, 1, MAX_LOCK_TIME);
+		TomlGetNumber(*Pvp, "kill_lock", KillLock, 1, MAX_LOCK_TIME);
+		TomlGetNumber(*Pvp, "red_skull_days", RedSkullDays, 1, 365);
+		ReadKillLimits(*Pvp, "red_skull", RedSkullKills);
+		ReadKillLimits(*Pvp, "banishment", BanishmentKills);
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

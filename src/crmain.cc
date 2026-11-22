@@ -797,11 +797,11 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 	}
 
 	if (atk != nullptr) {
-		atk->BlockLogout(60, Type == PLAYER);
+		atk->BlockLogout(FightLock, Type == PLAYER);
 	}
 
 	if (Responsible != nullptr) {
-		Responsible->BlockLogout(60, Type == PLAYER);
+		Responsible->BlockLogout(FightLock, Type == PLAYER);
 		if (Responsible->Type == PLAYER && Type == PLAYER) {
 			((TPlayer *)Responsible)->RecordAttack(ID);
 		}
@@ -1108,11 +1108,11 @@ int TCreature::Damage(TCreature *atk, int Damage, int DamageType) {
 		Death();
 
 		if (atk != nullptr && Type == PLAYER) {
-			atk->BlockLogout(900, true);
+			atk->BlockLogout(KillLock, true);
 		}
 
 		if (Responsible != nullptr && Type == PLAYER) {
-			Responsible->BlockLogout(900, true);
+			Responsible->BlockLogout(KillLock, true);
 		}
 
 		uint32_t MurdererID = 0;
