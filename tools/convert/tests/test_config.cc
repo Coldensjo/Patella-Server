@@ -136,6 +136,9 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 		Add("BanishmentKills[" + std::to_string(i) + "]", std::to_string(BanishmentKills[i]));
 	}
 	Add("IdleMinutes", std::to_string(IdleMinutes));
+	Add("LureLimit", std::to_string(LureLimit));
+	Add("LureRadius", std::to_string(LureRadius));
+	Add("LureFloors", std::to_string(LureFloors));
 	for (int v = 0; v < VOCATIONS; v++) {
 		for (int g = 0; g < LEVEL_GAINS; g++) {
 			Add("VocationGains[" + std::to_string(v) + "][" + std::to_string(g) + "]",
@@ -172,7 +175,9 @@ static void Poison() {
 	DeathContainerDrop = false;
 	HitpointRegeneration = ManaRegeneration = 0x5A5A5A5A;
 	SoulInterval = SoulPromotedInterval = SoulDuration = SoulOfflineInterval = 0x5A5A5A5A;
-	FightLock = KillLock = RedSkullDays = IdleMinutes = 0x5A5A5A5A;
+	FightLock = KillLock = RedSkullDays = IdleMinutes = LureFloors = 0x5A5A5A5A;
+	LureLimit = false;
+	LureRadius = 90.5;
 	for (auto &Gains : VocationGains) {
 		for (int &Gain : Gains) {
 			Gain = 0x5A5A5A5A;
@@ -505,6 +510,16 @@ static void TestPvp(const fs::path &Folder) {
 	Poison();
 	CHECK(LoadError(Folder / "idle.toml", "[idle]\nminutes = 30\n") == "");
 	CHECK(IdleMinutes == 30);
+
+	Poison();
+	CHECK(LoadError(Folder / "lure.toml", "[lure]\nlimit = false\n") == "");
+	CHECK(!LureLimit && LureRadius == 1.0 && LureFloors == 2 && !LureIsOriginal());
+	Poison();
+	CHECK(LoadError(Folder / "lure2.toml", "[lure]\nradius = 2.5\nfloors = 0\n") == "");
+	CHECK(LureLimit && LureRadius == 2.5 && LureFloors == 0 && !LureIsOriginal());
+	Poison();
+	CHECK(LoadError(Folder / "lure3.toml", "[lure]\n") == "");
+	CHECK(LureIsOriginal());
 }
 
 static void TestVocations(const fs::path &Folder) {
@@ -642,6 +657,10 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[pvp]\nbanishment = { month = 21 }\n", 2, "month must lie between 1 and 20");
 	Expect("[idle]\nseconds = 60\n", 2, "unknown key \"seconds\" in [idle]");
 	Expect("[idle]\nminutes = 0\n", 2, "minutes must lie between 1 and 1440");
+	Expect("[lure]\ndistance = 5\n", 2, "unknown key \"distance\" in [lure]");
+	Expect("[lure]\nlimit = 0\n", 2, "limit must be true or false");
+	Expect("[lure]\nradius = 0.5\n", 2, "radius must lie between 1 and 100");
+	Expect("[lure]\nfloors = 16\n", 2, "floors must lie between 0 and 15");
 	Expect("[vocations]\nelite_knight = { hp = 5 }\n", 2, "unknown key \"elite_knight\" in [vocations]");
 	Expect("[vocations]\nknight = 15\n", 2, "knight must be a table");
 	Expect("[vocations]\nknight = { speed = 2 }\n", 2, "unknown key \"speed\" in [vocations] knight");

@@ -143,6 +143,16 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "[idle]\n";
 	Text += "minutes = 15\n";
 	Text += "\n";
+	Text += "# How far monsters may be lured from their spawn (monster home). A monster\n";
+	Text += "# farther than radius times its spawn's radius along x or y, or more than\n";
+	Text += "# floors floors up or down, vanishes and respawns later. limit = false lets\n";
+	Text += "# monsters follow anywhere. With values other than these defaults, a monster\n";
+	Text += "# left outside its spawn's area wanders freely instead of standing still.\n";
+	Text += "[lure]\n";
+	Text += "limit = true  # false: no limit\n";
+	Text += "radius = 1.0  # times each spawn's radius, 1 to 100\n";
+	Text += "floors = 2    # 0 to 15\n";
+	Text += "\n";
 	Text += "# What a player gains per level, by vocation (a promoted one counts as its\n";
 	Text += "# vocation): hp, mana and capacity, each 0 to 10000. Each value given counts\n";
 	Text += "# from a character's next level on (and for a level lost); one not given stays\n";

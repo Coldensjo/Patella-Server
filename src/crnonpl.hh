@@ -95,6 +95,7 @@ void LoadMonsterhomes();
 void ProcessMonsterhomes();
 void NotifyMonsterhomeOfDeath(int nr);
 bool MonsterhomeInRange(int nr, int x, int y, int z);
+bool MonsterhomeInLureRange(int nr, int x, int y, int z);
 void ChangeNPCState(TCreature *npc, int NewState, bool Stimulus);
 TCreature *CreateMonster(int Race, int x, int y, int z, int Home, uint32_t Father, bool ShowEffect);
 void ConvinceMonster(TCreature *Master, TCreature *Slave);

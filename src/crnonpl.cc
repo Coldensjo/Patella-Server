@@ -285,6 +285,25 @@ bool MonsterhomeInRange(int nr, int x, int y, int z) {
 	return abs(z - MH.z) <= 2 && abs(x - MH.x) <= MH.Radius && abs(y - MH.y) <= MH.Radius;
 }
 
+// Whether a monster of home nr at [x,y,z] may stay, by config.toml's [lure]:
+// always with limit false or no home (nr 0), else within radius times the
+// home's radius along x and y and floors floors above or below its middle.
+// With the defaults the same as MonsterhomeInRange.
+bool MonsterhomeInLureRange(int nr, int x, int y, int z) {
+	if (nr == 0 || !LureLimit) {
+		return true;
+	}
+
+	if (nr < 1 || nr > Monsterhomes) {
+		error("MonsterhomeInLureRange: Invalid monster home number %d.\n", nr);
+		return false;
+	}
+
+	TMonsterhome &MH = Monsterhome(nr);
+	double Range = MH.Radius * LureRadius;
+	return abs(z - MH.z) <= LureFloors && abs(x - MH.x) <= Range && abs(y - MH.y) <= Range;
+}
+
 TNonplayer::TNonplayer() {
 	this->State = SLEEPING;
 }
@@ -920,7 +939,7 @@ void TMonster::IdleStimulus() {
 		if (this->Target != 0 && this->Target != OldTarget) {
 			MonsterTargetHook(RaceData[this->Race].Script, this->ID, this->Target);
 		}
-	} else if (!MonsterhomeInRange(this->Home, this->posx, this->posy, this->posz)) {
+	} else if (!MonsterhomeInLureRange(this->Home, this->posx, this->posy, this->posz)) {
 		print(3, "%s at [%d,%d,%d] too far from [%d,%d,%d].\n",
 				this->Name, this->posx, this->posy, this->posz,
 				Monsterhome(this->Home).x, Monsterhome(this->Home).y, Monsterhome(this->Home).z);
@@ -1339,7 +1358,11 @@ bool TMonster::MovePossible(int x, int y, int z, bool Execute, bool) {
 		return false;
 	}
 
-	if (this->State != ATTACKING && this->State != PANIC && !MonsterhomeInRange(this->Home, x, y, z)) {
+	// Out of attack and panic a monster may only step into its home's area,
+	// unless config.toml's [lure] is changed and it stands outside the area
+	// (lured away): then it may walk anywhere.
+	if (this->State != ATTACKING && this->State != PANIC && !MonsterhomeInRange(this->Home, x, y, z)
+			&& (LureIsOriginal() || MonsterhomeInRange(this->Home, this->posx, this->posy, this->posz))) {
 		return false;
 	}
 
