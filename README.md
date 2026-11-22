@@ -96,6 +96,11 @@ drops (default true).
 regains each time, whole numbers 1 to 1000, default 1; a bed's offline
 regeneration too. The food lasts as long as before.
 
+`[soul]` sets the soul point regeneration in seconds: after a kill worth at
+least the player's level in experience, one point per `interval` (120) or
+`promoted_interval` (15) for `duration` (240); in a bed one per
+`offline_interval` (900) offline.
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

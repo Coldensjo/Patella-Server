@@ -1035,8 +1035,9 @@ TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayer
 		Skills[SKILL_SOULPOINTS]->SetMax(GetActivePromotion() ? 200 : 100);
 		Skills[SKILL_SOULPOINTS]->Check();
 		int Rest = Skills[SKILL_SOULPOINTS]->TimerValue();
-		if (Rest > 14) {
-			int Interval = GetActivePromotion() ? 15 : 120;
+		// The intervals of config.toml's [soul].
+		if (Rest > SoulPromotedInterval - 1) {
+			int Interval = GetActivePromotion() ? SoulPromotedInterval : SoulInterval;
 			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / Interval + 1, (Rest - 1) % Interval + 1, Interval, -1);
 		}
 
@@ -1839,8 +1840,10 @@ void TPlayer::SetProfession(unsigned char prof) {
 		Combat.CheckCombatValues();
 		Skills[SKILL_SOULPOINTS]->SetMax(200);
 		int Rest = Skills[SKILL_SOULPOINTS]->TimerValue();
-		if (Rest > 14) {
-			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / 15 + 1, (Rest - 1) % 15 + 1, 15, -1);
+		// The promoted interval of config.toml's [soul].
+		if (Rest > SoulPromotedInterval - 1) {
+			SetTimer(SKILL_SOULPOINTS, (Rest - 1) / SoulPromotedInterval + 1, (Rest - 1) % SoulPromotedInterval + 1,
+					SoulPromotedInterval, -1);
 		}
 		return;
 	}
@@ -2226,8 +2229,9 @@ void TPlayer::Regenerate() {
 		SetTimer(SKILL_EATING, Skills[SKILL_EATING]->TimerValue() - Regeneration * 3, 0, 0, -1);
 	}
 
-	if (OfflineTime >= 900) {
-		Skills[SKILL_SOULPOINTS]->Change((int)(OfflineTime / 900));
+	// One soul point per offline_interval of config.toml's [soul].
+	if (OfflineTime >= SoulOfflineInterval) {
+		Skills[SKILL_SOULPOINTS]->Change((int)(OfflineTime / SoulOfflineInterval));
 	}
 
 	try {

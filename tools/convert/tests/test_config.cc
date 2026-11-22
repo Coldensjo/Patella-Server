@@ -124,6 +124,10 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("DeathContainerDrop", std::to_string(DeathContainerDrop));
 	Add("HitpointRegeneration", std::to_string(HitpointRegeneration));
 	Add("ManaRegeneration", std::to_string(ManaRegeneration));
+	Add("SoulInterval", std::to_string(SoulInterval));
+	Add("SoulPromotedInterval", std::to_string(SoulPromotedInterval));
+	Add("SoulDuration", std::to_string(SoulDuration));
+	Add("SoulOfflineInterval", std::to_string(SoulOfflineInterval));
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -153,6 +157,7 @@ static void Poison() {
 	DeathItemDrop = 0x5A5A5A5A;
 	DeathContainerDrop = false;
 	HitpointRegeneration = ManaRegeneration = 0x5A5A5A5A;
+	SoulInterval = SoulPromotedInterval = SoulDuration = SoulOfflineInterval = 0x5A5A5A5A;
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -448,6 +453,18 @@ static void TestRegeneration(const fs::path &Folder) {
 	CHECK(HitpointRegeneration == 1 && ManaRegeneration == 1000);
 }
 
+static void TestSoul(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "soul.toml",
+			"[soul]\ninterval = 30\npromoted_interval = 5\nduration = 600\noffline_interval = 300\n") == "");
+	CHECK(SoulInterval == 30 && SoulPromotedInterval == 5 && SoulDuration == 600 && SoulOfflineInterval == 300);
+	Poison();
+	CHECK(LoadError(Folder / "soul.toml", "[soul]\noffline_interval = 60\n") == "");
+	CHECK(SoulInterval == 120 && SoulPromotedInterval == 15 && SoulDuration == 240 && SoulOfflineInterval == 60);
+	Poison();
+	CHECK(LoadError(Folder / "soul.toml", "[soul]\ninterval = 240\npromoted_interval = 240\n") == "");
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -557,6 +574,13 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[regeneration]\nspeed = 2\n", 2, "unknown key \"speed\" in [regeneration]");
 	Expect("[regeneration]\nhp = 0\n", 2, "hp must lie between 1 and 1000");
 	Expect("[regeneration]\nmana = 1.5\n", 2, "mana must be an integer");
+	Expect("[soul]\nrate = 2\n", 2, "unknown key \"rate\" in [soul]");
+	Expect("[soul]\ninterval = 0\n", 2, "interval must lie between 1 and 86400");
+	Expect("[soul]\nduration = 86401\n", 2, "duration must lie between 1 and 86400");
+	Expect("[soul]\ninterval = 300\n", 2, "interval (300) must not be longer than duration (240)");
+	Expect("[soul]\n\nduration = 100\n", 3, "interval (120) must not be longer than duration (100)");
+	Expect("[soul]\nduration = 30\npromoted_interval = 60\ninterval = 30\n", 3,
+			"promoted_interval (60) must not be longer than duration (30)");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -694,6 +718,7 @@ int main(int argc, char **argv) {
 		TestLoot(Folder);
 		TestDeath(Folder);
 		TestRegeneration(Folder);
+		TestSoul(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);

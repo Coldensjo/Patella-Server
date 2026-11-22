@@ -118,6 +118,15 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "hp = 1\n";
 	Text += "mana = 1\n";
 	Text += "\n";
+	Text += "# Soul points, in seconds, each 1 to 86400. A kill that gives a player at least\n";
+	Text += "# their level in experience makes them regain one soul point per interval for\n";
+	Text += "# duration; a bed gives one per offline_interval of the time offline.\n";
+	Text += "[soul]\n";
+	Text += "interval = 120          # (the intervals at most duration)\n";
+	Text += "promoted_interval = 15  # for a promoted player\n";
+	Text += "duration = 240\n";
+	Text += "offline_interval = 900\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";

@@ -62,6 +62,10 @@ int DeathItemDrop;
 bool DeathContainerDrop;
 int HitpointRegeneration;
 int ManaRegeneration;
+int SoulInterval;
+int SoulPromotedInterval;
+int SoulDuration;
+int SoulOfflineInterval;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -244,6 +248,10 @@ void SetConfigDefaults() {
 	DeathContainerDrop = true;
 	HitpointRegeneration = 1;
 	ManaRegeneration = 1;
+	SoulInterval = 120;
+	SoulPromotedInterval = 15;
+	SoulDuration = 240;
+	SoulOfflineInterval = 900;
 	NumberOfQueryManagers = 0;
 }
 
@@ -316,7 +324,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -422,6 +430,23 @@ void LoadConfig(const char *FileName) {
 		TomlCheckKeys(*Regeneration, "[regeneration]", {"hp", "mana"});
 		TomlGetNumber(*Regeneration, "hp", HitpointRegeneration, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
 		TomlGetNumber(*Regeneration, "mana", ManaRegeneration, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+	}
+
+	if (const toml::table *Soul = TomlGetTable(Config, "soul")) {
+		TomlCheckKeys(*Soul, "[soul]", {"interval", "promoted_interval", "duration", "offline_interval"});
+		TomlGetNumber(*Soul, "interval", SoulInterval, 1, MAX_SOUL_TIME);
+		TomlGetNumber(*Soul, "promoted_interval", SoulPromotedInterval, 1, MAX_SOUL_TIME);
+		TomlGetNumber(*Soul, "duration", SoulDuration, 1, MAX_SOUL_TIME);
+		TomlGetNumber(*Soul, "offline_interval", SoulOfflineInterval, 1, MAX_SOUL_TIME);
+		// A kill gives duration / interval soul points: at least one.
+		for (const char *Key : {"interval", "promoted_interval"}) {
+			int Interval = strcmp(Key, "interval") == 0 ? SoulInterval : SoulPromotedInterval;
+			if (Interval > SoulDuration) {
+				const toml::node *Node = Soul->get(Key) != nullptr ? Soul->get(Key) : Soul->get("duration");
+				TomlError(Node->source(), "%s (%d) must not be longer than duration (%d)", Key, Interval,
+						SoulDuration);
+			}
+		}
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

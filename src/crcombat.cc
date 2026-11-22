@@ -453,8 +453,9 @@ void TCombat::DistributeExperiencePoints(uint32_t Exp) {
 
 		if (Amount != 0) {
 			if (cr->Type == PLAYER && Amount >= cr->Skills[SKILL_LEVEL]->Get()) {
-				int Interval = ((TPlayer *)cr)->GetActivePromotion() ? 15 : 120;
-				int Cycles = 240 / Interval;
+				// The intervals and the time of config.toml's [soul].
+				int Interval = ((TPlayer *)cr)->GetActivePromotion() ? SoulPromotedInterval : SoulInterval;
+				int Cycles = SoulDuration / Interval;
 				int Rest = cr->Skills[SKILL_SOULPOINTS]->TimerValue() % Interval;
 				if (Rest == 0) {
 					Rest = Interval;

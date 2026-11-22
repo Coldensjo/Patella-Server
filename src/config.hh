@@ -166,6 +166,20 @@ int DeathLoss(int Exp, int Percent);
 extern int HitpointRegeneration;
 extern int ManaRegeneration;
 
+// [soul], in seconds: a kill that gives a player at least their level in
+// experience makes them regain one soul point every interval (120 by
+// default; promoted_interval, 15, for a promoted player) for duration
+// (240), and a bed gives one per offline_interval (900) of the time offline.
+// Each 1 to MAX_SOUL_TIME; the intervals at most duration. crcombat.cc's
+// DistributeExperiencePoints and crplayer.cc's TPlayer (login, promotion,
+// Regenerate) apply them.
+extern int SoulInterval;
+extern int SoulPromotedInterval;
+extern int SoulDuration;
+extern int SoulOfflineInterval;
+
+const int MAX_SOUL_TIME = 86400;
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 

@@ -84,6 +84,15 @@ container_drop = true  # whether a worn container (the backpack) always drops;
 hp = 1
 mana = 1
 
+# Soul points, in seconds, each 1 to 86400. A kill that gives a player at least
+# their level in experience makes them regain one soul point per interval for
+# duration; a bed gives one per offline_interval of the time offline.
+[soul]
+interval = 120          # (the intervals at most duration)
+promoted_interval = 15  # for a promoted player
+duration = 240
+offline_interval = 900
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]
