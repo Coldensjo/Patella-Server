@@ -485,6 +485,23 @@ TCreature::TCreature() : ToDoList(0, 20, 10) {
 	EnergyDamageOrigin = 0;
 }
 
+// Whether an item a dying player wears drops, by config.toml's [death]
+// item_drop percent: at 10, the default, the original draw of one in ten
+// (random(0, 9) == 0), so that the random numbers stay as they were; at 0
+// and 100 without a draw.
+static bool DeathItemDrops() {
+	if (DeathItemDrop == 10) {
+		return random(0, 9) == 0;
+	}
+	if (DeathItemDrop <= 0) {
+		return false;
+	}
+	if (DeathItemDrop >= 100) {
+		return true;
+	}
+	return random(0, 99) < DeathItemDrop;
+}
+
 TCreature::~TCreature() noexcept(false) {
 	if (IsDead) {
 		try {
@@ -543,7 +560,8 @@ TCreature::~TCreature() noexcept(false) {
 						continue;
 					}
 
-					if (LoseInventory == LOSE_INVENTORY_ALL || Obj.getFlag(CONTAINER) || random(0, 9) == 0) {
+					if (LoseInventory == LOSE_INVENTORY_ALL || (DeathContainerDrop && Obj.getFlag(CONTAINER))
+							|| DeathItemDrops()) {
 						::Move(0, Obj, Corpse, -1, false, NONE);
 					}
 				}

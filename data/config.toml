@@ -67,6 +67,16 @@ chance = 1.0
 [loot.monsters]
 # rat = { chance = 4.0 }
 
+# What a player loses by dying. An amulet of loss and a red skull keep their
+# rules.
+[death]
+penalty = 1.0          # times the loss of experience, magic level and skills
+                       # (10%, 7% promoted, 1% less per blessing): 0.5 half,
+                       # 0 none; 0 to 10, at most all
+item_drop = 10         # the percent chance of each item worn to drop, 0 to 100
+container_drop = true  # whether a worn container (the backpack) always drops;
+                       # false: it takes the chance of item_drop too
+
 # Folders. A relative path is relative to the folder this file is in (default:
 # empty for each).
 [paths]

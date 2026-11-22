@@ -1529,24 +1529,25 @@ void TPlayer::Death() {
 		}
 	}
 
+	// DeathLoss: with config.toml's [death] penalty.
 	TSkill *sk = Skills[SKILL_SWORDFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_AXEFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_CLUBFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_DISTANCEFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_FISTFIGHTING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_SHIELDING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_MAGICLEVEL];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_FISHING];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	sk = Skills[SKILL_LEVEL];
-	sk->Decrease((int)((int64_t)sk->GetExp() * Percent / 100));
+	sk->Decrease(DeathLoss(sk->GetExp(), Percent));
 	EventDeath(ID, Killer);
 }
 

@@ -136,6 +136,27 @@ double GetLootChance(const char *RaceKey);
 // or more, give Probability as it is.
 int ApplyLootChance(int Probability, double Multiplier);
 
+// [death]: what a player loses by dying. penalty multiplies the part of the
+// experience, magic level and skills lost (10 percent, 7 promoted, one less
+// per blessing; those rules stay), MIN_DEATH_PENALTY to MAX_DEATH_PENALTY and
+// 1 by default, the loss at most all; item_drop is the percent chance of
+// each item worn to drop into the corpse (default 10); container_drop
+// whether a container worn (the backpack) always drops (default true; false:
+// it takes the chance of item_drop too). An amulet of loss and a red skull
+// keep their rules. crplayer.cc's TPlayer::Death (DeathLoss) and crmain.cc's
+// ~TCreature apply them.
+extern double DeathPenalty;
+extern int DeathItemDrop;
+extern bool DeathContainerDrop;
+
+const double MIN_DEATH_PENALTY = 0.0;
+const double MAX_DEATH_PENALTY = 10.0;
+
+// The points of a skill with Exp points lost by a death of Percent percent,
+// times penalty: with penalty 1 (int64)Exp * Percent / 100, as ever;
+// otherwise rounded, at most Exp, at least 0.
+int DeathLoss(int Exp, int Percent);
+
 // The key DisguisePassword is given for the query manager passwords.
 extern const char PasswordKey[9];
 

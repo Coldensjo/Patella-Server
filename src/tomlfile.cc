@@ -108,6 +108,17 @@ void TomlGetFloat(const toml::table &Table, const char *Key, double &Value, doub
 	Value = Number;
 }
 
+void TomlGetBool(const toml::table &Table, const char *Key, bool &Value) {
+	const toml::node *Node = Table.get(Key);
+	if (Node == nullptr) {
+		return;
+	}
+	if (!Node->is_boolean()) {
+		TomlError(Node->source(), "%s must be true or false", Key);
+	}
+	Value = Node->as_boolean()->get();
+}
+
 bool TomlGetString(const toml::table &Table, const char *Key, char *Buffer, int Size) {
 	const toml::node *Node = Table.get(Key);
 	if (Node == nullptr) {

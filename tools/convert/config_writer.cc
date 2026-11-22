@@ -101,6 +101,16 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "[loot.monsters]\n";
 	Text += "# rat = { chance = 4.0 }\n";
 	Text += "\n";
+	Text += "# What a player loses by dying. An amulet of loss and a red skull keep their\n";
+	Text += "# rules.\n";
+	Text += "[death]\n";
+	Text += "penalty = 1.0          # times the loss of experience, magic level and skills\n";
+	Text += "                       # (10%, 7% promoted, 1% less per blessing): 0.5 half,\n";
+	Text += "                       # 0 none; 0 to 10, at most all\n";
+	Text += "item_drop = 10         # the percent chance of each item worn to drop, 0 to 100\n";
+	Text += "container_drop = true  # whether a worn container (the backpack) always drops;\n";
+	Text += "                       # false: it takes the chance of item_drop too\n";
+	Text += "\n";
 	Text += "# Folders. A relative path is relative to the folder this file is in (default:\n";
 	Text += "# empty for each).\n";
 	Text += "[paths]\n";

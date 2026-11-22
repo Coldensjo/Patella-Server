@@ -86,6 +86,12 @@ stops the start.
 1000, default 1.0; at most certain), raids' extra items included;
 `[loot.monsters]` gives single races their own, e.g. `rat = { chance = 4.0 }`.
 
+`[death]` sets what a player loses by dying: `penalty` multiplies the loss of
+experience, magic level and skills (0 to 10, default 1.0; promotion and
+blessings keep their rules), `item_drop` is the percent chance of each worn
+item to drop (default 10) and `container_drop` whether the backpack always
+drops (default true).
+
 ## Object types
 
 The game reads the object types (items, grounds, walls, corpses, ...) from

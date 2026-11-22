@@ -57,6 +57,9 @@ double SpawnAmount;
 std::vector<TMonsterSpawnRate> MonsterSpawnRates;
 double LootChance;
 std::vector<TMonsterLootRate> MonsterLootRates;
+double DeathPenalty;
+int DeathItemDrop;
+bool DeathContainerDrop;
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
 
@@ -178,6 +181,21 @@ int ApplyLootChance(int Probability, double Multiplier) {
 	return static_cast<int>(Draws) - 1;
 }
 
+int DeathLoss(int Exp, int Percent) {
+	if (DeathPenalty == 1.0) {
+		return (int)((int64_t)Exp * Percent / 100);
+	}
+
+	double Loss = std::round(static_cast<double>(Exp) * Percent / 100.0 * DeathPenalty);
+	if (Loss <= 0.0) {
+		return 0;
+	}
+	if (Loss >= static_cast<double>(Exp)) {
+		return Exp;
+	}
+	return static_cast<int>(Loss);
+}
+
 // file:line:column of Where, for errors found after the config is read.
 static std::string SourceLocation(const toml::source_region &Where, const char *FileName) {
 	char Location[4096 + 64];
@@ -219,6 +237,9 @@ void SetConfigDefaults() {
 	MonsterSpawnRates.clear();
 	LootChance = 1.0;
 	MonsterLootRates.clear();
+	DeathPenalty = 1.0;
+	DeathItemDrop = 10;
+	DeathContainerDrop = true;
 	NumberOfQueryManagers = 0;
 }
 
@@ -291,7 +312,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -384,6 +405,13 @@ void LoadConfig(const char *FileName) {
 				MonsterLootRates.push_back(Rate);
 			}
 		}
+	}
+
+	if (const toml::table *Death = TomlGetTable(Config, "death")) {
+		TomlCheckKeys(*Death, "[death]", {"penalty", "item_drop", "container_drop"});
+		TomlGetFloat(*Death, "penalty", DeathPenalty, MIN_DEATH_PENALTY, MAX_DEATH_PENALTY);
+		TomlGetNumber(*Death, "item_drop", DeathItemDrop, 0, 100);
+		TomlGetBool(*Death, "container_drop", DeathContainerDrop);
 	}
 
 	if (const toml::table *Paths = TomlGetTable(Config, "paths")) {

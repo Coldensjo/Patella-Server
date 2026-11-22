@@ -119,6 +119,9 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	for (const TMonsterLootRate &Rate : MonsterLootRates) {
 		Add("MonsterLootRates[" + Rate.Race + "]", std::to_string(Rate.Chance));
 	}
+	Add("DeathPenalty", std::to_string(DeathPenalty));
+	Add("DeathItemDrop", std::to_string(DeathItemDrop));
+	Add("DeathContainerDrop", std::to_string(DeathContainerDrop));
 	Add("NumberOfQueryManagers", std::to_string(NumberOfQueryManagers));
 	for (int i = 0; i < NumberOfQueryManagers && i < MAX_QUERY_MANAGERS; i++) {
 		std::string Name = "QUERY_MANAGER[" + std::to_string(i) + "].";
@@ -144,6 +147,9 @@ static void Poison() {
 	MonsterSpawnRates.assign(1, TMonsterSpawnRate{"poison", 90.5, 90.5, "poison"});
 	LootChance = 90.5;
 	MonsterLootRates.assign(1, TMonsterLootRate{"poison", 90.5, "poison"});
+	DeathPenalty = 90.5;
+	DeathItemDrop = 0x5A5A5A5A;
+	DeathContainerDrop = false;
 	strcpy(GameAddress, "9.9.9.9");
 	PrivateWorld = true;
 	WorldType = PVP_ENFORCED;
@@ -405,6 +411,31 @@ static void TestLoot(const fs::path &Folder) {
 	CHECK(ApplyLootChance(1000, 2.0) == 1000);
 }
 
+static void TestDeath(const fs::path &Folder) {
+	Poison();
+	CHECK(LoadError(Folder / "death.toml", "[death]\npenalty = 0.5\nitem_drop = 0\ncontainer_drop = false\n") == "");
+	CHECK(DeathPenalty == 0.5 && DeathItemDrop == 0 && !DeathContainerDrop);
+	Poison();
+	CHECK(LoadError(Folder / "death.toml", "[death]\npenalty = 0\n") == "");
+	CHECK(DeathPenalty == 0.0 && DeathItemDrop == 10 && DeathContainerDrop);
+
+	// DeathLoss: at 1 the original integer formula, otherwise rounded, at most
+	// all.
+	DeathPenalty = 1.0;
+	CHECK(DeathLoss(1000, 10) == 100);
+	CHECK(DeathLoss(999, 7) == 69);
+	CHECK(DeathLoss(INT_MAX, 10) == INT_MAX / 10);
+	DeathPenalty = 0.5;
+	CHECK(DeathLoss(1000, 10) == 50);
+	CHECK(DeathLoss(999, 7) == 35);
+	DeathPenalty = 0.0;
+	CHECK(DeathLoss(1000, 10) == 0);
+	DeathPenalty = 10.0;
+	CHECK(DeathLoss(1000, 10) == 1000);
+	CHECK(DeathLoss(1000, 7) == 700);
+	DeathPenalty = 1.0;
+}
+
 static void TestDecay(const fs::path &Folder) {
 	// Each key of [decay] sets its own multiplier, written with or without a
 	// fraction; one left out keeps 1.
@@ -506,6 +537,11 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[loot.monsters]\nrat = 4.0\n", 2, "rat must be a table");
 	Expect("[loot.monsters]\nrat = { speed = 4.0 }\n", 2, "unknown key \"speed\" in [loot.monsters] rat");
 	Expect("[loot.monsters]\nrat = { chance = 1001 }\n", 2, "chance must lie between 0.01 and 1000");
+	Expect("[death]\nloss = 1\n", 2, "unknown key \"loss\" in [death]");
+	Expect("[death]\npenalty = -0.5\n", 2, "penalty must lie between 0 and 10");
+	Expect("[death]\nitem_drop = 101\n", 2, "item_drop must lie between 0 and 100");
+	Expect("[death]\nitem_drop = 5.5\n", 2, "item_drop must be an integer");
+	Expect("[death]\ncontainer_drop = 1\n", 2, "container_drop must be true or false");
 	Expect("rsa_key = \"\"\n", 1, "rsa_key must name a file");
 	Expect("\nrsa_key = 5\n", 2, "rsa_key must be a string");
 	Expect("beat = 50\nbeat = 60\n", 2, "");
@@ -641,6 +677,7 @@ int main(int argc, char **argv) {
 		TestRates(Folder);
 		TestSpawn(Folder);
 		TestLoot(Folder);
+		TestDeath(Folder);
 		TestErrors(Folder);
 		TestFileNames(Folder);
 		TestStrings(Folder);
