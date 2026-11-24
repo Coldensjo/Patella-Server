@@ -120,6 +120,13 @@ freely when it stops chasing. Raid monsters and summons have no spawn and are
 not affected. A lured monster that stays alive keeps its place in its spawn's
 count, so the spawn brings no replacement until it dies.
 
+`[logout]` `to_temple = true` (default false) brings a player who logs out
+(quit, lost connection, idle, server shutdown) back in the temple of the home
+town at the next login. `fight_block = false` (default true) lets a player log
+out during or right after a fight or a kill, and a character whose connection
+is lost leaves the game at once instead of staying until the lock ends; the
+lock still keeps the player out of protection zones and from leaving a party.
+
 `[vocations]` sets what a player gains per level by vocation (`none`,
 `knight`, `paladin`, `sorcerer`, `druid`; promoted ones count as theirs):
 `hp`, `mana` and `capacity`, e.g. `knight = { hp = 20 }`. A value given counts

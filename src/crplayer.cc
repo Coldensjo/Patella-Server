@@ -1139,6 +1139,13 @@ TPlayer::~TPlayer() {
 	if (!IsDead) {
 		Log("game", "Player %s logs out.\n", Name);
 		GraphicalEffect(posx, posy, posz, EFFECT_POFF);
+		// config.toml's [logout] to_temple: back in the home town's temple at
+		// the next login.
+		if (LogoutToTemple) {
+			PlayerData->posx = startx;
+			PlayerData->posy = starty;
+			PlayerData->posz = startz;
+		}
 		SaveInventory();
 	} else {
 		Log("game", "Player %s died.\n", Name);

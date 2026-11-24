@@ -226,6 +226,18 @@ const int MAX_LURE_FLOORS = 15;
 // Whether [lure] is at its defaults (the original behaviour).
 bool LureIsOriginal();
 
+// [logout]: to_temple (LogoutToTemple, false by default): a player who logs
+// out (any way: quit, lost connection, idle, server shutdown) comes back at
+// the start position of the home town (the temple) instead of where the
+// player left; the destructor TPlayer::~TPlayer saves it so. fight_block
+// (LogoutFightBlock, true by default): a player may not log out during or
+// right after a fight or a kill ([pvp] fight_lock and kill_lock), and a
+// character whose connection is lost stays in the game until then; false:
+// TCreature::LogoutPossible ignores those locks. The locks still keep the
+// player out of protection zones and out of leaving a party.
+extern bool LogoutToTemple;
+extern bool LogoutFightBlock;
+
 // [vocations]: what a player gains per level, by vocation (none, knight,
 // paladin, sorcerer, druid: the numbers of the professions; a promoted one
 // counts as its vocation): hitpoints (hp), mana (mana) and capacity

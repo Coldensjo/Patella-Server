@@ -139,6 +139,8 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("LureLimit", std::to_string(LureLimit));
 	Add("LureRadius", std::to_string(LureRadius));
 	Add("LureFloors", std::to_string(LureFloors));
+	Add("LogoutToTemple", std::to_string(LogoutToTemple));
+	Add("LogoutFightBlock", std::to_string(LogoutFightBlock));
 	for (int v = 0; v < VOCATIONS; v++) {
 		for (int g = 0; g < LEVEL_GAINS; g++) {
 			Add("VocationGains[" + std::to_string(v) + "][" + std::to_string(g) + "]",
@@ -178,6 +180,8 @@ static void Poison() {
 	FightLock = KillLock = RedSkullDays = IdleMinutes = LureFloors = 0x5A5A5A5A;
 	LureLimit = false;
 	LureRadius = 90.5;
+	LogoutToTemple = true;
+	LogoutFightBlock = false;
 	for (auto &Gains : VocationGains) {
 		for (int &Gain : Gains) {
 			Gain = 0x5A5A5A5A;
@@ -520,6 +524,13 @@ static void TestPvp(const fs::path &Folder) {
 	Poison();
 	CHECK(LoadError(Folder / "lure3.toml", "[lure]\n") == "");
 	CHECK(LureIsOriginal());
+
+	Poison();
+	CHECK(LoadError(Folder / "logout.toml", "[logout]\nto_temple = true\n") == "");
+	CHECK(LogoutToTemple && LogoutFightBlock);
+	Poison();
+	CHECK(LoadError(Folder / "logout2.toml", "[logout]\nfight_block = false\n") == "");
+	CHECK(!LogoutToTemple && !LogoutFightBlock);
 }
 
 static void TestVocations(const fs::path &Folder) {
@@ -661,6 +672,8 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[lure]\nlimit = 0\n", 2, "limit must be true or false");
 	Expect("[lure]\nradius = 0.5\n", 2, "radius must lie between 1 and 100");
 	Expect("[lure]\nfloors = 16\n", 2, "floors must lie between 0 and 15");
+	Expect("[logout]\ntemple = true\n", 2, "unknown key \"temple\" in [logout]");
+	Expect("[logout]\nfight_block = 1\n", 2, "fight_block must be true or false");
 	Expect("[vocations]\nelite_knight = { hp = 5 }\n", 2, "unknown key \"elite_knight\" in [vocations]");
 	Expect("[vocations]\nknight = 15\n", 2, "knight must be a table");
 	Expect("[vocations]\nknight = { speed = 2 }\n", 2, "unknown key \"speed\" in [vocations] knight");

@@ -153,6 +153,15 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "radius = 1.0  # times each spawn's radius, 1 to 100\n";
 	Text += "floors = 2    # 0 to 15\n";
 	Text += "\n";
+	Text += "# What happens at a logout. to_temple = true: a player who logs out (quit,\n";
+	Text += "# lost connection, idle, server shutdown) comes back in the temple of the home\n";
+	Text += "# town. fight_block = false: a player may log out during or right after a\n";
+	Text += "# fight or a kill, and a character whose connection is lost leaves at once\n";
+	Text += "# (the fight still keeps the player out of protection zones).\n";
+	Text += "[logout]\n";
+	Text += "to_temple = false   # true: back in the temple at the next login\n";
+	Text += "fight_block = true  # false: logout possible in a fight\n";
+	Text += "\n";
 	Text += "# What a player gains per level, by vocation (a promoted one counts as its\n";
 	Text += "# vocation): hp, mana and capacity, each 0 to 10000. Each value given counts\n";
 	Text += "# from a character's next level on (and for a level lost); one not given stays\n";
