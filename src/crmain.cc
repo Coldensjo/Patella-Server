@@ -700,7 +700,9 @@ int TCreature::LogoutPossible() {
 		return LOGOUT_POSSIBLE;
 	}
 
-	if (EarliestLogoutRound > RoundNr && !LagDetected()) {
+	// config.toml's [logout] fight_block false lets a player out during and
+	// right after a fight.
+	if (LogoutFightBlock && EarliestLogoutRound > RoundNr && !LagDetected()) {
 		return LOGOUT_AFTER_FIGHT;
 	}
 

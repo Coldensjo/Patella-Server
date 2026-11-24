@@ -3,8 +3,8 @@
 // original .tibia by tools/convert): the paths, the shared memory key, the
 // debug level, the world's name and state, the beat, the gameplay settings
 // that are not from the .tibia ([decay], [rates], [spawn], [loot], [death],
-// [regeneration], [soul], [pvp], [idle], [lure], [vocations]; config.hh), the query
-// managers and the file of the RSA key (communication.cc's ReadPrivateKey
+// [regeneration], [soul], [pvp], [idle], [lure], [logout], [vocations];
+// config.hh), the query managers and the file of the RSA key (communication.cc's ReadPrivateKey
 // reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
 // in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
@@ -77,6 +77,8 @@ int IdleMinutes;
 bool LureLimit;
 double LureRadius;
 int LureFloors;
+bool LogoutToTemple;
+bool LogoutFightBlock;
 int VocationGains[VOCATIONS][LEVEL_GAINS];
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
@@ -291,6 +293,8 @@ void SetConfigDefaults() {
 	LureLimit = true;
 	LureRadius = 1.0;
 	LureFloors = 2;
+	LogoutToTemple = false;
+	LogoutFightBlock = true;
 	for (auto &Gains : VocationGains) {
 		for (int &Gain : Gains) {
 			Gain = -1;
@@ -368,7 +372,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "lure", "vocations", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "lure", "logout", "vocations", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -512,6 +516,12 @@ void LoadConfig(const char *FileName) {
 		TomlGetBool(*Lure, "limit", LureLimit);
 		TomlGetFloat(*Lure, "radius", LureRadius, 1.0, MAX_LURE_RADIUS);
 		TomlGetNumber(*Lure, "floors", LureFloors, 0, MAX_LURE_FLOORS);
+	}
+
+	if (const toml::table *Logout = TomlGetTable(Config, "logout")) {
+		TomlCheckKeys(*Logout, "[logout]", {"to_temple", "fight_block"});
+		TomlGetBool(*Logout, "to_temple", LogoutToTemple);
+		TomlGetBool(*Logout, "fight_block", LogoutFightBlock);
 	}
 
 	if (const toml::table *Vocations = TomlGetTable(Config, "vocations")) {
