@@ -27,7 +27,7 @@ What it does, in WSL Ubuntu-24.04:
      converted from: data/config.toml becomes the copy's config.toml and its .tibia is removed (its [paths] must be
      relative, so they point at the copy); data/items.toml, data/circles.toml, data/spells.toml, data/commands.toml,
      data/triggers.toml (data/moveuse.toml before its rename), data/houses.toml, data/map.toml, data/conversion.toml,
-     data/npcs.toml, data/monsters.toml, data/raids.toml, data/monster_homes.toml, data/events.toml and data/talkactions.toml go into the
+     data/npcs.toml, data/monsters.toml, data/raids.toml, data/monster_homes.toml, data/events.toml, data/talkactions.toml and data/admin.toml go into the
      copy's data folder ([paths] data), as does data/scripts/ (the Lua scripts, as a whole folder), and the files they
      were converted from, objects.srv, circles.dat, moveuse.dat, houseareas.dat, houses.dat, map.dat with the
      mem.dat it includes, conversion.lst, monster.db, and the folders npc/ (the .npc and .ndb files) and mon/ (the
@@ -385,12 +385,20 @@ def write_config(source, game, shm, qm_port, debug_level):
 		raise CheckError("data/config.toml: no debug_level")
 	entries = [0]
 
-	def port(m):
-		entries[0] += 1
-		return "%s%d" % (m.group(1), qm_port + entries[0] - 1)
-
-	# port is a key of [[query_manager]] only.
-	text = re.sub(r"(?m)^(\s*port\s*=\s*)\d+", port, text)
+	# The port of each [[query_manager]] (other tables, [admin], have a port too): the lines after its header up to
+	# the next table header.
+	lines = text.split("\n")
+	section = None
+	for i, line in enumerate(lines):
+		header = re.match(r"^\s*(\[\[?)\s*([A-Za-z0-9_.-]+)\s*\]", line)
+		if header:
+			section = header.group(2) if header.group(1) == "[[" else None
+			continue
+		found = re.match(r"^(\s*port\s*=\s*)\d+", line)
+		if found and section == "query_manager":
+			entries[0] += 1
+			lines[i] = "%s%d%s" % (found.group(1), qm_port + entries[0] - 1, line[found.end():])
+	text = "\n".join(lines)
 	if not 1 <= entries[0] <= 4 or entries[0] != len(config.get("query_manager", [])):
 		raise CheckError("data/config.toml: %d query_manager entries with a port" % entries[0])
 	patched = tomllib.loads(text)
@@ -450,6 +458,7 @@ DATA_FILES = [
 	("monster_homes.toml", ("monster.db",)),
 	("events.toml", ()),
 	("talkactions.toml", ()),
+	("admin.toml", ()),
 ]
 
 # The TOML files of a tree's data/ that replace a whole folder of the copy, the folder as the original installation

@@ -38,6 +38,7 @@
 #include "TXTEASymmetricKey.hh"
 #include "mudinc.hh"
 #include "shm.hh"
+#include "admin.hh"
 #include "strings.hh"
 #include "writer.hh"
 #include "houses.hh"
@@ -218,6 +219,9 @@ void AdvanceGame(int Delay) {
 		MoveCreatures(Delay);
 		Lag = false;
 	}
+
+	// The admin port's requests (nothing when [admin] is not enabled).
+	ProcessAdminRequests();
 
 	SendAll();
 }
@@ -456,11 +460,15 @@ void InitAll(const char *ConfigFile) {
 		RegisterNpcAPI();
 		RegisterMonsterAPI();
 		RegisterEventAPI();
+		RegisterAdminAPI();
 		InitObjects();
 		InitItemUses();
 		char EventsFile[sizeof(DATAPATH) + 16];
 		snprintf(EventsFile, sizeof(EventsFile), "%s/events.toml", DATAPATH);
 		InitEvents(EventsFile);
+		char AdminFile[sizeof(DATAPATH) + 16];
+		snprintf(AdminFile, sizeof(AdminFile), "%s/admin.toml", DATAPATH);
+		InitAdminCommands(AdminFile);
 		InitMap();
 		InitTriggers();
 		InitMagic();
@@ -468,6 +476,7 @@ void InitAll(const char *ConfigFile) {
 		InitHouses();
 		InitTime();
 		ApplyPatches();
+		InitAdmin();
 	} catch (const char *s) {
 		error("Initialization error: %s\n", s);
 		exit(1);
@@ -476,6 +485,7 @@ void InitAll(const char *ConfigFile) {
 
 void ExitAll() {
 	EndGame();
+	ExitAdmin();
 	ExitTime();
 	ExitCr();
 	ExitTriggers();
@@ -484,6 +494,7 @@ void ExitAll() {
 	ExitReader();
 	ExitWriter();
 	ExitCommunication();
+	ExitAdminCommands();
 	ExitEvents();
 	ExitScripting();
 	ExitSHM();

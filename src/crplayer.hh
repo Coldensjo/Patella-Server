@@ -7,8 +7,14 @@
 #define PATELLA_CRPLAYER_HH
 
 #include <cstdint>
+#include <vector>
 
 #include "containr.hh"
+
+// Ends the inventory that SaveInventory writes and LoadInventory reads (a
+// player data slot's Inventory): each occupied body position as a byte,
+// followed by its objects as SaveObjects writes them.
+const int END_OF_INVENTORY = 0xFF;
 
 struct Object;
 struct Semaphore;
@@ -51,6 +57,10 @@ TPlayerIndexEntry *SearchPlayerIndex(char *Name);
 void InitPlayerIndex();
 uint32_t GetCharacterID(char *Name);
 char *GetCharacterName(char *Name);
+// Every character ID of the player index (all characters the query manager
+// listed at start, and those added since), in the index's order: by the
+// letters of the names.
+void GetAllCharacterIDs(std::vector<uint32_t> &IDs);
 void InitPlayer();
 void ExitPlayer();
 

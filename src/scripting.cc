@@ -223,6 +223,10 @@ static const char *ResultName(int Code) {
 	return ResultNames[Code - static_cast<int>(ERROR)].Name;
 }
 
+const char *ScriptResultName(int Code) {
+	return ResultName(Code);
+}
+
 // Sets Code to the number of the result named Name; false for a name that is
 // not one.
 static bool ResultCode(const char *Name, int *Code) {

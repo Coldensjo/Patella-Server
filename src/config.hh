@@ -238,6 +238,16 @@ bool LureIsOriginal();
 extern bool LogoutToTemple;
 extern bool LogoutFightBlock;
 
+// [admin]: the admin port of patella-admin (admin.cc). enabled (AdminEnabled,
+// false by default) opens it; port (AdminPort, 1 to 65535, 7177 by default)
+// is its TCP port, on 127.0.0.1 only; password (AdminPassword, at most
+// MAX_ADMIN_PASSWORD - 1 characters) is what each request must begin with,
+// and must not be empty when enabled is true.
+extern bool AdminEnabled;
+extern int AdminPort;
+const int MAX_ADMIN_PASSWORD = 64;
+extern char AdminPassword[MAX_ADMIN_PASSWORD];
+
 // [vocations]: what a player gains per level, by vocation (none, knight,
 // paladin, sorcerer, druid: the numbers of the professions; a promoted one
 // counts as its vocation): hitpoints (hp), mana (mana) and capacity

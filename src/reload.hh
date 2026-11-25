@@ -118,6 +118,7 @@ TReloadPart &MagicReloadPart();       // magic.cc: circles, spells, commands
 TReloadPart &RacesReloadPart();       // crmain.cc: monsters.toml, lib/monsters.lua
 TReloadPart &RaidsReloadPart();       // crmain.cc: raids.toml
 TReloadPart &NpcScriptsReloadPart();  // crnonpl.cc: the NPCs' scripts
+TReloadPart &AdminReloadPart();       // scripting_admin.cc: admin.toml
 
 // Asks for a reload by the player PlayerID (Command.reloadScripts). Gives
 // false when one is asked already and not done yet (the second is refused).

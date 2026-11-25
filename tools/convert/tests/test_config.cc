@@ -141,6 +141,9 @@ static TSettings Take(const std::string &Base = "", const std::string &Folder = 
 	Add("LureFloors", std::to_string(LureFloors));
 	Add("LogoutToTemple", std::to_string(LogoutToTemple));
 	Add("LogoutFightBlock", std::to_string(LogoutFightBlock));
+	Add("AdminEnabled", std::to_string(AdminEnabled));
+	Add("AdminPort", std::to_string(AdminPort));
+	Add("AdminPassword", AdminPassword);
 	for (int v = 0; v < VOCATIONS; v++) {
 		for (int g = 0; g < LEVEL_GAINS; g++) {
 			Add("VocationGains[" + std::to_string(v) + "][" + std::to_string(g) + "]",
@@ -182,6 +185,9 @@ static void Poison() {
 	LureRadius = 90.5;
 	LogoutToTemple = true;
 	LogoutFightBlock = false;
+	AdminEnabled = true;
+	AdminPort = 0x5A5A;
+	strcpy(AdminPassword, "poison");
 	for (auto &Gains : VocationGains) {
 		for (int &Gain : Gains) {
 			Gain = 0x5A5A5A5A;
@@ -531,6 +537,13 @@ static void TestPvp(const fs::path &Folder) {
 	Poison();
 	CHECK(LoadError(Folder / "logout2.toml", "[logout]\nfight_block = false\n") == "");
 	CHECK(!LogoutToTemple && !LogoutFightBlock);
+
+	Poison();
+	CHECK(LoadError(Folder / "admin.toml", "[admin]\nenabled = true\nport = 17177\npassword = \"secret\"\n") == "");
+	CHECK(AdminEnabled && AdminPort == 17177 && strcmp(AdminPassword, "secret") == 0);
+	Poison();
+	CHECK(LoadError(Folder / "admin2.toml", "[admin]\n") == "");
+	CHECK(!AdminEnabled && AdminPort == 7177 && AdminPassword[0] == 0);
 }
 
 static void TestVocations(const fs::path &Folder) {
@@ -674,6 +687,9 @@ static void TestErrors(const fs::path &Folder) {
 	Expect("[lure]\nfloors = 16\n", 2, "floors must lie between 0 and 15");
 	Expect("[logout]\ntemple = true\n", 2, "unknown key \"temple\" in [logout]");
 	Expect("[logout]\nfight_block = 1\n", 2, "fight_block must be true or false");
+	Expect("[admin]\nhost = \"x\"\n", 2, "unknown key \"host\" in [admin]");
+	Expect("[admin]\nport = 0\n", 2, "port must lie between 1 and 65535");
+	Expect("[admin]\nenabled = true\n", 1, "[admin] needs a password when enabled is true");
 	Expect("[vocations]\nelite_knight = { hp = 5 }\n", 2, "unknown key \"elite_knight\" in [vocations]");
 	Expect("[vocations]\nknight = 15\n", 2, "knight must be a table");
 	Expect("[vocations]\nknight = { speed = 2 }\n", 2, "unknown key \"speed\" in [vocations] knight");

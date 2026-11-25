@@ -12,6 +12,7 @@
 #include <cstring>
 #include <time.h>
 #include <unistd.h>
+#include <vector>
 
 #include "script.hh"
 #include "config.hh"
@@ -57,11 +58,6 @@ const int PLAYERINDEX_CHILDREN = 27;
 // The most names loadPlayers returns at once; InitPlayerIndex asks again
 // while it gets this many (the query manager's protocol.hh has the same name).
 const int MAX_PLAYERS_PER_LOAD = 10000;
-
-// Ends the inventory that SaveInventory writes and LoadInventory reads: each
-// occupied body position as a byte, followed by its objects as SaveObjects
-// writes them.
-const int END_OF_INVENTORY = 0xFF;
 
 // The bits of the state that CheckState sends (SendPlayerState), each set
 // while the named skill's condition lasts; PLAYERSTATE_SLOWED and
@@ -964,6 +960,30 @@ char *GetCharacterName(char *Name) {
 	}
 
 	return Entry->Name;
+}
+
+// Adds the character IDs below Node to IDs, child by child (in the order of
+// the letters), a leaf's in its order.
+static void CollectPlayerIndex(const TPlayerIndexNode *Node, std::vector<uint32_t> &IDs) {
+	if (Node->InternalNode) {
+		const TPlayerIndexInternalNode *Internal = static_cast<const TPlayerIndexInternalNode *>(Node);
+		for (int i = 0; i < PLAYERINDEX_CHILDREN; i++) {
+			if (Internal->Child[i] != nullptr) {
+				CollectPlayerIndex(Internal->Child[i], IDs);
+			}
+		}
+		return;
+	}
+
+	const TPlayerIndexLeafNode *Leaf = static_cast<const TPlayerIndexLeafNode *>(Node);
+	for (int i = 0; i < Leaf->Count; i++) {
+		IDs.push_back(Leaf->Entry[i].CharacterID);
+	}
+}
+
+void GetAllCharacterIDs(std::vector<uint32_t> &IDs) {
+	IDs.clear();
+	CollectPlayerIndex(&PlayerIndexHead, IDs);
 }
 
 TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayers(0, 10, 10), FormerAttackedPlayers(0, 10, 10) {

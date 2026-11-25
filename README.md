@@ -317,6 +317,51 @@ never replaces newer data saved since. While the file cannot be sent, the
 character cannot log in: a load that fails refuses the login, so that a
 character never starts as new because its data could not be read.
 
+## Admin port
+
+`patella-admin` (`build/admin/patella-admin`) gives the running game commands
+through its admin port. Turn the port on in `config.toml`:
+
+```toml
+[admin]
+enabled = true
+port = 7177           # listens on 127.0.0.1 only
+password = "a long secret"
+```
+
+The tool reads the port and the password from the same file (`--config FILE`,
+else `config.toml` in `$HOME`, where the game reads it); `--port`,
+`--password-file FILE` and the environment variable `PATELLA_ADMIN_PASSWORD`
+take their place. Give it one command, or none for a prompt (`quit` ends it):
+
+```
+patella-admin help
+patella-admin spawn 32369,32220,7 "golden armor"
+patella-admin spawn 32369,32220,7 3031 500     # gold coins in stacks of 100
+patella-admin temple "Testa Alpha"
+patella-admin teleport "Testa Alpha" 32369,32220,7
+patella-admin teleport "Testa Alpha" "Testb Beta"
+patella-admin give "Testa Alpha" "magic plate armor"
+patella-admin give "Testa Alpha" 3031 250
+patella-admin remove "Testa Alpha" 3031 100     # all when no count is given
+patella-admin removedepot "Testa Alpha" 3031 all Thais
+patella-admin removeall "magic plate armor"     # every character, inventory and depots
+```
+
+A player is named by the character's name (in quotes when it has a space),
+an item by its number or name. The commands reach offline characters too: an
+offline player is moved by changing where it logs in next, and its inventory
+and depots are loaded, changed and saved back. `give` puts the items into a
+player's inventory, else at its feet; an offline player's into its backpack,
+else into the depot of its home town. `removeall` goes over every character,
+as many each beat as a quarter of the beat allows (each offline one is loaded
+from the query manager), and answers when it is done: on a large database
+that takes minutes, while the game runs on. Each command is a Lua script in
+`data/scripts/admin/`, listed in `data/admin.toml` (copy both into the
+installation's data folder); they reload with Reload Scripts. Each request is
+logged in the log `admin`. The exit code is 0 for a command done, 1 for one
+refused or failed, 2 when the game did not answer.
+
 ## Play
 
 `tools/play.sh` starts the query manager, the login server (port 7171) and

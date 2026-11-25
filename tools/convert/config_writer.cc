@@ -162,6 +162,15 @@ std::string ConfigToToml(const TTibiaConfigExtras &Extras, const char *Base) {
 	Text += "to_temple = false   # true: back in the temple at the next login\n";
 	Text += "fight_block = true  # false: logout possible in a fight\n";
 	Text += "\n";
+	Text += "# The admin port of patella-admin, which gives the game commands while it\n";
+	Text += "# runs (spawn items, teleport players, give and remove items; data/admin.toml\n";
+	Text += "# lists them). It listens on 127.0.0.1 only; each request needs the password,\n";
+	Text += "# which must be set when enabled is true.\n";
+	Text += "[admin]\n";
+	Text += "enabled = false  # true: open the port\n";
+	Text += "port = 7177      # 1 to 65535\n";
+	Text += "password = \"\"\n";
+	Text += "\n";
 	Text += "# What a player gains per level, by vocation (a promoted one counts as its\n";
 	Text += "# vocation): hp, mana and capacity, each 0 to 10000. Each value given counts\n";
 	Text += "# from a character's next level on (and for a level lost); one not given stays\n";
