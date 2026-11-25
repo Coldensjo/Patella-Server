@@ -1,8 +1,8 @@
 -- admin/killall.lua: killall <x,y,z> [radius]. Kills every monster within
 -- radius (0 to 7, 2 when not given; the circles of circles.toml) of a field
 -- of the map, as Kill All Creatures does around a gamemaster: they die as if
--- slain (their corpses, their loot, their hooks). Players and NPCs are not
--- touched.
+-- slain (their corpses, their loot, their hooks), with the death effect on
+-- each field where one died. Players and NPCs are not touched.
 
 local admin = require("lib.admin")
 
@@ -38,6 +38,7 @@ function onCommand(words)
 				-- The next object is taken before the current one is handled
 				-- (a death changes the field).
 				local object = Game.getFirstObject(field)
+				local died = false
 				while object ~= nil do
 					local current = object
 					object = object:getNextObject()
@@ -47,14 +48,18 @@ function onCommand(words)
 							creature:setHealth(0)
 							creature:die()
 							killed = killed + 1
+							died = true
 						end
 					end
+				end
+				-- One effect on each field where a monster died.
+				if died then
+					field:sendMagicEffect(CONST_ME_MORTAREA)
 				end
 			end
 		end
 	end
 
-	center:sendMagicEffect(CONST_ME_MORTAREA)
 	Admin.reply(string.format("Killed %d monster%s within %d of %s.", killed, killed == 1 and "" or "s", radius,
 			admin.positionText(center)))
 end
