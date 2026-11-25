@@ -1,0 +1,61 @@
+# admin.toml: the commands of the admin port (patella-admin; config.toml's
+# [admin]). The game reads admin.toml in its data folder ([paths] data of
+# config.toml) at start and at every reload (Reload Scripts), whether the port
+# is enabled or not. An unknown key, a value of the wrong type, or a command or
+# script named twice is an error.
+#
+# A request is one line: the command's name and its words, separated by
+# spaces; a word with spaces is written in double quotes ("Testa Alpha").
+# "help" lists the commands below with their usage and description.
+#
+# Each [[command]] is one command:
+#   name         What is typed for it: a-z, 0-9 and '_', at most 30
+#                characters, not "help" (the port's own).
+#   usage        Its words, as help shows them.
+#   description  What it does, as help shows it.
+#   script       The script that does it, "admin/<name>.lua" in the scripts
+#                folder (data/scripts/ in the repository): its global
+#                function onCommand(words) runs with the words after the
+#                name (scripting.hh, section "The admin port").
+
+[[command]]
+name = "spawn"
+usage = "spawn <x,y,z> <item> [count]"
+description = "Creates items on a field of the map (an item by number or name)."
+script = "admin/spawn.lua"
+
+[[command]]
+name = "temple"
+usage = "temple <player>"
+description = "Moves a player to the temple of the home town (an offline player at the next login)."
+script = "admin/temple.lua"
+
+[[command]]
+name = "teleport"
+usage = "teleport <player> <x,y,z | player>"
+description = "Moves a player to a field or to another player (an offline player at the next login)."
+script = "admin/teleport.lua"
+
+[[command]]
+name = "give"
+usage = "give <player> <item> [count]"
+description = "Gives items to a player: into the inventory, else at the player's feet; offline into the backpack, else the depot of the home town."
+script = "admin/give.lua"
+
+[[command]]
+name = "remove"
+usage = "remove <player> <item> [count|all]"
+description = "Removes items from a player's inventory (all when no count is given)."
+script = "admin/remove.lua"
+
+[[command]]
+name = "removedepot"
+usage = "removedepot <player> <item> [count|all] [town|depot number]"
+description = "Removes items from a player's depots, or from one depot (all when no count is given)."
+script = "admin/removedepot.lua"
+
+[[command]]
+name = "removeall"
+usage = "removeall <item> [inventory|depot|everywhere]"
+description = "Removes an item from every character, online and offline (everywhere when not given)."
+script = "admin/removeall.lua"

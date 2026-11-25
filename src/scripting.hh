@@ -977,6 +977,65 @@
 // Game.imod where the C++ code divides or takes the remainder of ints that
 // may be negative; for non-negative ints math.floor(a / b) and a % b give the
 // same.
+//
+// The admin port (ours; admin.hh, admin.cc, scripting_admin.cc). patella-admin
+// sends a command line to the port config.toml's [admin] opens; the main loop
+// carries it out at the next beat (ProcessAdminRequests). data/admin.toml
+// lists the commands, each with its script admin/<name>.lua, whose handlers
+// are:
+//   onCommand(words)                 words: the array of the words after the
+//                                    command's name (strings, Latin-1).
+//   onCharacter(characterId, words) -> number
+//                                    after Admin.runOverCharacters: once for
+//                                    each character of the player index, a
+//                                    number of them each beat; the numbers
+//                                    are summed.
+//   onRunEnd(words, total, characters)
+//                                    at the end of the run (optional).
+// The shared helpers are lib/admin.lua's (its comment says what each does).
+// What a handler tells with Admin.reply and Admin.fail is the reply; a script
+// error or a result code that leaves a handler is replied too and makes the
+// reply an ERROR (in a run, one character's failure is counted and the run
+// goes on). A reload ends a run.
+// Admin (each function only while the port carries out a request, else a Lua
+// error; the ones that name "the open character" only between
+// Admin.openCharacter and Admin.closeCharacter):
+//   Admin.reply(text), Admin.fail(text): a line of the reply; fail makes the
+//       reply an ERROR.
+//   Admin.runOverCharacters(): asks for the run, in onCommand only.
+//   Admin.findCharacter(name) -> characterId, name (as the player index
+//       writes it), or nil: GetCharacterID (any case).
+//   Admin.openCharacter(characterId) -> online: opens the character, online
+//       (a player in the game) or offline (its player data slot assigned and
+//       loaded as a login loads it); one at a time. A character left open
+//       when the handler ends is closed without its changes.
+//   Admin.closeCharacter(): writes back what changed: an offline
+//       character's inventory, the depots loaded and an offline character's
+//       saved position into its player data (marked dirty; an offline
+//       character's slot saved at once and released).
+//   Admin.getPlayer() -> the Player, nil when the character is offline.
+//   Admin.getName() -> its name.
+//   Admin.getInventoryContainer(slot) -> the Item holding its object at body
+//       position slot (CONST_SLOT_HEAD to CONST_SLOT_AMMO): a player's body
+//       container; for an offline character a depot locker the port made.
+//   Admin.getDepotContainer(depot) -> the Item holding its depot (0 to 8):
+//       the depot box a player has open, else a depot locker the port made
+//       and loaded (LoadDepot).
+//   Admin.addToDepot(depot, type, value): a new object into its depot: into
+//       the depot chest, else the locker, else into the locker anyway (as mail
+//       is); never onto the map.
+//   Admin.getStartPosition() -> its temple (startx, starty, startz; the
+//       newbie start for an offline character whose data has none).
+//   Admin.getPosition() -> where it is: a player's field, an offline
+//       character's saved position.
+//   Admin.setSavedPosition(position): where the offline character logs in
+//       next (on the map; not for a player online).
+//   Admin.create(container, type, value) -> Item or nil: Create(Con, Type,
+//       Value) of operate.cc, nil when the place refuses it (nothing goes
+//       elsewhere, unlike Game.createObject).
+//   Admin.getCarrier(item) -> the creature ID of the creature carrying it
+//       (GetObjectCreatureID), 0 for none.
+//   Admin.getDepotTown(depot) -> the town of a depot number, nil for none.
 
 #ifndef PATELLA_SCRIPTING_HH
 #define PATELLA_SCRIPTING_HH
@@ -1016,6 +1075,10 @@ int LoadScript(const char *Name, const char *Where);
 
 // The name of a loaded script (as given to LoadScript).
 const char *ScriptName(int Script);
+
+// The scripts' name of the result code Code ("RETURNVALUE_NOTENOUGHROOM"), or
+// nullptr for a number that is not one.
+const char *ScriptResultName(int Code);
 
 // Whether the script has a global function Handler ("onCastSpell") of its
 // own.

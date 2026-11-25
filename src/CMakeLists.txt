@@ -54,6 +54,8 @@ add_executable(game
 	scripting_npcs.cc
 	scripting_monsters.cc
 	scripting_events.cc
+	scripting_admin.cc
+	admin.cc
 	reload.cc
 )
 target_include_directories(game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

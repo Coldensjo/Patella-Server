@@ -107,11 +107,20 @@ text, count = re.subn(r"(?m)^(\s*shm_key\s*=\s*)-?\d+", lambda m: "%s%d" % (m.gr
 if count != 1:
 	sys.exit("data/config.toml: no shm_key")
 entries = []
-# port is a key of [[query_manager]] only.
-def renumber(m):
-	entries.append(m)
-	return "%s%d" % (m.group(1), port + len(entries) - 1)
-text = re.sub(r"(?m)^(\s*port\s*=\s*)\d+", renumber, text)
+# The port of each [[query_manager]] (other tables, [admin], have a port too):
+# the lines after its header up to the next table header.
+lines = text.split("\n")
+section = None
+for i, line in enumerate(lines):
+	header = re.match(r"^\s*(\[\[?)\s*([A-Za-z0-9_.-]+)\s*\]", line)
+	if header:
+		section = header.group(2) if header.group(1) == "[[" else None
+		continue
+	found = re.match(r"^(\s*port\s*=\s*)\d+", line)
+	if found and section == "query_manager":
+		entries.append(found)
+		lines[i] = "%s%d%s" % (found.group(1), port + len(entries) - 1, line[found.end():])
+text = "\n".join(lines)
 patched = tomllib.loads(text)
 if patched["shm_key"] != shm or [q["port"] for q in patched.get("query_manager", [])] != [port + i
 		for i in range(len(entries))] or not entries:

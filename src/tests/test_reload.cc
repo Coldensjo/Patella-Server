@@ -120,8 +120,9 @@ static TFakePart Magic("magic");
 static TFakePart Races("races");
 static TFakePart Raids("raids");
 static TFakePart NpcScripts("npc scripts");
+static TFakePart Admin("admin");
 
-static TFakePart *const AllParts[] = {&Items, &ItemUses, &Events, &Triggers, &Magic, &Races, &Raids, &NpcScripts};
+static TFakePart *const AllParts[] = {&Items, &ItemUses, &Events, &Triggers, &Magic, &Races, &Raids, &NpcScripts, &Admin};
 
 TReloadPart &ItemsReloadPart() {
 	return Items;
@@ -155,6 +156,10 @@ TReloadPart &NpcScriptsReloadPart() {
 	return NpcScripts;
 }
 
+TReloadPart &AdminReloadPart() {
+	return Admin;
+}
+
 // The API functions: each records itself; FailingAPI throws as
 // ScriptAPITable would.
 static void API(const char *Name) {
@@ -186,6 +191,10 @@ void RegisterMonsterAPI() {
 
 void RegisterEventAPI() {
 	API("event");
+}
+
+void RegisterAdminAPI() {
+	API("admin");
 }
 
 // Records whether the engine's reload is committed when it is called.
@@ -264,13 +273,13 @@ static void TestSuccess() {
 	CHECK_LIST(Steps, {
 		"items.read", "items.install", "item uses.read", "item uses.install", "events.read", "events.install",
 		"triggers.read", "triggers.install", "magic.read", "magic.install", "races.read", "races.install",
-		"raids.read", "raids.install", "npc scripts.read", "npc scripts.install",
-		"api.magic", "api.trigger", "api.item", "api.npc", "api.monster", "api.event",
+		"raids.read", "raids.install", "npc scripts.read", "npc scripts.install", "admin.read", "admin.install",
+		"api.magic", "api.trigger", "api.item", "api.npc", "api.monster", "api.event", "api.admin",
 		"items.loadScripts(new state)", "item uses.loadScripts(new state)", "events.loadScripts(new state)",
 		"triggers.loadScripts(new state)", "magic.loadScripts(new state)", "races.loadScripts(new state)",
-		"raids.loadScripts(new state)", "npc scripts.loadScripts(new state)",
+		"raids.loadScripts(new state)", "npc scripts.loadScripts(new state)", "admin.loadScripts(new state)",
 		"items.finish", "item uses.finish", "events.finish", "triggers.finish", "magic.finish", "races.finish",
-		"raids.finish", "npc scripts.finish", "creatures.refresh",
+		"raids.finish", "npc scripts.finish", "admin.finish", "creatures.refresh",
 	});
 	CHECK(!ScriptReloadActive());
 	CHECK(&ScriptState() != Before);
@@ -278,7 +287,7 @@ static void TestSuccess() {
 	CHECK_LIST(std::vector<std::string>(Logged.begin() + 1, Logged.end()), {
 		"  summary of items\n", "  summary of item uses\n", "  summary of events\n",
 		"  summary of triggers\n", "  summary of magic\n", "  summary of races\n",
-		"  summary of raids\n", "  summary of npc scripts\n",
+		"  summary of raids\n", "  summary of npc scripts\n", "  summary of admin\n",
 	});
 
 	// Done: a new request is taken; without one nothing happens.
@@ -287,7 +296,7 @@ static void TestSuccess() {
 	CHECK(Steps.empty() && Logged.empty());
 	CHECK(RequestScriptReload(8));
 	ProcessScriptReload();
-	CHECK(Steps.size() == 39);
+	CHECK(Steps.size() == 44);
 	CHECK(FirstLine() == "Reload of the scripts and data by player 8: done in N ms.\n");
 }
 
@@ -326,13 +335,13 @@ static void TestLoadFailure() {
 	std::vector<std::string> Expected = {
 		"items.read", "items.install", "item uses.read", "item uses.install", "events.read", "events.install",
 		"triggers.read", "triggers.install", "magic.read", "magic.install", "races.read", "races.install",
-		"raids.read", "raids.install", "npc scripts.read", "npc scripts.install",
-		"api.magic", "api.trigger", "api.item", "api.npc", "api.monster", "api.event",
+		"raids.read", "raids.install", "npc scripts.read", "npc scripts.install", "admin.read", "admin.install",
+		"api.magic", "api.trigger", "api.item", "api.npc", "api.monster", "api.event", "api.admin",
 		"items.loadScripts(new state)", "item uses.loadScripts(new state)", "events.loadScripts(new state)",
 		"triggers.loadScripts(new state)", "magic.loadScripts(new state)", "races.loadScripts(new state)",
-		"npc scripts.uninstall", "raids.uninstall", "races.uninstall", "magic.uninstall", "triggers.uninstall",
+		"admin.uninstall", "npc scripts.uninstall", "raids.uninstall", "races.uninstall", "magic.uninstall", "triggers.uninstall",
 		"events.uninstall", "item uses.uninstall", "items.uninstall",
-		"npc scripts.discard", "raids.discard", "races.discard", "magic.discard", "triggers.discard",
+		"admin.discard", "npc scripts.discard", "raids.discard", "races.discard", "magic.discard", "triggers.discard",
 		"events.discard", "item uses.discard", "items.discard",
 	};
 	CheckList(Steps, Expected, __LINE__);
@@ -346,8 +355,8 @@ static void TestLoadFailure() {
 	FailingAPI = "monster";
 	CHECK(RequestScriptReload(7));
 	ProcessScriptReload();
-	CHECK(Steps.size() == 16 + 5 + 8 + 8);
-	CHECK(Steps.size() > 21 && Steps[20] == "api.monster" && Steps[21] == "npc scripts.uninstall");
+	CHECK(Steps.size() == 18 + 5 + 9 + 9);
+	CHECK(Steps.size() > 23 && Steps[22] == "api.monster" && Steps[23] == "admin.uninstall");
 	CHECK(!ScriptReloadActive());
 	CHECK(&ScriptState() == Before);
 	CHECK(Logged.size() > 1
@@ -372,7 +381,7 @@ static void TestLongError() {
 	BeginScriptReload();
 	CHECK(RequestScriptReload(7));
 	ProcessScriptReload();
-	CHECK(Steps.size() == 16 + 8 + 8);
+	CHECK(Steps.size() == 18 + 9 + 9);
 	CHECK(Logged.size() > 1 && Logged[1] == "  error: engine: BeginScriptReload: a reload has begun already\n");
 	CHECK(ScriptReloadActive());
 	DiscardScriptReload();

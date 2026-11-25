@@ -142,15 +142,31 @@ int TQueryManagerConnection::write(unsigned char *Buffer, int Size) {
 	return Size - nleft;
 }
 
+// The milliseconds of the monotonic clock.
+static long long MonotonicMilliseconds() {
+	struct timespec Now;
+	clock_gettime(CLOCK_MONOTONIC, &Now);
+	return static_cast<long long>(Now.tv_sec) * 1000 + Now.tv_nsec / 1000000;
+}
+
 int TQueryManagerConnection::read(unsigned char *Buffer, int Size, int Timeout) {
 	int Chances = 50;
 	int nleft = Size;
 	pollfd ufds;
+	// A wait a signal breaks off (the beat's SIGALRM in the main thread) goes
+	// on until the same deadline: the request is not given up, which the
+	// query manager may have carried out already.
+	long long Deadline = MonotonicMilliseconds() + static_cast<long long>(Timeout) * 1000;
 	while (nleft > 0) {
 		ufds.fd = Socket;
 		ufds.events = POLLIN;
 		ufds.revents = 0;
-		if (poll(&ufds, 1, Timeout * 1000) <= 0) {
+		long long Left = Deadline - MonotonicMilliseconds();
+		int Ready = Left > 0 ? poll(&ufds, 1, static_cast<int>(Left)) : 0;
+		if (Ready < 0 && errno == EINTR) {
+			continue;
+		}
+		if (Ready <= 0) {
 			return -2;
 		}
 

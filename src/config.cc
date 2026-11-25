@@ -3,8 +3,8 @@
 // original .tibia by tools/convert): the paths, the shared memory key, the
 // debug level, the world's name and state, the beat, the gameplay settings
 // that are not from the .tibia ([decay], [rates], [spawn], [loot], [death],
-// [regeneration], [soul], [pvp], [idle], [lure], [logout], [vocations];
-// config.hh), the query managers and the file of the RSA key (communication.cc's ReadPrivateKey
+// [regeneration], [soul], [pvp], [idle], [lure], [logout], [admin],
+// [vocations]; config.hh), the query managers and the file of the RSA key (communication.cc's ReadPrivateKey
 // reads it).
 // The world config (type, reboot time, address, port, player limits) is filled
 // in by main.cc's LoadWorldConfig from the query manager. DisguisePassword
@@ -79,6 +79,9 @@ double LureRadius;
 int LureFloors;
 bool LogoutToTemple;
 bool LogoutFightBlock;
+bool AdminEnabled;
+int AdminPort;
+char AdminPassword[MAX_ADMIN_PASSWORD];
 int VocationGains[VOCATIONS][LEVEL_GAINS];
 int NumberOfQueryManagers;
 TQueryManagerSettings QUERY_MANAGER[MAX_QUERY_MANAGERS];
@@ -295,6 +298,9 @@ void SetConfigDefaults() {
 	LureFloors = 2;
 	LogoutToTemple = false;
 	LogoutFightBlock = true;
+	AdminEnabled = false;
+	AdminPort = 7177;
+	AdminPassword[0] = 0;
 	for (auto &Gains : VocationGains) {
 		for (int &Gain : Gains) {
 			Gain = -1;
@@ -372,7 +378,7 @@ void LoadConfig(const char *FileName) {
 
 	toml::table Config = TomlParseFile(FileName);
 	TomlCheckKeys(Config, "the top level",
-			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "lure", "logout", "vocations", "paths", "query_manager"});
+			{"debug_level", "beat", "shm_key", "rsa_key", "world", "decay", "rates", "spawn", "loot", "death", "regeneration", "soul", "pvp", "idle", "lure", "logout", "admin", "vocations", "paths", "query_manager"});
 	std::string Folder = FolderOf(FileName);
 
 	TomlGetNumber(Config, "debug_level", DebugLevel, INT_MIN, INT_MAX);
@@ -522,6 +528,16 @@ void LoadConfig(const char *FileName) {
 		TomlCheckKeys(*Logout, "[logout]", {"to_temple", "fight_block"});
 		TomlGetBool(*Logout, "to_temple", LogoutToTemple);
 		TomlGetBool(*Logout, "fight_block", LogoutFightBlock);
+	}
+
+	if (const toml::table *Admin = TomlGetTable(Config, "admin")) {
+		TomlCheckKeys(*Admin, "[admin]", {"enabled", "port", "password"});
+		TomlGetBool(*Admin, "enabled", AdminEnabled);
+		TomlGetNumber(*Admin, "port", AdminPort, 1, 65535);
+		TomlGetString(*Admin, "password", AdminPassword, sizeof(AdminPassword));
+		if (AdminEnabled && AdminPassword[0] == 0) {
+			TomlError(Admin->source(), "[admin] needs a password when enabled is true");
+		}
 	}
 
 	if (const toml::table *Vocations = TomlGetTable(Config, "vocations")) {

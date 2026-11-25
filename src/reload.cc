@@ -22,6 +22,7 @@
 #include "writer.hh"
 #include "scripting_api.hh"
 #include "reload.hh"
+#include "admin.hh"
 
 // The longest text a message to a player holds (Talk takes no longer one).
 static const size_t MAX_MESSAGE_LENGTH = 255;
@@ -89,6 +90,7 @@ void ProcessScriptReload() {
 		&RacesReloadPart(),
 		&RaidsReloadPart(),
 		&NpcScriptsReloadPart(),
+		&AdminReloadPart(),
 	};
 	const int NUMBER_OF_PARTS = static_cast<int>(sizeof(Parts) / sizeof(Parts[0]));
 
@@ -119,6 +121,7 @@ void ProcessScriptReload() {
 		RegisterNpcAPI();
 		RegisterMonsterAPI();
 		RegisterEventAPI();
+		RegisterAdminAPI();
 		for (int i = 0; i < NUMBER_OF_PARTS; i++) {
 			Doing = Parts[i]->name();
 			Parts[i]->loadScripts();
