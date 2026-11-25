@@ -362,6 +362,39 @@ installation's data folder); they reload with Reload Scripts. Each request is
 logged in the log `admin`. The exit code is 0 for a command done, 1 for one
 refused or failed, 2 when the game did not answer.
 
+More commands, for running the world and its players:
+
+```
+patella-admin find 3031                          # who has gold coins, and how many (every character)
+patella-admin broadcast Server restart at 20:00
+patella-admin kick "Testa Alpha"
+patella-admin mute "Testa Alpha" 30              # minutes; 0 lifts it
+patella-admin ban "Testa Alpha" 7 macro use      # days, or permanent; banaccount is the same
+patella-admin unban "Testa Alpha"
+patella-admin banip "Testa Alpha" 30             # an online player's address, or one given: banip 192.0.2.1 30
+patella-admin namelock "Testa Alpha" bad name    # cannot log in until renamed
+patella-admin notation "Testa Alpha" warned for spamming
+patella-admin rename "Testa Alpha" "Testa Beta"  # also lifts a namelock; a player online is kicked first
+patella-admin heal "Testa Alpha"
+patella-admin sethome "Testa Alpha" Carlin       # a town of admin.toml, or a field x,y,z
+patella-admin spawnmonster rat 32369,32225,7 5
+patella-admin raid cavesgrorlam1                 # a raid of raids.toml by key
+patella-admin killall 32369,32225,7 3            # the monsters within the radius (0 to 7)
+patella-admin save                               # players and map now
+patella-admin shutdown 10 --restart              # warnings at 10, 5, 3, 1 minutes; shutdown cancel, shutdown status
+```
+
+`ban`, `unban`, `banip`, `namelock`, `notation` and `rename` go through the
+query manager, which now also handles the rule violation dialog's (Ctrl+Y)
+banishment, IP banishment, namelock and notation; that dialog's banishments
+grow with the account's earlier ones (7, 15, then 30 days with a final
+warning, then for good), its IP banishments last 7 days. The database gets the
+tables `banishments` and `notations` (schema version 3; an older database is
+brought up when the query manager opens it, and a query manager of an older
+build then refuses it). `sethome` takes the towns of `admin.toml`'s
+`[[town]]` list. `shutdown --restart` starts the game again with the
+installation's `bin/reboot-daily`, as the daily reboot does.
+
 ## Play
 
 `tools/play.sh` starts the query manager, the login server (port 7171) and

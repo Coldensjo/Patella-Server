@@ -74,6 +74,17 @@ void StartGame() {
 	}
 }
 
+void ReopenGame() {
+	if (SHM == nullptr) {
+		error("ReopenGame: SharedMemory does not exist.\n");
+		return;
+	}
+
+	if (SHM->GameState == GAME_CLOSING) {
+		SHM->GameState = GAME_RUNNING;
+	}
+}
+
 void CloseGame() {
 	if (SHM == nullptr) {
 		error("CloseGame: SharedMemory does not exist.\n");

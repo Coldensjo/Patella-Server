@@ -61,6 +61,10 @@ char *GetCharacterName(char *Name);
 // listed at start, and those added since), in the index's order: by the
 // letters of the names.
 void GetAllCharacterIDs(std::vector<uint32_t> &IDs);
+// After the query manager renamed a character that is not in the game: the
+// player index (OldName out, NewName in), the name of its player data slot,
+// and the owner name of its houses.
+void RenameCharacterInGame(uint32_t CharacterID, const char *OldName, const char *NewName);
 void InitPlayer();
 void ExitPlayer();
 

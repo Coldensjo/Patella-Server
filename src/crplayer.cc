@@ -34,6 +34,7 @@
 #include "sending.hh"
 #include "writer.hh"
 #include "houses.hh"
+#include "housesdata.hh"
 #include "triggers.hh"
 #include "shm.hh"
 #include "strings.hh"
@@ -984,6 +985,54 @@ static void CollectPlayerIndex(const TPlayerIndexNode *Node, std::vector<uint32_
 void GetAllCharacterIDs(std::vector<uint32_t> &IDs) {
 	IDs.clear();
 	CollectPlayerIndex(&PlayerIndexHead, IDs);
+}
+
+// Takes the entry of Name (any case) out of the player index: the leaf
+// SearchPlayerIndex would read keeps its other entries in their order. An
+// internal node whose leaves become empty stays (an insert fills it again).
+static void RemovePlayerIndex(char *Name) {
+	TPlayerIndexNode *Node = &PlayerIndexHead;
+	int Position = 0;
+	while (Node->InternalNode) {
+		Node = ((TPlayerIndexInternalNode *)Node)->Child[GetPlayerIndexEntryNumber(Name, Position)];
+		if (Node == nullptr) {
+			return;
+		}
+		Position++;
+	}
+
+	TPlayerIndexLeafNode *Leaf = (TPlayerIndexLeafNode *)Node;
+	for (int i = 0; i < Leaf->Count; i++) {
+		if (stricmp(Leaf->Entry[i].Name, Name, -1) == 0) {
+			for (int j = i + 1; j < Leaf->Count; j++) {
+				Leaf->Entry[j - 1] = Leaf->Entry[j];
+			}
+			Leaf->Count--;
+			return;
+		}
+	}
+}
+
+void RenameCharacterInGame(uint32_t CharacterID, const char *OldName, const char *NewName) {
+	char Old[30];
+	char New[30];
+	snprintf(Old, sizeof(Old), "%s", OldName);
+	snprintf(New, sizeof(New), "%s", NewName);
+	RemovePlayerIndex(Old);
+	InsertPlayerIndex(&PlayerIndexHead, 0, New, CharacterID);
+
+	PlayerDataPoolMutex.down();
+	TPlayerData *Slot = GetPlayerPoolSlot(CharacterID);
+	if (Slot != nullptr) {
+		strcpy(Slot->Name, New);
+	}
+	PlayerDataPoolMutex.up();
+
+	for (int i = 0; i < Houses; i++) {
+		if (House(i).OwnerID == CharacterID) {
+			strcpy(House(i).OwnerName, New);
+		}
+	}
 }
 
 TPlayer::TPlayer(TConnection *Connection, uint32_t CharacterID) : AttackedPlayers(0, 10, 10), FormerAttackedPlayers(0, 10, 10) {

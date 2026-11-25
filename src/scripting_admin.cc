@@ -40,6 +40,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <strings.h>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -56,6 +57,13 @@
 #include "utils.hh"
 #include "writer.hh"
 #include "admin.hh"
+#include "communication.hh"
+#include "crskill.hh"
+#include "houses.hh"
+#include "main.hh"
+#include "query.hh"
+#include "sending.hh"
+#include "writer.hh"
 #include "reload.hh"
 #include "scripting_api.hh"
 
@@ -96,6 +104,17 @@ struct TAdminCommand {
 // same order).
 static std::vector<TAdminCommand> Commands;
 static std::vector<int> CommandScripts;
+
+// A town of admin.toml: its name and the start field of its citizens (the
+// temple), for sethome.
+struct TAdminTown {
+	std::string Name;
+	int x = 0;
+	int y = 0;
+	int z = 0;
+};
+
+static std::vector<TAdminTown> Towns;
 
 // "<file>:<line>:<column>" of a place in a file.
 static std::string PlaceText(const toml::source_region &Where) {
@@ -166,6 +185,42 @@ static std::string RequiredText(const toml::table &Entry, const toml::node &Node
 	return Latin1;
 }
 
+// One [[town]]: name (at most 29 characters) and temple ([x, y, z]), no
+// other keys.
+static TAdminTown ReadTown(const toml::node &Node) {
+	if (!Node.is_table()) {
+		TomlError(Node.source(), "an entry of town must be a table");
+	}
+	const toml::table &Entry = *Node.as_table();
+	TomlCheckKeys(Entry, "[[town]]", {"name", "temple"});
+	TAdminTown Town;
+	char Name[30];
+	if (!TomlGetString(Entry, "name", Name, sizeof(Name))) {
+		TomlError(Node.source(), "an entry of town needs name");
+	}
+	Town.Name = Name;
+	const toml::array *Temple = TomlGetArray(Entry, "temple");
+	if (Temple == nullptr) {
+		TomlError(Node.source(), "an entry of town needs temple");
+	}
+	int Values[3] = {0, 0, 0};
+	if (Temple->size() != 3) {
+		TomlError(Entry.find("temple")->second.source(), "temple must be [x, y, z]");
+	}
+	for (size_t i = 0; i < 3; i++) {
+		const toml::node &Value = (*Temple)[i];
+		if (!Value.is_integer() || Value.as_integer()->get() < 0
+				|| Value.as_integer()->get() > (i < 2 ? 65535 : 15)) {
+			TomlError(Value.source(), "temple must be [x, y, z], x and y 0 to 65535, z 0 to 15");
+		}
+		Values[i] = static_cast<int>(Value.as_integer()->get());
+	}
+	Town.x = Values[0];
+	Town.y = Values[1];
+	Town.z = Values[2];
+	return Town;
+}
+
 // One [[command]]: name, usage, description and script needed, no other keys.
 static TAdminCommand ReadCommand(const toml::node &Node) {
 	if (!Node.is_table()) {
@@ -202,10 +257,29 @@ static std::string Reply;
 static bool ReplyFailed = false;
 static std::string RequestText;
 
-// Whether onCommand is running (Admin.runOverCharacters may be called), and
-// whether it asked for a run.
+// Whether onCommand is running (Admin.runOverCharacters and Admin.retry may
+// be called), whether it asked for a run or a retry, and the retries before
+// this call of it.
 static bool InCommand = false;
 static bool RunAsked = false;
+static bool RetryAsked = false;
+static int CommandTries = 0;
+
+// A command waiting to be called again (Admin.retry): its script and words,
+// the round of the call and the retries so far.
+struct TAdminRetry {
+	bool Active = false;
+	int Script = 0;
+	std::vector<std::string> Words;
+	uint32_t Round = 0;
+	int Tries = 0;
+};
+
+static TAdminRetry Retry;
+
+// The rounds a command waits for its retry, and the most retries it gets.
+static const int ADMIN_RETRY_ROUNDS = 2;
+static const int MAX_ADMIN_RETRIES = 5;
 
 // The run over the characters: the command's script and words, the
 // characters (taken when it began), the next one, the sum of onCharacter's
@@ -241,6 +315,14 @@ struct TAdminSession {
 	int x = 0;
 	int y = 0;
 	int z = 0;
+	// An offline character's new end of its muting (MutingEndRound) and new
+	// start field (its temple).
+	bool MutingSet = false;
+	uint32_t MutingEndRound = 0;
+	bool StartSet = false;
+	int StartX = 0;
+	int StartY = 0;
+	int StartZ = 0;
 };
 
 static TAdminSession Session;
@@ -357,6 +439,59 @@ static void ReplyHelp() {
 	}
 }
 
+// Calls the command's onCommand with Words (Tries: the retries before this
+// call); then starts a run when it asked for one, waits ADMIN_RETRY_ROUNDS
+// when it asked for a retry (Admin.retry), else answers.
+static void RunCommand(int Script, const std::vector<std::string> &Words, int Tries) {
+	std::vector<const char *> Pointers = WordPointers(Words, 0);
+	TScriptCall Call(Script, "onCommand");
+	Call.addStringArray(Pointers.data(), static_cast<int>(Pointers.size()));
+	InCommand = true;
+	RunAsked = false;
+	RetryAsked = false;
+	CommandTries = Tries;
+	int Unused;
+	if (!RunHandler(Call, Script, "onCommand", false, Unused)) {
+		ReplyFailed = true;
+	}
+	InCommand = false;
+
+	if (RetryAsked && !ReplyFailed) {
+		RetryAsked = false;
+		RunAsked = false;
+		Retry.Active = true;
+		Retry.Script = Script;
+		Retry.Words = Words;
+		Retry.Round = RoundNr + ADMIN_RETRY_ROUNDS;
+		Retry.Tries = Tries + 1;
+		return;
+	}
+	RetryAsked = false;
+
+	if (!RunAsked || ReplyFailed) {
+		RunAsked = false;
+		FinishRequest();
+		return;
+	}
+	if (!HasHandler(Script, "onCharacter")) {
+		RunAsked = false;
+		ReplyFailed = true;
+		ReplyLine(std::string("Script error: ") + ScriptName(Script) + " asks for a run but has no onCharacter.");
+		FinishRequest();
+		return;
+	}
+
+	RunAsked = false;
+	Run.Active = true;
+	Run.Script = Script;
+	Run.Words = Words;
+	GetAllCharacterIDs(Run.Characters);
+	Run.Next = 0;
+	Run.Total = 0;
+	Run.Failures = 0;
+	print(2, "Admin: going over %d characters.\n", static_cast<int>(Run.Characters.size()));
+}
+
 // Carries out a request's line: help, or the command's onCommand; starts a
 // run when it asked for one, else answers.
 static void ExecuteRequest(const std::string &Line) {
@@ -405,39 +540,7 @@ static void ExecuteRequest(const std::string &Line) {
 		return;
 	}
 
-	std::vector<const char *> Pointers = WordPointers(Words, 1);
-	TScriptCall Call(Script, "onCommand");
-	Call.addStringArray(Pointers.data(), static_cast<int>(Pointers.size()));
-	InCommand = true;
-	RunAsked = false;
-	int Unused;
-	if (!RunHandler(Call, Script, "onCommand", false, Unused)) {
-		ReplyFailed = true;
-	}
-	InCommand = false;
-
-	if (!RunAsked || ReplyFailed) {
-		RunAsked = false;
-		FinishRequest();
-		return;
-	}
-	if (!HasHandler(Script, "onCharacter")) {
-		RunAsked = false;
-		ReplyFailed = true;
-		ReplyLine(std::string("Script error: ") + ScriptName(Script) + " asks for a run but has no onCharacter.");
-		FinishRequest();
-		return;
-	}
-
-	RunAsked = false;
-	Run.Active = true;
-	Run.Script = Script;
-	Run.Words.assign(Words.begin() + 1, Words.end());
-	GetAllCharacterIDs(Run.Characters);
-	Run.Next = 0;
-	Run.Total = 0;
-	Run.Failures = 0;
-	print(2, "Admin: going over %d characters.\n", static_cast<int>(Run.Characters.size()));
+	RunCommand(Script, std::vector<std::string>(Words.begin() + 1, Words.end()), 0);
 }
 
 // Ends the run with onRunEnd (if the script has it) and answers.
@@ -496,6 +599,14 @@ void ProcessAdminRequests() {
 		ContinueRun();
 		return;
 	}
+	if (Retry.Active) {
+		if (RoundNr >= Retry.Round) {
+			TAdminRetry Again = Retry;
+			Retry = TAdminRetry();
+			RunCommand(Again.Script, Again.Words, Again.Tries);
+		}
+		return;
+	}
 	std::string Line;
 	if (TakeAdminRequest(Line)) {
 		ExecuteRequest(Line);
@@ -504,6 +615,13 @@ void ProcessAdminRequests() {
 
 // Ends a run that the reload or the end of the game stops.
 static void StopRun(const char *Why) {
+	if (Retry.Active) {
+		Retry = TAdminRetry();
+		ReplyFailed = true;
+		ReplyLine(std::string("Stopped: ") + Why);
+		FinishRequest();
+		return;
+	}
 	if (!Run.Active) {
 		return;
 	}
@@ -618,6 +736,16 @@ static void CloseSession(bool WriteBack) {
 				Slot->posx = Session.x;
 				Slot->posy = Session.y;
 				Slot->posz = Session.z;
+				Changed = true;
+			}
+			if (Session.MutingSet) {
+				Slot->MutingEndRound = Session.MutingEndRound;
+				Changed = true;
+			}
+			if (Session.StartSet) {
+				Slot->startx = Session.StartX;
+				Slot->starty = Session.StartY;
+				Slot->startz = Session.StartZ;
 				Changed = true;
 			}
 		}
@@ -990,6 +1118,289 @@ static sol::optional<std::string> AdminGetDepotTown(int Nr) {
 	return std::string(DepotInfo(Nr).Town);
 }
 
+// Admin.retry(): asks for onCommand to be called again with the same words
+// after ADMIN_RETRY_ROUNDS rounds (a kicked player has left by then); only in
+// onCommand. Throws after MAX_ADMIN_RETRIES retries.
+static void AdminRetry() {
+	RequireRequest();
+	if (!InCommand) {
+		throw "Admin.retry: only in onCommand";
+	}
+	if (CommandTries >= MAX_ADMIN_RETRIES) {
+		throw "Admin.retry: gave up after the retries";
+	}
+	RetryAsked = true;
+}
+
+// Admin.getTries() -> how many times onCommand was called again before this
+// call (Admin.retry).
+static int AdminGetTries() {
+	RequireRequest();
+	return CommandTries;
+}
+
+// Admin.broadcast(text): BroadcastMessage(TALK_ADMIN_MESSAGE, "%s", text), the
+// red message in every player's screen.
+static void AdminBroadcast(std::string Text) {
+	RequireRequest();
+	BroadcastMessage(TALK_ADMIN_MESSAGE, "%s", Text.c_str());
+}
+
+// Admin.getIPAddress(player) -> the address the player is connected from, nil
+// for a player who has left.
+static sol::optional<std::string> AdminGetIPAddress(TScriptPlayer Player) {
+	TPlayer *pl = GetPlayer(Player.ID);
+	if (pl == nullptr) {
+		return sol::nullopt;
+	}
+	return std::string(pl->IPAddress);
+}
+
+// Admin.heal(): the open character, a player online, gets full hitpoints and
+// mana and loses its poison, burning, energy and drunkenness; the clients
+// are told. Not for an offline character.
+static void AdminHeal() {
+	RequireSession("Admin.heal");
+	TPlayer *pl = SessionPlayer("Admin.heal");
+	if (pl == nullptr) {
+		throw "Admin.heal: the character is offline";
+	}
+	for (int SkillNr : {SKILL_POISON, SKILL_BURNING, SKILL_ENERGY, SKILL_DRUNKEN}) {
+		if (pl->Skills[SkillNr] != nullptr) {
+			pl->DelTimer(static_cast<unsigned short>(SkillNr));
+		}
+	}
+	pl->Skills[SKILL_HITPOINTS]->Set(pl->Skills[SKILL_HITPOINTS]->GetMax());
+	pl->Skills[SKILL_MANA]->Set(pl->Skills[SKILL_MANA]->GetMax());
+	SendPlayerData(pl->GetConnection());
+	AnnounceChangedCreature(pl->ID, CREATURE_HEALTH);
+	pl->CheckState();
+}
+
+// Admin.setMuting(minutes): the open character may not talk (say, whisper,
+// yell, private messages, the public channels) for minutes minutes from now
+// (0: no longer), as a muting by the game does; offline, written by
+// Admin.closeCharacter. The game counts it in rounds of the running game.
+static void AdminSetMuting(int Minutes) {
+	RequireSession("Admin.setMuting");
+	if (Minutes < 0 || Minutes > 525600) {
+		throw "Admin.setMuting: minutes must be 0 to 525600";
+	}
+	uint32_t End = Minutes == 0 ? 0 : RoundNr + static_cast<uint32_t>(Minutes) * 60;
+	TPlayer *pl = SessionPlayer("Admin.setMuting");
+	if (pl != nullptr) {
+		pl->SetMutingEndRound(End);
+		return;
+	}
+	Session.MutingSet = true;
+	Session.MutingEndRound = End;
+}
+
+// Admin.setStartPosition(position): the open character's start field (its
+// temple; where it comes back after a death and where temple sends it); a
+// field of the map. Offline, written by Admin.closeCharacter.
+static void AdminSetStartPosition(TScriptPosition Position) {
+	RequireSession("Admin.setStartPosition");
+	if (!IsOnMap(Position.x, Position.y, Position.z)) {
+		throw "Admin.setStartPosition: the position is not on the map";
+	}
+	TPlayer *pl = SessionPlayer("Admin.setStartPosition");
+	if (pl != nullptr) {
+		pl->startx = Position.x;
+		pl->starty = Position.y;
+		pl->startz = Position.z;
+		return;
+	}
+	Session.StartSet = true;
+	Session.StartX = Position.x;
+	Session.StartY = Position.y;
+	Session.StartZ = Position.z;
+}
+
+// Admin.getTownTemple(name) -> the temple of a town of admin.toml (any case),
+// nil for none.
+static sol::optional<TScriptPosition> AdminGetTownTemple(std::string Name) {
+	for (const TAdminTown &Town : Towns) {
+		if (strcasecmp(Town.Name.c_str(), Name.c_str()) == 0) {
+			return TScriptPosition{Town.x, Town.y, Town.z};
+		}
+	}
+	return sol::nullopt;
+}
+
+// Admin.getTowns() -> the names of the towns of admin.toml, in its order.
+static sol::as_table_t<std::vector<std::string>> AdminGetTowns() {
+	std::vector<std::string> Names;
+	for (const TAdminTown &Town : Towns) {
+		Names.push_back(Town.Name);
+	}
+	return sol::as_table(std::move(Names));
+}
+
+// A connection of the query manager pool for the admin port's requests;
+// throws when there is none.
+struct TAdminQuery {
+	TQueryManagerPoolConnection Connection{&QueryManagerConnectionPool};
+	TQueryManagerConnection *operator->() {
+		if (Connection.operator->() == nullptr) {
+			throw "Admin: cannot connect to the query manager";
+		}
+		return Connection.operator->();
+	}
+};
+
+// Admin.banishAccount(name, days, reason) -> code, until: banishAccountFor of
+// the query manager for the account of the character named (days 0: for
+// good). code 0 done (until the end, 4294967295 for good), 1 no such
+// character (or one without an account), 2 a gamemaster's account, -1 the
+// request failed.
+static std::tuple<int, uint32_t> AdminBanishAccount(std::string Name, int Days, std::string Reason) {
+	RequireRequest();
+	if (Days < 0) {
+		throw "Admin.banishAccount: days must not be negative";
+	}
+	TAdminQuery Query;
+	uint32_t BanishmentID = 0;
+	uint32_t Until = 0;
+	int Result = Query->banishAccountFor(0, Name.c_str(), Reason.c_str(), "admin port", static_cast<uint32_t>(Days),
+			BanishmentID, Until);
+	return std::make_tuple(Result, Until);
+}
+
+// Admin.liftBanishment(name) -> code: liftBanishment of the query manager. 0
+// done, 1 no such character (or one without an account), 2 not banished, -1
+// the request failed.
+static int AdminLiftBanishment(std::string Name) {
+	RequireRequest();
+	TAdminQuery Query;
+	return Query->liftBanishment(Name.c_str());
+}
+
+// Admin.banishIPAddress(address, days, reason) -> code, until:
+// banishIPAddressFor of the query manager (days 0: for good). 0 done, 1 no
+// IPv4 address, -1 the request failed.
+static std::tuple<int, uint32_t> AdminBanishIPAddress(std::string Address, int Days, std::string Reason) {
+	RequireRequest();
+	if (Days < 0) {
+		throw "Admin.banishIPAddress: days must not be negative";
+	}
+	TAdminQuery Query;
+	uint32_t Until = 0;
+	int Result = Query->banishIPAddressFor(0, Address.c_str(), Reason.c_str(), "admin port",
+			static_cast<uint32_t>(Days), Until);
+	return std::make_tuple(Result, Until);
+}
+
+// Admin.namelock(name, reason) -> code: setNamelock of the query manager. 0
+// done, 1 no such character, 3 namelocked already, -1 the request failed.
+static int AdminNamelock(std::string Name, std::string Reason) {
+	RequireRequest();
+	TAdminQuery Query;
+	std::string Buffer = Copy(Name);
+	std::string ReasonBuffer = Copy(Reason);
+	char Empty[1] = "";
+	char Comment[] = "admin port";
+	return Query->setNamelock(0, &Buffer[0], Empty, &ReasonBuffer[0], Comment);
+}
+
+// Admin.addNotation(name, text) -> code: setNotation of the query manager,
+// text the comment. 0 done, 1 no such character, 2 a gamemaster's, -1 the
+// request failed.
+static int AdminAddNotation(std::string Name, std::string Text) {
+	RequireRequest();
+	TAdminQuery Query;
+	std::string Buffer = Copy(Name);
+	std::string Comment = Copy(Text);
+	char Empty[1] = "";
+	char Reason[] = "admin port";
+	uint32_t NotationID = 0;
+	return Query->setNotation(0, &Buffer[0], Empty, Reason, &Comment[0], NotationID);
+}
+
+// Admin.renameCharacter(name, newName) -> code: renameCharacter of the query
+// manager for the character the player index has under name (any case),
+// then the game's own records of the name (the player index, a player data
+// slot, the houses' owner names). Only for a character that is not in the
+// game (a Lua error otherwise). 0 done, 1 no such character, 2 the name is
+// taken, 3 an empty or too long name, -1 the request failed.
+static int AdminRenameCharacter(std::string Name, std::string NewName) {
+	RequireRequest();
+	if (Session.Open) {
+		throw "Admin.renameCharacter: close the character first";
+	}
+	std::string Buffer = Copy(Name);
+	if (Buffer.empty() || Buffer.size() >= 30) {
+		return 1;
+	}
+	uint32_t CharacterID = GetCharacterID(&Buffer[0]);
+	if (CharacterID == 0) {
+		return 1;
+	}
+	std::string OldName = GetCharacterName(&Buffer[0]);
+	if (GetPlayer(CharacterID) != nullptr) {
+		throw "Admin.renameCharacter: the character is in the game";
+	}
+	TAdminQuery Query;
+	int Result = Query->renameCharacter(CharacterID, NewName.c_str());
+	if (Result == 0) {
+		RenameCharacterInGame(CharacterID, OldName.c_str(), NewName.c_str());
+	}
+	return Result;
+}
+
+// Admin.save() -> players, failed: writes the data of every player online
+// into its slot (SaveData, SaveInventory) and saves it with the query manager
+// at once (SavePlayerData; one it cannot take is kept in a file, failed
+// counts those), orders the save of the other slots (SavePlayerDataOrder,
+// the writer thread) and saves the map (SaveMap: the houses' contents).
+static std::tuple<int, int> AdminSave() {
+	RequireRequest();
+	int Saved = 0;
+	int Failed = 0;
+	for (int i = 0; i < GetNumberOfPlayers(); i++) {
+		TPlayer *pl = PlayerList(i);
+		if (pl == nullptr || pl->IsDead || pl->PlayerData == nullptr) {
+			continue;
+		}
+		pl->SaveData();
+		pl->SaveInventory();
+		if (SavePlayerData(pl->PlayerData)) {
+			Saved++;
+		} else {
+			Failed++;
+		}
+	}
+	SavePlayerDataOrder();
+	SaveMap();
+	return std::make_tuple(Saved, Failed);
+}
+
+// Admin.scheduleShutdown(minutes, restart): ScheduleShutdown of main.cc
+// (minutes 0 to 1440).
+static void AdminScheduleShutdown(int Minutes, bool Restart) {
+	RequireRequest();
+	if (Minutes < 0 || Minutes > 1440) {
+		throw "Admin.scheduleShutdown: minutes must be 0 to 1440";
+	}
+	ScheduleShutdown(Minutes, Restart);
+}
+
+// Admin.cancelShutdown() -> whether one was scheduled.
+static bool AdminCancelShutdown() {
+	RequireRequest();
+	return CancelShutdown();
+}
+
+// Admin.getShutdown() -> the seconds until the scheduled shutdown and whether
+// it restarts, or nil.
+static std::tuple<sol::optional<int>, bool> AdminGetShutdown() {
+	int Left = ShutdownSecondsLeft();
+	if (Left < 0) {
+		return std::make_tuple(sol::optional<int>(), false);
+	}
+	return std::make_tuple(sol::optional<int>(Left), ShutdownRestarts());
+}
+
 void RegisterAdminAPI() {
 	sol::table Admin = ScriptAPITable("Admin");
 	Admin.set_function("reply", Guarded(&AdminReply));
@@ -1009,6 +1420,25 @@ void RegisterAdminAPI() {
 	Admin.set_function("getPosition", Guarded(&AdminGetPosition));
 	Admin.set_function("setSavedPosition", Guarded(&AdminSetSavedPosition));
 	Admin.set_function("getDepotTown", Guarded(&AdminGetDepotTown));
+	Admin.set_function("retry", Guarded(&AdminRetry));
+	Admin.set_function("getTries", Guarded(&AdminGetTries));
+	Admin.set_function("broadcast", Guarded(&AdminBroadcast));
+	Admin.set_function("getIPAddress", Guarded(&AdminGetIPAddress));
+	Admin.set_function("heal", Guarded(&AdminHeal));
+	Admin.set_function("setMuting", Guarded(&AdminSetMuting));
+	Admin.set_function("setStartPosition", Guarded(&AdminSetStartPosition));
+	Admin.set_function("getTownTemple", Guarded(&AdminGetTownTemple));
+	Admin.set_function("getTowns", Guarded(&AdminGetTowns));
+	Admin.set_function("banishAccount", Guarded(&AdminBanishAccount));
+	Admin.set_function("liftBanishment", Guarded(&AdminLiftBanishment));
+	Admin.set_function("banishIPAddress", Guarded(&AdminBanishIPAddress));
+	Admin.set_function("namelock", Guarded(&AdminNamelock));
+	Admin.set_function("addNotation", Guarded(&AdminAddNotation));
+	Admin.set_function("renameCharacter", Guarded(&AdminRenameCharacter));
+	Admin.set_function("save", Guarded(&AdminSave));
+	Admin.set_function("scheduleShutdown", Guarded(&AdminScheduleShutdown));
+	Admin.set_function("cancelShutdown", Guarded(&AdminCancelShutdown));
+	Admin.set_function("getShutdown", Guarded(&AdminGetShutdown));
 }
 
 // ---------------------------------------------------------------------------
@@ -1027,15 +1457,18 @@ public:
 	void read() override;
 	void install() override {
 		Commands.swap(Staged);
+		Towns.swap(StagedTowns);
 	}
 	void loadScripts() override;
 	void finish() override;
 	void uninstall() override {
 		Commands.swap(Staged);
+		Towns.swap(StagedTowns);
 	}
 	void discard() override {
 		Staged.clear();
 		StagedScripts.clear();
+		StagedTowns.clear();
 	}
 	std::string summary() const override {
 		return Summary;
@@ -1045,6 +1478,7 @@ public:
 	void forget() {
 		Commands.clear();
 		CommandScripts.clear();
+		Towns.clear();
 		discard();
 		FileName.clear();
 	}
@@ -1055,13 +1489,14 @@ public:
 private:
 	std::vector<TAdminCommand> Staged;
 	std::vector<int> StagedScripts;
+	std::vector<TAdminTown> StagedTowns;
 	std::string Error;
 	std::string Summary;
 };
 
 void TAdminReloadPart::read() {
 	toml::table File = TomlParseFile(FileName.c_str());
-	TomlCheckKeys(File, "the top level", {"command"});
+	TomlCheckKeys(File, "the top level", {"command", "town"});
 
 	std::vector<TAdminCommand> Read;
 	if (const toml::array *List = TomlGetArray(File, "command")) {
@@ -1077,8 +1512,23 @@ void TAdminReloadPart::read() {
 			Read.push_back(Command);
 		}
 	}
-	Summary = "admin.toml: " + std::to_string(Read.size()) + " commands";
+	std::vector<TAdminTown> ReadTowns;
+	if (const toml::array *List = TomlGetArray(File, "town")) {
+		for (const toml::node &Node : *List) {
+			TAdminTown Town = ReadTown(Node);
+			for (const TAdminTown &Earlier : ReadTowns) {
+				if (strcasecmp(Earlier.Name.c_str(), Town.Name.c_str()) == 0) {
+					Error = PlaceText(Node.source()) + ": town \"" + Town.Name + "\" is listed twice";
+					throw Error.c_str();
+				}
+			}
+			ReadTowns.push_back(Town);
+		}
+	}
+	Summary = "admin.toml: " + std::to_string(Read.size()) + " commands, " + std::to_string(ReadTowns.size())
+			+ " towns";
 	Staged.swap(Read);
+	StagedTowns.swap(ReadTowns);
 }
 
 void TAdminReloadPart::loadScripts() {
@@ -1095,6 +1545,7 @@ void TAdminReloadPart::finish() {
 	CommandScripts.swap(StagedScripts);
 	StagedScripts.clear();
 	Staged.clear();
+	StagedTowns.clear();
 }
 
 static TAdminReloadPart AdminPart;

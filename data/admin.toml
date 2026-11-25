@@ -16,7 +16,11 @@
 #   script       The script that does it, "admin/<name>.lua" in the scripts
 #                folder (data/scripts/ in the repository): its global
 #                function onCommand(words) runs with the words after the
-#                name (scripting.hh, section "The admin port").
+#                name (scripting.hh, section "The admin port"). Two commands
+#                may share a script (ban and banaccount).
+#
+# Each [[town]] (at the end) is a town sethome takes by name: name (at most
+# 29 characters, each town once in any case) and temple ([x, y, z]).
 
 [[command]]
 name = "spawn"
@@ -59,3 +63,155 @@ name = "removeall"
 usage = "removeall <item> [inventory|depot|everywhere]"
 description = "Removes an item from every character, online and offline (everywhere when not given)."
 script = "admin/removeall.lua"
+
+[[command]]
+name = "find"
+usage = "find <item> [inventory|depot|everywhere]"
+description = "Counts an item in every character, online and offline, and names who has some (everywhere when not given)."
+script = "admin/find.lua"
+
+[[command]]
+name = "broadcast"
+usage = "broadcast <text>"
+description = "Shows a red admin message to every player online."
+script = "admin/broadcast.lua"
+
+[[command]]
+name = "kick"
+usage = "kick <player>"
+description = "Logs a player out at once."
+script = "admin/kick.lua"
+
+[[command]]
+name = "mute"
+usage = "mute <player> <minutes>"
+description = "Keeps a player from talking for that many minutes (0 lifts it)."
+script = "admin/mute.lua"
+
+[[command]]
+name = "ban"
+usage = "ban <player> <days|permanent> [reason]"
+description = "Banishes the player's account for that many days or for good, and kicks the player."
+script = "admin/ban.lua"
+
+[[command]]
+name = "banaccount"
+usage = "banaccount <player> <days|permanent> [reason]"
+description = "The same as ban."
+script = "admin/ban.lua"
+
+[[command]]
+name = "unban"
+usage = "unban <player>"
+description = "Lifts the banishment of the player's account."
+script = "admin/unban.lua"
+
+[[command]]
+name = "banip"
+usage = "banip <player|address> <days|permanent> [reason]"
+description = "Blocks an IP address (an online player's, or one given) for that many days or for good, and kicks the players on it."
+script = "admin/banip.lua"
+
+[[command]]
+name = "namelock"
+usage = "namelock <player> [reason]"
+description = "Locks a player's name: it cannot log in until renamed; kicks the player."
+script = "admin/namelock.lua"
+
+[[command]]
+name = "notation"
+usage = "notation <player> <text>"
+description = "Writes a note into a player's record."
+script = "admin/notation.lua"
+
+[[command]]
+name = "heal"
+usage = "heal <player>"
+description = "Gives a player online full hitpoints and mana and cures poison, burning, energy and drunkenness."
+script = "admin/heal.lua"
+
+[[command]]
+name = "sethome"
+usage = "sethome <player> <town|x,y,z>"
+description = "Makes a town (see the towns below) or a field the player's home temple."
+script = "admin/sethome.lua"
+
+[[command]]
+name = "rename"
+usage = "rename <player> <new name>"
+description = "Renames a character (and lifts a namelock); a player online is kicked first."
+script = "admin/rename.lua"
+
+[[command]]
+name = "spawnmonster"
+usage = "spawnmonster <race> <x,y,z> [count]"
+description = "Creates monsters of a race near a field (at most 50)."
+script = "admin/spawnmonster.lua"
+
+[[command]]
+name = "raid"
+usage = "raid <name>"
+description = "Starts a raid of raids.toml now."
+script = "admin/raid.lua"
+
+[[command]]
+name = "killall"
+usage = "killall <x,y,z> [radius]"
+description = "Kills the monsters within a radius (0 to 7, 2 when not given) of a field."
+script = "admin/killall.lua"
+
+[[command]]
+name = "save"
+usage = "save"
+description = "Saves the players online, the others' data and the map now."
+script = "admin/save.lua"
+
+[[command]]
+name = "shutdown"
+usage = "shutdown [minutes] [--restart] | shutdown cancel | shutdown status"
+description = "Brings the game down in that many minutes (5 when not given) with warnings, as the daily reboot does; --restart starts it again."
+script = "admin/shutdown.lua"
+
+# Each [[town]] is a town sethome takes by name (any case): name, and temple,
+# the field [x, y, z] its citizens start on, where the town's citizenship
+# (the oracle, the forcefields of triggers.toml) sets it.
+
+[[town]]
+name = "Rookgaard"
+temple = [32097, 32219, 7]
+
+[[town]]
+name = "Thais"
+temple = [32369, 32241, 7]
+
+[[town]]
+name = "Carlin"
+temple = [32360, 31782, 7]
+
+[[town]]
+name = "Ab'Dendriel"
+temple = [32732, 31634, 7]
+
+[[town]]
+name = "Kazordoon"
+temple = [32649, 31925, 11]
+
+[[town]]
+name = "Venore"
+temple = [32957, 32076, 7]
+
+[[town]]
+name = "Edron"
+temple = [33217, 31814, 8]
+
+[[town]]
+name = "Darashia"
+temple = [33213, 32454, 1]
+
+[[town]]
+name = "Ankrahmun"
+temple = [33194, 32853, 8]
+
+[[town]]
+name = "Port Hope"
+temple = [32595, 32744, 6]

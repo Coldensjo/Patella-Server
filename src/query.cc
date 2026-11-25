@@ -866,6 +866,68 @@ int TQueryManagerConnection::excludeFromAuctions(uint32_t CharacterID, bool Bani
 	return 0;
 }
 
+// The result of a request with error codes: 0 for OK, the code of an ERROR
+// (1 to MaxCode), -1 otherwise (logged with Name).
+int TQueryManagerConnection::adminResult(int Result, int MaxCode, const char *Name) {
+	if (Result == STATUS_OK) {
+		return 0;
+	}
+	if (Result == STATUS_ERROR) {
+		int FailureCode = getByte();
+		if (in(FailureCode, 1, MaxCode)) {
+			return FailureCode;
+		}
+		error("TQueryManagerConnection::%s: Invalid error code %d.\n", Name, FailureCode);
+	} else {
+		error("TQueryManagerConnection::%s: Request failed.\n", Name);
+	}
+	return -1;
+}
+
+int TQueryManagerConnection::banishAccountFor(uint32_t GamemasterID, const char *PlayerName, const char *Reason,
+		const char *Comment, uint32_t Days, uint32_t &BanishmentID, uint32_t &Until) {
+	prepareQuery(QUERY_BANISH_ACCOUNT_FOR);
+	sendQuad(GamemasterID);
+	sendString(const_cast<char *>(PlayerName));
+	sendString(const_cast<char *>(Reason));
+	sendString(const_cast<char *>(Comment));
+	sendQuad(Days);
+	int Result = adminResult(executeQuery(30, true), 2, "banishAccountFor");
+	if (Result == 0) {
+		BanishmentID = getQuad();
+		Until = getQuad();
+	}
+	return Result;
+}
+
+int TQueryManagerConnection::liftBanishment(const char *PlayerName) {
+	prepareQuery(QUERY_LIFT_BANISHMENT);
+	sendString(const_cast<char *>(PlayerName));
+	return adminResult(executeQuery(30, true), 2, "liftBanishment");
+}
+
+int TQueryManagerConnection::banishIPAddressFor(uint32_t GamemasterID, const char *IPAddress, const char *Reason,
+		const char *Comment, uint32_t Days, uint32_t &Until) {
+	prepareQuery(QUERY_BANISH_IP_ADDRESS_FOR);
+	sendQuad(GamemasterID);
+	sendString(const_cast<char *>(IPAddress));
+	sendString(const_cast<char *>(Reason));
+	sendString(const_cast<char *>(Comment));
+	sendQuad(Days);
+	int Result = adminResult(executeQuery(30, true), 1, "banishIPAddressFor");
+	if (Result == 0) {
+		Until = getQuad();
+	}
+	return Result;
+}
+
+int TQueryManagerConnection::renameCharacter(uint32_t CharacterID, const char *NewName) {
+	prepareQuery(QUERY_RENAME_CHARACTER);
+	sendQuad(CharacterID);
+	sendString(const_cast<char *>(NewName));
+	return adminResult(executeQuery(30, true), 3, "renameCharacter");
+}
+
 int TQueryManagerConnection::transferHouses(int &NumberOfTransfers, unsigned short *HouseIDs, uint32_t *NewOwnerIDs, char (*NewOwnerNames)[30], int *Prices) {
 	prepareQuery(QUERY_TRANSFER_HOUSES);
 	if (executeQuery(60, true) != STATUS_OK) {

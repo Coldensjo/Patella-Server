@@ -1036,6 +1036,34 @@
 //   Admin.getCarrier(item) -> the creature ID of the creature carrying it
 //       (GetObjectCreatureID), 0 for none.
 //   Admin.getDepotTown(depot) -> the town of a depot number, nil for none.
+//   Admin.retry(): asks for onCommand to be called again with the same words
+//       a few rounds later (rename waits so for a kicked player to leave);
+//       only in onCommand, at most MAX_ADMIN_RETRIES times.
+//       Admin.getTries() -> the retries before this call.
+//   Admin.broadcast(text): the red admin message to every player online.
+//   Admin.getIPAddress(player) -> the address a player is connected from.
+//   Admin.heal(): the open character (online) gets full hitpoints and mana,
+//       without poison, burning, energy and drunkenness.
+//   Admin.setMuting(minutes): the open character is muted that long (0: no
+//       longer); MutingEndRound, in rounds of the running game.
+//   Admin.setStartPosition(position): the open character's temple.
+//   Admin.getTownTemple(name) -> the temple of a town of admin.toml's
+//       [[town]], nil for none; Admin.getTowns() -> their names.
+//   Admin.banishAccount(name, days, reason) -> code, until;
+//       Admin.liftBanishment(name) -> code; Admin.banishIPAddress(address,
+//       days, reason) -> code, until; Admin.namelock(name, reason) -> code;
+//       Admin.addNotation(name, text) -> code: the query manager's requests
+//       banishAccountFor, liftBanishment, banishIPAddressFor, setNamelock and
+//       setNotation (days 0: for good; code 0 done, the request's error code,
+//       or -1 when it failed).
+//   Admin.renameCharacter(name, newName) -> code: renameCharacter of the
+//       query manager, then the player index, a player data slot and the
+//       houses' owner names (RenameCharacterInGame); not for a player online.
+//   Admin.save() -> players, failed: every player online saved with the
+//       query manager at once, the other slots ordered saved, the map saved.
+//   Admin.scheduleShutdown(minutes, restart), Admin.cancelShutdown() ->
+//       boolean, Admin.getShutdown() -> seconds, restart (nil when none):
+//       main.cc's ScheduleShutdown, the daily reboot's steps.
 
 #ifndef PATELLA_SCRIPTING_HH
 #define PATELLA_SCRIPTING_HH
