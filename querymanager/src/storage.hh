@@ -141,6 +141,41 @@ struct HouseTransfer {
 	uint32_t price = 0;
 };
 
+// One banishment of an account (schema version 3): who banished it, why,
+// when, until when (PERMANENT_BANISHMENT: for good) and whether it was a
+// final warning. characterId is the character it was given for (0: none).
+struct BanishmentRecord {
+	uint32_t id = 0;
+	uint32_t accountId = 0;
+	uint32_t characterId = 0;
+	uint32_t gamemasterId = 0;
+	std::string reason;
+	std::string comment;
+	uint32_t time = 0;
+	uint32_t until = 0;
+	bool finalWarning = false;
+};
+
+// The end of a banishment that never ends (banished while now < until).
+const uint32_t PERMANENT_BANISHMENT = 0xFFFFFFFF;
+
+// An account's banishments so far.
+struct BanishmentHistory {
+	uint32_t count = 0;
+	bool finalWarning = false;       // one of them was a final warning
+};
+
+// A notation on a character (schema version 3): a note in its record, no
+// punishment.
+struct NotationRecord {
+	uint32_t id = 0;
+	uint32_t characterId = 0;
+	uint32_t gamemasterId = 0;
+	std::string reason;
+	std::string comment;
+	uint32_t time = 0;
+};
+
 struct HouseEviction {
 	uint16_t houseId = 0;
 	uint32_t ownerId = 0;
@@ -267,6 +302,22 @@ public:
 	// Replaces the character's player data (data.characterId) as a whole.
 	virtual void savePlayerData(const PlayerData &data) = 0;
 	virtual bool hasPlayerData(uint32_t characterId) = 0;
+
+	// --- banishments, notations, renames (schema version 3)
+	// Records the banishment and sets the account's banished_until to its
+	// end (the later of that and a banishment already running); gives its id.
+	virtual uint32_t addBanishment(const BanishmentRecord &banishment) = 0;
+	// The account's banishments recorded so far.
+	virtual BanishmentHistory banishmentHistory(uint32_t accountId) = 0;
+	// Ends the account's banishment (banished_until 0); false when it was
+	// not banished at now.
+	virtual bool liftBanishment(uint32_t accountId, uint32_t now) = 0;
+	// Records the notation; gives its id.
+	virtual uint32_t addNotation(const NotationRecord &notation) = 0;
+	virtual std::vector<NotationRecord> listNotations(uint32_t characterId) = 0;
+	// Gives the character the name (characters and player_data) and lifts
+	// its namelock; false when another character has the name (in any case).
+	virtual bool renameCharacter(uint32_t characterId, const std::string &name) = 0;
 };
 
 } // namespace qm

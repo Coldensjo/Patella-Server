@@ -81,6 +81,68 @@ bool contains(const std::vector<std::string> &list, const char *value) {
 	return std::find(list.begin(), list.end(), value) != list.end();
 }
 
+// The banishments of the game's own banishAccount (the rule violation
+// dialog): the first lasts FIRST_BANISHMENT_DAYS, the next ones
+// LATER_BANISHMENT_DAYS; one with a final warning, and every one from the
+// third on, FINAL_WARNING_DAYS with a final warning; one after a final
+// warning is for good.
+const uint32_t FIRST_BANISHMENT_DAYS = 7;
+const uint32_t LATER_BANISHMENT_DAYS = 15;
+const uint32_t FINAL_WARNING_DAYS = 30;
+
+// How long the game's own banishIPAddress blocks an address.
+const uint32_t IP_BANISHMENT_DAYS = 7;
+
+// The most days a banishment of the admin port may last (more: for good).
+const uint32_t MAX_BANISHMENT_DAYS = 3650;
+
+const uint32_t SECONDS_PER_DAY = 86400;
+
+// The end of a banishment of Days days from now (0: for good).
+uint32_t banishmentEnd(uint32_t now, uint32_t days) {
+	if (days == 0 || days > MAX_BANISHMENT_DAYS) {
+		return PERMANENT_BANISHMENT;
+	}
+	uint64_t end = static_cast<uint64_t>(now) + static_cast<uint64_t>(days) * SECONDS_PER_DAY;
+	return end >= PERMANENT_BANISHMENT ? PERMANENT_BANISHMENT - 1 : static_cast<uint32_t>(end);
+}
+
+// Whether the account of the character is a gamemaster's (it may not be
+// punished, as the 2006 query manager refused).
+bool isGamemasterAccount(Storage &store, const CharacterRecord &character) {
+	if (character.accountId == 0) {
+		return false;
+	}
+	std::optional<AccountRecord> account = store.findAccount(character.accountId);
+	return account && account->gamemaster;
+}
+
+// Whether the text is an IPv4 address in dotted form ("192.0.2.1").
+bool isIpAddress(const std::string &text) {
+	int parts = 0;
+	size_t i = 0;
+	while (i <= text.size()) {
+		size_t start = i;
+		int value = 0;
+		while (i < text.size() && text[i] >= '0' && text[i] <= '9' && i - start < 3) {
+			value = value * 10 + (text[i] - '0');
+			i++;
+		}
+		if (i == start || value > 255) {
+			return false;
+		}
+		parts++;
+		if (i == text.size()) {
+			break;
+		}
+		if (text[i] != '.' || parts == 4) {
+			return false;
+		}
+		i++;
+	}
+	return parts == 4;
+}
+
 } // namespace
 
 uint32_t systemClock() {
@@ -215,6 +277,14 @@ void Dispatcher::dispatch(Session &session, uint8_t type, ReadBuffer &in, WriteB
 	case QUERY_EVICT_EX_GUILDLEADERS: handleEvictExGuildleaders(session, in, out); break;
 	case QUERY_LOAD_PLAYER_DATA: handleLoadPlayerData(session, in, out); break;
 	case QUERY_SAVE_PLAYER_DATA: handleSavePlayerData(session, in, out); break;
+	case QUERY_SET_NAMELOCK: handleSetNamelock(session, in, out); break;
+	case QUERY_BANISH_ACCOUNT: handleBanishAccount(session, in, out); break;
+	case QUERY_SET_NOTATION: handleSetNotation(session, in, out); break;
+	case QUERY_BANISH_IP_ADDRESS: handleBanishIPAddress(session, in, out); break;
+	case QUERY_BANISH_ACCOUNT_FOR: handleBanishAccountFor(session, in, out); break;
+	case QUERY_LIFT_BANISHMENT: handleLiftBanishment(session, in, out); break;
+	case QUERY_BANISH_IP_ADDRESS_FOR: handleBanishIPAddressFor(session, in, out); break;
+	case QUERY_RENAME_CHARACTER: handleRenameCharacter(session, in, out); break;
 	default:
 		// The catalogue says "implemented" but there is no case for it.
 		throw RequestFailed("no handler");
@@ -853,6 +923,254 @@ void Dispatcher::handleFinishAuctions(Session &session, ReadBuffer &, WriteBuffe
 		out.writeQuad(result.bid);
 	}
 	Detail = format("finished=%zu", results.size());
+}
+
+// Query 23, setNamelock, called by ProcessPunishmentOrder (the rule violation
+// dialog) and by the admin port's namelock.
+//   request:  quad GamemasterID, string PlayerName, string IPAddress,
+//             string Reason, string Comment
+//   response: OK: nothing. ERROR: byte 1 (no such character), 3 (it is
+//             namelocked already). (2 and 4, "already approved", never:
+//             this server has no approval of names.)
+// The character cannot log in until it is renamed (renameCharacter lifts
+// the lock).
+void Dispatcher::handleSetNamelock(Session &, ReadBuffer &in, WriteBuffer &out) {
+	uint32_t gamemasterId = in.readQuad();
+	std::string name = in.readString();
+	in.readString();
+	std::string reason = in.readString();
+	in.readString();
+	std::optional<CharacterRecord> character = Store.findCharacterByName(name);
+	if (!character || character->deleted) {
+		return writeError(out, 1);
+	}
+	if (character->namelocked) {
+		return writeError(out, 3);
+	}
+	character->namelocked = true;
+	Store.putCharacter(*character);
+	out.writeByte(STATUS_OK);
+	Detail = format("character=%u gamemaster=%u reason=%s", character->id, gamemasterId, reason.c_str());
+}
+
+// Query 25, banishAccount, called by ProcessPunishmentOrder (the rule
+// violation dialog).
+//   request:  quad GamemasterID, string PlayerName, string IPAddress,
+//             string Reason, string Comment, flag FinalWarning
+//   response: OK: quad BanishmentID, byte Days (0xFF = for good), flag
+//             FinalWarning. ERROR: byte 1 (no such character, or one
+//             without an account), 2 (a gamemaster's account), 3 (the
+//             account is banished already).
+// The length follows the account's earlier banishments (FIRST_BANISHMENT_DAYS
+// and the other constants above).
+void Dispatcher::handleBanishAccount(Session &, ReadBuffer &in, WriteBuffer &out) {
+	uint32_t gamemasterId = in.readQuad();
+	std::string name = in.readString();
+	in.readString();
+	std::string reason = in.readString();
+	std::string comment = in.readString();
+	bool finalWarning = in.readFlag();
+	uint32_t now = Now();
+	std::optional<CharacterRecord> character = Store.findCharacterByName(name);
+	if (!character || character->deleted || character->accountId == 0) {
+		return writeError(out, 1);
+	}
+	if (isGamemasterAccount(Store, *character)) {
+		return writeError(out, 2);
+	}
+	std::optional<AccountRecord> account = Store.findAccount(character->accountId);
+	if (!account) {
+		return writeError(out, 1);
+	}
+	if (account->banishedUntil > now) {
+		return writeError(out, 3);
+	}
+	BanishmentHistory history = Store.banishmentHistory(account->id);
+	uint32_t days;
+	if (history.finalWarning) {
+		days = 0;
+		finalWarning = false;
+	} else if (finalWarning || history.count >= 2) {
+		days = FINAL_WARNING_DAYS;
+		finalWarning = true;
+	} else {
+		days = history.count == 0 ? FIRST_BANISHMENT_DAYS : LATER_BANISHMENT_DAYS;
+	}
+	BanishmentRecord banishment;
+	banishment.accountId = account->id;
+	banishment.characterId = character->id;
+	banishment.gamemasterId = gamemasterId;
+	banishment.reason = reason;
+	banishment.comment = comment;
+	banishment.time = now;
+	banishment.until = banishmentEnd(now, days);
+	banishment.finalWarning = finalWarning;
+	uint32_t id = Store.addBanishment(banishment);
+	out.writeByte(STATUS_OK);
+	out.writeQuad(id);
+	out.writeByte(days == 0 ? 0xFF : static_cast<uint8_t>(days));
+	out.writeFlag(finalWarning);
+	Detail = format("account=%u character=%u days=%u final_warning=%d", account->id, character->id, days,
+		finalWarning ? 1 : 0);
+}
+
+// Query 26, setNotation, called by ProcessPunishmentOrder (the rule violation
+// dialog) and by the admin port's notation.
+//   request:  quad GamemasterID, string PlayerName, string IPAddress,
+//             string Reason, string Comment
+//   response: OK: quad NotationID. ERROR: byte 1 (no such character), 2 (a
+//             gamemaster's account).
+void Dispatcher::handleSetNotation(Session &, ReadBuffer &in, WriteBuffer &out) {
+	uint32_t gamemasterId = in.readQuad();
+	std::string name = in.readString();
+	in.readString();
+	std::string reason = in.readString();
+	std::string comment = in.readString();
+	std::optional<CharacterRecord> character = Store.findCharacterByName(name);
+	if (!character || character->deleted) {
+		return writeError(out, 1);
+	}
+	if (isGamemasterAccount(Store, *character)) {
+		return writeError(out, 2);
+	}
+	NotationRecord notation;
+	notation.characterId = character->id;
+	notation.gamemasterId = gamemasterId;
+	notation.reason = reason;
+	notation.comment = comment;
+	notation.time = Now();
+	uint32_t id = Store.addNotation(notation);
+	out.writeByte(STATUS_OK);
+	out.writeQuad(id);
+	Detail = format("character=%u notation=%u", character->id, id);
+}
+
+// Query 28, banishIPAddress, called by ProcessPunishmentOrder (the rule
+// violation dialog).
+//   request:  quad GamemasterID, string PlayerName, string IPAddress,
+//             string Reason, string Comment
+//   response: OK: nothing. ERROR: byte 1 (no such character, or no IPv4
+//             address), 2 (a gamemaster's account).
+// Blocks the address for IP_BANISHMENT_DAYS.
+void Dispatcher::handleBanishIPAddress(Session &, ReadBuffer &in, WriteBuffer &out) {
+	in.readQuad();
+	std::string name = in.readString();
+	std::string address = in.readString();
+	in.readString();
+	in.readString();
+	std::optional<CharacterRecord> character = Store.findCharacterByName(name);
+	if (!character || character->deleted || !isIpAddress(address)) {
+		return writeError(out, 1);
+	}
+	if (isGamemasterAccount(Store, *character)) {
+		return writeError(out, 2);
+	}
+	Store.banishIpAddress(address, banishmentEnd(Now(), IP_BANISHMENT_DAYS));
+	out.writeByte(STATUS_OK);
+	Detail = format("character=%u address=%s days=%u", character->id, address.c_str(), IP_BANISHMENT_DAYS);
+}
+
+// Query 56, banishAccountFor, this project's own (the admin port's ban):
+// banishes the account of a character for a length the caller chooses.
+//   request:  quad GamemasterID, string PlayerName, string Reason,
+//             string Comment, quad Days (0, or more than
+//             MAX_BANISHMENT_DAYS: for good)
+//   response: OK: quad BanishmentID, quad Until (4294967295: for good).
+//             ERROR: byte 1 (no such character, or one without an
+//             account), 2 (a gamemaster's account).
+// A banishment running already ends at the later of the two ends.
+void Dispatcher::handleBanishAccountFor(Session &, ReadBuffer &in, WriteBuffer &out) {
+	uint32_t gamemasterId = in.readQuad();
+	std::string name = in.readString();
+	std::string reason = in.readString();
+	std::string comment = in.readString();
+	uint32_t days = in.readQuad();
+	uint32_t now = Now();
+	std::optional<CharacterRecord> character = Store.findCharacterByName(name);
+	if (!character || character->deleted || character->accountId == 0 || !Store.findAccount(character->accountId)) {
+		return writeError(out, 1);
+	}
+	if (isGamemasterAccount(Store, *character)) {
+		return writeError(out, 2);
+	}
+	BanishmentRecord banishment;
+	banishment.accountId = character->accountId;
+	banishment.characterId = character->id;
+	banishment.gamemasterId = gamemasterId;
+	banishment.reason = reason;
+	banishment.comment = comment;
+	banishment.time = now;
+	banishment.until = banishmentEnd(now, days);
+	uint32_t id = Store.addBanishment(banishment);
+	std::optional<AccountRecord> account = Store.findAccount(character->accountId);
+	out.writeByte(STATUS_OK);
+	out.writeQuad(id);
+	out.writeQuad(account->banishedUntil);
+	Detail = format("account=%u character=%u days=%u", character->accountId, character->id, days);
+}
+
+// Query 57, liftBanishment, this project's own (the admin port's unban):
+// ends the banishment of a character's account at once.
+//   request:  string PlayerName
+//   response: OK: nothing. ERROR: byte 1 (no such character, or one without
+//             an account), 2 (the account is not banished).
+void Dispatcher::handleLiftBanishment(Session &, ReadBuffer &in, WriteBuffer &out) {
+	std::string name = in.readString();
+	std::optional<CharacterRecord> character = Store.findCharacterByName(name);
+	if (!character || character->deleted || character->accountId == 0) {
+		return writeError(out, 1);
+	}
+	if (!Store.liftBanishment(character->accountId, Now())) {
+		return writeError(out, 2);
+	}
+	out.writeByte(STATUS_OK);
+	Detail = format("account=%u character=%u", character->accountId, character->id);
+}
+
+// Query 58, banishIPAddressFor, this project's own (the admin port's banip):
+// blocks an address for a length the caller chooses.
+//   request:  quad GamemasterID, string IPAddress, string Reason,
+//             string Comment, quad Days (0, or more than
+//             MAX_BANISHMENT_DAYS: for good)
+//   response: OK: quad Until. ERROR: byte 1 (no IPv4 address).
+void Dispatcher::handleBanishIPAddressFor(Session &, ReadBuffer &in, WriteBuffer &out) {
+	in.readQuad();
+	std::string address = in.readString();
+	in.readString();
+	in.readString();
+	uint32_t days = in.readQuad();
+	if (!isIpAddress(address)) {
+		return writeError(out, 1);
+	}
+	uint32_t until = banishmentEnd(Now(), days);
+	Store.banishIpAddress(address, until);
+	out.writeByte(STATUS_OK);
+	out.writeQuad(until);
+	Detail = format("address=%s days=%u", address.c_str(), days);
+}
+
+// Query 59, renameCharacter, this project's own (the admin port's rename):
+// gives a character a new name (its player data's too) and lifts its
+// namelock. The game checks the name's form; the character is not online.
+//   request:  quad CharacterID, string NewName
+//   response: OK: nothing. ERROR: byte 1 (no such character), 2 (another
+//             character has the name, in any case), 3 (an empty name or
+//             one longer than the game reads).
+void Dispatcher::handleRenameCharacter(Session &, ReadBuffer &in, WriteBuffer &out) {
+	uint32_t characterId = in.readQuad();
+	std::string name = in.readString();
+	std::optional<CharacterRecord> character = Store.findCharacter(characterId);
+	if (!character || character->deleted) {
+		return writeError(out, 1);
+	}
+	if (name.empty() || name.size() > MAX_NAME_LENGTH) {
+		return writeError(out, 3);
+	}
+	if (!Store.renameCharacter(characterId, name)) {
+		return writeError(out, 2);
+	}
+	out.writeByte(STATUS_OK);
+	Detail = format("character=%u", characterId);
 }
 
 // Query 51, excludeFromAuctions, called by FinishAuctions with

@@ -77,6 +77,14 @@ private:
 	void handleEvictExGuildleaders(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleLoadPlayerData(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void handleSavePlayerData(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleSetNamelock(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleBanishAccount(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleSetNotation(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleBanishIPAddress(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleBanishAccountFor(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleLiftBanishment(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleBanishIPAddressFor(Session &session, ReadBuffer &in, WriteBuffer &out);
+	void handleRenameCharacter(Session &session, ReadBuffer &in, WriteBuffer &out);
 	void requirePlayerDataWorld(uint32_t characterId, uint32_t worldId);
 
 	Storage &Store;
