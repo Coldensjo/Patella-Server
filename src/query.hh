@@ -20,7 +20,8 @@ const int APPLICATION_GAME = 1;
 // named after the TQueryManagerConnection method that sends it (QUERY_LOGIN:
 // connect's login request). The same names as in the query manager's
 // protocol.hh, which lists the other tools' too. 54 and 55 are this project's
-// own: the player data, which the 2006 game kept in its player files.
+// own: the player data, which the 2006 game kept in its player files; so are
+// 56 to 59, the admin port's punishments and renames (scripting_admin.cc).
 const int QUERY_LOGIN = 0;
 const int QUERY_LOGIN_GAME = 20;
 const int QUERY_LOGOUT_GAME = 21;
@@ -54,6 +55,10 @@ const int QUERY_CANCEL_HOUSE_TRANSFER = 52;
 const int QUERY_LOAD_WORLD_CONFIG = 53;
 const int QUERY_LOAD_PLAYER_DATA = 54;
 const int QUERY_SAVE_PLAYER_DATA = 55;
+const int QUERY_BANISH_ACCOUNT_FOR = 56;
+const int QUERY_LIFT_BANISHMENT = 57;
+const int QUERY_BANISH_IP_ADDRESS_FOR = 58;
+const int QUERY_RENAME_CHARACTER = 59;
 
 // The status byte of a response, which executeQuery returns: STATUS_FAILED
 // also when the request could not be sent or answered. STATUS_ERROR is
@@ -113,6 +118,17 @@ struct TQueryManagerConnection {
 	int decrementIsOnline(uint32_t CharacterID);
 	int finishAuctions(int &NumberOfAuctions, unsigned short *HouseIDs, uint32_t *CharacterIDs, char (*CharacterNames)[30], int *Bids);
 	int excludeFromAuctions(uint32_t CharacterID, bool Banish);
+	// The admin port's requests (this project's own; the query manager's
+	// handlers.cc has the layouts). Each gives 0 on success, the error code
+	// of an ERROR response (1, 2 or 3), or -1 when the request failed.
+	// banishAccountFor: Days 0 is for good; Until is the banishment's end
+	// (0xFFFFFFFF: for good). banishIPAddressFor: the same for an address.
+	int banishAccountFor(uint32_t GamemasterID, const char *PlayerName, const char *Reason, const char *Comment,
+			uint32_t Days, uint32_t &BanishmentID, uint32_t &Until);
+	int liftBanishment(const char *PlayerName);
+	int banishIPAddressFor(uint32_t GamemasterID, const char *IPAddress, const char *Reason, const char *Comment,
+			uint32_t Days, uint32_t &Until);
+	int renameCharacter(uint32_t CharacterID, const char *NewName);
 	int transferHouses(int &NumberOfTransfers, unsigned short *HouseIDs, uint32_t *NewOwnerIDs, char (*NewOwnerNames)[30], int *Prices);
 	int cancelHouseTransfer(unsigned short HouseID);
 	int evictFreeAccounts(int &NumberOfEvictions, unsigned short *HouseIDs, uint32_t *OwnerIDs);
@@ -155,6 +171,8 @@ protected:
 	uint32_t getQuad();
 	void getString(char *Buffer, int MaxLength);
 	int executeQuery(int Timeout, bool AutoReconnect);
+	// 0, the error code of an ERROR response (1 to MaxCode) or -1 (logged).
+	int adminResult(int Result, int MaxCode, const char *Name);
 private:
 	int BufferSize;
 	unsigned char *Buffer;

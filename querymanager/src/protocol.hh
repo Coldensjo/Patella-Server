@@ -111,6 +111,12 @@ enum QueryType : uint8_t {
 	// catalogue.
 	QUERY_LOAD_PLAYER_DATA = 54,
 	QUERY_SAVE_PLAYER_DATA = 55,
+	// This project's own: the admin port's punishments and renames (the
+	// game's patella-admin commands ban, unban, banip and rename).
+	QUERY_BANISH_ACCOUNT_FOR = 56,
+	QUERY_LIFT_BANISHMENT = 57,
+	QUERY_BANISH_IP_ADDRESS_FOR = 58,
+	QUERY_RENAME_CHARACTER = 59,
 	QUERY_GET_KEPT_CHARACTERS = 200,
 	QUERY_GET_DELETED_CHARACTERS = 201,
 	QUERY_DELETE_OLD_CHARACTER = 202,

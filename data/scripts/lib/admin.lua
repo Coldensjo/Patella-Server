@@ -28,6 +28,14 @@
 --                                    field near position; false if none.
 --   admin.units(typeId, count)       the values of the objects count of a
 --                                    type are made of.
+--   admin.countFrom(container, typeId), admin.countInInventory(typeId),
+--   admin.countInDepots(typeId)      how many units of a type are there.
+--   admin.joinWords(words, first)    the words from first on, with spaces.
+--   admin.parseDays(word)            the days of a banishment (0: for good),
+--                                    or nil and why not.
+--   admin.daysText(days)             "for 7 days" or "for good".
+--   admin.checkName(name)            nil for a valid character name, else
+--                                    why not.
 
 local commands = require("lib.commands")
 
@@ -267,7 +275,100 @@ local function units(typeId, count)
 	return values
 end
 
+-- countFrom(container, typeId) -> how many units of the type are below
+-- container (depth first, in containers of the type too).
+local function countFrom(container, typeId)
+	local count = 0
+	local item = container:getFirstObject()
+	while item ~= nil do
+		if item:getId() == typeId then
+			count = count + unitsOf(item)
+		end
+		if item:hasFlag(FLAG_CONTAINER) then
+			count = count + countFrom(item, typeId)
+		end
+		item = item:getNextObject()
+	end
+	return count
+end
+
+-- countInInventory(typeId), countInDepots(typeId) -> the units of the type
+-- the open character carries, or has in all its depots.
+local function countInInventory(typeId)
+	local count = 0
+	for slot = CONST_SLOT_HEAD, CONST_SLOT_AMMO do
+		count = count + countFrom(Admin.getInventoryContainer(slot), typeId)
+	end
+	return count
+end
+
+local function countInDepots(typeId)
+	local count = 0
+	for depot = 0, MAX_DEPOT do
+		count = count + countFrom(Admin.getDepotContainer(depot), typeId)
+	end
+	return count
+end
+
+-- joinWords(words, first) -> the words from first on, separated by spaces
+-- ("" when there are none).
+local function joinWords(words, first)
+	return table.concat(words, " ", first)
+end
+
+-- parseDays(word) -> the days of a banishment: a whole number from 1 to
+-- 3650, or 0 for "permanent" (also "perm", "forever"); nil and the reason
+-- otherwise.
+local function parseDays(word)
+	if word == nil then
+		return nil, "No length given: a number of days, or permanent."
+	end
+	local lowered = commands.lower(word)
+	if lowered == "permanent" or lowered == "perm" or lowered == "forever" then
+		return 0
+	end
+	local days = tonumber(word)
+	if days == nil or days ~= floor(days) or days < 1 or days > 3650 then
+		return nil, "The length must be a number of days from 1 to 3650, or permanent."
+	end
+	return days
+end
+
+-- daysText(days) -> "for 7 days", "for 1 day" or "for good" (0).
+local function daysText(days)
+	if days == 0 then
+		return "for good"
+	end
+	return format("for %d day%s", days, days == 1 and "" or "s")
+end
+
+-- checkName(name) -> nil when name is a character name the game takes, else
+-- the reason: 2 to 29 characters, letters with single spaces, apostrophes
+-- or hyphens between them, beginning with a capital letter.
+local function checkName(name)
+	if #name < 2 or #name > 29 then
+		return "A name has 2 to 29 characters."
+	end
+	if not string.find(name, "^[A-Z]") then
+		return "A name begins with a capital letter."
+	end
+	if string.find(name, "[^A-Za-z '%-]") then
+		return "A name has only letters, spaces, apostrophes and hyphens."
+	end
+	if string.find(name, "[ '%-][ '%-]") or string.find(name, "[ '%-]$") then
+		return "Spaces, apostrophes and hyphens go between letters, one at a time."
+	end
+	return nil
+end
+
 local fields = {
+	countFrom = countFrom,
+	countInInventory = countInInventory,
+	countInDepots = countInDepots,
+	joinWords = joinWords,
+	parseDays = parseDays,
+	daysText = daysText,
+	checkName = checkName,
 	parseItem = parseItem,
 	itemName = itemName,
 	parseCount = parseCount,

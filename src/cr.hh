@@ -562,6 +562,9 @@ struct TPlayer : public TCreature {
 	int RecordTalk();
 	int RecordMessage(uint32_t Addressee);
 	int CheckForMuting();
+	// The round up to which the player is muted (0: not); the admin port's
+	// mute.
+	void SetMutingEndRound(uint32_t Round) { MutingEndRound = Round; }
 private:
 	void Regenerate();
 public:

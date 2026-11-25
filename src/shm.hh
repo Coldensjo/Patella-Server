@@ -17,6 +17,9 @@ const int COMMAND_BROADCAST = 1;
 
 void StartGame();
 void CloseGame();
+// Opens a closing game again (GAME_CLOSING to GAME_RUNNING): the logins a
+// cancelled shutdown closed.
+void ReopenGame();
 void EndGame();
 bool GameRunning();
 bool GameStarting();

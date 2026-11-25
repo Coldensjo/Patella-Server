@@ -42,6 +42,12 @@ public:
 
 	void banishIpAddress(const std::string &address, uint32_t until) override;
 	bool isIpBanished(const std::string &address, uint32_t now) override;
+	uint32_t addBanishment(const BanishmentRecord &banishment) override;
+	BanishmentHistory banishmentHistory(uint32_t accountId) override;
+	bool liftBanishment(uint32_t accountId, uint32_t now) override;
+	uint32_t addNotation(const NotationRecord &notation) override;
+	std::vector<NotationRecord> listNotations(uint32_t characterId) override;
+	bool renameCharacter(uint32_t characterId, const std::string &name) override;
 
 	void putCharacter(const CharacterRecord &character) override;
 	std::optional<CharacterRecord> findCharacter(uint32_t characterId) override;

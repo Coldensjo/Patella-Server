@@ -1017,6 +1017,163 @@ void testEvictions() {
 	CHECK(f.call(noGuildhouses) == empty);
 }
 
+PlayerData samplePlayerData(uint32_t characterId);
+
+// A quad of a response at index Index (little-endian, as the protocol writes).
+uint32_t quadAt(const std::vector<uint8_t> &response, size_t index) {
+	return static_cast<uint32_t>(response[index]) | (static_cast<uint32_t>(response[index + 1]) << 8)
+		| (static_cast<uint32_t>(response[index + 2]) << 16) | (static_cast<uint32_t>(response[index + 3]) << 24);
+}
+
+// A request of the rule violation dialog's layout (setNamelock, banishAccount
+// without its flag, setNotation, banishIPAddress).
+WriteBuffer punishment(uint8_t type, const std::string &name, const std::string &address = "192.0.2.9") {
+	WriteBuffer buffer = request(type);
+	buffer.writeQuad(77);
+	buffer.writeString(name);
+	buffer.writeString(address);
+	buffer.writeString("NAME_INSULTING");
+	buffer.writeString("made up comment");
+	return buffer;
+}
+
+WriteBuffer banishAccount(const std::string &name, bool finalWarning = false) {
+	WriteBuffer buffer = punishment(QUERY_BANISH_ACCOUNT, name);
+	buffer.writeFlag(finalWarning);
+	return buffer;
+}
+
+WriteBuffer banishAccountFor(const std::string &name, uint32_t days) {
+	WriteBuffer buffer = request(QUERY_BANISH_ACCOUNT_FOR);
+	buffer.writeQuad(0);
+	buffer.writeString(name);
+	buffer.writeString("made up reason");
+	buffer.writeString("");
+	buffer.writeQuad(days);
+	return buffer;
+}
+
+WriteBuffer rename(uint32_t characterId, const std::string &name) {
+	WriteBuffer buffer = request(QUERY_RENAME_CHARACTER);
+	buffer.writeQuad(characterId);
+	buffer.writeString(name);
+	return buffer;
+}
+
+void testNamelockAndRename() {
+	Fixture f;
+	f.login();
+	f.addAccount(111, "pw");
+	f.addCharacter(5, "Made Up Bad", 111);
+	f.addCharacter(6, "Made Up Other", 111);
+
+	CHECK(isError(f.call(punishment(QUERY_SET_NAMELOCK, "Nobody Made Up")), 1));
+	CHECK(isOk(f.call(punishment(QUERY_SET_NAMELOCK, "made up bad"))));
+	CHECK(f.storage.findCharacter(5)->namelocked);
+	CHECK(isError(f.call(punishment(QUERY_SET_NAMELOCK, "Made Up Bad")), 3));
+	// A namelocked character cannot log in.
+	CHECK(isError(f.call(loginGameRequest(111, "Made Up Bad", "pw")), LOGIN_NAMELOCKED));
+
+	// Another character's name (in any case) is refused, a free one taken,
+	// and the namelock goes with the old name.
+	CHECK(isError(f.call(rename(5, "made up OTHER")), 2));
+	CHECK(isError(f.call(rename(99, "Made Up New")), 1));
+	CHECK(isError(f.call(rename(5, "")), 3));
+	CHECK(isError(f.call(rename(5, std::string(30, 'a'))), 3));
+	CHECK(isOk(f.call(rename(5, "Made Up Good"))));
+	std::optional<CharacterRecord> renamed = f.storage.findCharacter(5);
+	CHECK(renamed && renamed->name == "Made Up Good" && !renamed->namelocked);
+	CHECK(f.storage.findCharacterByName("made up good").has_value());
+	CHECK(!f.storage.findCharacterByName("Made Up Bad").has_value());
+	// The player data keeps the name too.
+	PlayerData data = samplePlayerData(5);
+	f.storage.savePlayerData(data);
+	CHECK(isOk(f.call(rename(5, "Made Up Better"))));
+	CHECK(f.storage.loadPlayerData(5)->name == "Made Up Better");
+	// The same name again (another case) is the character's own: allowed.
+	CHECK(isOk(f.call(rename(5, "made up better"))));
+}
+
+void testBanishments() {
+	Fixture f;
+	f.login();
+	f.addAccount(111, "pw");
+	f.addCharacter(5, "Made Up Bad", 111);
+	f.addCharacter(7, "Made Up Loner");
+	AccountRecord gamemaster = f.addAccount(222, "gm");
+	gamemaster.gamemaster = true;
+	f.storage.putAccount(gamemaster);
+	f.addCharacter(8, "Made Up Gamemaster", 222);
+
+	CHECK(isError(f.call(banishAccount("Nobody Made Up")), 1));
+	CHECK(isError(f.call(banishAccount("Made Up Loner")), 1));
+	CHECK(isError(f.call(banishAccount("Made Up Gamemaster")), 2));
+
+	// The rule violation dialog's banishments grow: 7, 15, then 30 days with
+	// a final warning, then for good.
+	std::vector<uint8_t> first = f.call(banishAccount("Made Up Bad"));
+	CHECK(first.size() == 7 && first[0] == STATUS_OK && first[5] == 7 && first[6] == 0);
+	CHECK(f.storage.findAccount(111)->banishedUntil == StartTime + 7 * 86400);
+	CHECK(isError(f.call(loginGameRequest(111, "Made Up Bad", "pw")), LOGIN_ACCOUNT_BANISHED));
+	CHECK(isError(f.call(banishAccount("Made Up Bad")), 3));
+	f.now += 8 * 86400;
+	std::vector<uint8_t> second = f.call(banishAccount("Made Up Bad"));
+	CHECK(second.size() == 7 && second[5] == 15 && second[6] == 0);
+	f.now += 16 * 86400;
+	std::vector<uint8_t> third = f.call(banishAccount("Made Up Bad"));
+	CHECK(third.size() == 7 && third[5] == 30 && third[6] == 1);
+	f.now += 31 * 86400;
+	std::vector<uint8_t> fourth = f.call(banishAccount("Made Up Bad"));
+	CHECK(fourth.size() == 7 && fourth[5] == 0xFF && fourth[6] == 0);
+	CHECK(f.storage.findAccount(111)->banishedUntil == PERMANENT_BANISHMENT);
+	CHECK(f.storage.banishmentHistory(111).count == 4);
+
+	// liftBanishment ends it; a second time there is nothing to lift.
+	WriteBuffer lift = request(QUERY_LIFT_BANISHMENT);
+	lift.writeString("Made Up Bad");
+	CHECK(isOk(f.call(lift)));
+	CHECK(f.storage.findAccount(111)->banishedUntil == 0);
+	CHECK(isError(f.call(lift), 2));
+
+	// The admin port's banishment: the days given, or for good.
+	std::vector<uint8_t> three = f.call(banishAccountFor("Made Up Bad", 3));
+	CHECK(three.size() == 9 && three[0] == STATUS_OK && quadAt(three, 5) == f.now + 3 * 86400);
+	CHECK(isOk(f.call(lift)));
+	std::vector<uint8_t> forever = f.call(banishAccountFor("Made Up Bad", 0));
+	CHECK(forever.size() == 9 && quadAt(forever, 5) == PERMANENT_BANISHMENT);
+	CHECK(isError(f.call(banishAccountFor("Made Up Gamemaster", 3)), 2));
+	CHECK(isError(f.call(banishAccountFor("Made Up Loner", 3)), 1));
+}
+
+void testIpBanishmentsAndNotations() {
+	Fixture f;
+	f.login();
+	f.addAccount(111, "pw");
+	f.addCharacter(5, "Made Up Bad", 111);
+
+	CHECK(isError(f.call(punishment(QUERY_BANISH_IP_ADDRESS, "Made Up Bad", "not an address")), 1));
+	CHECK(isError(f.call(punishment(QUERY_BANISH_IP_ADDRESS, "Made Up Bad", "1.2.3.256")), 1));
+	CHECK(isOk(f.call(punishment(QUERY_BANISH_IP_ADDRESS, "Made Up Bad", "192.0.2.9"))));
+	CHECK(f.storage.isIpBanished("192.0.2.9", f.now));
+	CHECK(!f.storage.isIpBanished("192.0.2.9", f.now + 8 * 86400));
+
+	WriteBuffer forever = request(QUERY_BANISH_IP_ADDRESS_FOR);
+	forever.writeQuad(0);
+	forever.writeString("192.0.2.10");
+	forever.writeString("");
+	forever.writeString("");
+	forever.writeQuad(0);
+	std::vector<uint8_t> response = f.call(forever);
+	CHECK(response.size() == 5 && quadAt(response, 1) == PERMANENT_BANISHMENT);
+	CHECK(f.storage.isIpBanished("192.0.2.10", f.now + 1000 * 86400));
+
+	std::vector<uint8_t> notation = f.call(punishment(QUERY_SET_NOTATION, "Made Up Bad"));
+	CHECK(notation.size() == 5 && notation[0] == STATUS_OK);
+	std::vector<NotationRecord> notations = f.storage.listNotations(5);
+	CHECK(notations.size() == 1 && notations[0].comment == "made up comment" && notations[0].gamemasterId == 77);
+	CHECK(isError(f.call(punishment(QUERY_SET_NOTATION, "Nobody Made Up")), 1));
+}
+
 void testRejectedRequests() {
 	Fixture f;
 	f.login();
@@ -1225,6 +1382,7 @@ void testSchemaMigration() {
 	CHECK(sqlite3_open(path, &db) == SQLITE_OK);
 	CHECK(sqlite3_exec(db, "DROP TABLE player_data; DROP TABLE player_skills; DROP TABLE player_spells;"
 		" DROP TABLE player_quest_values; DROP TABLE player_murders; DROP TABLE player_depots;"
+		" DROP TABLE banishments; DROP TABLE notations;"
 		" UPDATE meta SET value = '1' WHERE key = 'schema_version'", nullptr, nullptr, nullptr) == SQLITE_OK);
 	sqlite3_close(db);
 	{
@@ -1240,10 +1398,20 @@ void testSchemaMigration() {
 	sqlite3_stmt *stmt = nullptr;
 	CHECK(sqlite3_prepare_v2(db, "SELECT value FROM meta WHERE key = 'schema_version'", -1, &stmt, nullptr)
 		== SQLITE_OK);
-	CHECK(sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) == 2);
+	CHECK(sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_int(stmt, 0) == 3);
 	sqlite3_finalize(stmt);
+	// A version 2 database gets the banishments and notations.
+	CHECK(sqlite3_exec(db, "DROP TABLE banishments; DROP TABLE notations;"
+		" UPDATE meta SET value = '2' WHERE key = 'schema_version'", nullptr, nullptr, nullptr) == SQLITE_OK);
+	sqlite3_close(db);
+	{
+		SqliteStorage storage(path);
+		CHECK(storage.loadPlayerData(9).has_value());
+		CHECK(storage.countRows("banishments") == 0 && storage.countRows("notations") == 0);
+	}
+	CHECK(sqlite3_open(path, &db) == SQLITE_OK);
 	// A version this program does not know is refused.
-	CHECK(sqlite3_exec(db, "UPDATE meta SET value = '3' WHERE key = 'schema_version'", nullptr, nullptr,
+	CHECK(sqlite3_exec(db, "UPDATE meta SET value = '4' WHERE key = 'schema_version'", nullptr, nullptr,
 		nullptr) == SQLITE_OK);
 	sqlite3_close(db);
 	CHECK_THROWS(SqliteStorage storage(path), StorageError);
@@ -1317,6 +1485,9 @@ void all() {
 	testTransfers();
 	testEvictions();
 	testRejectedRequests();
+	testNamelockAndRename();
+	testBanishments();
+	testIpBanishmentsAndNotations();
 	testPlayerData();
 	testSchemaMigration();
 	testStorageBasics();

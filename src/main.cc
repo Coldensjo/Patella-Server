@@ -65,6 +65,102 @@ int SigAlarmCounter;
 bool SaveMapOn;
 bool Reboot;
 
+// The shutdown of ScheduleShutdown (main.hh): its round (0: none), whether
+// the game restarts, and whether the logins are closed for it.
+static uint32_t ShutdownRound = 0;
+static bool ShutdownRestart = false;
+static bool ShutdownClosed = false;
+
+// The minutes before a scheduled shutdown at which the players are warned
+// (with the daily reboot's texts) and from which the logins are closed.
+static const int SHUTDOWN_CLOSE_MINUTES = 5;
+
+// Warns the players that the game goes down in Minutes minutes, as the daily
+// reboot does.
+static void BroadcastShutdown(int Minutes, bool Restart) {
+	if (Minutes == 1) {
+		if (Restart) {
+			BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is saving game in one minute.\nPlease log out.");
+		} else {
+			BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is going down in one minute.\nPlease log out.");
+		}
+	} else if (Restart) {
+		BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is saving game in %d minutes.\nPlease come back in 10 minutes.",
+				Minutes);
+	} else {
+		BroadcastMessage(TALK_ADMIN_MESSAGE, "Server is going down in %d minutes.\nPlease log out.", Minutes);
+	}
+}
+
+void ScheduleShutdown(int Minutes, bool Restart) {
+	ShutdownRound = RoundNr + static_cast<uint32_t>(Minutes > 0 ? Minutes : 0) * 60 + 1;
+	ShutdownRestart = Restart;
+	Log("game", "Shutdown scheduled in %d minutes%s.\n", Minutes, Restart ? " with restart" : "");
+	if (Minutes > 0) {
+		BroadcastShutdown(Minutes, Restart);
+	}
+}
+
+bool CancelShutdown() {
+	if (ShutdownRound == 0) {
+		return false;
+	}
+	ShutdownRound = 0;
+	if (ShutdownClosed) {
+		ShutdownClosed = false;
+		ReopenGame();
+	}
+	Log("game", "Scheduled shutdown cancelled.\n");
+	BroadcastMessage(TALK_ADMIN_MESSAGE, "The server will not go down after all.");
+	return true;
+}
+
+int ShutdownSecondsLeft() {
+	if (ShutdownRound == 0) {
+		return -1;
+	}
+	return ShutdownRound > RoundNr ? static_cast<int>(ShutdownRound - RoundNr) : 0;
+}
+
+bool ShutdownRestarts() {
+	return ShutdownRestart;
+}
+
+// The scheduled shutdown's round: the warnings, the closing of the logins and
+// at the end the shutdown, as the daily reboot does them.
+static void ProcessShutdown() {
+	if (ShutdownRound == 0) {
+		return;
+	}
+	if (RoundNr < ShutdownRound) {
+		uint32_t Left = ShutdownRound - RoundNr;
+		if (Left % 60 == 0) {
+			int Minutes = static_cast<int>(Left / 60);
+			if (Minutes == 5 || Minutes == 3 || Minutes == 1 || Minutes % 10 == 0) {
+				BroadcastShutdown(Minutes, ShutdownRestart);
+			}
+		}
+		if (Left <= static_cast<uint32_t>(SHUTDOWN_CLOSE_MINUTES) * 60 && !ShutdownClosed) {
+			ShutdownClosed = true;
+			CloseGame();
+		}
+		return;
+	}
+
+	ShutdownRound = 0;
+	Log("game", "Scheduled shutdown%s.\n", ShutdownRestart ? " with restart" : "");
+	Reboot = ShutdownRestart;
+	CloseGame();
+	LogoutAllPlayers();
+	SendAll();
+	if (Reboot) {
+		RefreshMap();
+	}
+	SaveMap();
+	SaveMapOn = false;
+	EndGame();
+}
+
 void ProcessCommand() {
 	int Command = GetCommand();
 	if (Command != 0) {
@@ -123,6 +219,7 @@ void AdvanceGame(int Delay) {
 		ProcessWriterThreadReplies();
 		ProcessCommand();
 		ProcessScriptReload();
+		ProcessShutdown();
 
 		int Brightness, Color;
 		GetAmbiente(Brightness, Color);

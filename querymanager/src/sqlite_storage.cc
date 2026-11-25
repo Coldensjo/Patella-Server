@@ -14,8 +14,9 @@ namespace qm {
 namespace {
 
 // Version of the schema below, stored in meta.schema_version. 2 added the
-// player data (PlayerDataSchema); migrate() brings a version 1 database up.
-const int SchemaVersion = 2;
+// player data (PlayerDataSchema), 3 the banishments and notations
+// (PunishmentSchema); migrate() brings an older database up.
+const int SchemaVersion = 3;
 
 // Table and column names follow the SQL statements the game writes to its
 // house log for the operator ("on reset: ..." in src/houses.cc): tables
@@ -275,6 +276,34 @@ const char *const PlayerDataSchema =
 	"	PRIMARY KEY (character_id, depot_nr)"
 	") WITHOUT ROWID;";
 
+// The banishments of accounts (each one, also those that have ended; the
+// account's banished_until is the end of the current one) and the notations
+// on characters, as the banishment requests record them (handlers.cc).
+// until 4294967295: for good.
+const char *const PunishmentSchema =
+	"CREATE TABLE banishments ("
+	"	banishment_id INTEGER PRIMARY KEY,"
+	"	account_id INTEGER NOT NULL,"
+	"	character_id INTEGER NOT NULL DEFAULT 0,"
+	"	gamemaster_id INTEGER NOT NULL DEFAULT 0,"
+	"	reason TEXT NOT NULL DEFAULT '',"
+	"	comment TEXT NOT NULL DEFAULT '',"
+	"	time INTEGER NOT NULL,"
+	"	until INTEGER NOT NULL,"
+	"	final_warning INTEGER NOT NULL DEFAULT 0"
+	");"
+	"CREATE INDEX banishments_account ON banishments (account_id);"
+
+	"CREATE TABLE notations ("
+	"	notation_id INTEGER PRIMARY KEY,"
+	"	character_id INTEGER NOT NULL,"
+	"	gamemaster_id INTEGER NOT NULL DEFAULT 0,"
+	"	reason TEXT NOT NULL DEFAULT '',"
+	"	comment TEXT NOT NULL DEFAULT '',"
+	"	time INTEGER NOT NULL"
+	");"
+	"CREATE INDEX notations_character ON notations (character_id);";
+
 class Stmt {
 public:
 	Stmt(sqlite3 *db, const char *sql) : Db(db), Handle(nullptr) {
@@ -476,6 +505,7 @@ void SqliteStorage::createSchema() {
 		try {
 			exec(Schema);
 			exec(PlayerDataSchema);
+			exec(PunishmentSchema);
 			Stmt stmt(Db, "INSERT INTO meta (key, value) VALUES ('schema_version', ?)");
 			stmt.bind(1, SchemaVersion).run();
 		} catch (...) {
@@ -508,6 +538,9 @@ void SqliteStorage::migrate(int64_t version) {
 	try {
 		if (version < 2) {
 			exec(PlayerDataSchema);
+		}
+		if (version < 3) {
+			exec(PunishmentSchema);
 		}
 		Stmt stmt(Db, "UPDATE meta SET value = ? WHERE key = 'schema_version'");
 		stmt.bind(1, SchemaVersion).run();
@@ -724,6 +757,79 @@ bool SqliteStorage::isIpBanished(const std::string &address, uint32_t now) {
 	Stmt stmt(Db, "SELECT 1 FROM ip_banishments WHERE address = ? AND banished_until > ?");
 	stmt.bindText(1, address).bind(2, now);
 	return stmt.step();
+}
+
+// --- banishments, notations, renames
+
+uint32_t SqliteStorage::addBanishment(const BanishmentRecord &banishment) {
+	{
+		Stmt stmt(Db, "INSERT INTO banishments (account_id, character_id, gamemaster_id, reason, comment, time,"
+			" until, final_warning) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+		stmt.bind(1, banishment.accountId).bind(2, banishment.characterId).bind(3, banishment.gamemasterId)
+			.bindText(4, banishment.reason).bindText(5, banishment.comment).bind(6, banishment.time)
+			.bind(7, banishment.until).bind(8, banishment.finalWarning ? 1 : 0).run();
+	}
+	uint32_t id = static_cast<uint32_t>(sqlite3_last_insert_rowid(Db));
+	Stmt stmt(Db, "UPDATE accounts SET banished_until = MAX(banished_until, ?) WHERE account_id = ?");
+	stmt.bind(1, banishment.until).bind(2, banishment.accountId).run();
+	return id;
+}
+
+BanishmentHistory SqliteStorage::banishmentHistory(uint32_t accountId) {
+	Stmt stmt(Db, "SELECT COUNT(*), COALESCE(MAX(final_warning), 0) FROM banishments WHERE account_id = ?");
+	stmt.bind(1, accountId);
+	BanishmentHistory history;
+	if (stmt.step()) {
+		history.count = static_cast<uint32_t>(stmt.columnInt(0));
+		history.finalWarning = stmt.columnInt(1) != 0;
+	}
+	return history;
+}
+
+bool SqliteStorage::liftBanishment(uint32_t accountId, uint32_t now) {
+	Stmt stmt(Db, "UPDATE accounts SET banished_until = 0 WHERE account_id = ? AND banished_until > ?");
+	stmt.bind(1, accountId).bind(2, now).run();
+	return sqlite3_changes(Db) > 0;
+}
+
+uint32_t SqliteStorage::addNotation(const NotationRecord &notation) {
+	Stmt stmt(Db, "INSERT INTO notations (character_id, gamemaster_id, reason, comment, time)"
+		" VALUES (?, ?, ?, ?, ?)");
+	stmt.bind(1, notation.characterId).bind(2, notation.gamemasterId).bindText(3, notation.reason)
+		.bindText(4, notation.comment).bind(5, notation.time).run();
+	return static_cast<uint32_t>(sqlite3_last_insert_rowid(Db));
+}
+
+std::vector<NotationRecord> SqliteStorage::listNotations(uint32_t characterId) {
+	Stmt stmt(Db, "SELECT notation_id, character_id, gamemaster_id, reason, comment, time FROM notations"
+		" WHERE character_id = ? ORDER BY notation_id");
+	stmt.bind(1, characterId);
+	std::vector<NotationRecord> notations;
+	while (stmt.step()) {
+		NotationRecord notation;
+		notation.id = static_cast<uint32_t>(stmt.columnInt(0));
+		notation.characterId = static_cast<uint32_t>(stmt.columnInt(1));
+		notation.gamemasterId = static_cast<uint32_t>(stmt.columnInt(2));
+		notation.reason = stmt.columnText(3);
+		notation.comment = stmt.columnText(4);
+		notation.time = static_cast<uint32_t>(stmt.columnInt(5));
+		notations.push_back(notation);
+	}
+	return notations;
+}
+
+bool SqliteStorage::renameCharacter(uint32_t characterId, const std::string &name) {
+	std::optional<CharacterRecord> other = findCharacterByName(name);
+	if (other && other->id != characterId) {
+		return false;
+	}
+	{
+		Stmt stmt(Db, "UPDATE characters SET name = ?, name_key = ?, namelocked = 0 WHERE character_id = ?");
+		stmt.bindText(1, name).bindText(2, foldLatin1(name)).bind(3, characterId).run();
+	}
+	Stmt stmt(Db, "UPDATE player_data SET name = ? WHERE character_id = ?");
+	stmt.bindText(1, name).bind(2, characterId).run();
+	return true;
 }
 
 // --- characters

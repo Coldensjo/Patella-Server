@@ -18,26 +18,16 @@ namespace qm {
 //       request:  quad AccountID, string Password, string IPAddress
 //       response: OK: nothing. ERROR: byte code 1..4.
 //  11 loginAccount: not sent by the game server, see handlers.cc.
-//  54 loadPlayerData, 55 savePlayerData: this project's own, see
-//       handlers.cc.
+//  54 loadPlayerData, 55 savePlayerData, 56 banishAccountFor,
+//  57 liftBanishment, 58 banishIPAddressFor, 59 renameCharacter: this
+//       project's own, see handlers.cc.
+//  23 setNamelock, 25 banishAccount, 26 setNotation, 28 banishIPAddress:
+//       implemented, see handlers.cc.
 //  12 loginAdmin
 //       request:  quad AccountID, flag PrivateWorld
 //       response: OK: byte NumberOfCharacters, then per character
 //                 string Name, string World, 4 bytes IPAddress, word Port;
 //                 then word PremiumDaysLeft. ERROR: byte code 1.
-//  23 setNamelock
-//       request:  quad GamemasterID, string PlayerName, string IPAddress,
-//                 string Reason, string Comment
-//       response: OK: nothing. ERROR: byte code 1..4.
-//  25 banishAccount
-//       request:  quad GamemasterID, string PlayerName, string IPAddress,
-//                 string Reason, string Comment, flag FinalWarning
-//       response: OK: quad BanishmentID, byte Days (0xFF = unlimited),
-//                 flag FinalWarning. ERROR: byte code 1..3.
-//  26 setNotation
-//       request:  quad GamemasterID, string PlayerName, string IPAddress,
-//                 string Reason, string Comment
-//       response: OK: quad BanishmentID. ERROR: byte code 1..2.
 //  27 reportStatement
 //       request:  quad ReporterID, string PlayerName, string Reason,
 //                 string Comment, quad BanishmentID, quad StatementID,
@@ -50,10 +40,6 @@ namespace qm {
 //                 is left out, so Count can be larger than the number of
 //                 entries that follow. Read entries to the end of the
 //                 request, not by Count.
-//       response: OK: nothing. ERROR: byte code 1..2.
-//  28 banishIPAddress
-//       request:  quad GamemasterID, string PlayerName, string IPAddress,
-//                 string Reason, string Comment
 //       response: OK: nothing. ERROR: byte code 1..2.
 // 200 getKeptCharacters, 201 getDeletedCharacters, 203 getHiddenCharacters
 //       request:  quad MinimumCharacterID
@@ -110,11 +96,11 @@ static const QueryInfo QueryTable[] = {
 	{QUERY_LOGIN_ADMIN, "loginAdmin", 0x80e1610, false},
 	{QUERY_LOGIN_GAME, "loginGame", 0x80e1c10, true},
 	{QUERY_LOGOUT_GAME, "logoutGame", 0x80e3010, true},
-	{QUERY_SET_NAMELOCK, "setNamelock", 0x80e34f0, false},
-	{QUERY_BANISH_ACCOUNT, "banishAccount", 0x80e3760, false},
-	{QUERY_SET_NOTATION, "setNotation", 0x80e3240, false},
+	{QUERY_SET_NAMELOCK, "setNamelock", 0x80e34f0, true},
+	{QUERY_BANISH_ACCOUNT, "banishAccount", 0x80e3760, true},
+	{QUERY_SET_NOTATION, "setNotation", 0x80e3240, true},
 	{QUERY_REPORT_STATEMENT, "reportStatement", 0x80e3b00, false},
-	{QUERY_BANISH_IP_ADDRESS, "banishIPAddress", 0x80e3fc0, false},
+	{QUERY_BANISH_IP_ADDRESS, "banishIPAddress", 0x80e3fc0, true},
 	{QUERY_LOG_CHARACTER_DEATH, "logCharacterDeath", 0x80e4230, true},
 	{QUERY_ADD_BUDDY, "addBuddy", 0x80e4480, true},
 	{QUERY_REMOVE_BUDDY, "removeBuddy", 0x80e45b0, true},
@@ -140,6 +126,10 @@ static const QueryInfo QueryTable[] = {
 	{QUERY_LOAD_WORLD_CONFIG, "loadWorldConfig", 0x80e1950, true},
 	{QUERY_LOAD_PLAYER_DATA, "loadPlayerData", 0, true},
 	{QUERY_SAVE_PLAYER_DATA, "savePlayerData", 0, true},
+	{QUERY_BANISH_ACCOUNT_FOR, "banishAccountFor", 0, true},
+	{QUERY_LIFT_BANISHMENT, "liftBanishment", 0, true},
+	{QUERY_BANISH_IP_ADDRESS_FOR, "banishIPAddressFor", 0, true},
+	{QUERY_RENAME_CHARACTER, "renameCharacter", 0, true},
 	{QUERY_GET_KEPT_CHARACTERS, "getKeptCharacters", 0x80e6770, false},
 	{QUERY_GET_DELETED_CHARACTERS, "getDeletedCharacters", 0x80e6900, false},
 	{QUERY_DELETE_OLD_CHARACTER, "deleteOldCharacter", 0x80e6a90, false},

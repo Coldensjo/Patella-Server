@@ -132,16 +132,18 @@ static void testFraming() {
 static void testCatalogue() {
 	size_t count = 0;
 	const QueryInfo *table = queryTable(count);
-	CHECK(count == 52);
+	CHECK(count == 56);
 	size_t implemented = 0;
 	for (size_t i = 0; i < count; i++) {
 		if (i > 0) {
 			CHECK(table[i - 1].type < table[i].type);
 		}
-		// loginAccount, loadPlayerData and savePlayerData are this project's
-		// requests; the 2006 bin/game has none of them.
+		// loginAccount, loadPlayerData, savePlayerData and 56 to 59 (the admin
+		// port's) are this project's requests; the 2006 bin/game has none of
+		// them.
 		if (table[i].type == QUERY_LOGIN_ACCOUNT || table[i].type == QUERY_LOAD_PLAYER_DATA
-				|| table[i].type == QUERY_SAVE_PLAYER_DATA) {
+				|| table[i].type == QUERY_SAVE_PLAYER_DATA
+				|| (table[i].type >= QUERY_BANISH_ACCOUNT_FOR && table[i].type <= QUERY_RENAME_CHARACTER)) {
 			CHECK(table[i].address == 0);
 		} else {
 			CHECK(table[i].address >= 0x80e04b0 && table[i].address < 0x80e8c80);
@@ -151,7 +153,7 @@ static void testCatalogue() {
 			implemented++;
 		}
 	}
-	CHECK(implemented == 29);
+	CHECK(implemented == 37);
 
 	CHECK(std::string(queryName(QUERY_LOGIN)) == "login");
 	CHECK(std::string(queryName(11)) == "loginAccount");
